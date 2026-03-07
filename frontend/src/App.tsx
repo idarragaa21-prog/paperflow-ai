@@ -26,13 +26,25 @@ const PresentationsPage = lazy(() => import('./pages/PresentationsPage'));
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
-  if (loading && !user) return <div style={{ padding: 16 }}>Loading…</div>;
+  if (loading && !user) {
+    return (
+      <div className="rc-auth-shell">
+        <div className="rc-auth-grid" style={{ gridTemplateColumns: '1fr' }}>
+          <div className="rc-card rc-auth-card" style={{ maxWidth: 560, margin: '0 auto' }}>
+            <div className="rc-pill rc-pill--soft">Loading</div>
+            <h1 className="rc-page-title" style={{ marginTop: 12 }}>Checking your session</h1>
+            <div className="rc-subtitle">If the backend is reachable, this should take only a moment.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
 function RouteFallback() {
-  return <div style={{ padding: 16 }}>Loading module…</div>;
+  return <div className="rc-help" style={{ padding: 16 }}>Loading module…</div>;
 }
 
 function withSuspense(element: React.ReactNode) {

@@ -1,16 +1,19 @@
 :root {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
   line-height: 1.45;
   font-weight: 400;
 
-  --rc-bg: #f8fafc;
+  --rc-bg: #eef3f1;
   --rc-surface: #ffffff;
-  --rc-text: #0f172a;
-  --rc-muted: rgba(15, 23, 42, 0.72);
-  --rc-border: rgba(15, 23, 42, 0.12);
+  --rc-surface-soft: #f8fbfa;
+  --rc-text: #102033;
+  --rc-muted: rgba(16, 32, 51, 0.68);
+  --rc-border: rgba(16, 32, 51, 0.12);
 
-  --rc-primary: #4f46e5;
-  --rc-primary-weak: rgba(79, 70, 229, 0.12);
+  --rc-primary: #0f766e;
+  --rc-primary-strong: #115e59;
+  --rc-primary-weak: rgba(15, 118, 110, 0.12);
+  --rc-accent: #c2410c;
 
   --rc-success: #16a34a;
   --rc-danger: #b91c1c;
@@ -39,7 +42,10 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: var(--rc-bg);
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.1), transparent 28%),
+    radial-gradient(circle at top right, rgba(194, 65, 12, 0.08), transparent 24%),
+    linear-gradient(180deg, #f6fbf9 0%, var(--rc-bg) 48%, #edf3f8 100%);
 }
 
 /* Inputs */
@@ -95,11 +101,11 @@ body {
 .rc-btn--primary {
   background: var(--rc-primary);
   color: white;
-  border-color: rgba(79, 70, 229, 0.9);
+  border-color: rgba(15, 118, 110, 0.9);
 }
 
 .rc-btn--primary:hover {
-  background: #4338ca;
+  background: var(--rc-primary-strong);
 }
 
 .rc-btn--ghost {
@@ -149,6 +155,25 @@ body {
   font-weight: 750;
   color: var(--rc-muted);
   margin-bottom: 6px;
+}
+
+.rc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(16, 32, 51, 0.06);
+  color: var(--rc-text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rc-pill--soft {
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--rc-primary-strong);
 }
 
 .rc-progress {
