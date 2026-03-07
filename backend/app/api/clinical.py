@@ -98,6 +98,7 @@ async def query_clinical(
         input_params={"sheet_id": str(sheet.id)},
         result={"sheet_id": str(sheet.id)},
         progress_percent=0,
+        queue_name="presentations",
     )
     db.add(job_record)
     await db.commit()
@@ -106,7 +107,7 @@ async def query_clinical(
     try:
         from app.workers.tasks import clinical_query_job
 
-        q = get_job_queue()
+        q = get_job_queue("presentations")
         rq_job = q.enqueue(clinical_query_job, args=(str(job_record.id), str(sheet.id)), job_timeout="60m")
     except Exception:
         job_record.status = "failed"
@@ -264,6 +265,7 @@ async def update_sheet(
         input_params={"sheet_id": str(new_sheet.id), "previous_sheet_id": str(s.id)},
         result={"sheet_id": str(new_sheet.id)},
         progress_percent=0,
+        queue_name="presentations",
     )
     db.add(job_record)
     await db.commit()
@@ -272,7 +274,7 @@ async def update_sheet(
     try:
         from app.workers.tasks import clinical_query_job
 
-        q = get_job_queue()
+        q = get_job_queue("presentations")
         rq_job = q.enqueue(clinical_query_job, args=(str(job_record.id), str(new_sheet.id)), job_timeout="60m")
     except Exception:
         job_record.status = "failed"

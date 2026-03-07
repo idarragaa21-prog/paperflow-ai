@@ -1,0 +1,45 @@
+namespace: paperflow-ai
+
+image:
+  repository: ghcr.io/idarragaa21-prog/paperflow-ai-backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+frontendImage:
+  repository: ghcr.io/idarragaa21-prog/paperflow-ai-frontend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+rEngineImage:
+  repository: ghcr.io/idarragaa21-prog/paperflow-ai-r-engine
+  tag: latest
+  pullPolicy: IfNotPresent
+
+backend:
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    ENV: production
+    STORAGE_BACKEND: s3
+    METRICS_ENABLED: "true"
+
+workers:
+  documents:
+    replicas: 1
+  analysis:
+    replicas: 1
+  presentations:
+    replicas: 1
+
+frontend:
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: false
+  className: nginx
+  host: paperflow.local

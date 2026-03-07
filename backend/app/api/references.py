@@ -2,17 +2,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.middleware.rate_limit import limiter
 from app.models.paper import Paper
-from app.models.project import Project
 from app.models.reference_item import ReferenceItem
 from app.models.user import User
 from app.schemas.references import ReferenceItemResponse, ReferencesImportRequest, ReferencesImportResponse
 from app.services.audit import log_audit
+from app.services.pagination import apply_desc_cursor, encode_cursor
+from app.services.permissions import require_project_access
 from app.services.references_io import export_bibtex, export_ris, parse_bibtex_entries, parse_ris_entries
 
 router = APIRouter(prefix="/references", tags=["references"])
@@ -35,14 +36,6 @@ def _to_response(item: ReferenceItem) -> ReferenceItemResponse:
         language=item.language,
     )
 
-
-async def _require_owned_project(db: AsyncSession, *, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
-
-
 @router.post("/import", response_model=ReferencesImportResponse)
 @limiter.limit("10/minute")
 async def import_references(
@@ -51,7 +44,7 @@ async def import_references(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=payload.project_id, user=user)
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
     parser = parse_bibtex_entries if payload.format == "bibtex" else parse_ris_entries
     parsed = parser(payload.content)
 
@@ -92,15 +85,37 @@ async def import_references(
     return ReferencesImportResponse(imported=len(imported), skipped=skipped, items=[_to_response(item) for item in imported])
 
 
-@router.get("", response_model=list[ReferenceItemResponse])
+@router.get("")
 async def list_references(
     project_id: UUID,
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=project_id, user=user)
-    q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).order_by(ReferenceItem.created_at.desc()))
-    return [_to_response(item) for item in q.scalars().all()]
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    filters = [ReferenceItem.project_id == project_id]
+    cursor_clause = apply_desc_cursor(ReferenceItem, created_at=ReferenceItem.created_at, row_id=ReferenceItem.id, cursor=cursor)
+    page_filters = list(filters)
+    if cursor_clause is not None:
+        page_filters.append(cursor_clause)
+    total_q = await db.execute(select(func.count()).select_from(ReferenceItem).where(and_(*filters)))
+    q = await db.execute(
+        select(ReferenceItem)
+        .where(and_(*page_filters))
+        .order_by(ReferenceItem.created_at.desc(), ReferenceItem.id.desc())
+        .limit(limit + 1)
+    )
+    rows = q.scalars().all()
+    has_more = len(rows) > limit
+    items = rows[:limit]
+    next_cursor = encode_cursor(created_at=items[-1].created_at, row_id=items[-1].id) if has_more and items else None
+    return {
+        "items": [_to_response(item).model_dump() for item in items],
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "total_count": int(total_q.scalar() or 0),
+    }
 
 
 @router.post("/sync-from-library")
@@ -111,33 +126,41 @@ async def sync_references_from_library(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=project_id, user=user)
-    papers_q = await db.execute(select(Paper).where(Paper.project_id == project_id))
-    papers = papers_q.scalars().all()
+    await require_project_access(db, project_id=project_id, user=user, required_role="editor")
     created = 0
-    for paper in papers:
-        ref_q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).where(ReferenceItem.paper_id == paper.id))
-        if ref_q.scalars().first():
-            continue
-        db.add(
-            ReferenceItem(
-                project_id=project_id,
-                paper_id=paper.id,
-                source_format="paper_library",
-                citation_key=(paper.doi or paper.pmid or str(paper.id).split("-")[0]),
-                title=paper.title,
-                authors=[part.strip() for part in (paper.authors or "").split(";") if part.strip()] if paper.authors else None,
-                journal=paper.journal,
-                publication_year=paper.publication_year,
-                doi=paper.doi,
-                pmid=paper.pmid,
-                pmcid=paper.pmcid,
-                abstract_text=paper.abstract_text,
-                language=paper.language,
-                raw_payload={"paper_id": str(paper.id), "source_provider": paper.source_provider},
-            )
+    batch_size = 100
+    offset = 0
+    while True:
+        papers_q = await db.execute(
+            select(Paper).where(Paper.project_id == project_id).order_by(Paper.created_at.desc(), Paper.id.desc()).limit(batch_size).offset(offset)
         )
-        created += 1
+        papers = papers_q.scalars().all()
+        if not papers:
+            break
+        for paper in papers:
+            ref_q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).where(ReferenceItem.paper_id == paper.id))
+            if ref_q.scalars().first():
+                continue
+            db.add(
+                ReferenceItem(
+                    project_id=project_id,
+                    paper_id=paper.id,
+                    source_format="paper_library",
+                    citation_key=(paper.doi or paper.pmid or str(paper.id).split("-")[0]),
+                    title=paper.title,
+                    authors=[part.strip() for part in (paper.authors or "").split(";") if part.strip()] if paper.authors else None,
+                    journal=paper.journal,
+                    publication_year=paper.publication_year,
+                    doi=paper.doi,
+                    pmid=paper.pmid,
+                    pmcid=paper.pmcid,
+                    abstract_text=paper.abstract_text,
+                    language=paper.language,
+                    raw_payload={"paper_id": str(paper.id), "source_provider": paper.source_provider},
+                )
+            )
+            created += 1
+        offset += batch_size
     await db.commit()
     await log_audit(
         db,
@@ -158,7 +181,7 @@ async def export_references(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=project_id, user=user)
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).order_by(ReferenceItem.created_at.asc()))
     items = q.scalars().all()
     payload = [

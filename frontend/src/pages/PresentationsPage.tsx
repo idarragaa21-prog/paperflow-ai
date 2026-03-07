@@ -8,6 +8,13 @@ type PaperRow = {
   title: string;
 };
 
+type PaginatedResponse<T> = {
+  items: T[];
+  next_cursor?: string | null;
+  has_more: boolean;
+  total_count?: number;
+};
+
 type PresentationRow = {
   id: string;
   title: string;
@@ -55,10 +62,11 @@ export default function PresentationsPage() {
     setError(null);
     try {
       const [p1, p2] = await Promise.all([
-        api.get(`/papers/projects/${projectId}`),
+        api.get(`/papers/projects/${projectId}`, { params: { limit: 100 } }),
         api.get(`/presentations/projects/${projectId}/presentations`),
       ]);
-      setPapers((p1.data as any[]).map((p) => ({ id: p.id, title: p.title })) as PaperRow[]);
+      const page = p1.data as PaginatedResponse<any>;
+      setPapers((page.items || []).map((p) => ({ id: p.id, title: p.title })) as PaperRow[]);
       setPresentations(p2.data as PresentationRow[]);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load');

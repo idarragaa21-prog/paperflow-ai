@@ -18,13 +18,16 @@ class Job(Base, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     job_type: Mapped[str] = mapped_column(String(64), nullable=False)  # summarize_paper|generate_presentation|process_pdf
-    status: Mapped[str] = mapped_column(String(32), nullable=False)  # queued|started|progress|completed|failed
+    status: Mapped[str] = mapped_column(String(32), nullable=False)  # queued|started|progress|completed|failed|retry_pending
 
     input_params: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     progress_percent: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    queue_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

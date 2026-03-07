@@ -99,6 +99,7 @@ async def create_batch(
         input_params={"batch_id": str(batch.id)},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -107,7 +108,7 @@ async def create_batch(
     try:
         from app.workers.tasks import meta_extract_batch_job
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(meta_extract_batch_job, args=(str(job_record.id), str(batch.id)), job_timeout="60m")
     except Exception:
         job_record.status = "failed"
@@ -200,6 +201,7 @@ async def retry_item(
         input_params={"batch_id": str(batch.id), "item_id": str(item.id), "paper_id": str(item.paper_id)},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -212,7 +214,7 @@ async def retry_item(
         if not redis_available():
             raise RuntimeError("Job queue unavailable. Redis is required.")
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(meta_extract_paper_job, args=(str(job_record.id), str(batch.id), str(item.id), str(item.paper_id)), job_timeout="30m")
     except Exception:
         job_record.status = "failed"
@@ -289,6 +291,7 @@ async def reextract_study(
         input_params={"batch_id": str(batch_id), "item_id": str(item.id), "paper_id": str(item.paper_id)},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -301,7 +304,7 @@ async def reextract_study(
         if not redis_available():
             raise RuntimeError("Job queue unavailable. Redis is required.")
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(meta_extract_paper_job, args=(str(job_record.id), str(batch_id), str(item.id), str(item.paper_id)), job_timeout="30m")
     except Exception:
         job_record.status = "failed"
@@ -773,6 +776,7 @@ async def export_excel(
         input_params={"project_id": str(project_uuid), "batch_id": str(batch_uuid) if batch_uuid else None},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -781,7 +785,7 @@ async def export_excel(
     try:
         from app.workers.tasks import meta_export_excel_job
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(meta_export_excel_job, args=(str(job_record.id), str(project_uuid), str(batch_uuid) if batch_uuid else ""), job_timeout="20m")
     except Exception:
         job_record.status = "failed"

@@ -26,6 +26,7 @@ class Project(Base, TimestampMixin):
     archived: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
 
     user = relationship("User", back_populates="projects")
+    memberships = relationship("ProjectMembership", back_populates="project", cascade="all, delete-orphan")
     searches = relationship("Search", back_populates="project", cascade="all, delete-orphan")
     papers = relationship("Paper", back_populates="project", cascade="all, delete-orphan")
     notes = relationship("Note", back_populates="project", cascade="all, delete-orphan")

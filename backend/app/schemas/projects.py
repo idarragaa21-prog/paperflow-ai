@@ -26,3 +26,20 @@ class ProjectResponse(BaseModel):
     clinical_area: str | None
     runtime_mode: str
     archived: bool
+    role: str | None = None
+
+
+class ProjectMembershipCreate(BaseModel):
+    user_id: UUID
+    role: str = Field(pattern="^(owner|editor|reviewer|viewer)$")
+
+
+class ProjectMembershipPatch(BaseModel):
+    role: str = Field(pattern="^(owner|editor|reviewer|viewer)$")
+
+
+class ProjectMembershipResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    user_id: UUID
+    role: str

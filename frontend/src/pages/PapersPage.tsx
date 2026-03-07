@@ -25,6 +25,13 @@ type PaperRow = {
   created_at?: string | null;
 };
 
+type PaginatedResponse<T> = {
+  items: T[];
+  next_cursor?: string | null;
+  has_more: boolean;
+  total_count?: number;
+};
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -43,6 +50,8 @@ export default function PapersPage() {
   const confirm = useConfirm();
 
   const [papers, setPapers] = useState<PaperRow[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,13 +64,16 @@ export default function PapersPage() {
 
   const canDownload = useMemo(() => Boolean(projectId && (doi.trim() || pmid.trim())), [projectId, doi, pmid]);
 
-  async function load() {
+  async function load(cursor?: string | null, append = false) {
     if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
-      const rp = await api.get(`/projects/${projectId}/library`);
-      setPapers(rp.data as PaperRow[]);
+      const rp = await api.get(`/projects/${projectId}/library`, { params: { limit: 50, cursor: cursor || undefined } });
+      const page = rp.data as PaginatedResponse<PaperRow>;
+      setPapers((prev) => (append ? [...prev, ...page.items] : page.items));
+      setNextCursor(page.next_cursor || null);
+      setHasMore(Boolean(page.has_more));
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load papers');
     } finally {
@@ -176,7 +188,7 @@ export default function PapersPage() {
       </div>
 
       <div className="rc-row">
-        <button className="rc-btn" onClick={load} disabled={loading}>
+        <button className="rc-btn" onClick={() => { void load(); }} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
@@ -250,6 +262,13 @@ export default function PapersPage() {
             </div>
           </div>
         ))}
+        {hasMore ? (
+          <div className="rc-row">
+            <button className="rc-btn" onClick={() => load(nextCursor, true)} disabled={loading}>
+              {loading ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

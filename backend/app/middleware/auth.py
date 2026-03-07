@@ -3,7 +3,7 @@ from __future__ import annotations
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from app.core.security import verify_token
+from app.core.security import decode_token
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -15,9 +15,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         token = request.cookies.get("access_token")
         if token:
-            user_id = verify_token(token, "access")
-            if user_id:
-                request.state.user_id = user_id
+            payload = decode_token(token, "access")
+            if payload and payload.get("sub"):
+                request.state.user_id = payload["sub"]
+                request.state.session_id = payload.get("sid")
 
         response = await call_next(request)
         return response

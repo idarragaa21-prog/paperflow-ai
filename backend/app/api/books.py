@@ -59,6 +59,7 @@ async def index_book(
         input_params={"book_id": str(book.id)},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -67,7 +68,7 @@ async def index_book(
     try:
         from app.workers.tasks import books_index_job
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(books_index_job, args=(str(job_record.id), str(book.id)), job_timeout="60m")
     except Exception:
         job_record.status = "failed"
@@ -97,6 +98,7 @@ async def scan_books_folder(
         input_params={},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -105,7 +107,7 @@ async def scan_books_folder(
     try:
         from app.workers.books_scan_folder_job import books_scan_folder_job
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(books_scan_folder_job, args=(str(job_record.id),), job_timeout="60m")
     except Exception:
         job_record.status = "failed"
@@ -160,6 +162,7 @@ async def reindex_book(
         input_params={"book_id": str(b.id)},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -168,7 +171,7 @@ async def reindex_book(
     try:
         from app.workers.tasks import books_index_job
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(books_index_job, args=(str(job_record.id), str(b.id)), job_timeout="60m")
     except Exception:
         job_record.status = "failed"

@@ -10,10 +10,10 @@ from app.middleware.rate_limit import limiter
 from app.models.job import Job
 from app.models.note import Note
 from app.models.paper import Paper
-from app.models.project import Project
 from app.models.user import User
 from app.schemas.notes import NoteResponse, SummarizeNoteRequest
 from app.services.jobs import get_job_queue
+from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -30,9 +30,7 @@ async def summarize_paper(
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    project = await db.get(Project, paper.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Paper not found")
+    await require_project_access(db, project_id=paper.project_id, user=user, required_role="editor")
 
     job_record = Job(
         user_id=user.id,
@@ -41,6 +39,7 @@ async def summarize_paper(
         input_params={"paper_id": str(paper.id), "custom_instructions": payload.custom_instructions},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     db.add(job_record)
     await db.commit()
@@ -50,7 +49,7 @@ async def summarize_paper(
     try:
         from app.workers.tasks import summarize_paper_job
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(
             summarize_paper_job,
             args=(str(job_record.id), str(paper.id), payload.custom_instructions),
@@ -78,9 +77,7 @@ async def get_note(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    project = await db.get(Project, note.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Note not found")
+    await require_project_access(db, project_id=note.project_id, user=user, required_role="viewer")
 
     return NoteResponse(
         id=note.id,
@@ -101,9 +98,7 @@ async def list_notes(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     stmt = select(Note).where(Note.project_id == project_id)
     if paper_id:

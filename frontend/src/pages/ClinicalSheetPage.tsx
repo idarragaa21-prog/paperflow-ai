@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ClinicalProViewer from '../components/clinical/ClinicalProViewer';
 import EvidenceDrawer from '../domain/clinical/components/EvidenceDrawer';
+import { api } from '../services/api';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
 import { useClinicalSheet } from '../domain/clinical/hooks/useClinicalSheet';
 import { enqueueClinicalUpdate } from '../services/clinical';
@@ -60,7 +61,6 @@ export default function ClinicalSheetPage() {
   async function exportDocx() {
     if (!sheetId) return;
     try {
-      const { api } = await import('../services/api');
       const r = await api.get(`/clinical/${sheetId}/download?format=docx`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, `clinical_${sheetId}.docx`);
       toast.success('Download started', 'DOCX export');
@@ -72,7 +72,6 @@ export default function ClinicalSheetPage() {
   async function exportPdf() {
     if (!sheetId) return;
     try {
-      const { api } = await import('../services/api');
       const r = await api.get(`/clinical/${sheetId}/download?format=pdf`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, `clinical_${sheetId}.pdf`);
       toast.success('Download started', 'PDF export');
@@ -97,7 +96,6 @@ export default function ClinicalSheetPage() {
       });
       if (!ok) return;
 
-      const { api } = await import('../services/api');
       const r = await api.post('/presentations/generate', {
         project_id: projectId,
         topic: sheet?.topic || 'Clinical sheet',

@@ -1,3 +1,5 @@
+from app.models.auth import AuthSession
+from app.models.membership import ProjectMembership
 from app.models.user import User
 from app.models.project import Project
 from app.models.search import Search, SearchResult
@@ -33,7 +35,9 @@ from app.models.book_index import BookIndex
 
 __all__ = [
     "User",
+    "AuthSession",
     "Project",
+    "ProjectMembership",
     "Search",
     "SearchResult",
     "Paper",

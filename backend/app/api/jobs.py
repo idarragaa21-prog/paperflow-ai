@@ -11,6 +11,7 @@ from app.core.redis_conn import get_redis, redis_available
 from app.middleware.rate_limit import limiter
 from app.models.job import Job
 from app.models.user import User
+from app.services.jobs import retry_job_record
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -48,6 +49,9 @@ async def list_jobs(
             "job_type": j.job_type,
             "status": j.status,
             "progress_percent": j.progress_percent or 0,
+            "queue_name": j.queue_name,
+            "attempt": j.attempt,
+            "next_retry_at": j.next_retry_at.isoformat() if j.next_retry_at else None,
             "created_at": j.created_at.isoformat() if j.created_at else None,
             "started_at": j.started_at.isoformat() if j.started_at else None,
             "completed_at": j.completed_at.isoformat() if j.completed_at else None,
@@ -96,6 +100,27 @@ async def cancel_job(
     return {"ok": True, "id": str(job.id), "status": job.status}
 
 
+@router.post("/{job_id}/retry")
+@limiter.limit("10/minute")
+async def retry_job(
+    request: Request,
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    del request
+    if not redis_available():
+        raise HTTPException(status_code=503, detail="Redis no disponible; retry deshabilitado")
+    job = await db.get(Job, job_id)
+    if not job or job.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+    if job.status not in ("failed", "retry_pending"):
+        raise HTTPException(status_code=400, detail="Solo se pueden reintentar jobs failed o retry_pending")
+    rq_job_id = retry_job_record(job)
+    await db.commit()
+    return {"ok": True, "id": str(job.id), "status": job.status, "rq_job_id": rq_job_id}
+
+
 def _map_rq_status(rq_status: str) -> str:
     # rq statuses: queued, started, deferred, finished, failed
     if rq_status in ("queued", "deferred"):
@@ -131,6 +156,9 @@ async def get_job(
             "id": str(job.id),
             "status": job.status,
             "progress_percent": job.progress_percent or 0,
+            "queue_name": job.queue_name,
+            "attempt": job.attempt,
+            "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
             "result": job.result,
             "error": job.error_message,
         }
@@ -148,6 +176,9 @@ async def get_job(
                 "id": str(job.id),
                 "status": job.status,
                 "progress_percent": job.progress_percent or 0,
+                "queue_name": job.queue_name,
+                "attempt": job.attempt,
+                "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
                 "result": job.result,
                 "error": job.error_message,
             }
@@ -169,6 +200,7 @@ async def get_job(
             job.result = {**(job.result or {}), "rq_result": rq_job.result}
         elif status == "failed":
             job.error_message = str(rq_job.exc_info or "Job failed")
+        job.queue_name = job.queue_name or getattr(rq_job, "origin", None)
 
         await db.commit()
     except RedisError:
@@ -180,6 +212,9 @@ async def get_job(
         "id": str(job.id),
         "status": job.status,
         "progress_percent": job.progress_percent or 0,
+        "queue_name": job.queue_name,
+        "attempt": job.attempt,
+        "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
         "result": job.result,
         "error": job.error_message,
     }

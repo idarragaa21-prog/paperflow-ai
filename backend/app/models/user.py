@@ -26,6 +26,8 @@ class User(Base, TimestampMixin):
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
     jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
+    auth_sessions = relationship("AuthSession", back_populates="user", cascade="all, delete-orphan")
+    project_memberships = relationship("ProjectMembership", back_populates="user", cascade="all, delete-orphan")
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan")
     highlights = relationship("PaperHighlight", back_populates="user", cascade="all, delete-orphan")

@@ -79,7 +79,7 @@ export default function MermaidBlock({ code }: Props) {
       if (!normalized) return;
 
       try {
-        const mod: any = await import('mermaid');
+        const mod: any = await import('mermaid/dist/mermaid.esm.min.mjs');
         const mermaid = mod?.default || mod;
         if (!mermaidInitDone) {
           mermaid.initialize({

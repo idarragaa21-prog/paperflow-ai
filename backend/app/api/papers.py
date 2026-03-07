@@ -5,6 +5,7 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -23,8 +24,10 @@ from app.schemas.papers import (
 )
 from app.services.audit import log_audit
 from app.services.jobs import enqueue_process_pdf, get_job_queue
+from app.services.pagination import apply_desc_cursor, encode_cursor
 from app.services.paper_repo import SQLPaperRepository
 from app.services.paper_service import PaperDownloadService, PaperServiceError, sha256_hex
+from app.services.permissions import require_paper_access, require_project_access
 from app.services.pdf_processor import process_paper
 from app.services.vector_index import vector_index
 
@@ -48,14 +51,6 @@ def get_repo(db: AsyncSession = Depends(get_db)) -> SQLPaperRepository:
 
 def get_downloader() -> PaperDownloadService:
     return PaperDownloadService()
-
-
-async def _require_owned_project(repo: SQLPaperRepository, *, project_id: UUID, user: User) -> None:
-    project = await repo.get_project(project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    if project.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Proyecto no pertenece al usuario")
 
 
 def _paper_to_response(p: Paper, *, duplicate: bool = False) -> PaperRecordResponse:
@@ -92,7 +87,7 @@ async def download_paper(
     downloader: PaperDownloadService = Depends(get_downloader),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=payload.project_id, user=user)
+    await require_project_access(repo.db, project_id=payload.project_id, user=user, required_role="editor")
 
     if not payload.doi and not payload.pmid:
         raise HTTPException(status_code=400, detail="Debe indicar doi o pmid")
@@ -200,9 +195,10 @@ async def batch_download(
         user_id=user.id,
         job_type="batch_download_papers",
         status="queued",
-        input_params={"project_id": str(payload.project_id), "count": len(papers)},
+        input_params={"project_id": str(payload.project_id), "count": len(papers), "papers": papers},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     repo.db.add(job_record)
     await repo.db.commit()
@@ -211,7 +207,7 @@ async def batch_download(
     try:
         from app.workers.tasks import batch_download_papers_job
 
-        q = get_job_queue()
+        q = get_job_queue("documents")
         rq_job = q.enqueue(batch_download_papers_job, args=(str(job_record.id), str(payload.project_id), papers), job_timeout="60m")
     except Exception:
         job_record.status = "failed"
@@ -244,7 +240,7 @@ async def upload_paper(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=project_id, user=user)
+    await require_project_access(repo.db, project_id=project_id, user=user, required_role="editor")
 
     data = await file.read()
     if not storage_manager.validate_pdf(data):
@@ -316,41 +312,62 @@ async def upload_paper(
 @router.get("/projects/{project_id}")
 async def list_papers(
     project_id: UUID,
+    limit: int = 50,
+    cursor: str | None = None,
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=project_id, user=user)
+    await require_project_access(repo.db, project_id=project_id, user=user, required_role="viewer")
 
-    from sqlalchemy import select
+    limit = max(1, min(100, int(limit)))
+    filters = [Paper.project_id == project_id]
+    cursor_clause = apply_desc_cursor(Paper, created_at=Paper.created_at, row_id=Paper.id, cursor=cursor)
+    page_filters = list(filters)
+    if cursor_clause is not None:
+        page_filters.append(cursor_clause)
 
-    q = await repo.db.execute(select(Paper).where(Paper.project_id == project_id).order_by(Paper.created_at.desc()))
-    items = q.scalars().all()
-    return [
-        {
-            "id": str(p.id),
-            "title": p.title,
-            "doi": p.doi,
-            "pmid": p.pmid,
-            "pmcid": p.pmcid,
-            "filename": p.filename,
-            "file_path": p.file_path,
-            "file_size_kb": p.file_size_kb,
-            "content_hash": p.content_hash,
-            "is_processed": p.is_processed,
-            "processing_status": p.processing_status,
-            "processing_warnings": p.processing_warnings or [],
-            "journal": p.journal,
-            "publication_year": p.publication_year,
-            "language": p.language,
-            "source_provider": p.source_provider,
-            "source_type": p.source_type,
-            "is_open_access": p.is_open_access,
-            "oa_url": p.oa_url,
-            "favorite": p.favorite,
-            "created_at": p.created_at.isoformat() if p.created_at else None,
-        }
-        for p in items
-    ]
+    total_q = await repo.db.execute(select(func.count()).select_from(Paper).where(and_(*filters)))
+    q = await repo.db.execute(
+        select(Paper)
+        .where(and_(*page_filters))
+        .order_by(Paper.created_at.desc(), Paper.id.desc())
+        .limit(limit + 1)
+    )
+    rows = q.scalars().all()
+    has_more = len(rows) > limit
+    items = rows[:limit]
+    next_cursor = encode_cursor(created_at=items[-1].created_at, row_id=items[-1].id) if has_more and items else None
+    return {
+        "items": [
+            {
+                "id": str(p.id),
+                "title": p.title,
+                "doi": p.doi,
+                "pmid": p.pmid,
+                "pmcid": p.pmcid,
+                "filename": p.filename,
+                "file_path": p.file_path,
+                "file_size_kb": p.file_size_kb,
+                "content_hash": p.content_hash,
+                "is_processed": p.is_processed,
+                "processing_status": p.processing_status,
+                "processing_warnings": p.processing_warnings or [],
+                "journal": p.journal,
+                "publication_year": p.publication_year,
+                "language": p.language,
+                "source_provider": p.source_provider,
+                "source_type": p.source_type,
+                "is_open_access": p.is_open_access,
+                "oa_url": p.oa_url,
+                "favorite": p.favorite,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+            for p in items
+        ],
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "total_count": int(total_q.scalar() or 0),
+    }
 
 
 @router.get("/{paper_id}")
@@ -359,10 +376,7 @@ async def get_paper(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    paper = await repo.get_paper(paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    paper, _membership = await require_paper_access(repo.db, paper_id=paper_id, user=user, required_role="viewer")
     return {
         "id": str(paper.id),
         "project_id": str(paper.project_id),
@@ -400,12 +414,7 @@ async def download_paper_file(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    paper = await repo.get_paper(paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-
-    # ownership via project
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    paper, _membership = await require_paper_access(repo.db, paper_id=paper_id, user=user, required_role="viewer")
 
     if not paper.file_path or not paper.filename:
         raise HTTPException(status_code=404, detail="Paper file missing")
@@ -435,11 +444,7 @@ async def process_paper_endpoint(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    paper = await repo.get_paper(paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    paper, _membership = await require_paper_access(repo.db, paper_id=paper_id, user=user, required_role="editor")
 
     # Create DB job record
     job_record = Job(
@@ -449,6 +454,7 @@ async def process_paper_endpoint(
         input_params={"paper_id": str(paper_id)},
         result={},
         progress_percent=0,
+        queue_name="documents",
     )
     repo.db.add(job_record)
     await repo.db.commit()
@@ -478,12 +484,7 @@ async def get_paper_content(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    paper = await repo.get_paper(paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
-
-    from sqlalchemy import select
+    paper, _membership = await require_paper_access(repo.db, paper_id=paper_id, user=user, required_role="viewer")
 
     parse_q = await repo.db.execute(
         select(PaperParseRun).where(PaperParseRun.paper_id == paper.id).order_by(PaperParseRun.created_at.desc())
@@ -533,12 +534,7 @@ async def get_paper_citations(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    paper = await repo.get_paper(paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
-
-    from sqlalchemy import select
+    paper, _membership = await require_paper_access(repo.db, paper_id=paper_id, user=user, required_role="viewer")
 
     q = await repo.db.execute(
         select(PaperCitationSpan).where(PaperCitationSpan.paper_id == paper.id).order_by(PaperCitationSpan.page_number.asc())
@@ -563,12 +559,7 @@ async def get_paper_parse_runs(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    paper = await repo.get_paper(paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
-
-    from sqlalchemy import select
+    paper, _membership = await require_paper_access(repo.db, paper_id=paper_id, user=user, required_role="viewer")
 
     q = await repo.db.execute(
         select(PaperParseRun).where(PaperParseRun.paper_id == paper.id).order_by(PaperParseRun.created_at.desc())
@@ -598,11 +589,7 @@ async def delete_paper(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    paper = await repo.get_paper(paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    paper, _membership = await require_paper_access(repo.db, paper_id=paper_id, user=user, required_role="editor")
 
     if paper.file_path:
         try:

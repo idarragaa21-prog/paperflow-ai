@@ -34,6 +34,8 @@ class ChatResponse(BaseModel):
     grounded: bool
     citations: list[ChatCitationResponse]
     blocked_reason: str | None = None
+    model_name: str | None = None
+    grounding_score: float | None = None
     retrieval_debug: list[dict] | None = None
 
 

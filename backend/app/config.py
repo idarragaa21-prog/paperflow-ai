@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import os
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ENV_FILE = None if os.getenv("PAPERFLOW_DISABLE_DOTENV") == "1" else ".env"
 
 
 class Settings(BaseSettings):
@@ -11,7 +17,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/paperflow_ai"
 
     # Security
-    SECRET_KEY: str = "CHANGE_ME"
+    SECRET_KEY: str = "DEV_ONLY_CHANGE_ME"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -23,8 +29,8 @@ class Settings(BaseSettings):
     STORAGE_BASE_PATH: str = "~/PaperFlowAIData"
     STORAGE_BACKEND: str = "filesystem"  # filesystem | s3
     S3_ENDPOINT_URL: str | None = "http://127.0.0.1:9000"
-    S3_ACCESS_KEY: str = "paperflow"
-    S3_SECRET_KEY: str = "paperflow123"
+    S3_ACCESS_KEY: str = "DEV_ONLY_ACCESS_KEY"
+    S3_SECRET_KEY: str = "DEV_ONLY_SECRET_KEY"
     S3_BUCKET: str = "paperflow-artifacts"
     S3_REGION: str = "us-east-1"
     S3_FORCE_PATH_STYLE: bool = True
@@ -92,6 +98,21 @@ class Settings(BaseSettings):
 
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = True
+    METRICS_ENABLED: bool = True
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.ENV != "production":
+            return self
+
+        insecure_secret = self.SECRET_KEY.startswith("DEV_ONLY") or self.SECRET_KEY == "CHANGE_ME"
+        insecure_access = self.S3_ACCESS_KEY.startswith("DEV_ONLY")
+        insecure_secret_key = self.S3_SECRET_KEY.startswith("DEV_ONLY")
+        if insecure_secret:
+            raise ValueError("SECRET_KEY must be set in production")
+        if self.STORAGE_BACKEND == "s3" and (insecure_access or insecure_secret_key):
+            raise ValueError("S3 credentials must be set in production")
+        return self
 
     @property
     def cookie_secure(self) -> bool:
@@ -101,7 +122,7 @@ class Settings(BaseSettings):
     def cookie_domain(self) -> str | None:
         return None if self.ENV == "development" else "yourdomain.com"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
 
 settings = Settings()

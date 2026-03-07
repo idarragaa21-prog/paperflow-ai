@@ -13,23 +13,35 @@ type ReferenceRow = {
   source_format: string;
 };
 
+type PaginatedResponse<T> = {
+  items: T[];
+  next_cursor?: string | null;
+  has_more: boolean;
+  total_count?: number;
+};
+
 export default function ReferencesPage() {
   const { projectId } = useParams();
   const [items, setItems] = useState<ReferenceRow[]>([]);
   const [format, setFormat] = useState<'bibtex' | 'ris'>('bibtex');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function load() {
+  async function load(cursor?: string | null, append = false) {
     if (!projectId) return;
     setLoading(true);
     setError(null);
     try {
-      const r = await api.get('/references', { params: { project_id: projectId } });
-      setItems(r.data as ReferenceRow[]);
+      const r = await api.get('/references', { params: { project_id: projectId, limit: 50, cursor: cursor || undefined } });
+      const page = r.data as PaginatedResponse<ReferenceRow>;
+      setItems((prev) => (append ? [...prev, ...page.items] : page.items));
+      setNextCursor(page.next_cursor || null);
+      setHasMore(Boolean(page.has_more));
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load references');
     } finally {
@@ -107,7 +119,7 @@ export default function ReferencesPage() {
       </div>
 
       <div className="rc-row">
-        <button className="rc-btn" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
+        <button className="rc-btn" onClick={() => { void load(); }} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
         <button className="rc-btn" onClick={syncFromLibrary}>Sync from Library</button>
         <button className="rc-btn" onClick={() => exportReferences('bibtex')}>Export BibTeX</button>
         <button className="rc-btn" onClick={() => exportReferences('ris')}>Export RIS</button>
@@ -155,6 +167,13 @@ export default function ReferencesPage() {
             </div>
           </div>
         ))}
+        {hasMore ? (
+          <div className="rc-row">
+            <button className="rc-btn" onClick={() => load(nextCursor, true)} disabled={loading}>
+              {loading ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

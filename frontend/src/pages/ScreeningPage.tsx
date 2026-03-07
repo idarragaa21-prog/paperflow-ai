@@ -6,6 +6,13 @@ type Batch = { id: string; title: string; stage: string; status: string };
 type Reason = { id: string; code: string; label: string };
 type Paper = { id: string; title: string };
 
+type PaginatedResponse<T> = {
+  items: T[];
+  next_cursor?: string | null;
+  has_more: boolean;
+  total_count?: number;
+};
+
 export default function ScreeningPage() {
   const { projectId } = useParams();
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -24,16 +31,17 @@ export default function ScreeningPage() {
     const [batchResponse, reasonResponse, paperResponse, prismaResponse] = await Promise.all([
       api.get('/screening/batches', { params: { project_id: projectId } }),
       api.get('/screening/reasons', { params: { project_id: projectId } }),
-      api.get(`/projects/${projectId}/library`),
+      api.get(`/projects/${projectId}/library`, { params: { limit: 100 } }),
       api.get('/screening/prisma', { params: { project_id: projectId } }).catch(() => ({ data: { counts: {} } })),
     ]);
     const nextBatches = batchResponse.data as Batch[];
+    const paperPage = paperResponse.data as PaginatedResponse<Paper>;
     setBatches(nextBatches);
     setReasons(reasonResponse.data as Reason[]);
-    setPapers(paperResponse.data as Paper[]);
+    setPapers(paperPage.items || []);
     setPrisma((prismaResponse.data?.counts || {}) as Record<string, number>);
     if (!selectedBatch && nextBatches[0]) setSelectedBatch(nextBatches[0].id);
-    if (!selectedPaper && (paperResponse.data as Paper[])[0]) setSelectedPaper((paperResponse.data as Paper[])[0].id);
+    if (!selectedPaper && (paperPage.items || [])[0]) setSelectedPaper((paperPage.items || [])[0].id);
   }
 
   useEffect(() => {

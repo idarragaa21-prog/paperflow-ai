@@ -12,10 +12,10 @@ from app.middleware.rate_limit import limiter
 from app.models.job import Job
 from app.models.paper import Paper
 from app.models.presentation import Presentation
-from app.models.project import Project
 from app.models.user import User
 from app.schemas.presentation import CreatePresentationRequest
 from app.services.jobs import enqueue_presentation
+from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/presentations", tags=["presentations"])
 
@@ -37,9 +37,7 @@ async def create_presentation(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, payload.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
 
     # Validar
     if not payload.paper_ids:
@@ -63,6 +61,7 @@ async def create_presentation(
         input_params=payload.model_dump(mode="json"),
         result={},
         progress_percent=0,
+        queue_name="presentations",
     )
     db.add(job_record)
     await db.commit()
@@ -101,9 +100,7 @@ async def get_presentation(
     if not pres:
         raise HTTPException(status_code=404, detail="Presentation not found")
 
-    project = await db.get(Project, pres.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Presentation not found")
+    await require_project_access(db, project_id=pres.project_id, user=user, required_role="viewer")
 
     return {
         "id": str(pres.id),
@@ -132,9 +129,7 @@ async def download_presentation(
     if not pres:
         raise HTTPException(status_code=404, detail="Presentation not found")
 
-    project = await db.get(Project, pres.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Presentation not found")
+    await require_project_access(db, project_id=pres.project_id, user=user, required_role="viewer")
 
     if not pres.file_path or not pres.filename:
         raise HTTPException(status_code=404, detail="Presentation file missing")
@@ -160,9 +155,7 @@ async def delete_presentation(
     if not pres:
         raise HTTPException(status_code=404, detail="Presentation not found")
 
-    project = await db.get(Project, pres.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Presentation not found")
+    await require_project_access(db, project_id=pres.project_id, user=user, required_role="editor")
 
     if pres.file_path:
         try:
@@ -181,9 +174,7 @@ async def list_presentations(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     q = await db.execute(
         select(Presentation).where(Presentation.project_id == project_id).order_by(Presentation.created_at.desc())

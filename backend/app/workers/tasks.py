@@ -404,7 +404,7 @@ def meta_extract_batch_job(job_db_id: str, batch_id: str) -> dict[str, Any]:
 
                 from app.services.jobs import get_job_queue
 
-                rq = get_job_queue()
+                rq = get_job_queue("documents")
 
                 enqueued = 0
                 for it in items:
@@ -416,6 +416,7 @@ def meta_extract_batch_job(job_db_id: str, batch_id: str) -> dict[str, Any]:
                         input_params={"batch_id": str(batch_uuid), "item_id": str(it.id), "paper_id": str(it.paper_id)},
                         result={},
                         progress_percent=0,
+                        queue_name="documents",
                     )
                     db.add(job_rec)
                     it.status = "queued"

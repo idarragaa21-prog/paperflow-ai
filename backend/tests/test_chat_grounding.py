@@ -1,28 +1,62 @@
 from __future__ import annotations
 
-from app.services.chat_service import _compose_grounded_answer
+import types
+
+import pytest
+
+from app.services.chat_service import _generate_grounded_answer
 
 
-def test_chat_blocks_when_grounding_is_insufficient():
-    answer, confidence, blocked_reason = _compose_grounded_answer(
-        "what is the result",
-        [{"quoted_text": "Tiny snippet.", "final_score": 0.12}],
+@pytest.mark.asyncio
+async def test_chat_blocks_when_grounding_is_insufficient():
+    answer, confidence, claim_type, blocked_reason, grounding_score = await _generate_grounded_answer(
+        question="what is the result",
+        retrieved=[{"quoted_text": "Tiny snippet.", "final_score": 0.12}],
+        route=types.SimpleNamespace(model="qwen2.5:7b", provider="ollama"),
         max_citations=3,
     )
     assert blocked_reason == "insufficient_grounding"
     assert confidence == 0.0
+    assert grounding_score == 0.0
+    assert claim_type == "dato"
     assert "No hay soporte documental suficiente" in answer
 
 
-def test_chat_returns_extractive_answer_for_grounded_hits():
-    answer, confidence, blocked_reason = _compose_grounded_answer(
-        "what is the intervention",
-        [
-            {"quoted_text": "The intervention group received supervised exercise therapy. Outcomes improved after 12 weeks.", "final_score": 0.6},
-            {"quoted_text": "Participants in the comparator arm received usual care only. Pain scores remained higher.", "final_score": 0.55},
+@pytest.mark.asyncio
+async def test_chat_calls_model_for_grounded_hits(monkeypatch):
+    class FakeAdapter:
+        async def complete(self, **kwargs):
+            return types.SimpleNamespace(
+                text='{"answer":"The intervention was supervised exercise therapy.","claim_type":"dato","confidence":0.82,"blocked_reason":null}'
+            )
+
+    monkeypatch.setattr("app.services.chat_service._adapter_for_route", lambda route: FakeAdapter())
+
+    answer, confidence, claim_type, blocked_reason, grounding_score = await _generate_grounded_answer(
+        question="what was the intervention",
+        retrieved=[
+            {
+                "paper_id": "paper-1",
+                "paper_chunk_id": "chunk-1",
+                "page_number": 3,
+                "locator": {"page": 3, "char_start": 10, "char_end": 64},
+                "quoted_text": "The intervention group received supervised exercise therapy.",
+                "final_score": 0.8,
+            },
+            {
+                "paper_id": "paper-1",
+                "paper_chunk_id": "chunk-2",
+                "page_number": 4,
+                "locator": {"page": 4, "char_start": 0, "char_end": 31},
+                "quoted_text": "Comparator received usual care.",
+                "final_score": 0.62,
+            },
         ],
+        route=types.SimpleNamespace(model="qwen2.5:7b", provider="ollama"),
         max_citations=2,
     )
     assert blocked_reason is None
+    assert claim_type == "dato"
+    assert grounding_score > 0.0
     assert confidence > 0.0
     assert "supervised exercise therapy" in answer.lower()

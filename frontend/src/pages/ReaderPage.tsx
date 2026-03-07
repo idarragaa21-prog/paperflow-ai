@@ -8,6 +8,13 @@ type PaperOption = {
   processing_status: string;
 };
 
+type PaginatedResponse<T> = {
+  items: T[];
+  next_cursor?: string | null;
+  has_more: boolean;
+  total_count?: number;
+};
+
 type Citation = {
   paper_id: string;
   page?: number | null;
@@ -35,8 +42,9 @@ export default function ReaderPage() {
 
   async function loadPapers() {
     if (!projectId) return;
-    const response = await api.get(`/projects/${projectId}/library`);
-    setPapers(response.data as PaperOption[]);
+    const response = await api.get(`/projects/${projectId}/library`, { params: { limit: 100 } });
+    const page = response.data as PaginatedResponse<PaperOption>;
+    setPapers(page.items);
   }
 
   useEffect(() => {

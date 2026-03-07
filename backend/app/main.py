@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -24,10 +25,13 @@ from app.api.clinical import router as clinical_router
 from app.api.books import router as books_router
 # (private sources removed by scope change)
 from app.config import settings
+from app.core.metrics import CONTENT_TYPE_LATEST, generate_latest
 from app.core.telemetry import instrument_fastapi, setup_telemetry
+from app.database import async_session_maker
 from app.middleware.auth import AuthMiddleware
 from app.middleware.csrf import CSRFMiddleware
 from app.middleware.rate_limit import limiter
+from app.services.jobs import reconcile_stale_jobs
 from app.services.runtime_health import collect_runtime_health
 
 app = FastAPI(title="PaperFlow AI")
@@ -76,6 +80,12 @@ app.include_router(books_router)
 # private_sources_router disabled
 
 
+@app.on_event("startup")
+async def reconcile_jobs_on_startup() -> None:
+    async with async_session_maker() as session:
+        await reconcile_stale_jobs(session)
+
+
 @app.get("/health")
 async def health() -> dict:
     details = await collect_runtime_health()
@@ -90,3 +100,10 @@ async def health() -> dict:
         "grobid": not settings.GROBID_ENABLED,
     }
     return details
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    if not settings.METRICS_ENABLED:
+        return Response(status_code=404)
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
