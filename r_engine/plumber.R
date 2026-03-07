@@ -224,31 +224,35 @@ function() {
 
   workdir <- tempfile(pattern = "paperflow-report-")
   dir.create(workdir, recursive = TRUE, showWarnings = FALSE)
+  template_copy <- file.path(workdir, "analysis_report.qmd")
+  file.copy(template_path, template_copy, overwrite = TRUE)
 
   params <- list(
     title = title,
     analysis_type = analysis_type,
     summary_json = jsonlite::toJSON(summary_payload, auto_unbox = TRUE, pretty = TRUE, null = "null"),
-    warnings = warnings,
+    warnings_json = jsonlite::toJSON(warnings, auto_unbox = TRUE, pretty = TRUE, null = "null"),
     script_text = script_text,
     figure_json = jsonlite::toJSON(figure_payload, auto_unbox = TRUE, pretty = TRUE, null = "null")
   )
 
   outputs <- list(
     html = list(ext = "html", mime = "text/html"),
-    pdf = list(ext = "pdf", mime = "application/pdf"),
     docx = list(ext = "docx", mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
   )
 
   rendered <- list()
+  oldwd <- getwd()
+  on.exit(setwd(oldwd), add = TRUE)
+  setwd(workdir)
+
   for (fmt in names(outputs)) {
     output_file <- file.path(workdir, sprintf("analysis_report.%s", outputs[[fmt]]$ext))
     quarto::quarto_render(
-      input = template_path,
+      input = template_copy,
       execute_params = params,
       output_format = fmt,
       output_file = basename(output_file),
-      output_dir = workdir,
       quiet = TRUE
     )
     rendered[[length(rendered) + 1]] <- list(
@@ -259,6 +263,30 @@ function() {
       content_base64 = base64enc::base64encode(output_file)
     )
   }
+
+  html_output <- file.path(workdir, "analysis_report.html")
+  pdf_output <- file.path(workdir, "analysis_report.pdf")
+  wkhtmltopdf <- Sys.which("wkhtmltopdf")
+  if (wkhtmltopdf == "") {
+    stop("wkhtmltopdf is required for PDF exports")
+  }
+  conversion <- system2(
+    wkhtmltopdf,
+    c("--enable-local-file-access", normalizePath(html_output, mustWork = TRUE), normalizePath(pdf_output, mustWork = FALSE)),
+    stdout = TRUE,
+    stderr = TRUE
+  )
+  status <- attr(conversion, "status") %||% 0
+  if (status != 0 || !file.exists(pdf_output)) {
+    stop(paste(c("wkhtmltopdf failed", conversion), collapse = "\n"))
+  }
+  rendered[[length(rendered) + 1]] <- list(
+    artifact_type = "report_pdf",
+    filename = basename(pdf_output),
+    mime_type = "application/pdf",
+    metadata_json = list(format = "pdf", template_version = "analysis_report_v2"),
+    content_base64 = base64enc::base64encode(pdf_output)
+  )
   rendered
 }
 

@@ -60,6 +60,13 @@ copy_if_missing "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
 copy_if_missing "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
 copy_if_missing "$FRONTEND_DIR/.env.example" "$FRONTEND_DIR/.env"
 
+export STORAGE_BACKEND="${PAPERFLOW_RUNTIME_STORAGE_BACKEND:-s3}"
+export S3_ENDPOINT_URL="${S3_ENDPOINT_URL:-http://127.0.0.1:${MINIO_PORT:-9000}}"
+export S3_ACCESS_KEY="${S3_ACCESS_KEY:-${MINIO_ROOT_USER:-paperflow}}"
+export S3_SECRET_KEY="${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-paperflow123}}"
+export S3_BUCKET="${S3_BUCKET:-paperflow-artifacts}"
+export PAPERFLOW_DISABLE_DOTENV=1
+
 required_services=(postgres redis qdrant ollama minio minio-init grobid r-engine)
 optional_services=(prometheus grafana)
 

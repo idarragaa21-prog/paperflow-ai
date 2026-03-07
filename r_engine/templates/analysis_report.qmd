@@ -6,14 +6,14 @@ format:
     theme: cosmo
   pdf:
     toc: true
-    pdf-engine: wkhtmltopdf
+    pdf-engine: typst
   docx:
     toc: true
 params:
   title: "PaperFlow Analysis"
   analysis_type: "descriptives"
   summary_json: "{}"
-  warnings: []
+  warnings_json: "[]"
   script_text: ""
   figure_json: "{}"
 ---
@@ -38,10 +38,11 @@ cat(params$figure_json)
 ## Warnings
 
 ```{r}
-if (length(params$warnings) == 0) {
+warnings <- jsonlite::fromJSON(params$warnings_json)
+if (length(warnings) == 0) {
   cat("No warnings.")
 } else {
-  cat(paste("- ", unlist(params$warnings), collapse = "\n"))
+  cat(paste("- ", unlist(warnings), collapse = "\n"))
 }
 ```
 

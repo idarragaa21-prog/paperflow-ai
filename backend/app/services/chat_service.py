@@ -128,14 +128,18 @@ async def _generate_grounded_answer(
 
     system, user = _build_messages(question, strong_hits, max_citations=max_citations)
     adapter = _adapter_for_route(route)
-    response = await adapter.complete(
-        prompt=user,
-        system=system,
-        temperature=0.1,
-        max_tokens=1000,
-        json_mode=True,
-    )
-    payload = _parse_model_json(response.text)
+    try:
+        response = await adapter.complete(
+            prompt=user,
+            system=system,
+            temperature=0.1,
+            max_tokens=1000,
+            json_mode=True,
+        )
+        payload = _parse_model_json(response.text)
+    except Exception:
+        answer, confidence, blocked_reason = _block_response(retrieved)
+        return answer, confidence, "dato", "generation_unavailable", 0.0
     grounding_score = _grounding_score(strong_hits, max_citations=max_citations)
     model_confidence = float(payload.get("confidence") or 0.0)
     if model_confidence > 1:

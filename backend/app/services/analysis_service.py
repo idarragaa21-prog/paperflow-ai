@@ -23,6 +23,26 @@ ADVANCED_ANALYSIS_TYPES = {"survival", "meta_analysis", "meta_regression", "sens
 SUPPORTED_ANALYSIS_TYPES = CORE_ANALYSIS_TYPES | ADVANCED_ANALYSIS_TYPES
 
 
+def _normalize_r_engine_value(value):
+    if isinstance(value, dict):
+        return {str(key): _normalize_r_engine_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        normalized = [_normalize_r_engine_value(item) for item in value]
+        if len(normalized) == 1 and not isinstance(normalized[0], (dict, list)):
+            return normalized[0]
+        return normalized
+    return value
+
+
+def _stringify_scalar(value, default: str = "") -> str:
+    normalized = _normalize_r_engine_value(value)
+    if normalized in (None, ""):
+        return default
+    if isinstance(normalized, (dict, list)):
+        return json.dumps(normalized, ensure_ascii=False)
+    return str(normalized)
+
+
 def _infer_dtype(series) -> str:
     import pandas as pd
 
@@ -138,10 +158,10 @@ async def create_analysis_run_record(
 
 
 def _decode_artifact(artifact: dict) -> tuple[bytes, str, str, dict]:
-    content = base64.b64decode(str(artifact["content_base64"]).encode("utf-8"))
-    filename = str(artifact["filename"])
-    mime_type = str(artifact["mime_type"])
-    metadata = artifact.get("metadata_json") or {}
+    content = base64.b64decode(_stringify_scalar(artifact["content_base64"]).encode("utf-8"))
+    filename = _stringify_scalar(artifact["filename"])
+    mime_type = _stringify_scalar(artifact["mime_type"])
+    metadata = _normalize_r_engine_value(artifact.get("metadata_json") or {})
     return content, filename, mime_type, metadata
 
 
@@ -187,11 +207,17 @@ async def run_analysis_pipeline(db: AsyncSession, *, run_id: UUID) -> AnalysisRu
         await db.commit()
         raise
 
-    summary = response_data.get("summary") or {}
-    warnings = [str(item) for item in (response_data.get("warnings") or [])]
-    engine_version = response_data.get("engine_version") or "unknown"
-    template_version = response_data.get("template_version") or "analysis_report_v2"
-    figure = response_data.get("figure") or {}
+    summary = _normalize_r_engine_value(response_data.get("summary") or {})
+    raw_warnings = _normalize_r_engine_value(response_data.get("warnings") or [])
+    if isinstance(raw_warnings, list):
+        warnings = [str(item) for item in raw_warnings]
+    elif raw_warnings in (None, ""):
+        warnings = []
+    else:
+        warnings = [str(raw_warnings)]
+    engine_version = _stringify_scalar(response_data.get("engine_version"), default="unknown")
+    template_version = _stringify_scalar(response_data.get("template_version"), default="analysis_report_v2")
+    figure = _normalize_r_engine_value(response_data.get("figure") or {})
     artifact_manifest: list[dict] = []
 
     for artifact in list(run.artifacts):
@@ -271,7 +297,7 @@ async def run_analysis_pipeline(db: AsyncSession, *, run_id: UUID) -> AnalysisRu
         )
 
     run.status = "completed"
-    run.script_text = response_data.get("script")
+    run.script_text = _stringify_scalar(response_data.get("script"))
     run.warnings = warnings
     run.result_summary = summary
     run.engine_version = engine_version

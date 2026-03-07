@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 
 from app.config import settings
@@ -15,15 +17,15 @@ async def collect_runtime_health() -> dict:
     try:
         from qdrant_client import QdrantClient
 
-        client = QdrantClient(url=settings.QDRANT_URL, timeout=2.0)
-        client.get_collections()
+        client = await asyncio.to_thread(QdrantClient, url=settings.QDRANT_URL, timeout=2.0)
+        await asyncio.to_thread(client.get_collections)
         required_services["qdrant"] = {"status": "ok"}
     except Exception as exc:
         required_services["qdrant"] = {"status": "down", "detail": str(exc)}
 
     if settings.STORAGE_BACKEND == "s3":
         try:
-            storage_manager.ensure_bucket()
+            await asyncio.to_thread(storage_manager.ensure_bucket)
             required_services["s3"] = {"status": "ok", "bucket": settings.S3_BUCKET}
         except Exception as exc:
             required_services["s3"] = {"status": "down", "detail": str(exc), "bucket": settings.S3_BUCKET}

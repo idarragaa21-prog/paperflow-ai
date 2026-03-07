@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import tempfile
@@ -86,7 +87,12 @@ class StorageManager:
                 aws_access_key_id=settings.S3_ACCESS_KEY,
                 aws_secret_access_key=settings.S3_SECRET_KEY,
                 region_name=settings.S3_REGION,
-                config=BotoConfig(s3={"addressing_style": "path" if settings.S3_FORCE_PATH_STYLE else "auto"}),
+                config=BotoConfig(
+                    connect_timeout=3,
+                    read_timeout=10,
+                    retries={"max_attempts": 2, "mode": "standard"},
+                    s3={"addressing_style": "path" if settings.S3_FORCE_PATH_STYLE else "auto"},
+                ),
             )
         return self._s3_client
 
@@ -161,7 +167,7 @@ class StorageManager:
         if not safe_name.lower().endswith(".pdf"):
             safe_name += ".pdf"
         relative_path = str(Path("papers") / str(project_id) / str(year) / safe_name)
-        saved = self._persist_bytes(relative_path=relative_path, data=data)
+        saved = await asyncio.to_thread(self._persist_bytes, relative_path=relative_path, data=data)
         saved["filename"] = safe_name
         return saved
 
@@ -172,7 +178,7 @@ class StorageManager:
     async def save_presentation(self, content: bytes, filename: str, project_id: UUID) -> Dict:
         if not self.validate_pptx(content):
             raise ValueError("Archivo no es un PPTX válido")
-        saved = self._save_bytes(subdir="slides", filename=filename, data=content, project_id=project_id)
+        saved = await asyncio.to_thread(self._save_bytes, subdir="slides", filename=filename, data=content, project_id=project_id)
         return {
             "filename": saved["filename"],
             "file_path": saved["file_path"],
@@ -180,10 +186,10 @@ class StorageManager:
         }
 
     async def save_dataset_bytes(self, *, data: bytes, filename: str, project_id: UUID) -> Dict[str, Any]:
-        return self._save_bytes(subdir="datasets", filename=filename, data=data, project_id=project_id)
+        return await asyncio.to_thread(self._save_bytes, subdir="datasets", filename=filename, data=data, project_id=project_id)
 
     async def save_artifact_bytes(self, *, data: bytes, filename: str, project_id: UUID) -> Dict[str, Any]:
-        return self._save_bytes(subdir="artifacts", filename=filename, data=data, project_id=project_id)
+        return await asyncio.to_thread(self._save_bytes, subdir="artifacts", filename=filename, data=data, project_id=project_id)
 
     async def save_text_artifact(self, *, text: str, filename: str, project_id: UUID) -> Dict[str, Any]:
         return await self.save_artifact_bytes(data=text.encode("utf-8"), filename=filename, project_id=project_id)

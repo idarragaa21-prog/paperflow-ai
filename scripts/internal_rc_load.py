@@ -13,6 +13,9 @@ import httpx
 async def _login(client: httpx.AsyncClient, *, email: str, password: str) -> None:
     response = await client.post("/auth/login", json={"email": email, "password": password})
     response.raise_for_status()
+    csrf_token = client.cookies.get("csrf_token")
+    if csrf_token:
+        client.headers["X-CSRF-Token"] = csrf_token
 
 
 async def _find_project(client: httpx.AsyncClient, *, title: str) -> dict[str, Any]:
@@ -95,7 +98,7 @@ async def _run(args) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a lightweight internal RC load smoke against the running API.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
-    parser.add_argument("--email", default="rc-owner@paperflow.local")
+    parser.add_argument("--email", default="rc-owner@paperflow.dev")
     parser.add_argument("--password", default="paperflow-e2e-123")
     parser.add_argument("--project-title", default="Internal RC Fixture")
     parser.add_argument("--library-requests", type=int, default=12)

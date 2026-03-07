@@ -5,7 +5,7 @@ test('reader returns an evidence-based answer for the seeded fixture paper', asy
   const fixture = loadFixture();
   await page.goto(`/projects/${fixture.project.id}/reader`);
 
-  await expect(page.getByText('Reader')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Reader' })).toBeVisible();
   await page.getByTestId('reader-scope-select').selectOption(fixture.papers.first_paper_id);
   await page.getByTestId('reader-question-input').fill('What main effect is reported by the seeded monitoring study?');
   await page.getByTestId('reader-ask-button').click();

@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:4173';
+const channel = process.env.PLAYWRIGHT_CHANNEL || 'chrome';
 
 export default defineConfig({
   testDir: './e2e',
@@ -14,10 +15,11 @@ export default defineConfig({
   use: {
     baseURL,
     browserName: 'chromium',
+    channel,
     headless: true,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
-    video: 'retain-on-failure',
+    video: 'off',
     storageState: './e2e/.auth/owner.json',
   },
 });

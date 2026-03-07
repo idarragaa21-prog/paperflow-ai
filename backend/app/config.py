@@ -48,8 +48,8 @@ class Settings(BaseSettings):
     LLM_STRATEGY: str = "single"  # single | ensemble
     PROJECT_DEFAULT_RUNTIME_MODE: str = "local_only"
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
-    PAPERFLOW_CHAT_MODEL: str = "qwen2.5:7b"
-    PAPERFLOW_EXTRACTION_MODEL: str = "qwen2.5:7b"
+    PAPERFLOW_CHAT_MODEL: str = "qwen2.5:3b"
+    PAPERFLOW_EXTRACTION_MODEL: str = "qwen2.5:3b"
     PAPERFLOW_WRITING_MODEL: str = "llama3.1:8b"
     PAPERFLOW_EMBEDDING_MODEL: str = "bge-m3"
     QDRANT_URL: str = "http://127.0.0.1:6333"

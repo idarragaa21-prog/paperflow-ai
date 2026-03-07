@@ -255,11 +255,19 @@ async def _run(args) -> dict:
         await _seed_screening(session, project=project, owner=owner, reviewer=reviewer, first_paper=papers[0])
         await _seed_extraction(session, project=project, paper=papers[0])
 
+        visible_reader_paper = (
+            await session.execute(
+                select(Paper)
+                .where(Paper.project_id == project.id)
+                .order_by(Paper.created_at.desc(), Paper.id.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         fixture = {
             "owner": {"id": str(owner.id), "email": owner.email, "password": args.owner_password},
             "reviewer": {"id": str(reviewer.id), "email": reviewer.email, "password": args.reviewer_password},
             "project": {"id": str(project.id), "title": project.title},
-            "papers": {"count": len(papers), "first_paper_id": str(papers[0].id)},
+            "papers": {"count": len(papers), "first_paper_id": str(visible_reader_paper.id) if visible_reader_paper else None},
         }
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -273,9 +281,9 @@ def main() -> None:
     parser.add_argument("--output", default=str(BACKEND_ROOT.parent / "tmp" / "internal_rc_fixture.json"))
     parser.add_argument("--project-title", default="Internal RC Fixture")
     parser.add_argument("--paper-count", type=int, default=500)
-    parser.add_argument("--owner-email", default="rc-owner@paperflow.local")
+    parser.add_argument("--owner-email", default="rc-owner@paperflow.dev")
     parser.add_argument("--owner-password", default="paperflow-e2e-123")
-    parser.add_argument("--reviewer-email", default="rc-reviewer@paperflow.local")
+    parser.add_argument("--reviewer-email", default="rc-reviewer@paperflow.dev")
     parser.add_argument("--reviewer-password", default="paperflow-e2e-123")
     args = parser.parse_args()
     asyncio.run(_run(args))

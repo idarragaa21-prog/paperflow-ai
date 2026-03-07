@@ -20,4 +20,5 @@ tmp/
 frontend/playwright-report/
 frontend/test-results/
 frontend/.auth/
+frontend/e2e/.auth/
 .DS_Store

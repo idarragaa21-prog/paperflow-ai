@@ -92,7 +92,7 @@ services:
     restart: "no"
 
   grobid:
-    image: lfoppiano/grobid:0.8.1
+    image: lfoppiano/grobid:0.8.0
     container_name: paperflow-grobid
     platform: linux/amd64
     entrypoint: ["/tini", "--", "./grobid-service/bin/grobid-service"]

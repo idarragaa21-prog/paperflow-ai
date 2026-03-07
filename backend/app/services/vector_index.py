@@ -183,6 +183,7 @@ class VectorIndex:
             return []
         self._ensure_collection()
         try:
+            _QdrantClient, qm = self._qdrant_modules()
             filters = [qm.FieldCondition(key="project_id", match=qm.MatchValue(value=str(project_id)))]
             if paper_id is not None:
                 filters.append(qm.FieldCondition(key="paper_id", match=qm.MatchValue(value=str(paper_id))))
