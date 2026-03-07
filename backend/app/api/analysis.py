@@ -2,18 +2,21 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
+from app.models.job import Job
 from app.models.analytics import AnalysisRun, Dataset
 from app.models.user import User
 from app.schemas.analysis import AnalysisRunCreate, AnalysisRunResponse, DatasetCreate, DatasetResponse
+from app.services.audit import log_audit
+from app.services.jobs import enqueue_with_retry
 from app.services.permissions import require_project_access
-from app.services.analysis_service import create_analysis_run, create_dataset, export_analysis_run
+from app.services.analysis_service import create_analysis_run_record, create_dataset, export_analysis_run
 
 router = APIRouter(tags=["analysis"])
 
@@ -100,6 +103,7 @@ async def list_datasets(
 
 @router.post("/analysis-runs", response_model=AnalysisRunResponse)
 async def create_analysis_run_endpoint(
+    request: Request,
     payload: AnalysisRunCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -108,15 +112,75 @@ async def create_analysis_run_endpoint(
     dataset = await db.get(Dataset, payload.dataset_id) if payload.dataset_id else None
     if payload.dataset_id and (dataset is None or dataset.project_id != payload.project_id):
         raise HTTPException(status_code=404, detail="Dataset not found")
-    run = await create_analysis_run(
+    try:
+        run = await create_analysis_run_record(
+            db,
+            project_id=payload.project_id,
+            dataset=dataset,
+            title=payload.title,
+            analysis_type=payload.analysis_type,
+            input_params=payload.input_params,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    job_record = Job(
+        user_id=user.id,
+        job_type="analysis_run",
+        status="queued",
+        input_params={"analysis_run_id": str(run.id)},
+        result={"analysis_run_id": str(run.id)},
+        progress_percent=0,
+        queue_name="analysis",
+    )
+    db.add(job_record)
+    await db.commit()
+    await db.refresh(job_record)
+
+    try:
+        from app.workers.tasks import analysis_run_job
+
+        rq_job_id = enqueue_with_retry("analysis", analysis_run_job, args=(str(job_record.id), str(run.id)), job_timeout="60m")
+    except Exception as exc:
+        job_record.status = "failed"
+        job_record.error_message = f"Analysis queue unavailable: {exc}"
+        run.status = "failed"
+        run.warnings = [job_record.error_message]
+        await db.commit()
+        raise HTTPException(status_code=503, detail="Could not enqueue analysis run")
+
+    job_record.result = {**(job_record.result or {}), "rq_job_id": rq_job_id}
+    run.runtime_metadata = {**(run.runtime_metadata or {}), "job_id": str(job_record.id)}
+    await db.commit()
+    refreshed = await db.execute(select(AnalysisRun).where(AnalysisRun.id == run.id).options(selectinload(AnalysisRun.artifacts)))
+    run = refreshed.scalars().first()
+    await log_audit(
         db,
-        project_id=payload.project_id,
-        dataset=dataset,
-        title=payload.title,
-        analysis_type=payload.analysis_type,
-        input_params=payload.input_params,
+        user=user,
+        action="create",
+        entity_type="analysis_run",
+        entity_id=run.id,
+        details={"project_id": str(run.project_id), "analysis_type": run.analysis_type, "job_id": str(job_record.id)},
+        request=request,
     )
     return _analysis_to_response(run)
+
+
+@router.get("/analysis-runs", response_model=list[AnalysisRunResponse])
+async def list_analysis_runs(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    stmt = (
+        select(AnalysisRun)
+        .where(AnalysisRun.project_id == project_id)
+        .options(selectinload(AnalysisRun.artifacts))
+        .order_by(AnalysisRun.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    return [_analysis_to_response(item) for item in result.scalars().all()]
 
 
 @router.get("/analysis-runs/{run_id}", response_model=AnalysisRunResponse)
@@ -172,7 +236,10 @@ async def export_analysis(
     if run is None:
         raise HTTPException(status_code=404, detail="Analysis run not found")
     await require_project_access(db, project_id=run.project_id, user=user, required_role="viewer")
-    data, media_type, filename = await export_analysis_run(db, run=run, fmt=format)
+    try:
+        data, media_type, filename = await export_analysis_run(db, run=run, fmt=format)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return Response(
         data,
         media_type=media_type,

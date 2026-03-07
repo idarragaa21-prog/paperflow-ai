@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.storage import storage_manager
-from app.services.oa_resolvers import EuropePMCResolver, OAResolverError, UnpaywallResolver
+from app.services.oa_resolvers import OAResolverError, normalize_reference_identity, resolve_open_access_pdf
 
 
 class PaperServiceError(Exception):
@@ -25,10 +25,6 @@ class DownloadResult:
 
 
 class PaperDownloadService:
-    def __init__(self):
-        self.unpaywall = UnpaywallResolver()
-        self.europepmc = EuropePMCResolver()
-
     async def download_open_access_pdf(
         self,
         *,
@@ -36,38 +32,12 @@ class PaperDownloadService:
         pmid: str | None,
         client: httpx.AsyncClient,
     ) -> DownloadResult:
-        """Resolve OA PDF URL via Unpaywall (DOI) or EuropePMC (PMID), then download bytes."""
+        try:
+            resolved = await resolve_open_access_pdf(doi=doi, pmid=pmid, client=client)
+        except (OAResolverError, httpx.HTTPError) as exc:
+            raise PaperServiceError(str(exc)) from exc
 
-        resolved_url: str | None = None
-        source: str | None = None
-
-        # Prefer DOI via Unpaywall, but when both DOI+PMID are available
-        # fall back to Europe PMC if Unpaywall fails (rate limits / missing PDF).
-        last_err: str | None = None
-
-        if doi:
-            try:
-                resolved = await self.unpaywall.resolve(doi, client)
-                resolved_url, source = resolved.url_for_pdf, resolved.source
-            except (OAResolverError, httpx.HTTPError) as e:
-                last_err = str(e)
-                resolved_url = None
-                source = None
-
-        if (not resolved_url) and pmid:
-            try:
-                resolved = await self.europepmc.resolve_by_pmid(pmid, client)
-                resolved_url, source = resolved.url_for_pdf, resolved.source
-            except (OAResolverError, httpx.HTTPError) as e:
-                last_err = str(e)
-                resolved_url = None
-                source = None
-
-        if not resolved_url or not source:
-            raise PaperServiceError(last_err or "No se pudo resolver un PDF open-access")
-
-        assert resolved_url and source
-        r = await client.get(resolved_url, timeout=60, follow_redirects=True)
+        r = await client.get(resolved.url_for_pdf, timeout=60, follow_redirects=True)
         r.raise_for_status()
         data = r.content
 
@@ -79,4 +49,8 @@ class PaperDownloadService:
                 f"La URL resuelta no devolvió un PDF válido (content-type={ct})."  # no secrets
             )
 
-        return DownloadResult(pdf_bytes=data, source=source, resolved_url=resolved_url)
+        return DownloadResult(pdf_bytes=data, source=resolved.source, resolved_url=resolved.url_for_pdf)
+
+
+def canonical_reference_identity(*, doi: str | None, pmid: str | None, title: str | None, source: str | None) -> dict:
+    return normalize_reference_identity(doi=doi, pmid=pmid, title=title, source=source)

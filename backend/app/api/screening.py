@@ -12,7 +12,10 @@ from app.models.user import User
 from app.schemas.screening import (
     EligibilityReasonCreate,
     EligibilityReasonResponse,
+    PeerReviewActionPatch,
+    PeerReviewActionResponse,
     PeerReviewActionCreate,
+    ProjectCommentResponse,
     ProjectCommentCreate,
     ScreeningBatchCreate,
     ScreeningBatchResponse,
@@ -196,6 +199,27 @@ async def create_comment(
     return {"id": str(comment.id), "body": comment.body, "target_type": comment.target_type, "target_id": comment.target_id}
 
 
+@router.get("/comments", response_model=list[ProjectCommentResponse])
+async def list_comments(
+    project_id: UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    result = await db.execute(select(ProjectComment).where(ProjectComment.project_id == project_id).order_by(ProjectComment.created_at.desc()))
+    return [
+        ProjectCommentResponse(
+            id=item.id,
+            project_id=item.project_id,
+            user_id=item.user_id,
+            body=item.body,
+            target_type=item.target_type,
+            target_id=item.target_id,
+        )
+        for item in result.scalars().all()
+    ]
+
+
 @router.post("/peer-review-actions")
 async def create_peer_review_action(
     payload: PeerReviewActionCreate,
@@ -214,3 +238,52 @@ async def create_peer_review_action(
     await db.commit()
     await db.refresh(action)
     return {"id": str(action.id), "action": action.action, "status": action.status, "payload_json": action.payload_json}
+
+
+@router.get("/peer-review-actions", response_model=list[PeerReviewActionResponse])
+async def list_peer_review_actions(
+    project_id: UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    result = await db.execute(
+        select(PeerReviewAction).where(PeerReviewAction.project_id == project_id).order_by(PeerReviewAction.created_at.desc())
+    )
+    return [
+        PeerReviewActionResponse(
+            id=item.id,
+            project_id=item.project_id,
+            user_id=item.user_id,
+            action=item.action,
+            status=item.status,
+            payload_json=item.payload_json,
+        )
+        for item in result.scalars().all()
+    ]
+
+
+@router.patch("/peer-review-actions/{action_id}", response_model=PeerReviewActionResponse)
+async def patch_peer_review_action(
+    action_id: UUID,
+    payload: PeerReviewActionPatch,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    action = await db.get(PeerReviewAction, action_id)
+    if action is None:
+        raise HTTPException(status_code=404, detail="Peer review action not found")
+    await require_project_access(db, project_id=action.project_id, user=user, required_role="reviewer")
+    action.status = payload.status
+    if payload.payload_json is not None:
+        action.payload_json = payload.payload_json
+    await db.commit()
+    await db.refresh(action)
+    return PeerReviewActionResponse(
+        id=action.id,
+        project_id=action.project_id,
+        user_id=action.user_id,
+        action=action.action,
+        status=action.status,
+        payload_json=action.payload_json,
+    )

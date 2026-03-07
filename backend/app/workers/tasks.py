@@ -1088,3 +1088,39 @@ def export_project_zip_job(job_db_id: str, project_id: str) -> dict[str, Any]:
             return {"output": {}, "warnings": [], "errors": [str(e)]}
 
     return run_coro(_async_logic())
+
+
+def analysis_run_job(job_db_id: str, run_id: str) -> dict[str, Any]:
+    from app.services.analysis_service import run_analysis_pipeline
+
+    async def _async_logic() -> dict[str, Any]:
+        job_uuid = UUID(job_db_id)
+        run_uuid = UUID(run_id)
+        try:
+            await job_mark_started(job_uuid)
+            await job_set_progress(job_uuid, 10, status="started")
+            async with async_session_maker() as db:
+                await job_set_progress(job_uuid, 35, status="progress")
+                run = await run_analysis_pipeline(db, run_id=run_uuid)
+                await job_set_progress(job_uuid, 90, status="progress")
+            out = {"analysis_run_id": str(run.id), "status": run.status}
+            await job_mark_completed(job_uuid, result={"output": out, "warnings": run.warnings or [], "errors": []})
+            return out
+        except Exception as exc:
+            try:
+                async with async_session_maker() as db2:
+                    from app.models.analytics import AnalysisRun
+
+                    run = await db2.get(AnalysisRun, run_uuid)
+                    if run is not None:
+                        run.status = "failed"
+                        warnings = list(run.warnings or [])
+                        warnings.append(str(exc))
+                        run.warnings = warnings
+                        await db2.commit()
+            except Exception:
+                pass
+            await job_mark_failed(job_uuid, str(exc))
+            raise
+
+    return run_coro(_async_logic())

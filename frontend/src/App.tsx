@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import MetaPage from './pages/MetaPage';
 import NotesPage from './pages/NotesPage';
 import PapersPage from './pages/PapersPage';
+import CollaborationPage from './pages/CollaborationPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ReaderPage from './pages/ReaderPage';
 import ReferencesPage from './pages/ReferencesPage';
@@ -40,6 +41,7 @@ function withSuspense(element: React.ReactNode) {
 
 export default function App() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
+  const legacyEnabled = import.meta.env.VITE_ENABLE_LEGACY_MODULES === 'true';
 
   useEffect(() => {
     checkAuth();
@@ -66,18 +68,18 @@ export default function App() {
             <Route path="papers" element={<PapersPage />} />
             <Route path="library" element={<PapersPage />} />
             <Route path="notes" element={<NotesPage />} />
-            <Route path="presentations" element={withSuspense(<PresentationsPage />)} />
             <Route path="meta" element={<MetaPage />} />
             <Route path="references" element={<ReferencesPage />} />
             <Route path="drafts" element={<DraftsPage />} />
             <Route path="analysis" element={<AnalysisPage />} />
             <Route path="screening" element={<ScreeningPage />} />
+            <Route path="collaboration" element={<CollaborationPage />} />
+            {legacyEnabled ? <Route path="presentations" element={withSuspense(<PresentationsPage />)} /> : null}
           </Route>
 
-          <Route path="/clinical" element={withSuspense(<ClinicalPage />)} />
-          <Route path="/clinical/sheets/:sheetId" element={withSuspense(<ClinicalSheetPage />)} />
-
-          <Route path="/books" element={withSuspense(<BooksPage />)} />
+          {legacyEnabled ? <Route path="/clinical" element={withSuspense(<ClinicalPage />)} /> : null}
+          {legacyEnabled ? <Route path="/clinical/sheets/:sheetId" element={withSuspense(<ClinicalSheetPage />)} /> : null}
+          {legacyEnabled ? <Route path="/books" element={withSuspense(<BooksPage />)} /> : null}
           {/* private sources removed by scope change */}
 
           <Route path="/jobs" element={<JobsPage />} />

@@ -338,7 +338,7 @@ async def process_paper(paper_id: UUID, db: AsyncSession) -> dict:
         text = "\n\n".join(str(page["text"] or "") for page in pages).strip()
         if not text:
             warnings.append("empty_text_layer")
-            failure_classification.append("parse_partial")
+            failure_classification.append("partial_parse")
 
         tei_xml = await process_fulltext(storage_manager.read_bytes(paper.file_path), filename=paper.filename)
         if tei_xml is None:
@@ -386,7 +386,11 @@ async def process_paper(paper_id: UUID, db: AsyncSession) -> dict:
             "pages": pages,
             "blocks": blocks,
             "ocr": ocr_metadata,
+            "used_ocr": used_ocr,
+            "grobid_status": "ok" if tei_xml else "failed",
             "tei_xml": tei_xml,
+            "parse_warnings": warnings,
+            "failure_class": failure_classification,
             "failure_classification": failure_classification,
         },
     )

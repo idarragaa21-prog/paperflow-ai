@@ -169,6 +169,7 @@ export default function ProjectLayout() {
           <Tab to={`/projects/${projectId}/drafts`} label="Drafts" />
           <Tab to={`/projects/${projectId}/analysis`} label="Analysis" />
           <Tab to={`/projects/${projectId}/screening`} label="Screening" />
+          <Tab to={`/projects/${projectId}/collaboration`} label="Collaboration" />
           <Tab to={`/projects/${projectId}/notes`} label="Notes" />
         </div>
       </div>

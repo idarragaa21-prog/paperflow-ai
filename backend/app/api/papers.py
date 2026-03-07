@@ -515,7 +515,7 @@ async def get_paper_content(
         "paper_id": str(paper.id),
         "status": paper.processing_status,
         "parse_run_id": str(parse_run.id),
-        "warnings": parse_run.warnings or [],
+        "warnings": parse_run.metadata_json.get("parse_warnings", parse_run.warnings or []) if parse_run.metadata_json else (parse_run.warnings or []),
         "pages": parse_run.metadata_json.get("pages") if parse_run.metadata_json else [{"page_number": page_number, "chunks": items} for page_number, items in sorted(pages.items())],
         "blocks": parse_run.metadata_json.get("blocks", []) if parse_run.metadata_json else [],
         "tables": parse_run.metadata_json.get("tables", []) if parse_run.metadata_json else [],
@@ -523,7 +523,9 @@ async def get_paper_content(
         "sections": parse_run.metadata_json.get("sections", []) if parse_run.metadata_json else [],
         "references": parse_run.metadata_json.get("references", []) if parse_run.metadata_json else [],
         "ocr": parse_run.metadata_json.get("ocr", {}) if parse_run.metadata_json else {},
-        "failure_classification": parse_run.metadata_json.get("failure_classification", []) if parse_run.metadata_json else [],
+        "grobid_status": parse_run.metadata_json.get("grobid_status") if parse_run.metadata_json else None,
+        "used_ocr": parse_run.metadata_json.get("used_ocr", parse_run.used_ocr) if parse_run.metadata_json else parse_run.used_ocr,
+        "failure_class": parse_run.metadata_json.get("failure_class", parse_run.metadata_json.get("failure_classification", [])) if parse_run.metadata_json else [],
         "full_text": paper.full_text_extracted,
     }
 
@@ -575,6 +577,8 @@ async def get_paper_parse_runs(
             "pages_count": run.pages_count,
             "chars_extracted": run.chars_extracted,
             "warnings": run.warnings or [],
+            "grobid_status": (run.metadata_json or {}).get("grobid_status"),
+            "failure_class": (run.metadata_json or {}).get("failure_class", (run.metadata_json or {}).get("failure_classification", [])),
             "metadata": run.metadata_json or {},
             "created_at": run.created_at.isoformat() if run.created_at else None,
         }

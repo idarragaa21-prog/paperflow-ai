@@ -32,6 +32,10 @@ jobs:
         run: |
           . .venv/bin/activate
           pytest -q
+      - name: Run quality benchmarks
+        run: |
+          . .venv/bin/activate
+          python scripts/run_quality_benchmarks.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -57,13 +61,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compose config validation
         run: docker compose config >/tmp/docker-compose.rendered.yml
-      - name: Start core infrastructure
-        run: docker compose up -d postgres redis qdrant minio minio-init
-      - name: Verify core infrastructure
+      - name: Start required runtime
+        run: docker compose up -d postgres redis qdrant ollama minio minio-init grobid r-engine
+      - name: Verify required runtime
         run: |
           docker compose ps
-          docker compose exec -T redis redis-cli ping
           docker compose exec -T postgres pg_isready -U postgres -d paperflow_ai
+          docker compose exec -T redis redis-cli ping
+          curl -fsS http://127.0.0.1:6333/collections >/dev/null
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null
+          curl -fsS http://127.0.0.1:8070/api/isalive >/dev/null
+          curl -fsS http://127.0.0.1:8010/health >/dev/null
       - name: Stop infrastructure
         if: always()
         run: docker compose down -v

@@ -24,6 +24,7 @@ QUEUE_BY_JOB_TYPE = {
     "meta_export_excel": "documents",
     "books_index": "documents",
     "books_scan_folder": "documents",
+    "analysis_run": "analysis",
     "generate_presentation": "presentations",
     "clinical_query": "presentations",
 }
@@ -135,6 +136,10 @@ def _job_callable_and_args(job: Job):
         from app.workers.books_scan_folder_job import books_scan_folder_job
 
         return books_scan_folder_job, (job_id,)
+    if job_type == "analysis_run":
+        from app.workers.tasks import analysis_run_job
+
+        return analysis_run_job, (job_id, params["analysis_run_id"])
     raise ValueError(f"Unsupported retry for job_type={job_type}")
 
 

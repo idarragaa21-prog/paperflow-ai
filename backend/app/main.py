@@ -93,8 +93,9 @@ async def health() -> dict:
         "name": "PaperFlow AI",
         "env": settings.ENV,
         "runtime_mode_default": settings.PROJECT_DEFAULT_RUNTIME_MODE,
+        "legacy_modules_enabled": settings.LEGACY_MODULES_ENABLED,
     }
-    details["degraded_features"] = {
+    details["optional_features"] = {
         "rate_limit": not (settings.RATE_LIMIT_ENABLED and redis_available()),
         "ocr": not settings.OCR_ENABLED,
         "grobid": not settings.GROBID_ENABLED,

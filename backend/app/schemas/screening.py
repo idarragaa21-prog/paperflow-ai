@@ -41,6 +41,11 @@ class PeerReviewActionCreate(BaseModel):
     payload_json: dict | None = None
 
 
+class PeerReviewActionPatch(BaseModel):
+    status: str = Field(min_length=1, max_length=32)
+    payload_json: dict | None = None
+
+
 class ScreeningBatchResponse(BaseModel):
     id: UUID
     project_id: UUID
@@ -65,3 +70,21 @@ class EligibilityReasonResponse(BaseModel):
     code: str
     label: str
     description: str | None
+
+
+class ProjectCommentResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    user_id: UUID
+    body: str
+    target_type: str | None
+    target_id: str | None
+
+
+class PeerReviewActionResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    user_id: UUID
+    action: str
+    status: str
+    payload_json: dict | None

@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import csv
-import io
+import base64
 import json
-from pathlib import Path
-from statistics import mean
 from uuid import UUID
 
 import httpx
@@ -16,8 +13,19 @@ from app.config import settings
 from app.core.storage import storage_manager
 from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset, DatasetColumn, FigureArtifact
 
+REPORT_MIME_TYPES = {
+    "html": "text/html",
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+CORE_ANALYSIS_TYPES = {"descriptives", "group_comparison", "linear_regression", "logistic_regression"}
+ADVANCED_ANALYSIS_TYPES = {"survival", "meta_analysis", "meta_regression", "sensitivity", "heterogeneity", "funnel_plot"}
+SUPPORTED_ANALYSIS_TYPES = CORE_ANALYSIS_TYPES | ADVANCED_ANALYSIS_TYPES
 
-def _infer_dtype(series: pd.Series) -> str:
+
+def _infer_dtype(series) -> str:
+    import pandas as pd
+
     if pd.api.types.is_bool_dtype(series):
         return "boolean"
     if pd.api.types.is_integer_dtype(series):
@@ -81,7 +89,7 @@ async def create_dataset(
     return hydrated.scalars().first()
 
 
-def _load_dataset_frame(dataset: Dataset) -> pd.DataFrame:
+def _load_dataset_frame(dataset: Dataset):
     import pandas as pd
 
     if not dataset.file_path:
@@ -90,45 +98,7 @@ def _load_dataset_frame(dataset: Dataset) -> pd.DataFrame:
         return pd.read_csv(local_path)
 
 
-def _local_analysis(df: pd.DataFrame, analysis_type: str, input_params: dict) -> dict:
-    import pandas as pd
-
-    analysis_type = analysis_type.lower()
-    summary: dict = {"analysis_type": analysis_type, "row_count": int(len(df.index)), "column_count": int(len(df.columns))}
-    warnings: list[str] = []
-
-    if analysis_type == "descriptives":
-        summary["columns"] = {
-            column: {
-                "type": _infer_dtype(df[column]),
-                "non_null": int(df[column].notna().sum()),
-                "unique": int(df[column].nunique(dropna=True)),
-            }
-            for column in df.columns
-        }
-    elif analysis_type == "group_comparison":
-        group_col = input_params.get("group_column")
-        value_col = input_params.get("value_column")
-        if group_col in df.columns and value_col in df.columns:
-            grouped = df.groupby(group_col)[value_col].agg(["count", "mean"]).reset_index()
-            summary["groups"] = grouped.to_dict(orient="records")
-        else:
-            warnings.append("Missing group_column or value_column for group comparison")
-    elif analysis_type in {"linear_regression", "logistic_regression"}:
-        target = input_params.get("target_column")
-        features = input_params.get("feature_columns") or []
-        summary["target_column"] = target
-        summary["feature_columns"] = features
-        summary["note"] = "Regression fallback executed locally without coefficient fitting. Use r-engine for full model output."
-        warnings.append("Local fallback does not fit coefficients; r-engine recommended.")
-    else:
-        summary["note"] = "Analysis type accepted but currently summarized via generic local fallback."
-        warnings.append("Advanced analysis delegated to r-engine when available.")
-
-    return {"summary": summary, "warnings": warnings, "script": f"# local fallback analysis\n# type: {analysis_type}\n# params: {json.dumps(input_params)}"}
-
-
-async def create_analysis_run(
+async def create_analysis_run_record(
     db: AsyncSession,
     *,
     project_id: UUID,
@@ -137,124 +107,220 @@ async def create_analysis_run(
     analysis_type: str,
     input_params: dict,
 ) -> AnalysisRun:
-    import pandas as pd
+    normalized_type = analysis_type.lower().strip()
+    if normalized_type not in SUPPORTED_ANALYSIS_TYPES:
+        raise ValueError(f"Unsupported analysis_type={analysis_type}")
+
+    run = AnalysisRun(
+        project_id=project_id,
+        dataset_id=dataset.id if dataset else None,
+        title=title,
+        analysis_type=normalized_type,
+        status="queued",
+        input_params=input_params,
+        runtime_metadata={
+            "engine": "r-engine",
+            "template_version": "analysis_report_v2",
+            "dataset_snapshot": {
+                "dataset_id": str(dataset.id) if dataset else None,
+                "row_count": int(dataset.row_count or 0) if dataset else 0,
+                "column_count": int(dataset.column_count or 0) if dataset else 0,
+            },
+            "artifact_manifest": [],
+        },
+        warnings=[],
+    )
+    db.add(run)
+    await db.commit()
+    stmt = select(AnalysisRun).where(AnalysisRun.id == run.id).options(selectinload(AnalysisRun.artifacts))
+    hydrated = await db.execute(stmt)
+    return hydrated.scalars().first()
+
+
+def _decode_artifact(artifact: dict) -> tuple[bytes, str, str, dict]:
+    content = base64.b64decode(str(artifact["content_base64"]).encode("utf-8"))
+    filename = str(artifact["filename"])
+    mime_type = str(artifact["mime_type"])
+    metadata = artifact.get("metadata_json") or {}
+    return content, filename, mime_type, metadata
+
+
+async def run_analysis_pipeline(db: AsyncSession, *, run_id: UUID) -> AnalysisRun:
+    stmt = select(AnalysisRun).where(AnalysisRun.id == run_id).options(selectinload(AnalysisRun.artifacts))
+    result = await db.execute(stmt)
+    run = result.scalars().first()
+    if run is None:
+        raise ValueError("Analysis run not found")
+
+    dataset = await db.get(Dataset, run.dataset_id) if run.dataset_id else None
+    if run.dataset_id and dataset is None:
+        run.status = "failed"
+        run.warnings = ["Dataset not found"]
+        await db.commit()
+        raise ValueError("Dataset not found")
+
+    run.status = "running"
+    await db.commit()
 
     rows: list[dict] = []
     if dataset is not None:
         df = _load_dataset_frame(dataset)
         rows = df.to_dict(orient="records")
-    else:
-        df = pd.DataFrame()
 
     payload = {
-        "analysis_type": analysis_type,
-        "input_params": input_params,
+        "title": run.title,
+        "analysis_type": run.analysis_type,
+        "input_params": run.input_params or {},
         "rows": rows,
+        "output_formats": ["html", "pdf", "docx"],
     }
-    response_data: dict | None = None
-    warnings: list[str] = []
+
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(f"{settings.R_ENGINE_URL}/run-analysis", json=payload)
-            resp.raise_for_status()
-            response_data = resp.json()
-    except Exception:
-        response_data = _local_analysis(df, analysis_type, input_params)
-        warnings.append("r-engine unavailable, local fallback used")
+        async with httpx.AsyncClient(timeout=180) as client:
+            response = await client.post(f"{settings.R_ENGINE_URL.rstrip('/')}/run-analysis", json=payload)
+            response.raise_for_status()
+            response_data = response.json()
+    except Exception as exc:
+        run.status = "failed"
+        run.warnings = [f"r-engine unavailable: {exc}"]
+        run.result_summary = {"error": str(exc)}
+        await db.commit()
+        raise
 
-    warnings.extend(response_data.get("warnings") or [])
+    summary = response_data.get("summary") or {}
+    warnings = [str(item) for item in (response_data.get("warnings") or [])]
+    engine_version = response_data.get("engine_version") or "unknown"
+    template_version = response_data.get("template_version") or "analysis_report_v2"
+    figure = response_data.get("figure") or {}
     artifact_manifest: list[dict] = []
-    run = AnalysisRun(
-        project_id=project_id,
-        dataset_id=dataset.id if dataset else None,
-        title=title,
-        analysis_type=analysis_type,
-        status="completed",
-        input_params=input_params,
-        runtime_metadata={
-            "engine": "r-engine" if "engine_version" in response_data else "local_fallback",
-            "dataset_snapshot": {
-                "dataset_id": str(dataset.id) if dataset else None,
-                "row_count": len(rows),
-                "column_count": len(rows[0].keys()) if rows else 0,
-            },
-            "artifact_manifest": artifact_manifest,
-        },
-        script_text=response_data.get("script"),
-        warnings=warnings,
-        result_summary=response_data.get("summary"),
-        engine_version=response_data.get("engine_version") or "local-fallback",
-    )
-    db.add(run)
-    await db.flush()
 
-    report_body = json.dumps(response_data.get("summary") or {}, indent=2, ensure_ascii=False)
-    report_saved = await storage_manager.save_text_artifact(
-        text=report_body,
+    for artifact in list(run.artifacts):
+        await db.delete(artifact)
+
+    summary_saved = await storage_manager.save_text_artifact(
+        text=json.dumps(summary, indent=2, ensure_ascii=False),
         filename=f"{run.id}_summary.json",
-        project_id=project_id,
+        project_id=run.project_id,
     )
     db.add(
         AnalysisArtifact(
             analysis_run_id=run.id,
             artifact_type="summary",
-            filename=report_saved["filename"],
-            file_path=report_saved["file_path"],
+            filename=summary_saved["filename"],
+            file_path=summary_saved["file_path"],
             mime_type="application/json",
-            metadata_json={"analysis_type": analysis_type},
+            metadata_json={"analysis_type": run.analysis_type, "template_version": template_version},
         )
     )
-    artifact_manifest.append({"artifact_type": "summary", "filename": report_saved["filename"], "file_path": report_saved["file_path"]})
-
-    chart_data = response_data.get("figure") or {"title": "Summary figure placeholder", "caption": "Generated from analysis summary"}
-    chart_saved = await storage_manager.save_text_artifact(
-        text=json.dumps(chart_data, indent=2, ensure_ascii=False),
-        filename=f"{run.id}_figure.json",
-        project_id=project_id,
+    artifact_manifest.append(
+        {
+            "artifact_type": "summary",
+            "filename": summary_saved["filename"],
+            "file_path": summary_saved["file_path"],
+            "format": "json",
+        }
     )
-    db.add(
-        FigureArtifact(
-            analysis_run_id=run.id,
-            title=chart_data.get("title", "Summary figure"),
-            caption=chart_data.get("caption"),
-            filename=chart_saved["filename"],
-            file_path=chart_saved["file_path"],
-            metadata_json=chart_data,
+
+    for artifact in response_data.get("artifacts") or []:
+        content, filename, mime_type, metadata = _decode_artifact(artifact)
+        saved = await storage_manager.save_artifact_bytes(data=content, filename=filename, project_id=run.project_id)
+        artifact_type = f"report_{metadata.get('format') or 'bin'}"
+        db.add(
+            AnalysisArtifact(
+                analysis_run_id=run.id,
+                artifact_type=artifact_type,
+                filename=saved["filename"],
+                file_path=saved["file_path"],
+                mime_type=mime_type,
+                metadata_json=metadata,
+            )
         )
-    )
-    artifact_manifest.append({"artifact_type": "figure", "filename": chart_saved["filename"], "file_path": chart_saved["file_path"]})
+        artifact_manifest.append(
+            {
+                "artifact_type": artifact_type,
+                "filename": saved["filename"],
+                "file_path": saved["file_path"],
+                "format": metadata.get("format"),
+                "mime_type": mime_type,
+            }
+        )
 
+    if figure:
+        chart_saved = await storage_manager.save_text_artifact(
+            text=json.dumps(figure, indent=2, ensure_ascii=False),
+            filename=f"{run.id}_figure.json",
+            project_id=run.project_id,
+        )
+        db.add(
+            FigureArtifact(
+                analysis_run_id=run.id,
+                title=str(figure.get("title") or "Analysis figure"),
+                caption=figure.get("caption"),
+                filename=chart_saved["filename"],
+                file_path=chart_saved["file_path"],
+                metadata_json=figure,
+            )
+        )
+        artifact_manifest.append(
+            {
+                "artifact_type": "figure",
+                "filename": chart_saved["filename"],
+                "file_path": chart_saved["file_path"],
+                "format": "json",
+            }
+        )
+
+    run.status = "completed"
+    run.script_text = response_data.get("script")
+    run.warnings = warnings
+    run.result_summary = summary
+    run.engine_version = engine_version
+    run.runtime_metadata = {
+        **(run.runtime_metadata or {}),
+        "engine": "r-engine",
+        "engine_version": engine_version,
+        "template_version": template_version,
+        "dataset_snapshot": {
+            "dataset_id": str(dataset.id) if dataset else None,
+            "row_count": len(rows),
+            "column_count": len(rows[0].keys()) if rows else 0,
+        },
+        "artifact_manifest": artifact_manifest,
+        "warnings": warnings,
+    }
     await db.commit()
-    stmt = (
-        select(AnalysisRun)
-        .where(AnalysisRun.id == run.id)
-        .options(selectinload(AnalysisRun.artifacts))
+
+    hydrated = await db.execute(
+        select(AnalysisRun).where(AnalysisRun.id == run.id).options(selectinload(AnalysisRun.artifacts))
     )
-    hydrated = await db.execute(stmt)
     return hydrated.scalars().first()
 
 
 async def export_analysis_run(db: AsyncSession, *, run: AnalysisRun, fmt: str) -> tuple[bytes, str, str]:
-    payload = {
-        "title": run.title,
-        "analysis_type": run.analysis_type,
-        "summary": run.result_summary,
-        "warnings": run.warnings or [],
-        "script": run.script_text,
-    }
-    if fmt == "html":
-        body = (
-            "<html><body><h1>{title}</h1><pre>{summary}</pre><pre>{script}</pre></body></html>".format(
-                title=run.title,
-                summary=json.dumps(run.result_summary or {}, indent=2, ensure_ascii=False),
-                script=run.script_text or "",
-            )
-        )
-        return body.encode("utf-8"), "text/html", f"{run.id}.html"
-    if fmt == "pdf":
-        body = json.dumps(payload, indent=2, ensure_ascii=False)
-        return body.encode("utf-8"), "application/pdf", f"{run.id}.pdf"
-    if fmt == "docx":
-        body = json.dumps(payload, indent=2, ensure_ascii=False)
-        return body.encode("utf-8"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", f"{run.id}.docx"
-    raise ValueError("Unsupported export format")
+    if run.status != "completed":
+        raise ValueError("Analysis run is not completed")
+
+    normalized = fmt.lower().strip()
+    if normalized not in REPORT_MIME_TYPES:
+        raise ValueError("Unsupported export format")
+
+    stmt = select(AnalysisRun).where(AnalysisRun.id == run.id).options(selectinload(AnalysisRun.artifacts))
+    hydrated = await db.execute(stmt)
+    current = hydrated.scalars().first()
+    if current is None:
+        raise ValueError("Analysis run not found")
+
+    artifact = next(
+        (
+            item
+            for item in current.artifacts
+            if item.artifact_type == f"report_{normalized}"
+            or (item.metadata_json or {}).get("format") == normalized
+        ),
+        None,
+    )
+    if artifact is None:
+        raise ValueError(f"No persisted {normalized} artifact found")
+
+    data = storage_manager.read_bytes(artifact.file_path)
+    return data, artifact.mime_type, artifact.filename

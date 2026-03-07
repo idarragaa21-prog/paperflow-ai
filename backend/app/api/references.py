@@ -12,6 +12,7 @@ from app.models.reference_item import ReferenceItem
 from app.models.user import User
 from app.schemas.references import ReferenceItemResponse, ReferencesImportRequest, ReferencesImportResponse
 from app.services.audit import log_audit
+from app.services.oa_resolvers import normalize_reference_identity
 from app.services.pagination import apply_desc_cursor, encode_cursor
 from app.services.permissions import require_project_access
 from app.services.references_io import export_bibtex, export_ris, parse_bibtex_entries, parse_ris_entries
@@ -51,6 +52,13 @@ async def import_references(
     imported: list[ReferenceItem] = []
     skipped = 0
     for entry in parsed:
+        identity = normalize_reference_identity(
+            doi=entry.get("doi"),
+            pmid=entry.get("pmid"),
+            title=entry.get("title"),
+            source=payload.format,
+        )
+        normalized_title = identity.get("title_normalized")
         dedup_q = await db.execute(
             select(ReferenceItem).where(
                 and_(
@@ -63,9 +71,16 @@ async def import_references(
                 )
             )
         )
-        if dedup_q.scalars().first():
+        existing = dedup_q.scalars().first()
+        if existing:
             skipped += 1
             continue
+        if normalized_title:
+            title_candidates = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == payload.project_id))
+            if any(normalize_reference_identity(doi=item.doi, pmid=item.pmid, title=item.title, source=item.source_format).get("title_normalized") == normalized_title for item in title_candidates.scalars().all()):
+                skipped += 1
+                continue
+        entry["raw_payload"] = {**(entry.get("raw_payload") or {}), "canonical_identity": identity}
         item = ReferenceItem(project_id=payload.project_id, **entry)
         db.add(item)
         imported.append(item)
@@ -156,7 +171,16 @@ async def sync_references_from_library(
                     pmcid=paper.pmcid,
                     abstract_text=paper.abstract_text,
                     language=paper.language,
-                    raw_payload={"paper_id": str(paper.id), "source_provider": paper.source_provider},
+                    raw_payload={
+                        "paper_id": str(paper.id),
+                        "source_provider": paper.source_provider,
+                        "canonical_identity": normalize_reference_identity(
+                            doi=paper.doi,
+                            pmid=paper.pmid,
+                            title=paper.title,
+                            source=paper.source_provider,
+                        ),
+                    },
                 )
             )
             created += 1

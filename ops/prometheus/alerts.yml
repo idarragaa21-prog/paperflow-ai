@@ -1,0 +1,38 @@
+groups:
+  - name: paperflow-runtime
+    rules:
+      - alert: PaperFlowBackendDown
+        expr: up{job="paperflow-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: PaperFlow backend is down
+          description: The backend /metrics target has been unreachable for more than 2 minutes.
+
+      - alert: PaperFlowChatBlockedSpike
+        expr: increase(chat_blocked_answers_total[15m]) > 25
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Chat blocked answers spiked
+          description: Evidence-based chat is blocking at an unusual rate during the last 15 minutes.
+
+      - alert: PaperFlowJobFailuresHigh
+        expr: increase(job_failures_total[15m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Background job failures increased
+          description: The system recorded more than 5 job failures in 15 minutes.
+
+      - alert: PaperFlowPermissionDenialsSpike
+        expr: increase(permission_denials_total[15m]) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Permission denials spiked
+          description: Review project role assignments or possible abusive traffic.

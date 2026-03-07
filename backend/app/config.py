@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     CHAT_MIN_GROUNDED_SCORE: float = 0.35
     CHAT_ENABLE_INTERNAL_DEBUG: bool = False
     CHAT_DEFAULT_MODE: str = "extractive_strict"
+    LEGACY_MODULES_ENABLED: bool = False
 
     OTEL_ENABLED: bool = False
     OTEL_SERVICE_NAME: str = "paperflow-backend"

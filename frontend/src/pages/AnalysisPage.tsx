@@ -15,6 +15,7 @@ type AnalysisRun = {
   analysis_type: string;
   status: string;
   warnings: string[];
+  runtime_metadata?: { job_id?: string; artifact_manifest?: Array<{ format?: string; artifact_type?: string }> };
 };
 
 export default function AnalysisPage() {
@@ -31,11 +32,13 @@ export default function AnalysisPage() {
 
   async function load() {
     if (!projectId) return;
-    const [datasetResponse] = await Promise.all([
+    const [datasetResponse, runResponse] = await Promise.all([
       api.get('/datasets', { params: { project_id: projectId } }),
+      api.get('/analysis-runs', { params: { project_id: projectId } }),
     ]);
     const nextDatasets = datasetResponse.data as Dataset[];
     setDatasets(nextDatasets);
+    setRuns(runResponse.data as AnalysisRun[]);
     if (!selectedDataset && nextDatasets[0]) {
       setSelectedDataset(nextDatasets[0].id);
     }
@@ -44,6 +47,14 @@ export default function AnalysisPage() {
   useEffect(() => {
     load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load analysis workspace'));
   }, [projectId]);
+
+  useEffect(() => {
+    if (!runs.some((run) => run.status === 'queued' || run.status === 'running')) return;
+    const timer = window.setInterval(() => {
+      void load().catch(() => undefined);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [runs, projectId]);
 
   async function createDataset() {
     if (!projectId) return;
@@ -80,6 +91,7 @@ export default function AnalysisPage() {
               : {},
       });
       setRuns((prev) => [response.data as AnalysisRun, ...prev]);
+      await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to run analysis');
     } finally {
@@ -175,11 +187,12 @@ export default function AnalysisPage() {
           <div key={run.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{run.title}</div>
             <div className="rc-help">{run.analysis_type} · {run.status}</div>
+            {run.runtime_metadata?.job_id ? <div className="rc-help">Job: {run.runtime_metadata.job_id}</div> : null}
             {run.warnings?.length ? <div className="rc-help">Warnings: {run.warnings.join(' | ')}</div> : null}
             <div className="rc-row">
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'html')}>HTML</button>
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'pdf')}>PDF</button>
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'docx')}>DOCX</button>
+              <button className="rc-btn" onClick={() => exportRun(run.id, 'html')} disabled={run.status !== 'completed'}>HTML</button>
+              <button className="rc-btn" onClick={() => exportRun(run.id, 'pdf')} disabled={run.status !== 'completed'}>PDF</button>
+              <button className="rc-btn" onClick={() => exportRun(run.id, 'docx')} disabled={run.status !== 'completed'}>DOCX</button>
             </div>
           </div>
         ))}
