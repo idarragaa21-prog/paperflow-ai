@@ -133,17 +133,18 @@ export default function ReferencesPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end' }}>
           <div style={{ width: 160 }}>
             <div className="rc-kicker">Format</div>
-            <select className="rc-input" value={format} onChange={(e) => setFormat(e.target.value as 'bibtex' | 'ris')}>
+            <select data-testid="references-format-select" className="rc-input" value={format} onChange={(e) => setFormat(e.target.value as 'bibtex' | 'ris')}>
               <option value="bibtex">BibTeX</option>
               <option value="ris">RIS</option>
             </select>
           </div>
-          <button className="rc-btn rc-btn--primary" disabled={!canImport || importing} onClick={importReferences}>
+          <button data-testid="references-import-button" className="rc-btn rc-btn--primary" disabled={!canImport || importing} onClick={importReferences}>
             {importing ? 'Importing…' : 'Import'}
           </button>
         </div>
         <div style={{ height: 10 }} />
         <textarea
+          data-testid="references-content-input"
           className="rc-input"
           style={{ minHeight: 220, width: '100%' }}
           value={content}

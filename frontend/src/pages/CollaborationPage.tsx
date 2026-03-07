@@ -100,17 +100,17 @@ export default function CollaborationPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 280 }}>
             <div className="rc-kicker">User UUID</div>
-            <input className="rc-input" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+            <input data-testid="member-user-id-input" className="rc-input" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
           </div>
           <div style={{ minWidth: 180 }}>
             <div className="rc-kicker">Role</div>
-            <select className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])}>
+            <select data-testid="member-role-select" className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])}>
               {ROLE_OPTIONS.map((role) => (
                 <option key={role} value={role}>{role}</option>
               ))}
             </select>
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim()}>
+          <button data-testid="member-add-button" className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim()}>
             {saving ? 'Saving…' : 'Add member'}
           </button>
         </div>
@@ -122,15 +122,16 @@ export default function CollaborationPage() {
         {loading ? <div className="rc-muted">Loading members…</div> : null}
         {!loading && members.length === 0 ? <div className="rc-muted">No members found.</div> : null}
         {members.map((member) => (
-          <div key={member.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
+          <div data-testid={`member-card-${member.user_id}`} key={member.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{member.user_id}</div>
             <div className="rc-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <select className="rc-input" value={member.role} onChange={(e) => updateRole(member, e.target.value as Membership['role'])}>
+              <select data-testid={`member-role-${member.user_id}`} className="rc-input" value={member.role} onChange={(e) => updateRole(member, e.target.value as Membership['role'])}>
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role} value={role}>{role}</option>
                 ))}
               </select>
               <button
+                data-testid={`member-remove-${member.user_id}`}
                 className="rc-btn"
                 onClick={() => removeMember(member)}
                 disabled={member.role === 'owner' && ownerCount <= 1}

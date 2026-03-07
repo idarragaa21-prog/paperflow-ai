@@ -83,7 +83,7 @@ export default function ReaderPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Scope</div>
-            <select className="rc-input" value={paperId} onChange={(e) => setPaperId(e.target.value)}>
+            <select data-testid="reader-scope-select" className="rc-input" value={paperId} onChange={(e) => setPaperId(e.target.value)}>
               <option value="project">Whole project</option>
               {papers.map((paper) => (
                 <option key={paper.id} value={paper.id}>
@@ -92,13 +92,14 @@ export default function ReaderPage() {
               ))}
             </select>
           </div>
-          <button className="rc-btn" onClick={() => loadPapers()} disabled={loading}>Refresh papers</button>
-          <button className="rc-btn rc-btn--primary" onClick={askQuestion} disabled={loading || !question.trim()}>
+          <button data-testid="reader-refresh-papers" className="rc-btn" onClick={() => loadPapers()} disabled={loading}>Refresh papers</button>
+          <button data-testid="reader-ask-button" className="rc-btn rc-btn--primary" onClick={askQuestion} disabled={loading || !question.trim()}>
             {loading ? 'Asking…' : 'Ask'}
           </button>
         </div>
         <div style={{ height: 10 }} />
         <textarea
+          data-testid="reader-question-input"
           className="rc-input"
           style={{ minHeight: 120, width: '100%' }}
           value={question}
@@ -106,7 +107,7 @@ export default function ReaderPage() {
         />
       </div>
 
-      <div className="rc-card">
+      <div data-testid="reader-answer-panel" className="rc-card">
         <div className="rc-card-title">Answer</div>
         {!result ? <div className="rc-muted">No answer yet.</div> : null}
         {result ? (

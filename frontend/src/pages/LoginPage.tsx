@@ -35,12 +35,13 @@ export default function LoginPage() {
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <div className="rc-kicker">Email</div>
-            <input className="rc-input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            <input data-testid="login-email" className="rc-input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
           </div>
 
           <div>
             <div className="rc-kicker">Password</div>
             <input
+              data-testid="login-password"
               className="rc-input"
               type="password"
               value={password}
@@ -49,7 +50,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <button className="rc-btn rc-btn--primary" disabled={loading} type="submit">
+          <button data-testid="login-submit" className="rc-btn rc-btn--primary" disabled={loading} type="submit">
             {loading ? '…' : 'Login'}
           </button>
 

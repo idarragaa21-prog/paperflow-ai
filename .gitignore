@@ -16,4 +16,8 @@ backend/logs/
 .dev_logs/
 
 reports/
+tmp/
+frontend/playwright-report/
+frontend/test-results/
+frontend/.auth/
 .DS_Store

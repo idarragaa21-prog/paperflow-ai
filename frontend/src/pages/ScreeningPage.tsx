@@ -149,14 +149,14 @@ export default function ScreeningPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Batch title</div>
-            <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input data-testid="screening-batch-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={createBatch}>Create batch</button>
+          <button data-testid="screening-create-batch" className="rc-btn" onClick={createBatch}>Create batch</button>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Exclusion reason</div>
-            <input className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
+            <input data-testid="screening-reason-input" className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={createReason}>Add reason</button>
+          <button data-testid="screening-add-reason" className="rc-btn" onClick={createReason}>Add reason</button>
         </div>
       </div>
 
@@ -165,7 +165,7 @@ export default function ScreeningPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Batch</div>
-            <select className="rc-input" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
+            <select data-testid="screening-batch-select" className="rc-input" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
               <option value="">Select batch</option>
               {batches.map((batch) => (
                 <option key={batch.id} value={batch.id}>
@@ -176,7 +176,7 @@ export default function ScreeningPage() {
           </div>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Paper</div>
-            <select className="rc-input" value={selectedPaper} onChange={(e) => setSelectedPaper(e.target.value)}>
+            <select data-testid="screening-paper-select" className="rc-input" value={selectedPaper} onChange={(e) => setSelectedPaper(e.target.value)}>
               <option value="">Select paper</option>
               {papers.map((paper) => (
                 <option key={paper.id} value={paper.id}>{paper.title}</option>
@@ -185,13 +185,13 @@ export default function ScreeningPage() {
           </div>
           <div style={{ minWidth: 160 }}>
             <div className="rc-kicker">Decision</div>
-            <select className="rc-input" value={decision} onChange={(e) => setDecision(e.target.value)}>
+            <select data-testid="screening-decision-select" className="rc-input" value={decision} onChange={(e) => setDecision(e.target.value)}>
               <option value="include">Include</option>
               <option value="exclude">Exclude</option>
               <option value="maybe">Maybe</option>
             </select>
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={saveDecision}>Save decision</button>
+          <button data-testid="screening-save-decision" className="rc-btn rc-btn--primary" onClick={saveDecision}>Save decision</button>
         </div>
       </div>
 
@@ -217,6 +217,7 @@ export default function ScreeningPage() {
         <div className="rc-card">
           <div className="rc-card-title">Comments</div>
           <textarea
+            data-testid="screening-comment-input"
             className="rc-input"
             style={{ minHeight: 100, width: '100%' }}
             value={commentBody}
@@ -224,7 +225,7 @@ export default function ScreeningPage() {
             placeholder="Add a screening or review note…"
           />
           <div style={{ height: 10 }} />
-          <button className="rc-btn" onClick={saveComment}>Add comment</button>
+          <button data-testid="screening-add-comment" className="rc-btn" onClick={saveComment}>Add comment</button>
           <div style={{ height: 10 }} />
           {comments.length === 0 ? <div className="rc-muted">No comments yet.</div> : null}
           {comments.map((comment) => (
@@ -239,13 +240,13 @@ export default function ScreeningPage() {
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 220 }}>
               <div className="rc-kicker">Action</div>
-              <select className="rc-input" value={reviewAction} onChange={(e) => setReviewAction(e.target.value)}>
+              <select data-testid="screening-review-action-select" className="rc-input" value={reviewAction} onChange={(e) => setReviewAction(e.target.value)}>
                 <option value="draft_review">Draft review</option>
                 <option value="extraction_review">Extraction review</option>
                 <option value="screening_review">Screening review</option>
               </select>
             </div>
-            <button className="rc-btn" onClick={createReviewAction}>Queue review action</button>
+            <button data-testid="screening-queue-review-action" className="rc-btn" onClick={createReviewAction}>Queue review action</button>
           </div>
           <div style={{ height: 10 }} />
           {reviewActions.length === 0 ? <div className="rc-muted">No peer review actions yet.</div> : null}
@@ -255,7 +256,7 @@ export default function ScreeningPage() {
               <div className="rc-help">{action.status} · {action.user_id}</div>
               <div className="rc-row">
                 {action.status !== 'resolved' ? (
-                  <button className="rc-btn" onClick={() => resolveReviewAction(action.id)}>Resolve</button>
+                  <button data-testid={`screening-resolve-review-${action.id}`} className="rc-btn" onClick={() => resolveReviewAction(action.id)}>Resolve</button>
                 ) : (
                   <span className="rc-help">Resolved</span>
                 )}

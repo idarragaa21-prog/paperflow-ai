@@ -108,10 +108,10 @@ export default function DraftsPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">New draft title</div>
-            <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input data-testid="draft-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={createDraft} disabled={busy}>Create draft</button>
-          <button className="rc-btn" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
+          <button data-testid="draft-create-button" className="rc-btn rc-btn--primary" onClick={createDraft} disabled={busy}>Create draft</button>
+          <button data-testid="draft-build-evidence" className="rc-btn" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
         </div>
       </div>
 
@@ -120,7 +120,7 @@ export default function DraftsPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Draft</div>
-            <select className="rc-input" value={selectedDraft} onChange={(e) => setSelectedDraft(e.target.value)}>
+            <select data-testid="draft-select" className="rc-input" value={selectedDraft} onChange={(e) => setSelectedDraft(e.target.value)}>
               <option value="">Select draft</option>
               {drafts.map((draft) => (
                 <option key={draft.id} value={draft.id}>
@@ -131,9 +131,9 @@ export default function DraftsPage() {
           </div>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Heading</div>
-            <input className="rc-input" value={heading} onChange={(e) => setHeading(e.target.value)} />
+            <input data-testid="draft-heading-input" className="rc-input" value={heading} onChange={(e) => setHeading(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
+          <button data-testid="draft-generate-button" className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
         </div>
       </div>
 

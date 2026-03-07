@@ -65,9 +65,9 @@ export default function ProjectsPage() {
         <div className="rc-row">
             <div style={{ minWidth: 280, flex: 1 }}>
               <div className="rc-kicker">Title</div>
-            <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" />
+            <input data-testid="project-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" />
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={create} disabled={!title.trim()}>
+          <button data-testid="project-create-button" className="rc-btn rc-btn--primary" onClick={create} disabled={!title.trim()}>
             Create
           </button>
         </div>
@@ -79,7 +79,7 @@ export default function ProjectsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {projects.length === 0 ? <div className="rc-muted">No projects yet.</div> : null}
         {projects.map((p) => (
-          <div key={p.id} className="rc-card" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+          <div data-testid={`project-card-${p.id}`} key={p.id} className="rc-card" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
             <div>
               <div style={{ fontWeight: 850, letterSpacing: '-0.02em' }}>
                 {p.title}{' '}
@@ -89,7 +89,7 @@ export default function ProjectsPage() {
               {p.description ? <div className="rc-help">{p.description}</div> : null}
             </div>
             <div className="rc-row">
-              <Link to={`/projects/${p.id}/research`}>Open</Link>
+              <Link data-testid={`project-open-${p.id}`} to={`/projects/${p.id}/research`}>Open</Link>
             </div>
           </div>
         ))}

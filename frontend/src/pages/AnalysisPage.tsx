@@ -130,12 +130,12 @@ export default function AnalysisPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Dataset title</div>
-            <input className="rc-input" value={datasetTitle} onChange={(e) => setDatasetTitle(e.target.value)} />
+            <input data-testid="dataset-title-input" className="rc-input" value={datasetTitle} onChange={(e) => setDatasetTitle(e.target.value)} />
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={createDataset} disabled={busy}>Create dataset</button>
+          <button data-testid="dataset-create-button" className="rc-btn rc-btn--primary" onClick={createDataset} disabled={busy}>Create dataset</button>
         </div>
         <div style={{ height: 10 }} />
-        <textarea className="rc-input" style={{ minHeight: 140, width: '100%' }} value={rowsText} onChange={(e) => setRowsText(e.target.value)} />
+        <textarea data-testid="dataset-rows-input" className="rc-input" style={{ minHeight: 140, width: '100%' }} value={rowsText} onChange={(e) => setRowsText(e.target.value)} />
       </div>
 
       <div className="rc-card">
@@ -143,7 +143,7 @@ export default function AnalysisPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Dataset</div>
-            <select className="rc-input" value={selectedDataset} onChange={(e) => setSelectedDataset(e.target.value)}>
+            <select data-testid="analysis-dataset-select" className="rc-input" value={selectedDataset} onChange={(e) => setSelectedDataset(e.target.value)}>
               <option value="">No dataset</option>
               {datasets.map((dataset) => (
                 <option key={dataset.id} value={dataset.id}>
@@ -154,11 +154,11 @@ export default function AnalysisPage() {
           </div>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Title</div>
-            <input className="rc-input" value={analysisTitle} onChange={(e) => setAnalysisTitle(e.target.value)} />
+            <input data-testid="analysis-title-input" className="rc-input" value={analysisTitle} onChange={(e) => setAnalysisTitle(e.target.value)} />
           </div>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Type</div>
-            <select className="rc-input" value={analysisType} onChange={(e) => setAnalysisType(e.target.value)}>
+            <select data-testid="analysis-type-select" className="rc-input" value={analysisType} onChange={(e) => setAnalysisType(e.target.value)}>
               <option value="descriptives">Descriptives</option>
               <option value="group_comparison">Group comparison</option>
               <option value="linear_regression">Linear regression</option>
@@ -166,7 +166,7 @@ export default function AnalysisPage() {
               <option value="meta_analysis">Meta-analysis</option>
             </select>
           </div>
-          <button className="rc-btn" onClick={createRun} disabled={busy}>Run</button>
+          <button data-testid="analysis-run-button" className="rc-btn" onClick={createRun} disabled={busy}>Run</button>
         </div>
       </div>
 
@@ -184,15 +184,15 @@ export default function AnalysisPage() {
         <div className="rc-card-title">Recent runs</div>
         {runs.length === 0 ? <div className="rc-muted">No analysis runs in this session yet.</div> : null}
         {runs.map((run) => (
-          <div key={run.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
+          <div data-testid={`analysis-run-${run.id}`} key={run.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{run.title}</div>
             <div className="rc-help">{run.analysis_type} · {run.status}</div>
             {run.runtime_metadata?.job_id ? <div className="rc-help">Job: {run.runtime_metadata.job_id}</div> : null}
             {run.warnings?.length ? <div className="rc-help">Warnings: {run.warnings.join(' | ')}</div> : null}
             <div className="rc-row">
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'html')} disabled={run.status !== 'completed'}>HTML</button>
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'pdf')} disabled={run.status !== 'completed'}>PDF</button>
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'docx')} disabled={run.status !== 'completed'}>DOCX</button>
+              <button data-testid={`analysis-export-html-${run.id}`} className="rc-btn" onClick={() => exportRun(run.id, 'html')} disabled={run.status !== 'completed'}>HTML</button>
+              <button data-testid={`analysis-export-pdf-${run.id}`} className="rc-btn" onClick={() => exportRun(run.id, 'pdf')} disabled={run.status !== 'completed'}>PDF</button>
+              <button data-testid={`analysis-export-docx-${run.id}`} className="rc-btn" onClick={() => exportRun(run.id, 'docx')} disabled={run.status !== 'completed'}>DOCX</button>
             </div>
           </div>
         ))}

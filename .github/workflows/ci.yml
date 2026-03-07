@@ -54,6 +54,8 @@ jobs:
         run: npm ci
       - name: Build frontend
         run: npm run build
+      - name: Validate Playwright test discovery
+        run: npm run e2e:list
 
   docker-smoke:
     runs-on: ubuntu-latest
