@@ -16,6 +16,7 @@ import ReaderPage from './pages/ReaderPage';
 import ReferencesPage from './pages/ReferencesPage';
 import ScreeningPage from './pages/ScreeningPage';
 import SearchPage from './pages/SearchPage';
+import { getCookie } from './services/cookies';
 import { useAuthStore } from './store/authStore';
 
 const BooksPage = lazy(() => import('./pages/BooksPage'));
@@ -56,6 +57,12 @@ export default function App() {
   const legacyEnabled = import.meta.env.VITE_ENABLE_LEGACY_MODULES === 'true';
 
   useEffect(() => {
+    const hasSessionCookie = Boolean(getCookie('access_token') || getCookie('refresh_token') || getCookie('csrf_token'));
+    const isLoginRoute = window.location.pathname === '/login';
+    if (isLoginRoute && !hasSessionCookie) {
+      useAuthStore.setState((state) => (state.loading ? { ...state, loading: false } : state));
+      return;
+    }
     checkAuth();
   }, [checkAuth]);
 

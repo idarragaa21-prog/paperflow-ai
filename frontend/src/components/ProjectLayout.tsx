@@ -127,26 +127,32 @@ export default function ProjectLayout() {
   if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div>
-            <h1 className="rc-page-title" style={{ marginBottom: 0 }}>{project?.title || 'Project'}</h1>
-            {project?.clinical_area ? <div className="rc-subtitle">{project.clinical_area}</div> : <div className="rc-subtitle">Research project workspace</div>}
-            {project?.runtime_mode ? <div className="rc-help">Runtime: {project.runtime_mode}</div> : null}
+    <div className="rc-section-shell">
+      <div className="rc-hero-card">
+        <div style={{ maxWidth: 760 }}>
+          <div className="rc-pill">Workspace</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>{project?.title || 'Project'}</h1>
+          {project?.clinical_area ? <div className="rc-subtitle">{project.clinical_area}</div> : <div className="rc-subtitle">Research project workspace</div>}
+          <div className="rc-help" style={{ marginTop: 10 }}>
+            Search literature, curate PDFs, extract structured evidence, write grounded drafts and run reproducible analyses from one workspace.
+          </div>
+          {project?.runtime_mode ? <div className="rc-help" style={{ marginTop: 8 }}>Runtime: {project.runtime_mode}</div> : null}
+        </div>
+
+        <div className="rc-stack" style={{ minWidth: 360, flex: 1 }}>
+          <div className="rc-card">
+            <div className="rc-card-title">Project snapshot</div>
+            <div className="rc-metric-grid">
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.papers ?? '—'}</strong><span>Papers</span></div>
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.references ?? '—'}</strong><span>References</span></div>
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.meta_studies_current ?? '—'}</strong><span>Extracted</span></div>
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.notes ?? '—'}</strong><span>Notes</span></div>
+            </div>
           </div>
 
-          <div className="rc-card" style={{ minWidth: 360 }}>
-            <div className="rc-card-title">Dashboard</div>
-            <div className="rc-row" style={{ gap: 10 }}>
-              <span className="rc-badge">Papers: <b>{dashboard?.counts?.papers ?? '—'}</b></span>
-              <span className="rc-badge">Notes: <b>{dashboard?.counts?.notes ?? '—'}</b></span>
-              <span className="rc-badge">Refs: <b>{dashboard?.counts?.references ?? '—'}</b></span>
-              <span className="rc-badge">Extracted: <b>{dashboard?.counts?.meta_studies_current ?? '—'}</b></span>
-            </div>
-
-            <div style={{ height: 10 }} />
-
+          <div className="rc-card">
+            <div className="rc-card-title">Export workspace</div>
+            <div className="rc-help" style={{ marginBottom: 10 }}>Create a ZIP snapshot of the current project for handoff or backup.</div>
             <div className="rc-row">
               <button className="rc-btn" onClick={startExportZip}>Export ZIP</button>
               {exportJobId ? <div className="rc-help">{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}

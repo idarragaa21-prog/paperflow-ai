@@ -86,33 +86,47 @@ export default function CollaborationPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Collaboration</h1>
-        <div className="rc-subtitle">Manage project memberships and keep reviewer workflows visible from the main workspace.</div>
+    <div className="rc-section-shell">
+      <div className="rc-hero-card">
+        <div style={{ maxWidth: 760 }}>
+          <div className="rc-pill">Collaboration</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Project access and review</h1>
+          <div className="rc-subtitle">Manage memberships, roles and reviewer workflows from one place.</div>
+        </div>
+        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
+          <div className="rc-metric-tile"><strong>{members.length}</strong><span>Members</span></div>
+          <div className="rc-metric-tile"><strong>{ownerCount}</strong><span>Owners</span></div>
+        </div>
       </div>
 
       {error ? <div className="rc-error">{error}</div> : null}
       {notice ? <div className="rc-help">{notice}</div> : null}
 
-      <div className="rc-card">
-        <div className="rc-card-title">Add member</div>
-        <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 280 }}>
-            <div className="rc-kicker">User UUID</div>
-            <input data-testid="member-user-id-input" className="rc-input" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+        <div className="rc-card">
+          <div className="rc-card-title">Add member</div>
+          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 280 }}>
+              <div className="rc-kicker">User UUID</div>
+              <input data-testid="member-user-id-input" className="rc-input" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+            </div>
+            <div style={{ minWidth: 180 }}>
+              <div className="rc-kicker">Role</div>
+              <select data-testid="member-role-select" className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])}>
+                {ROLE_OPTIONS.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </div>
+            <button data-testid="member-add-button" className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim()}>
+              {saving ? 'Saving…' : 'Add member'}
+            </button>
           </div>
-          <div style={{ minWidth: 180 }}>
-            <div className="rc-kicker">Role</div>
-            <select data-testid="member-role-select" className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])}>
-              {ROLE_OPTIONS.map((role) => (
-                <option key={role} value={role}>{role}</option>
-              ))}
-            </select>
-          </div>
-          <button data-testid="member-add-button" className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim()}>
-            {saving ? 'Saving…' : 'Add member'}
-          </button>
+        </div>
+
+        <div className="rc-card">
+          <div className="rc-card-title">Role policy</div>
+          <div className="rc-help">Owners manage memberships, editors change project content, reviewers validate workflows and viewers stay read-only.</div>
         </div>
       </div>
 
@@ -122,7 +136,7 @@ export default function CollaborationPage() {
         {loading ? <div className="rc-muted">Loading members…</div> : null}
         {!loading && members.length === 0 ? <div className="rc-muted">No members found.</div> : null}
         {members.map((member) => (
-          <div data-testid={`member-card-${member.user_id}`} key={member.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
+          <div data-testid={`member-card-${member.user_id}`} key={member.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{member.user_id}</div>
             <div className="rc-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <select data-testid={`member-role-${member.user_id}`} className="rc-input" value={member.role} onChange={(e) => updateRole(member, e.target.value as Membership['role'])}>

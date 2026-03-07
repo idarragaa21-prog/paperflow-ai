@@ -136,62 +136,71 @@ export default function ScreeningPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Screening</h1>
-        <div className="rc-subtitle">Title/abstract and full-text screening with auditable reasons and lightweight PRISMA counts.</div>
+    <div className="rc-section-shell">
+      <div className="rc-hero-card">
+        <div style={{ maxWidth: 760 }}>
+          <div className="rc-pill">Screening</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Eligibility review</h1>
+          <div className="rc-subtitle">Title/abstract and full-text screening with auditable reasons and lightweight PRISMA counts.</div>
+        </div>
+        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
+          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Batches</span></div>
+          <div className="rc-metric-tile"><strong>{comments.length}</strong><span>Comments</span></div>
+        </div>
       </div>
 
       {error ? <div className="rc-error">{error}</div> : null}
 
-      <div className="rc-card">
-        <div className="rc-card-title">Setup</div>
-        <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Batch title</div>
-            <input data-testid="screening-batch-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+        <div className="rc-card">
+          <div className="rc-card-title">Setup</div>
+          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 220 }}>
+              <div className="rc-kicker">Batch title</div>
+              <input data-testid="screening-batch-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <button data-testid="screening-create-batch" className="rc-btn" onClick={createBatch}>Create batch</button>
+            <div style={{ minWidth: 220 }}>
+              <div className="rc-kicker">Exclusion reason</div>
+              <input data-testid="screening-reason-input" className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
+            </div>
+            <button data-testid="screening-add-reason" className="rc-btn" onClick={createReason}>Add reason</button>
           </div>
-          <button data-testid="screening-create-batch" className="rc-btn" onClick={createBatch}>Create batch</button>
-          <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Exclusion reason</div>
-            <input data-testid="screening-reason-input" className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
-          </div>
-          <button data-testid="screening-add-reason" className="rc-btn" onClick={createReason}>Add reason</button>
         </div>
-      </div>
 
-      <div className="rc-card">
-        <div className="rc-card-title">Decision</div>
-        <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Batch</div>
-            <select data-testid="screening-batch-select" className="rc-input" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
-              <option value="">Select batch</option>
-              {batches.map((batch) => (
-                <option key={batch.id} value={batch.id}>
-                  {batch.title} · {batch.stage}
-                </option>
-              ))}
-            </select>
+        <div className="rc-card">
+          <div className="rc-card-title">Decision</div>
+          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 220 }}>
+              <div className="rc-kicker">Batch</div>
+              <select data-testid="screening-batch-select" className="rc-input" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
+                <option value="">Select batch</option>
+                {batches.map((batch) => (
+                  <option key={batch.id} value={batch.id}>
+                    {batch.title} · {batch.stage}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ minWidth: 240 }}>
+              <div className="rc-kicker">Paper</div>
+              <select data-testid="screening-paper-select" className="rc-input" value={selectedPaper} onChange={(e) => setSelectedPaper(e.target.value)}>
+                <option value="">Select paper</option>
+                {papers.map((paper) => (
+                  <option key={paper.id} value={paper.id}>{paper.title}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ minWidth: 160 }}>
+              <div className="rc-kicker">Decision</div>
+              <select data-testid="screening-decision-select" className="rc-input" value={decision} onChange={(e) => setDecision(e.target.value)}>
+                <option value="include">Include</option>
+                <option value="exclude">Exclude</option>
+                <option value="maybe">Maybe</option>
+              </select>
+            </div>
+            <button data-testid="screening-save-decision" className="rc-btn rc-btn--primary" onClick={saveDecision}>Save decision</button>
           </div>
-          <div style={{ minWidth: 240 }}>
-            <div className="rc-kicker">Paper</div>
-            <select data-testid="screening-paper-select" className="rc-input" value={selectedPaper} onChange={(e) => setSelectedPaper(e.target.value)}>
-              <option value="">Select paper</option>
-              {papers.map((paper) => (
-                <option key={paper.id} value={paper.id}>{paper.title}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{ minWidth: 160 }}>
-            <div className="rc-kicker">Decision</div>
-            <select data-testid="screening-decision-select" className="rc-input" value={decision} onChange={(e) => setDecision(e.target.value)}>
-              <option value="include">Include</option>
-              <option value="exclude">Exclude</option>
-              <option value="maybe">Maybe</option>
-            </select>
-          </div>
-          <button data-testid="screening-save-decision" className="rc-btn rc-btn--primary" onClick={saveDecision}>Save decision</button>
         </div>
       </div>
 
@@ -251,7 +260,7 @@ export default function ScreeningPage() {
           <div style={{ height: 10 }} />
           {reviewActions.length === 0 ? <div className="rc-muted">No peer review actions yet.</div> : null}
           {reviewActions.map((action) => (
-            <div key={action.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
+            <div key={action.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
               <div style={{ fontWeight: 800 }}>{action.action}</div>
               <div className="rc-help">{action.status} · {action.user_id}</div>
               <div className="rc-row">

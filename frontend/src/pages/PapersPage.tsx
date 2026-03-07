@@ -181,10 +181,17 @@ export default function PapersPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Library</h1>
-        <div className="rc-subtitle">Curate PDFs, deduplicate sources, process full text and build a reusable project library.</div>
+    <div className="rc-section-shell">
+      <div className="rc-hero-card">
+        <div style={{ maxWidth: 760 }}>
+          <div className="rc-pill">Library</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Research library</h1>
+          <div className="rc-subtitle">Curate PDFs, deduplicate sources, process full text and build a reusable evidence library.</div>
+        </div>
+        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
+          <div className="rc-metric-tile"><strong>{papers.length}</strong><span>Papers in view</span></div>
+          <div className="rc-metric-tile"><strong>{hasMore ? '50+' : papers.length}</strong><span>Loaded records</span></div>
+        </div>
       </div>
 
       <div className="rc-row">
@@ -195,35 +202,37 @@ export default function PapersPage() {
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
 
-      <div className="rc-card">
-        <div className="rc-card-title">Download OA (by DOI / PMID)</div>
-        <div className="rc-row" style={{ alignItems: 'flex-end' }}>
-          <div style={{ minWidth: 240 }}>
-            <div className="rc-kicker">DOI</div>
-            <input className="rc-input" value={doi} onChange={(e) => setDoi(e.target.value)} placeholder="10.xxxx/xxxxx" />
+      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+        <div className="rc-card">
+          <div className="rc-card-title">Download OA (by DOI / PMID)</div>
+          <div className="rc-row" style={{ alignItems: 'flex-end' }}>
+            <div style={{ minWidth: 240 }}>
+              <div className="rc-kicker">DOI</div>
+              <input className="rc-input" value={doi} onChange={(e) => setDoi(e.target.value)} placeholder="10.xxxx/xxxxx" />
+            </div>
+            <div style={{ width: 180 }}>
+              <div className="rc-kicker">PMID</div>
+              <input className="rc-input" value={pmid} onChange={(e) => setPmid(e.target.value)} placeholder="12345678" />
+            </div>
+            <button className="rc-btn rc-btn--primary" disabled={!canDownload || downloading} onClick={downloadOA}>
+              {downloading ? 'Downloading…' : 'Download'}
+            </button>
           </div>
-          <div style={{ width: 180 }}>
-            <div className="rc-kicker">PMID</div>
-            <input className="rc-input" value={pmid} onChange={(e) => setPmid(e.target.value)} placeholder="12345678" />
+        </div>
+
+        <div className="rc-card">
+          <div className="rc-card-title">Upload PDF</div>
+          <div className="rc-row" style={{ alignItems: 'center' }}>
+            <input type="file" accept="application/pdf" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+            <button className="rc-btn rc-btn--primary" disabled={!uploadFile || uploading} onClick={upload}>
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
           </div>
-          <button className="rc-btn rc-btn--primary" disabled={!canDownload || downloading} onClick={downloadOA}>
-            {downloading ? 'Downloading…' : 'Download'}
-          </button>
+          <div className="rc-help" style={{ marginTop: 8 }}>Uploads are deduplicated server-side (hash + metadata).</div>
         </div>
       </div>
 
-      <div className="rc-card">
-        <div className="rc-card-title">Upload PDF</div>
-        <div className="rc-row" style={{ alignItems: 'center' }}>
-          <input type="file" accept="application/pdf" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
-          <button className="rc-btn rc-btn--primary" disabled={!uploadFile || uploading} onClick={upload}>
-            {uploading ? 'Uploading…' : 'Upload'}
-          </button>
-        </div>
-        <div className="rc-help" style={{ marginTop: 8 }}>Uploads are deduplicated server-side (hash + metadata).</div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="rc-card-list">
         {loading && papers.length === 0 ? (
           <div className="rc-card">
             <Skeleton height={14} width="55%" />

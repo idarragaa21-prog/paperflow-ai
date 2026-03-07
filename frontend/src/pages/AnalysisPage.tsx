@@ -117,56 +117,65 @@ export default function AnalysisPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Analysis</h1>
-        <div className="rc-subtitle">Create datasets from JSON rows and launch reproducible runs through the FastAPI orchestration layer.</div>
+    <div className="rc-section-shell">
+      <div className="rc-hero-card">
+        <div style={{ maxWidth: 760 }}>
+          <div className="rc-pill">Analysis</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Reproducible analysis</h1>
+          <div className="rc-subtitle">Create datasets, launch runs and export HTML, PDF or DOCX reports through the analysis engine.</div>
+        </div>
+        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
+          <div className="rc-metric-tile"><strong>{datasets.length}</strong><span>Datasets</span></div>
+          <div className="rc-metric-tile"><strong>{runs.length}</strong><span>Runs</span></div>
+        </div>
       </div>
 
       {error ? <div className="rc-error">{error}</div> : null}
 
-      <div className="rc-card">
-        <div className="rc-card-title">Dataset builder</div>
-        <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Dataset title</div>
-            <input data-testid="dataset-title-input" className="rc-input" value={datasetTitle} onChange={(e) => setDatasetTitle(e.target.value)} />
+      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+        <div className="rc-card">
+          <div className="rc-card-title">Dataset builder</div>
+          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 220 }}>
+              <div className="rc-kicker">Dataset title</div>
+              <input data-testid="dataset-title-input" className="rc-input" value={datasetTitle} onChange={(e) => setDatasetTitle(e.target.value)} />
+            </div>
+            <button data-testid="dataset-create-button" className="rc-btn rc-btn--primary" onClick={createDataset} disabled={busy}>Create dataset</button>
           </div>
-          <button data-testid="dataset-create-button" className="rc-btn rc-btn--primary" onClick={createDataset} disabled={busy}>Create dataset</button>
+          <div style={{ height: 10 }} />
+          <textarea data-testid="dataset-rows-input" className="rc-input" style={{ minHeight: 140, width: '100%' }} value={rowsText} onChange={(e) => setRowsText(e.target.value)} />
         </div>
-        <div style={{ height: 10 }} />
-        <textarea data-testid="dataset-rows-input" className="rc-input" style={{ minHeight: 140, width: '100%' }} value={rowsText} onChange={(e) => setRowsText(e.target.value)} />
-      </div>
 
-      <div className="rc-card">
-        <div className="rc-card-title">Run analysis</div>
-        <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Dataset</div>
-            <select data-testid="analysis-dataset-select" className="rc-input" value={selectedDataset} onChange={(e) => setSelectedDataset(e.target.value)}>
-              <option value="">No dataset</option>
-              {datasets.map((dataset) => (
-                <option key={dataset.id} value={dataset.id}>
-                  {dataset.title} · {dataset.row_count} rows
-                </option>
-              ))}
-            </select>
+        <div className="rc-card">
+          <div className="rc-card-title">Run analysis</div>
+          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 220 }}>
+              <div className="rc-kicker">Dataset</div>
+              <select data-testid="analysis-dataset-select" className="rc-input" value={selectedDataset} onChange={(e) => setSelectedDataset(e.target.value)}>
+                <option value="">No dataset</option>
+                {datasets.map((dataset) => (
+                  <option key={dataset.id} value={dataset.id}>
+                    {dataset.title} · {dataset.row_count} rows
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ minWidth: 220 }}>
+              <div className="rc-kicker">Title</div>
+              <input data-testid="analysis-title-input" className="rc-input" value={analysisTitle} onChange={(e) => setAnalysisTitle(e.target.value)} />
+            </div>
+            <div style={{ minWidth: 220 }}>
+              <div className="rc-kicker">Type</div>
+              <select data-testid="analysis-type-select" className="rc-input" value={analysisType} onChange={(e) => setAnalysisType(e.target.value)}>
+                <option value="descriptives">Descriptives</option>
+                <option value="group_comparison">Group comparison</option>
+                <option value="linear_regression">Linear regression</option>
+                <option value="logistic_regression">Logistic regression</option>
+                <option value="meta_analysis">Meta-analysis</option>
+              </select>
+            </div>
+            <button data-testid="analysis-run-button" className="rc-btn" onClick={createRun} disabled={busy}>Run</button>
           </div>
-          <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Title</div>
-            <input data-testid="analysis-title-input" className="rc-input" value={analysisTitle} onChange={(e) => setAnalysisTitle(e.target.value)} />
-          </div>
-          <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Type</div>
-            <select data-testid="analysis-type-select" className="rc-input" value={analysisType} onChange={(e) => setAnalysisType(e.target.value)}>
-              <option value="descriptives">Descriptives</option>
-              <option value="group_comparison">Group comparison</option>
-              <option value="linear_regression">Linear regression</option>
-              <option value="logistic_regression">Logistic regression</option>
-              <option value="meta_analysis">Meta-analysis</option>
-            </select>
-          </div>
-          <button data-testid="analysis-run-button" className="rc-btn" onClick={createRun} disabled={busy}>Run</button>
         </div>
       </div>
 
@@ -184,7 +193,7 @@ export default function AnalysisPage() {
         <div className="rc-card-title">Recent runs</div>
         {runs.length === 0 ? <div className="rc-muted">No analysis runs in this session yet.</div> : null}
         {runs.map((run) => (
-          <div data-testid={`analysis-run-${run.id}`} key={run.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
+          <div data-testid={`analysis-run-${run.id}`} key={run.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{run.title}</div>
             <div className="rc-help">{run.analysis_type} · {run.status}</div>
             {run.runtime_metadata?.job_id ? <div className="rc-help">Job: {run.runtime_metadata.job_id}</div> : null}

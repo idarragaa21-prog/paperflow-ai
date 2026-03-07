@@ -210,6 +210,63 @@
   flex-wrap: wrap;
 }
 
+.rc-section-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rc-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.rc-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rc-soft-card {
+  background: rgba(248, 251, 250, 0.9);
+  border: 1px solid rgba(16, 32, 51, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.rc-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.rc-metric-tile {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(16, 32, 51, 0.08);
+}
+
+.rc-metric-tile strong {
+  display: block;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
+}
+
+.rc-metric-tile span {
+  font-size: 12px;
+  color: var(--rc-muted);
+}
+
+.rc-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .rc-hero-stat {
   display: inline-flex;
   flex-direction: column;

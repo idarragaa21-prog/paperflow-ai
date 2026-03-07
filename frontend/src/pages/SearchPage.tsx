@@ -190,14 +190,21 @@ export default function SearchPage() {
   }, [batchJobId, batchModalOpen]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Research Search</h1>
-        <div className="rc-subtitle">Federated literature search across PubMed, Europe PMC and DOAJ with deduplication and OA-aware saving.</div>
+    <div className="rc-section-shell">
+      <div className="rc-hero-card">
+        <div style={{ maxWidth: 760 }}>
+          <div className="rc-pill">Research</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Literature discovery</h1>
+          <div className="rc-subtitle">Federated search across PubMed, Europe PMC and DOAJ with deduplication and OA-aware saving.</div>
+        </div>
+        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
+          <div className="rc-metric-tile"><strong>{data?.count ?? '—'}</strong><span>Results</span></div>
+          <div className="rc-metric-tile"><strong>{selectedCount}</strong><span>Selected OA papers</span></div>
+        </div>
       </div>
 
       <div className="rc-card">
-        <div className="rc-card-title">Query</div>
+        <div className="rc-card-title">Search query</div>
         <div className="rc-row" style={{ alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: 260 }}>
             <div className="rc-kicker">Research query</div>
@@ -217,11 +224,13 @@ export default function SearchPage() {
       {error ? <div className="rc-error">{String(error)}</div> : null}
 
       {data ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div className="rc-help">
+        <div className="rc-card-list">
+          <div className="rc-soft-card">
+            <div className="rc-help">
             Results: <b>{data.count}</b> {data.cached ? '(cached)' : ''}
             {data.query_translation ? ` · Translation: ${data.query_translation}` : ''}
             {data.sources?.length ? ` · Sources: ${data.sources.join(', ')}` : ''}
+          </div>
           </div>
 
           {loading ? (
@@ -243,7 +252,7 @@ export default function SearchPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="rc-card-list">
             {data.results.map((r, idx) => {
               const key = r.doi || r.pmid || String(idx);
               const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
