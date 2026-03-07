@@ -1,0 +1,136 @@
+/* App layout + lightweight design system */
+
+#root {
+  min-height: 100vh;
+}
+
+.rc-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.rc-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid rgba(15, 23, 42, 0.12);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rc-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.08), rgba(79, 70, 229, 0.02));
+  border: 1px solid rgba(79, 70, 229, 0.14);
+}
+
+.rc-brand-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.rc-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rc-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rc-nav-item:hover {
+  background: rgba(2, 6, 23, 0.04);
+}
+
+.rc-nav-item--active {
+  background: rgba(99, 102, 241, 0.14);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+}
+
+.rc-main {
+  padding: 18px;
+}
+
+.rc-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.rc-page-title {
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.rc-subtitle {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.rc-card {
+  background: white;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.rc-card-title {
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.rc-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.rc-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .rc-shell {
+    grid-template-columns: 1fr;
+  }
+  .rc-sidebar {
+    position: relative;
+    height: auto;
+  }
+  .rc-grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rc-muted {
+  opacity: 0.75;
+}
+
+.rc-danger {
+  color: #b91c1c;
+}
+
+.rc-divider {
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+}

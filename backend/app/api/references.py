@@ -1,0 +1,178 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_current_user, get_db
+from app.middleware.rate_limit import limiter
+from app.models.paper import Paper
+from app.models.project import Project
+from app.models.reference_item import ReferenceItem
+from app.models.user import User
+from app.schemas.references import ReferenceItemResponse, ReferencesImportRequest, ReferencesImportResponse
+from app.services.audit import log_audit
+from app.services.references_io import export_bibtex, export_ris, parse_bibtex_entries, parse_ris_entries
+
+router = APIRouter(prefix="/references", tags=["references"])
+
+
+def _to_response(item: ReferenceItem) -> ReferenceItemResponse:
+    return ReferenceItemResponse(
+        id=item.id,
+        project_id=item.project_id,
+        paper_id=item.paper_id,
+        source_format=item.source_format,
+        citation_key=item.citation_key,
+        title=item.title,
+        authors=item.authors or [],
+        journal=item.journal,
+        publication_year=item.publication_year,
+        doi=item.doi,
+        pmid=item.pmid,
+        pmcid=item.pmcid,
+        language=item.language,
+    )
+
+
+async def _require_owned_project(db: AsyncSession, *, project_id: UUID, user: User) -> Project:
+    project = await db.get(Project, project_id)
+    if not project or project.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+@router.post("/import", response_model=ReferencesImportResponse)
+@limiter.limit("10/minute")
+async def import_references(
+    request: Request,
+    payload: ReferencesImportRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require_owned_project(db, project_id=payload.project_id, user=user)
+    parser = parse_bibtex_entries if payload.format == "bibtex" else parse_ris_entries
+    parsed = parser(payload.content)
+
+    imported: list[ReferenceItem] = []
+    skipped = 0
+    for entry in parsed:
+        dedup_q = await db.execute(
+            select(ReferenceItem).where(
+                and_(
+                    ReferenceItem.project_id == payload.project_id,
+                    or_(
+                        and_(ReferenceItem.doi.is_not(None), ReferenceItem.doi == entry.get("doi")),
+                        and_(ReferenceItem.pmid.is_not(None), ReferenceItem.pmid == entry.get("pmid")),
+                        ReferenceItem.title == entry["title"],
+                    ),
+                )
+            )
+        )
+        if dedup_q.scalars().first():
+            skipped += 1
+            continue
+        item = ReferenceItem(project_id=payload.project_id, **entry)
+        db.add(item)
+        imported.append(item)
+    await db.commit()
+    for item in imported:
+        await db.refresh(item)
+
+    await log_audit(
+        db,
+        user=user,
+        action="create",
+        entity_type="reference_import",
+        entity_id=payload.project_id,
+        details={"format": payload.format, "imported": len(imported), "skipped": skipped},
+        request=request,
+    )
+    return ReferencesImportResponse(imported=len(imported), skipped=skipped, items=[_to_response(item) for item in imported])
+
+
+@router.get("", response_model=list[ReferenceItemResponse])
+async def list_references(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require_owned_project(db, project_id=project_id, user=user)
+    q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).order_by(ReferenceItem.created_at.desc()))
+    return [_to_response(item) for item in q.scalars().all()]
+
+
+@router.post("/sync-from-library")
+@limiter.limit("10/minute")
+async def sync_references_from_library(
+    request: Request,
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require_owned_project(db, project_id=project_id, user=user)
+    papers_q = await db.execute(select(Paper).where(Paper.project_id == project_id))
+    papers = papers_q.scalars().all()
+    created = 0
+    for paper in papers:
+        ref_q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).where(ReferenceItem.paper_id == paper.id))
+        if ref_q.scalars().first():
+            continue
+        db.add(
+            ReferenceItem(
+                project_id=project_id,
+                paper_id=paper.id,
+                source_format="paper_library",
+                citation_key=(paper.doi or paper.pmid or str(paper.id).split("-")[0]),
+                title=paper.title,
+                authors=[part.strip() for part in (paper.authors or "").split(";") if part.strip()] if paper.authors else None,
+                journal=paper.journal,
+                publication_year=paper.publication_year,
+                doi=paper.doi,
+                pmid=paper.pmid,
+                pmcid=paper.pmcid,
+                abstract_text=paper.abstract_text,
+                language=paper.language,
+                raw_payload={"paper_id": str(paper.id), "source_provider": paper.source_provider},
+            )
+        )
+        created += 1
+    await db.commit()
+    await log_audit(
+        db,
+        user=user,
+        action="create",
+        entity_type="reference_sync",
+        entity_id=project_id,
+        details={"created": created},
+        request=request,
+    )
+    return {"created": created}
+
+
+@router.get("/export", response_class=PlainTextResponse)
+async def export_references(
+    project_id: UUID,
+    format: str = Query(..., pattern="^(bibtex|ris)$"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await _require_owned_project(db, project_id=project_id, user=user)
+    q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).order_by(ReferenceItem.created_at.asc()))
+    items = q.scalars().all()
+    payload = [
+        {
+            "citation_key": item.citation_key,
+            "title": item.title,
+            "authors": item.authors or [],
+            "journal": item.journal,
+            "publication_year": item.publication_year,
+            "doi": item.doi,
+            "pmid": item.pmid,
+        }
+        for item in items
+    ]
+    body = export_bibtex(payload) if format == "bibtex" else export_ris(payload)
+    media_type = "application/x-bibtex" if format == "bibtex" else "application/x-research-info-systems"
+    return PlainTextResponse(body, media_type=media_type)
