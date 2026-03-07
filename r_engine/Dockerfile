@@ -1,6 +1,8 @@
-FROM rocker/r-ver:4.4.2
+FROM rocker/r2u:24.04
 
+ENV DEBIAN_FRONTEND=noninteractive
 ENV MAKEFLAGS=-j1
+ARG QUARTO_VERSION=1.8.26
 
 RUN mkdir -p /root/.R && printf '%s\n' \
     'CFLAGS=-O1 -g0' \
@@ -13,7 +15,9 @@ RUN mkdir -p /root/.R && printf '%s\n' \
     > /root/.R/Makevars
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     cmake \
+    curl \
     libcurl4-openssl-dev \
     libssl-dev \
     libxml2-dev \
@@ -23,7 +27,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN R -e "install.packages(c('plumber','jsonlite','dplyr','broom','survival','meta','metafor','quarto','knitr','rmarkdown','base64enc','ggplot2'), repos='https://cloud.r-project.org', Ncpus = 1); quarto::quarto_install(force = TRUE, quiet = TRUE)"
+RUN arch="$(dpkg --print-architecture)" && \
+    case "$arch" in \
+      arm64|amd64) deb_arch="$arch" ;; \
+      *) echo "Unsupported architecture for Quarto CLI: $arch" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSL -o /tmp/quarto.deb "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-${deb_arch}.deb" && \
+    apt-get update && \
+    apt-get install -y /tmp/quarto.deb && \
+    rm -f /tmp/quarto.deb && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN R -e "install.packages(c('plumber','jsonlite','dplyr','broom','survival','meta','metafor','quarto','knitr','rmarkdown','base64enc','ggplot2'), Ncpus = 1); stopifnot(!is.null(quarto::quarto_path()))"
 
 WORKDIR /srv
 COPY plumber.R /srv/plumber.R

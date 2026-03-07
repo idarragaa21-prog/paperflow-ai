@@ -12,7 +12,6 @@ from app.api.analysis import router as analysis_router
 from app.api.chat import router as chat_router
 from app.api.drafts import router as drafts_router
 from app.api.jobs import router as jobs_router
-from app.api.presentations import router as presentations_router
 from app.api.references import router as references_router
 from app.api.search import router as search_router
 from app.api.papers import router as papers_router
@@ -21,9 +20,6 @@ from app.api.projects import router as projects_router
 from app.api.meta import router as meta_router
 from app.api.extraction import router as extraction_router
 from app.api.screening import router as screening_router
-from app.api.clinical import router as clinical_router
-from app.api.books import router as books_router
-# (private sources removed by scope change)
 from app.config import settings
 from app.core.metrics import CONTENT_TYPE_LATEST, generate_latest
 from app.core.telemetry import instrument_fastapi, setup_telemetry
@@ -62,7 +58,6 @@ instrument_fastapi(app)
 
 # Routers
 app.include_router(auth_router)
-app.include_router(presentations_router)
 app.include_router(jobs_router)
 app.include_router(search_router)
 app.include_router(papers_router)
@@ -75,9 +70,15 @@ app.include_router(screening_router)
 app.include_router(notes_router)
 app.include_router(projects_router)
 app.include_router(meta_router)
-app.include_router(clinical_router)
-app.include_router(books_router)
-# private_sources_router disabled
+
+if settings.LEGACY_MODULES_ENABLED:
+    from app.api.books import router as books_router
+    from app.api.clinical import router as clinical_router
+    from app.api.presentations import router as presentations_router
+
+    app.include_router(presentations_router)
+    app.include_router(clinical_router)
+    app.include_router(books_router)
 
 
 @app.on_event("startup")

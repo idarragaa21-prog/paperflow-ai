@@ -94,14 +94,23 @@ services:
   grobid:
     image: lfoppiano/grobid:0.8.1
     container_name: paperflow-grobid
+    platform: linux/amd64
     entrypoint: ["/tini", "--", "./grobid-service/bin/grobid-service"]
+    environment:
+      JAVA_OPTS: "-Xms256m -Xmx768m"
+      GROBID_SERVICE_OPTS: "-Xms256m -Xmx768m"
     ports:
       - "${GROBID_PORT:-8070}:8070"
     healthcheck:
-      test: ["CMD-SHELL", "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/8071 && printf \"GET /healthcheck HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && grep -q \"healthy\" <&3'"]
+      test:
+        [
+          "CMD-SHELL",
+          "bash -lc 'exec 3<>/dev/tcp/127.0.0.1/8070 && printf \"GET /api/isalive HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && grep -q \"200 OK\" <&3'",
+        ]
+      start_period: 600s
       interval: 15s
       timeout: 10s
-      retries: 20
+      retries: 40
 
   r-engine:
     build:

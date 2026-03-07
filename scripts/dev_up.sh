@@ -20,12 +20,13 @@ wait_for_url() {
   local url="$1"
   local label="$2"
   local attempts="${3:-30}"
+  local sleep_seconds="${4:-2}"
   for _ in $(seq 1 "$attempts"); do
-    if curl -fsS "$url" >/dev/null 2>&1; then
+    if curl --max-time 5 -fsS "$url" >/dev/null 2>&1; then
       echo "[dev_up] $label is ready"
       return 0
     fi
-    sleep 2
+    sleep "$sleep_seconds"
   done
   echo "[dev_up] $label did not become ready: $url" >&2
   return 1
@@ -59,16 +60,27 @@ copy_if_missing "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
 copy_if_missing "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
 copy_if_missing "$FRONTEND_DIR/.env.example" "$FRONTEND_DIR/.env"
 
+required_services=(postgres redis qdrant ollama minio minio-init grobid r-engine)
+optional_services=(prometheus grafana)
+
 echo "[dev_up] starting infrastructure with docker compose..."
-(cd "$ROOT_DIR" && docker compose up -d postgres redis qdrant ollama minio minio-init grobid r-engine prometheus grafana)
+(cd "$ROOT_DIR" && docker compose up -d "${required_services[@]}")
+
+if [[ "${PAPERFLOW_START_OPTIONAL_SERVICES:-0}" == "1" ]]; then
+  echo "[dev_up] starting optional observability services..."
+  (cd "$ROOT_DIR" && docker compose --profile full up -d "${optional_services[@]}")
+fi
 
 wait_for_url "http://127.0.0.1:9000/minio/health/live" "minio"
 wait_for_url "http://127.0.0.1:6333/collections" "qdrant"
 wait_for_url "http://127.0.0.1:11434/api/tags" "ollama"
 wait_for_url "http://127.0.0.1:8010/health" "r-engine"
-wait_for_url "http://127.0.0.1:8070/api/isalive" "grobid"
-wait_for_url "http://127.0.0.1:9090/-/ready" "prometheus" || true
-wait_for_url "http://127.0.0.1:3001/api/health" "grafana" || true
+wait_for_url "http://127.0.0.1:8070/api/isalive" "grobid" 180 5
+
+if [[ "${PAPERFLOW_START_OPTIONAL_SERVICES:-0}" == "1" ]]; then
+  wait_for_url "http://127.0.0.1:9090/-/ready" "prometheus"
+  wait_for_url "http://127.0.0.1:3001/api/health" "grafana"
+fi
 
 if [[ ! -d "$BACKEND_DIR/.venv" ]]; then
   echo "[dev_up] backend/.venv is missing; create it before using dev_up" >&2
@@ -84,7 +96,7 @@ start_if_not_running worker-presentations bash -lc "cd '$BACKEND_DIR' && source 
 start_if_not_running worker-analysis bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && export WORKER_QUEUES=analysis OTEL_SERVICE_NAME=paperflow-worker-analysis && exec python -m app.workers.worker"
 start_if_not_running frontend bash -lc "cd '$FRONTEND_DIR' && exec npm run dev -- --host 127.0.0.1 --port 5173"
 
-wait_for_url "http://127.0.0.1:8000/health" "backend"
+wait_for_url "http://127.0.0.1:8000/health" "backend" 120 2
 if [[ -x "$ROOT_DIR/scripts/dev_check.sh" ]]; then
   "$ROOT_DIR/scripts/dev_check.sh"
 fi
