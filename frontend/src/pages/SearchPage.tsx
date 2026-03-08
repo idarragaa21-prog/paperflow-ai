@@ -25,6 +25,13 @@ type SearchResponse = {
   sources?: string[];
 };
 
+function sourceHref(result: PaperMetadata) {
+  if (result.oa_url) return result.oa_url;
+  if (result.doi) return `https://doi.org/${encodeURIComponent(result.doi)}`;
+  if (result.pmid) return `https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(result.pmid)}/`;
+  return null;
+}
+
 export default function SearchPage() {
   const { projectId } = useParams();
 
@@ -274,6 +281,7 @@ export default function SearchPage() {
               const key = r.doi || r.pmid || String(idx);
               const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
               const isSelected = Boolean(selected[key]);
+              const href = sourceHref(r);
               return (
                 <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -292,9 +300,13 @@ export default function SearchPage() {
 
                   <div className="rc-row">
                     <button className="rc-btn" disabled={!canDownload || downloadingKey === (r.doi || r.pmid || r.title)} onClick={() => downloadOA(r)}>
-                      {downloadingKey === (r.doi || r.pmid || r.title) ? 'Downloading…' : 'Download OA PDF'}
+                      {downloadingKey === (r.doi || r.pmid || r.title) ? 'Downloading…' : 'Save OA PDF'}
                     </button>
-                    {r.oa_url ? <a href={r.oa_url} target="_blank" rel="noreferrer">OA link</a> : null}
+                    {href ? (
+                      <a className="rc-btn" href={href} target="_blank" rel="noreferrer">
+                        Open source
+                      </a>
+                    ) : null}
                     {!r.is_open_access ? <span className="rc-help">Not marked OA by PubMed metadata.</span> : null}
                     {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID to resolve PDF.</span> : null}
                   </div>

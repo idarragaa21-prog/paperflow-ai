@@ -19,8 +19,20 @@ from app.services.pubmed import pubmed_client
 router = APIRouter(prefix="/search", tags=["search"])
 
 
+async def _search_result_exists(db: AsyncSession, *, pmid: str | None, doi: str | None) -> bool:
+    if pmid:
+        existing = await db.execute(select(SearchResult.id).where(SearchResult.pmid == pmid).limit(1))
+        if existing.scalar_one_or_none():
+            return True
+    if doi:
+        existing = await db.execute(select(SearchResult.id).where(SearchResult.doi == doi).limit(1))
+        if existing.scalar_one_or_none():
+            return True
+    return False
+
+
 @router.post("/pubmed", response_model=SearchResponse)
-@limiter.limit("3/minute")
+@limiter.limit("12/minute")
 async def search_pubmed(
     request: Request,
     payload: SearchRequest,
@@ -55,14 +67,8 @@ async def search_pubmed(
         doi = r.get("doi")
 
         # Dedup safety for partial unique constraints on pmid/doi.
-        if pmid:
-            existing = await db.execute(select(SearchResult.id).where(SearchResult.pmid == pmid).limit(1))
-            if existing.scalar_one_or_none():
-                continue
-        if doi:
-            existing = await db.execute(select(SearchResult.id).where(SearchResult.doi == doi).limit(1))
-            if existing.scalar_one_or_none():
-                continue
+        if await _search_result_exists(db, pmid=pmid, doi=doi):
+            continue
 
         sr = SearchResult(
             search_id=search.id,
@@ -96,7 +102,7 @@ async def search_pubmed(
 
 
 @router.post("/federated", response_model=SearchResponse)
-@limiter.limit("3/minute")
+@limiter.limit("12/minute")
 async def search_federated(
     request: Request,
     payload: SearchRequest,
@@ -126,11 +132,16 @@ async def search_federated(
     await db.flush()
 
     for r in results:
+        pmid = r.get("pmid")
+        doi = r.get("doi")
+        if await _search_result_exists(db, pmid=pmid, doi=doi):
+            continue
+
         sr = SearchResult(
             search_id=search.id,
-            pmid=r.get("pmid"),
+            pmid=pmid,
             pmcid=r.get("pmcid"),
-            doi=r.get("doi"),
+            doi=doi,
             title=r.get("title") or "",
             authors=r.get("authors"),
             journal=r.get("journal"),

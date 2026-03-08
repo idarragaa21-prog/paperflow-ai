@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -33,6 +33,20 @@ from app.services.runtime_health import collect_runtime_health
 app = FastAPI(title="PaperFlow AI")
 setup_telemetry()
 
+
+def _attach_cors_headers(request: Request, response) -> None:
+    origin = request.headers.get("origin")
+    if origin and origin in settings.BACKEND_CORS_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+
+
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    response = _rate_limit_exceeded_handler(request, exc)
+    _attach_cors_headers(request, response)
+    return response
+
 # Middleware (orden importa: auth → csrf → rate limit)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(CSRFMiddleware)
@@ -43,7 +57,7 @@ from app.core.redis_conn import redis_available
 
 if settings.RATE_LIMIT_ENABLED and redis_available():
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
 
 # CORS

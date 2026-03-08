@@ -79,7 +79,7 @@ def _paper_to_response(p: Paper, *, duplicate: bool = False) -> PaperRecordRespo
 
 
 @router.post("/download", response_model=PaperRecordResponse)
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def download_paper(
     request: Request,
     payload: PaperDownloadRequest,
@@ -175,7 +175,7 @@ async def download_paper(
 
 
 @router.post("/batch-download")
-@limiter.limit("3/minute")
+@limiter.limit("5/minute")
 async def batch_download(
     request: Request,
     payload: PapersBatchDownloadRequest,
