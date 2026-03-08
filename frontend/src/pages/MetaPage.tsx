@@ -43,35 +43,41 @@ type ExportRow = {
   created_at: string;
 };
 
+function formatDate(value?: string | null) {
+  if (!value) return 'Unknown time';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
 export default function MetaPage() {
   const { projectId } = useParams();
 
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
-
   const [studies, setStudies] = useState<StudyRow[]>([]);
   const [selectedStudyId, setSelectedStudyId] = useState<string | null>(null);
-
   const [exportsList, setExportsList] = useState<ExportRow[]>([]);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null } | null>(null);
-
   const [files, setFiles] = useState<FileList | null>(null);
   const [title, setTitle] = useState('');
-
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const runningItems = useMemo(() => items.filter((it) => ['queued', 'started'].includes(it.status)), [items]);
+  const completedItems = useMemo(() => items.filter((it) => it.status === 'completed').length, [items]);
+  const failedItems = useMemo(() => items.filter((it) => it.status === 'failed').length, [items]);
+  const selectedBatch = useMemo(() => batches.find((batch) => batch.id === selectedBatchId) || null, [batches, selectedBatchId]);
+  const selectedFilesCount = files?.length || 0;
 
   async function loadBatches() {
     if (!projectId) return;
     setLoading(true);
     setError(null);
-    // keep notice
     try {
       const r = await api.get(`/meta/batches?project_id=${projectId}`);
       setBatches(r.data as BatchRow[]);
@@ -99,7 +105,14 @@ export default function MetaPage() {
     try {
       const q = selectedBatchId ? `&batch_id=${selectedBatchId}` : '';
       const r = await api.get(`/meta/studies?project_id=${projectId}${q}`);
-      setStudies(r.data as StudyRow[]);
+      const nextStudies = r.data as StudyRow[];
+      setStudies(nextStudies);
+      if (!selectedStudyId && nextStudies[0]) {
+        setSelectedStudyId(nextStudies[0].id);
+      }
+      if (selectedStudyId && !nextStudies.some((study) => study.id === selectedStudyId)) {
+        setSelectedStudyId(nextStudies[0]?.id || null);
+      }
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load studies');
     }
@@ -131,7 +144,7 @@ export default function MetaPage() {
       const form = new FormData();
       form.append('project_id', projectId);
       if (title.trim()) form.append('title', title.trim());
-      Array.from(files).forEach((f) => form.append('files', f));
+      Array.from(files).forEach((file) => form.append('files', file));
 
       const r = await api.post('/meta/batches', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -181,6 +194,8 @@ export default function MetaPage() {
       setNotice(`Export job enqueued: ${jid || '(unknown job id)'}`);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Export failed');
+    } finally {
+      await loadExports();
     }
   }
 
@@ -195,25 +210,24 @@ export default function MetaPage() {
   }
 
   useEffect(() => {
-    loadBatches();
-    loadStudies();
-    loadExports();
+    void loadBatches();
+    void loadStudies();
+    void loadExports();
   }, [projectId]);
 
   useEffect(() => {
-    loadStudies();
-    loadExports();
+    void loadStudies();
+    void loadExports();
   }, [selectedBatchId]);
 
   useEffect(() => {
-    if (!selectedBatchId) return;
-    if (runningItems.length === 0) return;
-    const t = window.setInterval(() => {
-      loadItems(selectedBatchId);
-      loadStudies();
+    if (!selectedBatchId || runningItems.length === 0) return;
+    const timer = window.setInterval(() => {
+      void loadItems(selectedBatchId);
+      void loadStudies();
     }, 4000);
-    return () => window.clearInterval(t);
-  }, [selectedBatchId, runningItems.map((i) => i.id).join('|')]);
+    return () => window.clearInterval(timer);
+  }, [selectedBatchId, runningItems.map((item) => item.id).join('|')]);
 
   useEffect(() => {
     if (!exportJobId) return;
@@ -237,182 +251,256 @@ export default function MetaPage() {
           setExportJobId(null);
         }
       } catch (e: any) {
-        // common in dev if Redis is off
         setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
       }
     }
 
-    poll();
-    const t = window.setInterval(poll, 4000);
+    void poll();
+    const timer = window.setInterval(() => {
+      void poll();
+    }, 4000);
     return () => {
       stopped = true;
-      window.clearInterval(t);
+      window.clearInterval(timer);
     };
   }, [exportJobId]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Extraction Workspace</h1>
-        <div className="rc-subtitle">Batch upload PDFs, extract structured study data, review effect sizes and export reusable datasets.</div>
+    <div className="rc-section-shell">
+      <div className="rc-hero-card">
+        <div style={{ maxWidth: 760 }}>
+          <div className="rc-pill">Extraction</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Extraction Workspace</h1>
+          <div className="rc-subtitle">Upload PDF batches, monitor extraction health, review studies and export structured evidence without leaving the project.</div>
+        </div>
+        <div className="rc-metric-grid" style={{ minWidth: 320 }}>
+          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Batches</span></div>
+          <div className="rc-metric-tile"><strong>{studies.length}</strong><span>Studies</span></div>
+          <div className="rc-metric-tile"><strong>{runningItems.length}</strong><span>Running items</span></div>
+          <div className="rc-metric-tile"><strong>{exportsList.length}</strong><span>Exports</span></div>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 12 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {error ? <div className="rc-error">{String(error)}</div> : null}
+      {notice ? <div className="rc-soft-card"><div className="rc-help">{notice}</div></div> : null}
+
+      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+        <div className="rc-stack">
           <div className="rc-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <div style={{ fontWeight: 900 }}>Batches</div>
-              <button className="rc-btn" onClick={loadBatches} disabled={loading}>Refresh</button>
-            </div>
-          {notice ? (
-            <div className="rc-badge rc-badge--success" style={{ justifyContent: 'flex-start', borderRadius: 12, padding: 10 }}>
-              {String(notice)}
-            </div>
-          ) : null}
-          {error ? <div className="rc-error" style={{ marginTop: 8 }}>{String(error)}</div> : null}
-          <div style={{ height: 10 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {batches.length === 0 ? <div className="rc-muted">No batches yet.</div> : null}
-            {batches.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => loadItems(b.id)}
-                className="rc-btn"
-                style={{ textAlign: 'left', padding: 12, borderColor: b.id === selectedBatchId ? 'rgba(79,70,229,0.35)' : 'rgba(15,23,42,0.16)', background: b.id === selectedBatchId ? 'rgba(79,70,229,0.08)' : 'white' }}
-              >
-                <div style={{ fontWeight: 850 }}>{b.title || '(untitled batch)'}</div>
-                <div className="rc-help">{b.status}</div>
+            <div className="rc-toolbar">
+              <div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Batch queue</div>
+                <div className="rc-help">Select a batch to focus extraction items and study outputs.</div>
+              </div>
+              <button className="rc-btn" onClick={() => void loadBatches()} disabled={loading}>
+                {loading ? 'Refreshing...' : 'Refresh'}
               </button>
-            ))}
-          </div>
-
-          <div style={{ height: 10 }} />
-          <button className="rc-btn rc-btn--ghost" onClick={() => setSelectedBatchId(null)} disabled={!selectedBatchId}>
-            Clear batch filter
-          </button>
-        </div>
-
-        <div className="rc-card">
-          <div className="rc-card-title">New batch</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div>
-              <div className="rc-kicker">Title (optional)</div>
-              <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. ACL graft meta-analysis" />
             </div>
-            <div>
-              <div className="rc-kicker">PDF files</div>
-              <input type="file" multiple accept="application/pdf" onChange={(e) => setFiles(e.target.files)} />
-              <div className="rc-help" style={{ marginTop: 6 }}>Extraction runs async (Redis required). Check Jobs for progress.</div>
-            </div>
-            <button className="rc-btn rc-btn--primary" disabled={creating} onClick={createBatch}>
-              {creating ? 'Creating…' : 'Create + extract'}
-            </button>
-          </div>
-        </div>
-
-        <div className="rc-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-            <div className="rc-card-title" style={{ marginBottom: 0 }}>Exports</div>
-            <button className="rc-btn" onClick={loadExports}>Refresh</button>
-          </div>
-          <div style={{ height: 10 }} />
-          <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
-            {exportJobId ? 'Exporting…' : 'Export Excel'}
-          </button>
-          {exportJobStatus ? (
-            <div className="rc-help" style={{ marginTop: 8 }}>
-              export status: {exportJobStatus.status} · {exportJobStatus.progress}%
-              {exportJobStatus.error ? <span className="rc-error"> · {String(exportJobStatus.error)}</span> : null}
-            </div>
-          ) : null}
-          <div style={{ height: 10 }} />
-          {exportsList.length === 0 ? <div className="rc-muted">No exports yet.</div> : null}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {exportsList.map((ex) => (
-              <div key={ex.id} className="rc-card" style={{ padding: 10, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                <div className="rc-help" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ex.filename}</div>
-                <button className="rc-btn" onClick={() => downloadExport(ex)}>Download</button>
+            <div style={{ height: 12 }} />
+            {batches.length === 0 ? (
+              <div className="rc-empty-state">
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>No extraction batches yet</div>
+                <div className="rc-help">Create a batch from one or more PDFs to start generating structured study records.</div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div className="rc-card">
-          {selectedBatchId ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                <div className="rc-card-title" style={{ marginBottom: 0 }}>Batch items</div>
-                {runningItems.length ? <div className="rc-help">Auto-refreshing…</div> : null}
-              </div>
-              {items.length === 0 ? <div className="rc-muted">No items.</div> : null}
-              {items.map((it) => (
-                <div key={it.id} className="rc-card" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                    <div style={{ fontWeight: 850 }}>Item</div>
-                    <span className={it.status === 'completed' ? 'rc-badge rc-badge--success' : it.status === 'failed' ? 'rc-badge rc-badge--danger' : 'rc-badge rc-badge--info'}>{it.status}</span>
-                  </div>
-                  <div className="rc-help">
-                    {it.paper_title ? <span style={{ fontWeight: 800 }}>{it.paper_title}</span> : null}
-                    {it.paper_filename ? <span style={{ marginLeft: 8 }}>{it.paper_filename}</span> : null}
-                  </div>
-                  <div className="rc-help" style={{ opacity: 0.6 }}>paper_id: {it.paper_id}</div>
-                  {it.error_message ? <div className="rc-error" style={{ fontSize: 12 }}>{it.error_message}</div> : null}
-                  <div className="rc-row">
-                    <button className="rc-btn" onClick={() => retryItem(it.id)} disabled={['queued', 'started'].includes(it.status)}>
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rc-muted">Select a batch to view items (optional).</div>
-          )}
-        </div>
-
-        <div className="rc-card">
-          <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 12 }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div className="rc-card-title" style={{ marginBottom: 0 }}>Studies</div>
-                <button className="rc-btn" onClick={loadStudies}>Refresh</button>
-              </div>
-              <div style={{ height: 10 }} />
-              {studies.length === 0 ? <div className="rc-muted">No studies (yet).</div> : null}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 460, overflow: 'auto' }}>
-                {studies.map((s) => (
+            ) : (
+              <div className="rc-card-list">
+                {batches.map((batch) => (
                   <button
-                    key={s.id}
-                    onClick={() => setSelectedStudyId(s.id)}
-                    className="rc-btn"
-                    style={{ textAlign: 'left', padding: 12, borderColor: s.id === selectedStudyId ? 'rgba(79,70,229,0.35)' : 'rgba(15,23,42,0.16)', background: s.id === selectedStudyId ? 'rgba(79,70,229,0.08)' : 'white' }}
+                    key={batch.id}
+                    onClick={() => void loadItems(batch.id)}
+                    className={`rc-list-button ${batch.id === selectedBatchId ? 'rc-list-button--active' : ''}`}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                      <div style={{ fontWeight: 850, fontSize: 12, flex: 1 }}>{s.paper_title || `Study ${s.id}`}</div>
-                      {s.rob_auto_generated ? <span className="rc-badge">ROB auto</span> : null}
+                    <div className="rc-detail-header">
+                      <div style={{ fontWeight: 850 }}>{batch.title || '(untitled batch)'}</div>
+                      <span className={batch.status === 'completed' ? 'rc-badge rc-badge--success' : batch.status === 'failed' ? 'rc-badge rc-badge--danger' : 'rc-badge rc-badge--info'}>
+                        {batch.status}
+                      </span>
                     </div>
-                    {s.paper_filename ? <div className="rc-help">{s.paper_filename}</div> : null}
-                    <div className="rc-help">
-                      v{s.version} · conf {s.extraction_confidence} {s.batch_id ? '· batch' : ''}
-                    </div>
-                    <div className="rc-help" style={{ opacity: 0.6 }}>study_id: {s.id}</div>
+                    <div className="rc-help" style={{ marginTop: 8 }}>{formatDate(batch.created_at)}</div>
                   </button>
                 ))}
               </div>
-            </div>
+            )}
+            <div style={{ height: 12 }} />
+            <button className="rc-btn rc-btn--ghost" onClick={() => setSelectedBatchId(null)} disabled={!selectedBatchId}>
+              Clear batch focus
+            </button>
+          </div>
 
-            <div>
-              {selectedStudyId ? (
-                <StudyViewer studyId={selectedStudyId} onSelectStudyId={setSelectedStudyId} />
-              ) : (
-                <div className="rc-muted">Select a study to edit effect sizes (inline grid).</div>
-              )}
+          <div className="rc-card">
+            <div className="rc-card-title">New extraction batch</div>
+            <div className="rc-help" style={{ marginBottom: 12 }}>Choose PDF files, optionally name the run and let the worker queue process them in the background.</div>
+            <div className="rc-card-list">
+              <div>
+                <div className="rc-kicker">Batch title</div>
+                <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. ACL graft meta-analysis" />
+              </div>
+              <div>
+                <div className="rc-kicker">PDF files</div>
+                <input type="file" multiple accept="application/pdf" onChange={(e) => setFiles(e.target.files)} />
+                <div className="rc-help" style={{ marginTop: 8 }}>
+                  {selectedFilesCount ? `${selectedFilesCount} file(s) selected.` : 'Choose one or more PDFs.'} Extraction runs async through Redis workers.
+                </div>
+              </div>
+              <button className="rc-btn rc-btn--primary" disabled={creating} onClick={createBatch}>
+                {creating ? 'Creating...' : 'Create and extract'}
+              </button>
             </div>
           </div>
+
+          <div className="rc-card">
+            <div className="rc-toolbar">
+              <div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Exports</div>
+                <div className="rc-help">Package current extraction data for downstream review or analysis.</div>
+              </div>
+              <button className="rc-btn" onClick={() => void loadExports()}>Refresh</button>
+            </div>
+            <div style={{ height: 12 }} />
+            <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
+              {exportJobId ? 'Exporting...' : 'Export Excel'}
+            </button>
+            {exportJobStatus ? (
+              <div className="rc-help" style={{ marginTop: 10 }}>
+                Export status: {exportJobStatus.status} · {exportJobStatus.progress}%
+                {exportJobStatus.error ? ` · ${String(exportJobStatus.error)}` : ''}
+              </div>
+            ) : null}
+            <div style={{ height: 12 }} />
+            {exportsList.length === 0 ? (
+              <div className="rc-empty-state">
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>No exports yet</div>
+                <div className="rc-help">Run an export once a batch has produced study outputs.</div>
+              </div>
+            ) : (
+              <div className="rc-card-list">
+                {exportsList.map((item) => (
+                  <div key={item.id} className="rc-soft-card">
+                    <div className="rc-detail-header">
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.filename}</div>
+                        <div className="rc-help" style={{ marginTop: 6 }}>{formatDate(item.created_at)}</div>
+                      </div>
+                      <button className="rc-btn" onClick={() => void downloadExport(item)}>Download</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+
+        <div className="rc-stack">
+          <div className="rc-card">
+            <div className="rc-toolbar">
+              <div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Batch items</div>
+                <div className="rc-help">
+                  {selectedBatch ? `Tracking papers in "${selectedBatch.title || 'Untitled batch'}".` : 'Select a batch to inspect item-level progress and failures.'}
+                </div>
+              </div>
+              {runningItems.length ? <span className="rc-badge rc-badge--info">Auto-refreshing</span> : null}
+            </div>
+            <div style={{ height: 12 }} />
+            {selectedBatchId ? (
+              <>
+                <div className="rc-metric-grid" style={{ marginBottom: 12 }}>
+                  <div className="rc-metric-tile"><strong>{items.length}</strong><span>Items</span></div>
+                  <div className="rc-metric-tile"><strong>{completedItems}</strong><span>Completed</span></div>
+                  <div className="rc-metric-tile"><strong>{failedItems}</strong><span>Failed</span></div>
+                </div>
+                {items.length === 0 ? (
+                  <div className="rc-empty-state">
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Batch has no items yet</div>
+                    <div className="rc-help">Files may still be entering the queue. Check Jobs if Redis workers are busy.</div>
+                  </div>
+                ) : (
+                  <div className="rc-card-list">
+                    {items.map((item) => (
+                      <div key={item.id} className="rc-soft-card">
+                        <div className="rc-detail-header">
+                          <div style={{ flex: 1, minWidth: 220 }}>
+                            <div style={{ fontWeight: 850 }}>{item.paper_title || item.paper_filename || 'Untitled item'}</div>
+                            <div className="rc-help" style={{ marginTop: 8 }}>
+                              {item.paper_filename ? `${item.paper_filename} · ` : ''}
+                              paper_id {item.paper_id}
+                            </div>
+                          </div>
+                          <span className={item.status === 'completed' ? 'rc-badge rc-badge--success' : item.status === 'failed' ? 'rc-badge rc-badge--danger' : 'rc-badge rc-badge--info'}>
+                            {item.status}
+                          </span>
+                        </div>
+                        {item.error_message ? <div className="rc-error" style={{ marginTop: 10 }}>{item.error_message}</div> : null}
+                        <div className="rc-row" style={{ marginTop: 10 }}>
+                          <button className="rc-btn" onClick={() => void retryItem(item.id)} disabled={['queued', 'started'].includes(item.status)}>
+                            Retry item
+                          </button>
+                          {item.updated_at ? <div className="rc-help">Updated {formatDate(item.updated_at)}</div> : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rc-empty-state">
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>No batch selected</div>
+                <div className="rc-help">Pick a batch from the queue to review item progress, failures and retry controls.</div>
+              </div>
+            )}
+          </div>
+
+          <div className="rc-card">
+            <div className="rc-toolbar">
+              <div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Study review</div>
+                <div className="rc-help">Browse extracted studies and open the detailed viewer for confidence, risk of bias and effect size review.</div>
+              </div>
+              <button className="rc-btn" onClick={() => void loadStudies()}>Refresh</button>
+            </div>
+            <div style={{ height: 12 }} />
+            {studies.length === 0 ? (
+              <div className="rc-empty-state">
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>No studies available yet</div>
+                <div className="rc-help">Studies appear here as batch items complete extraction. Once a study lands, this panel turns into a review split view.</div>
+              </div>
+            ) : (
+              <div className="rc-split-layout">
+                <div className="rc-card-list" style={{ maxHeight: 620, overflow: 'auto', paddingRight: 4 }}>
+                  {studies.map((study) => (
+                    <button
+                      key={study.id}
+                      onClick={() => setSelectedStudyId(study.id)}
+                      className={`rc-list-button ${study.id === selectedStudyId ? 'rc-list-button--active' : ''}`}
+                    >
+                      <div className="rc-detail-header">
+                        <div style={{ fontWeight: 850, fontSize: 13, lineHeight: 1.3 }}>
+                          {study.paper_title || study.paper_filename || `Study ${study.id}`}
+                        </div>
+                        {study.rob_auto_generated ? <span className="rc-badge">ROB auto</span> : null}
+                      </div>
+                      <div className="rc-help" style={{ marginTop: 8 }}>
+                        v{study.version} · confidence {study.extraction_confidence}
+                        {study.batch_id ? ' · batched' : ''}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  {selectedStudyId ? (
+                    <StudyViewer studyId={selectedStudyId} onSelectStudyId={setSelectedStudyId} />
+                  ) : (
+                    <div className="rc-empty-state">
+                      <div style={{ fontWeight: 800, marginBottom: 6 }}>Select a study</div>
+                      <div className="rc-help">Choose a study from the left column to review extracted evidence in detail.</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
