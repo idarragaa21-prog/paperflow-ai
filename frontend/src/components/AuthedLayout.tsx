@@ -28,20 +28,24 @@ export default function AuthedLayout() {
         <div className="rc-brand">
           <div>
             <div className="rc-brand-title">PaperFlow AI</div>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>Research OS · Reader · Evidence · Analysis</div>
+            <div style={{ fontSize: 12, opacity: 0.74, marginTop: 4 }}>Discover papers, read with evidence, extract data and ship grounded outputs.</div>
           </div>
           <div className="rc-pill rc-pill--soft">RC</div>
         </div>
 
         <nav className="rc-nav">
-          <NavItem to="/projects" label="Projects" />
-          <NavItem to="/jobs" label="Jobs" />
+          <NavItem to="/projects" label="Research home" />
+          <NavItem to="/jobs" label="Operations" />
         </nav>
 
         <div className="rc-card" style={{ padding: 14 }}>
-          <div className="rc-kicker">Workspace mode</div>
-          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 4 }}>Local-first research cockpit</div>
-          <div className="rc-help">Search literature, ground answers in papers, extract evidence and render reproducible reports.</div>
+          <div className="rc-kicker">How the product flows</div>
+          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>Research workflow</div>
+          <div className="rc-card-list" style={{ gap: 8 }}>
+            <div className="rc-help"><strong>1.</strong> Search and save relevant papers.</div>
+            <div className="rc-help"><strong>2.</strong> Read PDFs and ask grounded questions.</div>
+            <div className="rc-help"><strong>3.</strong> Extract evidence, write and analyze.</div>
+          </div>
         </div>
 
         <div style={{ flex: 1 }} />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
@@ -193,9 +193,12 @@ export default function SearchPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Research</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Literature discovery</h1>
-          <div className="rc-subtitle">Federated search across PubMed, Europe PMC and DOAJ with deduplication and OA-aware saving.</div>
+          <div className="rc-stage-label rc-stage-label--teal">Step 1 · Discover</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Find the right evidence</h1>
+          <div className="rc-subtitle">Search across PubMed, Europe PMC and DOAJ, then move promising papers into the project library.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>
+            Use a question-like query, then save OA papers directly. Once you have a core reading list, switch to Reader to ask grounded questions.
+          </div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
           <div className="rc-metric-tile"><strong>{data?.count ?? '—'}</strong><span>Results</span></div>
@@ -203,22 +206,36 @@ export default function SearchPage() {
         </div>
       </div>
 
-      <div className="rc-card">
-        <div className="rc-card-title">Search query</div>
-        <div className="rc-row" style={{ alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, minWidth: 260 }}>
-            <div className="rc-kicker">Research query</div>
-            <input className="rc-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. ACL reconstruction hamstring vs BPTB meta-analysis" />
+      <div className="rc-shelf">
+        <div className="rc-card">
+          <div className="rc-card-title">Search query</div>
+          <div className="rc-row" style={{ alignItems: 'flex-end' }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div className="rc-kicker">Research question</div>
+              <input className="rc-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. ACL reconstruction hamstring vs BPTB meta-analysis" />
+            </div>
+            <div style={{ width: 140 }}>
+              <div className="rc-kicker">Max results</div>
+              <input className="rc-input" type="number" value={maxResults} min={1} max={100} onChange={(e) => setMaxResults(Number(e.target.value))} />
+            </div>
+            <button className="rc-btn rc-btn--primary" disabled={!canSearch || loading} onClick={runSearch}>
+              {loading ? 'Searching…' : 'Search'}
+            </button>
           </div>
-          <div style={{ width: 140 }}>
-            <div className="rc-kicker">Max results</div>
-            <input className="rc-input" type="number" value={maxResults} min={1} max={100} onChange={(e) => setMaxResults(Number(e.target.value))} />
-          </div>
-          <button className="rc-btn rc-btn--primary" disabled={!canSearch || loading} onClick={runSearch}>
-            {loading ? 'Searching…' : 'Search'}
-          </button>
+          <div className="rc-help" style={{ marginTop: 8 }}>Tip: use phrases, outcomes, populations and study types. The app merges duplicate hits across providers.</div>
         </div>
-        <div className="rc-help" style={{ marginTop: 8 }}>Tip: use phrases, outcomes, populations and study types. The app will merge duplicate hits across providers.</div>
+
+        <div className="rc-next-step">
+          <div className="rc-kicker">Suggested next step</div>
+          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Build your reading set</div>
+          <div className="rc-help" style={{ marginTop: 8 }}>
+            Save OA papers first, then open Reader to compare findings with citations. Library keeps the long list; Reader helps you decide what matters.
+          </div>
+          <div className="rc-row" style={{ marginTop: 12 }}>
+            <Link className="rc-btn" to={`/projects/${projectId}/library`}>Open library</Link>
+            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/reader`}>Go to reader</Link>
+          </div>
+        </div>
       </div>
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
@@ -227,10 +244,10 @@ export default function SearchPage() {
         <div className="rc-card-list">
           <div className="rc-soft-card">
             <div className="rc-help">
-            Results: <b>{data.count}</b> {data.cached ? '(cached)' : ''}
-            {data.query_translation ? ` · Translation: ${data.query_translation}` : ''}
-            {data.sources?.length ? ` · Sources: ${data.sources.join(', ')}` : ''}
-          </div>
+              Results: <b>{data.count}</b> {data.cached ? '(cached)' : ''}
+              {data.query_translation ? ` · Translation: ${data.query_translation}` : ''}
+              {data.sources?.length ? ` · Sources: ${data.sources.join(', ')}` : ''}
+            </div>
           </div>
 
           {loading ? (

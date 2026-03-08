@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
 type Draft = {
@@ -98,9 +98,10 @@ export default function DraftsPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Drafts</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Writing studio</h1>
-          <div className="rc-subtitle">Create drafts, generate grounded sections and keep citations attached to the prose.</div>
+          <div className="rc-stage-label rc-stage-label--teal">Step 4 · Write</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Turn evidence into a draft</h1>
+          <div className="rc-subtitle">Create writing spaces, generate grounded sections and keep citations attached to the prose from the start.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>Drafting should feel like a continuation of extraction, not a separate tool. Build evidence tables, then turn them into sections.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
           <div className="rc-metric-tile"><strong>{drafts.length}</strong><span>Drafts</span></div>
@@ -110,7 +111,7 @@ export default function DraftsPage() {
 
       {error ? <div className="rc-error">{error}</div> : null}
 
-      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+      <div className="rc-shelf">
         <div className="rc-card">
           <div className="rc-card-title">Drafts</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -121,10 +122,13 @@ export default function DraftsPage() {
             <button data-testid="draft-create-button" className="rc-btn rc-btn--primary" onClick={createDraft} disabled={busy}>Create draft</button>
             <button data-testid="draft-build-evidence" className="rc-btn" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
           </div>
+          <div className="rc-help" style={{ marginTop: 10 }}>Start with a working title, then generate one section at a time from the evidence you already extracted.</div>
         </div>
 
-        <div className="rc-card">
-          <div className="rc-card-title">Generate section</div>
+        <div className="rc-next-step">
+          <div className="rc-kicker">Suggested next step</div>
+          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Build a section from evidence</div>
+          <div className="rc-help" style={{ marginTop: 8 }}>Choose a draft, generate a grounded section, then move to Analysis when you need formal outputs and reproducible reports.</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 240 }}>
               <div className="rc-kicker">Draft</div>
@@ -142,6 +146,10 @@ export default function DraftsPage() {
               <input data-testid="draft-heading-input" className="rc-input" value={heading} onChange={(e) => setHeading(e.target.value)} />
             </div>
             <button data-testid="draft-generate-button" className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
+          </div>
+          <div className="rc-row" style={{ marginTop: 12 }}>
+            <Link className="rc-btn" to={`/projects/${projectId}/meta`}>Back to extraction</Link>
+            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/analysis`}>Continue to analysis</Link>
           </div>
         </div>
       </div>

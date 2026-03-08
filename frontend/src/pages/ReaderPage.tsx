@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
 type PaperOption = {
@@ -73,9 +73,10 @@ export default function ReaderPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Reader</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Grounded paper chat</h1>
-          <div className="rc-subtitle">Ask one paper or the whole project. Answers are blocked when support is too weak.</div>
+          <div className="rc-stage-label rc-stage-label--warm">Step 2 · Read & ask</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Read papers with evidence in view</h1>
+          <div className="rc-subtitle">Ask a single paper or the whole project. Answers stay grounded in retrieved evidence and are blocked when support is weak.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>Use this view to understand findings before you extract or write. The goal here is confidence, not speed.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
           <div className="rc-metric-tile"><strong>{papers.length}</strong><span>Papers available</span></div>
@@ -85,7 +86,7 @@ export default function ReaderPage() {
 
       {error ? <div className="rc-error">{error}</div> : null}
 
-      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+      <div className="rc-shelf">
         <div className="rc-card">
           <div className="rc-card-title">Ask a question</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -113,6 +114,10 @@ export default function ReaderPage() {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
           />
+          <div className="rc-row" style={{ marginTop: 12 }}>
+            <Link className="rc-btn" to={`/projects/${projectId}/library`}>Open library</Link>
+            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/meta`}>Go to extraction</Link>
+          </div>
         </div>
 
         <div data-testid="reader-answer-panel" className="rc-card">

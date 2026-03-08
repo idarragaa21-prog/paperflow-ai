@@ -269,9 +269,10 @@ export default function MetaPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Extraction</div>
+          <div className="rc-stage-label rc-stage-label--warm">Step 3 · Extract</div>
           <h1 className="rc-page-title" style={{ marginTop: 12 }}>Extraction Workspace</h1>
-          <div className="rc-subtitle">Upload PDF batches, monitor extraction health, review studies and export structured evidence without leaving the project.</div>
+          <div className="rc-subtitle">Upload PDF batches, review extraction health and turn papers into structured evidence before you write or analyze.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>This is the bridge between reading and writing. Clean extractions here make every downstream draft and analysis easier.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 320 }}>
           <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Batches</span></div>

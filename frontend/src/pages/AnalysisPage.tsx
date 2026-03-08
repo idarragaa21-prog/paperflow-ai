@@ -120,9 +120,10 @@ export default function AnalysisPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Analysis</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Reproducible analysis</h1>
+          <div className="rc-stage-label rc-stage-label--teal">Step 5 · Analyze</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Analysis</h1>
           <div className="rc-subtitle">Create datasets, launch runs and export HTML, PDF or DOCX reports through the analysis engine.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>Use this stage when you want formal outputs, tables and reproducible reports from the evidence you've already curated.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
           <div className="rc-metric-tile"><strong>{datasets.length}</strong><span>Datasets</span></div>
