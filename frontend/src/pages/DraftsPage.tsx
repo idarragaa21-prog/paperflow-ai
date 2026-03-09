@@ -26,8 +26,8 @@ export default function DraftsPage() {
   const { projectId } = useParams();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [tables, setTables] = useState<EvidenceTable[]>([]);
-  const [title, setTitle] = useState('Narrative synthesis');
-  const [heading, setHeading] = useState('Introduction');
+  const [title, setTitle] = useState('Sintesis narrativa');
+  const [heading, setHeading] = useState('Introduccion');
   const [selectedDraft, setSelectedDraft] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -47,7 +47,7 @@ export default function DraftsPage() {
   }
 
   useEffect(() => {
-    load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load drafts'));
+    load().catch((e: any) => setError(e?.response?.data?.detail || 'No se pudieron cargar los borradores'));
   }, [projectId]);
 
   async function createDraft() {
@@ -60,7 +60,7 @@ export default function DraftsPage() {
       setSelectedDraft(draft.id);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create draft');
+      setError(e?.response?.data?.detail || 'No se pudo crear el borrador');
     } finally {
       setBusy(false);
     }
@@ -74,7 +74,7 @@ export default function DraftsPage() {
       await api.post(`/drafts/${selectedDraft}/generate-section`, { heading, paper_ids: [], extraction_record_ids: [] });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to generate section');
+      setError(e?.response?.data?.detail || 'No se pudo generar la seccion');
     } finally {
       setBusy(false);
     }
@@ -88,7 +88,7 @@ export default function DraftsPage() {
       await api.get('/evidence/tables', { params: { project_id: projectId, build: true } });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to build evidence table');
+      setError(e?.response?.data?.detail || 'No se pudo construir la tabla de evidencia');
     } finally {
       setBusy(false);
     }
@@ -98,14 +98,14 @@ export default function DraftsPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-stage-label rc-stage-label--teal">Step 4 · Write</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Turn evidence into a draft</h1>
-          <div className="rc-subtitle">Create writing spaces, generate grounded sections and keep citations attached to the prose from the start.</div>
-          <div className="rc-help" style={{ marginTop: 12 }}>Drafting should feel like a continuation of extraction, not a separate tool. Build evidence tables, then turn them into sections.</div>
+          <div className="rc-stage-label rc-stage-label--teal">Paso 4 · Redactar</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Convierte la evidencia en un borrador</h1>
+          <div className="rc-subtitle">Crea espacios de escritura, genera secciones con evidencia y mantén las citas unidas al texto desde el inicio.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>La redaccion debe sentirse como una continuacion de la extraccion, no como una herramienta aparte. Construye tablas de evidencia y luego conviertelas en secciones.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{drafts.length}</strong><span>Drafts</span></div>
-          <div className="rc-metric-tile"><strong>{tables.length}</strong><span>Evidence tables</span></div>
+          <div className="rc-metric-tile"><strong>{drafts.length}</strong><span>Borradores</span></div>
+          <div className="rc-metric-tile"><strong>{tables.length}</strong><span>Tablas de evidencia</span></div>
         </div>
       </div>
 
@@ -113,27 +113,27 @@ export default function DraftsPage() {
 
       <div className="rc-shelf">
         <div className="rc-card">
-          <div className="rc-card-title">Drafts</div>
+          <div className="rc-card-title">Borradores</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 240 }}>
-              <div className="rc-kicker">New draft title</div>
+              <div className="rc-kicker">Titulo del nuevo borrador</div>
               <input data-testid="draft-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
-            <button data-testid="draft-create-button" className="rc-btn rc-btn--primary" onClick={createDraft} disabled={busy}>Create draft</button>
-            <button data-testid="draft-build-evidence" className="rc-btn" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
+            <button data-testid="draft-create-button" className="rc-btn rc-btn--primary" onClick={createDraft} disabled={busy}>Crear borrador</button>
+            <button data-testid="draft-build-evidence" className="rc-btn" onClick={buildEvidence} disabled={busy}>Construir tabla de evidencia</button>
           </div>
-          <div className="rc-help" style={{ marginTop: 10 }}>Start with a working title, then generate one section at a time from the evidence you already extracted.</div>
+          <div className="rc-help" style={{ marginTop: 10 }}>Empieza con un titulo de trabajo y luego genera una seccion a la vez a partir de la evidencia que ya extrajiste.</div>
         </div>
 
         <div className="rc-next-step">
-          <div className="rc-kicker">Suggested next step</div>
-          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Build a section from evidence</div>
-          <div className="rc-help" style={{ marginTop: 8 }}>Choose a draft, generate a grounded section, then move to Analysis when you need formal outputs and reproducible reports.</div>
+          <div className="rc-kicker">Siguiente paso sugerido</div>
+          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Construye una seccion desde la evidencia</div>
+          <div className="rc-help" style={{ marginTop: 8 }}>Elige un borrador, genera una seccion con evidencia y luego pasa a Analisis cuando necesites salidas formales y reportes reproducibles.</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 240 }}>
-              <div className="rc-kicker">Draft</div>
+              <div className="rc-kicker">Borrador</div>
               <select data-testid="draft-select" className="rc-input" value={selectedDraft} onChange={(e) => setSelectedDraft(e.target.value)}>
-                <option value="">Select draft</option>
+                <option value="">Seleccionar borrador</option>
                 {drafts.map((draft) => (
                   <option key={draft.id} value={draft.id}>
                     {draft.title} · v{draft.version}
@@ -142,22 +142,22 @@ export default function DraftsPage() {
               </select>
             </div>
             <div style={{ minWidth: 240 }}>
-              <div className="rc-kicker">Heading</div>
+              <div className="rc-kicker">Encabezado</div>
               <input data-testid="draft-heading-input" className="rc-input" value={heading} onChange={(e) => setHeading(e.target.value)} />
             </div>
-            <button data-testid="draft-generate-button" className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
+            <button data-testid="draft-generate-button" className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generar</button>
           </div>
           <div className="rc-row" style={{ marginTop: 12 }}>
-            <Link className="rc-btn" to={`/projects/${projectId}/meta`}>Back to extraction</Link>
-            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/analysis`}>Continue to analysis</Link>
+            <Link className="rc-btn" to={`/projects/${projectId}/meta`}>Volver a extraccion</Link>
+            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/analysis`}>Continuar al analisis</Link>
           </div>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }}>
         <div className="rc-card">
-          <div className="rc-card-title">Draft contents</div>
-          {drafts.length === 0 ? <div className="rc-muted">No drafts yet.</div> : null}
+          <div className="rc-card-title">Contenido del borrador</div>
+          {drafts.length === 0 ? <div className="rc-muted">Todavia no hay borradores.</div> : null}
           {drafts.map((draft) => (
             <div key={draft.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
               <div style={{ fontWeight: 800 }}>{draft.title} · {draft.status} · v{draft.version}</div>
@@ -165,7 +165,7 @@ export default function DraftsPage() {
                 <div key={section.id} className="rc-soft-card">
                   <div className="rc-kicker">{section.heading}</div>
                   <div style={{ whiteSpace: 'pre-wrap' }}>{section.content}</div>
-                  <div className="rc-help">Citations: {section.citations.map((citation) => citation.marker).join(', ') || 'none'}</div>
+                  <div className="rc-help">Citas: {section.citations.map((citation) => citation.marker).join(', ') || 'ninguna'}</div>
                 </div>
               ))}
             </div>
@@ -173,12 +173,12 @@ export default function DraftsPage() {
         </div>
 
         <div className="rc-card">
-          <div className="rc-card-title">Evidence tables</div>
-          {tables.length === 0 ? <div className="rc-muted">No evidence tables yet.</div> : null}
+          <div className="rc-card-title">Tablas de evidencia</div>
+          {tables.length === 0 ? <div className="rc-muted">Todavia no hay tablas de evidencia.</div> : null}
           {tables.map((table) => (
             <div key={table.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
               <div style={{ fontWeight: 800 }}>{table.title}</div>
-              <div className="rc-help">Rows: {table.table_json?.count ?? 0} · confidence {table.confidence.toFixed(2)}</div>
+              <div className="rc-help">Filas: {table.table_json?.count ?? 0} · confianza {table.confidence.toFixed(2)}</div>
             </div>
           ))}
         </div>

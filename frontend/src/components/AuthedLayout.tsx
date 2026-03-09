@@ -28,23 +28,23 @@ export default function AuthedLayout() {
         <div className="rc-brand">
           <div>
             <div className="rc-brand-title">PaperFlow AI</div>
-            <div style={{ fontSize: 12, opacity: 0.74, marginTop: 4 }}>Discover papers, read with evidence, extract data and ship grounded outputs.</div>
+            <div style={{ fontSize: 12, opacity: 0.74, marginTop: 4 }}>Descubre articulos, lee con evidencia, extrae datos y entrega resultados con trazabilidad.</div>
           </div>
           <div className="rc-pill rc-pill--soft">RC</div>
         </div>
 
         <nav className="rc-nav">
-          <NavItem to="/projects" label="Research home" />
-          <NavItem to="/jobs" label="Operations" />
+          <NavItem to="/projects" label="Inicio de investigacion" />
+          <NavItem to="/jobs" label="Operaciones" />
         </nav>
 
         <div className="rc-card" style={{ padding: 14 }}>
-          <div className="rc-kicker">How the product flows</div>
-          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>Research workflow</div>
+          <div className="rc-kicker">Como funciona el producto</div>
+          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>Flujo de investigacion</div>
           <div className="rc-card-list" style={{ gap: 8 }}>
-            <div className="rc-help"><strong>1.</strong> Search and save relevant papers.</div>
-            <div className="rc-help"><strong>2.</strong> Read PDFs and ask grounded questions.</div>
-            <div className="rc-help"><strong>3.</strong> Extract evidence, write and analyze.</div>
+            <div className="rc-help"><strong>1.</strong> Busca y guarda los papers relevantes.</div>
+            <div className="rc-help"><strong>2.</strong> Lee PDFs y haz preguntas con evidencia.</div>
+            <div className="rc-help"><strong>3.</strong> Extrae evidencia, redacta y analiza.</div>
           </div>
         </div>
 
@@ -55,16 +55,16 @@ export default function AuthedLayout() {
           <div className="rc-user-panel">
             <div className="rc-user-avatar">{(user?.email || 'p').slice(0, 1).toUpperCase()}</div>
             <div>
-              <div style={{ fontWeight: 800 }}>{user?.full_name || 'PaperFlow user'}</div>
+              <div style={{ fontWeight: 800 }}>{user?.full_name || 'Usuario de PaperFlow'}</div>
               <div className="rc-muted">{user?.email || ''}</div>
             </div>
           </div>
-          <button className="rc-btn" onClick={onLogout}>Logout</button>
+          <button className="rc-btn" onClick={onLogout}>Cerrar sesion</button>
         </div>
 
         <div style={{ height: 10 }} />
         <div className="rc-help" style={{ padding: '0 6px 4px 6px' }}>
-          Internal RC environment
+          Entorno interno RC
         </div>
       </aside>
 

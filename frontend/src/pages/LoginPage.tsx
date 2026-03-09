@@ -36,40 +36,40 @@ export default function LoginPage() {
     <div className="rc-auth-shell">
       <div className="rc-auth-grid">
         <section className="rc-auth-hero">
-          <div className="rc-pill">Internal RC</div>
+          <div className="rc-pill">RC interno</div>
           <h1 className="rc-auth-title">PaperFlow AI</h1>
           <p className="rc-auth-copy">
-            A local-first research workspace for literature search, evidence extraction, grounded PDF chat,
-            writing, analysis and screening.
+            Un espacio de investigacion local-first para busqueda bibliografica, extraccion de evidencia, chat con PDFs,
+            redaccion, analisis y screening.
           </p>
 
           <div className="rc-auth-stats">
             <div className="rc-hero-stat">
               <strong>500</strong>
-              <span>seeded papers</span>
+              <span>papers sembrados</span>
             </div>
             <div className="rc-hero-stat">
               <strong>RAG</strong>
-              <span>grounded answers</span>
+              <span>respuestas con evidencia</span>
             </div>
             <div className="rc-hero-stat">
               <strong>R</strong>
-              <span>real exported reports</span>
+              <span>reportes exportados</span>
             </div>
           </div>
 
           <div className="rc-card" style={{ padding: 16 }}>
-            <div className="rc-card-title">Demo accounts</div>
+            <div className="rc-card-title">Cuentas demo</div>
             <div className="rc-row">
               <button type="button" className="rc-btn" onClick={() => useDemoAccount('rc-owner@paperflow.dev')}>
-                Fill owner demo
+                Cargar dueno demo
               </button>
               <button type="button" className="rc-btn" onClick={() => useDemoAccount('rc-reviewer@paperflow.dev')}>
-                Fill reviewer demo
+                Cargar revisor demo
               </button>
             </div>
             <div className="rc-help" style={{ marginTop: 10 }}>
-              Password for both: <b>paperflow-e2e-123</b>
+              Clave para ambos: <b>paperflow-e2e-123</b>
             </div>
           </div>
         </section>
@@ -77,9 +77,9 @@ export default function LoginPage() {
         <section className="rc-auth-panel">
           <div className="rc-card rc-auth-card">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className="rc-pill rc-pill--soft">Sign in</div>
-              <div style={{ fontWeight: 900, fontSize: 26, letterSpacing: '-0.03em' }}>Open your workspace</div>
-              <div className="rc-help">Projects, library, reader, extraction, writing studio and analysis in one place.</div>
+              <div className="rc-pill rc-pill--soft">Entrar</div>
+              <div style={{ fontWeight: 900, fontSize: 26, letterSpacing: '-0.03em' }}>Abre tu espacio de trabajo</div>
+              <div className="rc-help">Proyectos, biblioteca, lector, extraccion, escritura y analisis en un solo lugar.</div>
             </div>
 
             <div style={{ height: 18 }} />
@@ -98,7 +98,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <div className="rc-kicker">Password</div>
+                <div className="rc-kicker">Contrasena</div>
                 <input
                   data-testid="login-password"
                   className="rc-input"
@@ -111,14 +111,14 @@ export default function LoginPage() {
               </div>
 
               <button data-testid="login-submit" className="rc-btn rc-btn--primary" disabled={loading} type="submit">
-                {loading ? 'Signing in…' : 'Enter PaperFlow'}
+                {loading ? 'Entrando…' : 'Entrar a PaperFlow'}
               </button>
 
               {error ? <div className="rc-error" style={{ fontSize: 13 }}>{error}</div> : null}
             </form>
 
             <div style={{ height: 14 }} />
-            <div className="rc-help">If this screen keeps loading, the backend session check will now fail fast instead of hanging indefinitely.</div>
+            <div className="rc-help">Si esta pantalla se queda cargando, la verificacion de sesion ahora falla rapido en vez de quedarse colgada.</div>
           </div>
         </section>
       </div>

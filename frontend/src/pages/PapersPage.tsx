@@ -75,7 +75,7 @@ export default function PapersPage() {
       setNextCursor(page.next_cursor || null);
       setHasMore(Boolean(page.has_more));
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load papers');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar los papers');
     } finally {
       setLoading(false);
     }
@@ -97,11 +97,11 @@ export default function PapersPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const duplicate = Boolean((r.data as any)?.duplicate);
-      toast.info(duplicate ? 'Duplicate' : 'Uploaded', duplicate ? 'Paper already exists in this project.' : 'PDF uploaded successfully.');
+      toast.info(duplicate ? 'Duplicado' : 'Subido', duplicate ? 'El paper ya existe en este proyecto.' : 'PDF subido correctamente.');
       setUploadFile(null);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Upload failed');
+      setError(e?.response?.data?.detail || 'La subida fallo');
     } finally {
       setUploading(false);
     }
@@ -118,12 +118,12 @@ export default function PapersPage() {
       if (doi.trim()) payload.doi = doi.trim();
       if (pmid.trim()) payload.pmid = pmid.trim();
       await api.post('/papers/download', payload);
-      toast.success('Download requested', 'OA resolver job started (duplicates are deduped).');
+      toast.success('Descarga solicitada', 'El job del resolvedor OA ha comenzado (los duplicados se deduplican).');
       setDoi('');
       setPmid('');
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Download failed');
+      setError(e?.response?.data?.detail || 'La descarga fallo');
     } finally {
       setDownloading(false);
     }
@@ -135,7 +135,7 @@ export default function PapersPage() {
       const r = await api.get(`/papers/${p.id}/download`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, p.filename || 'paper.pdf');
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'File download failed');
+      setError(e?.response?.data?.detail || 'La descarga del archivo fallo');
     }
   }
 
@@ -143,9 +143,9 @@ export default function PapersPage() {
     setError(null);
     try {
       const r = await api.post(`/papers/${p.id}/process`);
-      toast.success('Job enqueued', `Process: ${String(r.data?.job_id || '')}`);
+      toast.success('Job encolado', `Proceso: ${String(r.data?.job_id || '')}`);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to enqueue process job');
+      setError(e?.response?.data?.detail || 'No se pudo encolar el job de procesamiento');
     }
   }
 
@@ -156,17 +156,17 @@ export default function PapersPage() {
         paper_id: p.id,
         custom_instructions: null,
       });
-      toast.success('Job enqueued', `Summarize: ${String(r.data?.job_id || '')}`);
+      toast.success('Job encolado', `Resumen: ${String(r.data?.job_id || '')}`);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to enqueue summarize job');
+      setError(e?.response?.data?.detail || 'No se pudo encolar el job de resumen');
     }
   }
 
   async function deletePaper(p: PaperRow) {
     const ok = await confirm({
-      title: `Delete paper?`,
-      body: `This will delete the stored PDF file.\n\n${p.title}`,
-      confirmText: 'Delete',
+      title: `Eliminar paper?`,
+      body: `Esto eliminara el PDF almacenado.\n\n${p.title}`,
+      confirmText: 'Eliminar',
       danger: true,
     });
     if (!ok) return;
@@ -176,7 +176,7 @@ export default function PapersPage() {
       await api.delete(`/papers/${p.id}`);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Delete failed');
+      setError(e?.response?.data?.detail || 'La eliminacion fallo');
     }
   }
 
@@ -184,19 +184,19 @@ export default function PapersPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Library</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Research library</h1>
-          <div className="rc-subtitle">Curate PDFs, deduplicate sources, process full text and build a reusable evidence library.</div>
+          <div className="rc-pill">Biblioteca</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Biblioteca de investigacion</h1>
+          <div className="rc-subtitle">Curate PDFs, elimina duplicados, procesa texto completo y construye una biblioteca reutilizable de evidencia.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{papers.length}</strong><span>Papers in view</span></div>
-          <div className="rc-metric-tile"><strong>{hasMore ? '50+' : papers.length}</strong><span>Loaded records</span></div>
+          <div className="rc-metric-tile"><strong>{papers.length}</strong><span>Articulos visibles</span></div>
+          <div className="rc-metric-tile"><strong>{hasMore ? '50+' : papers.length}</strong><span>Registros cargados</span></div>
         </div>
       </div>
 
       <div className="rc-row">
         <button className="rc-btn" onClick={() => { void load(); }} disabled={loading}>
-          {loading ? 'Loading…' : 'Refresh'}
+          {loading ? 'Cargando…' : 'Actualizar'}
         </button>
       </div>
 
@@ -204,7 +204,7 @@ export default function PapersPage() {
 
       <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
         <div className="rc-card">
-          <div className="rc-card-title">Download OA (by DOI / PMID)</div>
+          <div className="rc-card-title">Descargar OA (por DOI / PMID)</div>
           <div className="rc-row" style={{ alignItems: 'flex-end' }}>
             <div style={{ minWidth: 240 }}>
               <div className="rc-kicker">DOI</div>
@@ -215,20 +215,20 @@ export default function PapersPage() {
               <input className="rc-input" value={pmid} onChange={(e) => setPmid(e.target.value)} placeholder="12345678" />
             </div>
             <button className="rc-btn rc-btn--primary" disabled={!canDownload || downloading} onClick={downloadOA}>
-              {downloading ? 'Downloading…' : 'Download'}
+              {downloading ? 'Descargando…' : 'Descargar'}
             </button>
           </div>
         </div>
 
         <div className="rc-card">
-          <div className="rc-card-title">Upload PDF</div>
+          <div className="rc-card-title">Subir PDF</div>
           <div className="rc-row" style={{ alignItems: 'center' }}>
             <input type="file" accept="application/pdf" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
             <button className="rc-btn rc-btn--primary" disabled={!uploadFile || uploading} onClick={upload}>
-              {uploading ? 'Uploading…' : 'Upload'}
+              {uploading ? 'Subiendo…' : 'Subir'}
             </button>
           </div>
-          <div className="rc-help" style={{ marginTop: 8 }}>Uploads are deduplicated server-side (hash + metadata).</div>
+          <div className="rc-help" style={{ marginTop: 8 }}>Las subidas se deduplican en el servidor (hash + metadatos).</div>
         </div>
       </div>
 
@@ -240,12 +240,12 @@ export default function PapersPage() {
             <SkeletonLines lines={4} lineHeight={12} lastLineWidth="50%" />
           </div>
         ) : null}
-        {!loading && papers.length === 0 ? <div className="rc-muted">No papers in this project yet.</div> : null}
+        {!loading && papers.length === 0 ? <div className="rc-muted">Todavia no hay articulos en este proyecto.</div> : null}
         {papers.map((p) => (
           <div key={p.id} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
               <div style={{ fontWeight: 850, lineHeight: 1.25 }}>{p.title}</div>
-              {p.processing_status === 'parsed' ? <span className="rc-badge rc-badge--success">parsed</span> : <span className="rc-badge">{p.processing_status || (p.is_processed ? 'processed' : 'uploaded')}</span>}
+              {p.processing_status === 'parsed' ? <span className="rc-badge rc-badge--success">procesado</span> : <span className="rc-badge">{p.processing_status || (p.is_processed ? 'procesado' : 'subido')}</span>}
             </div>
 
             <div className="rc-help">
@@ -259,14 +259,14 @@ export default function PapersPage() {
               {p.source_provider ? ` · ${p.source_provider}` : ''}
               {p.is_open_access ? ' · OA' : ''}
             </div>
-            {p.processing_warnings?.length ? <div className="rc-help">Warnings: {p.processing_warnings.join(', ')}</div> : null}
+            {p.processing_warnings?.length ? <div className="rc-help">Alertas: {p.processing_warnings.join(', ')}</div> : null}
 
             <div className="rc-row" style={{ marginTop: 2 }}>
-              <button className="rc-btn" onClick={() => downloadFile(p)}>Download PDF</button>
-              <button className="rc-btn" onClick={() => processPaper(p)} disabled={p.is_processed}>Process</button>
-              <button className="rc-btn rc-btn--primary" onClick={() => summarizePaper(p)}>Summarize</button>
+              <button className="rc-btn" onClick={() => downloadFile(p)}>Descargar PDF</button>
+              <button className="rc-btn" onClick={() => processPaper(p)} disabled={p.is_processed}>Procesar</button>
+              <button className="rc-btn rc-btn--primary" onClick={() => summarizePaper(p)}>Resumir</button>
               <button className="rc-btn rc-btn--ghost" onClick={() => deletePaper(p)} style={{ borderColor: 'rgba(185,28,28,0.25)', color: 'var(--rc-danger)' }}>
-                Delete
+                Eliminar
               </button>
             </div>
           </div>
@@ -274,7 +274,7 @@ export default function PapersPage() {
         {hasMore ? (
           <div className="rc-row">
             <button className="rc-btn" onClick={() => load(nextCursor, true)} disabled={loading}>
-              {loading ? 'Loading…' : 'Load more'}
+              {loading ? 'Cargando…' : 'Cargar mas'}
             </button>
           </div>
         ) : null}

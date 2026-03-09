@@ -21,7 +21,7 @@ type NoteDetail = {
 };
 
 function formatDate(value?: string | null) {
-  if (!value) return 'Unknown time';
+  if (!value) return 'Hora desconocida';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
@@ -56,7 +56,7 @@ export default function NotesPage() {
         }
       }
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load notes');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar las notas');
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function NotesPage() {
       setSelected(r.data as NoteDetail);
       setSelectedId(noteId);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load note');
+      setError(e?.response?.data?.detail || 'No se pudo cargar la nota');
     }
   }
 
@@ -87,14 +87,14 @@ export default function NotesPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Notes</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Notes</h1>
-          <div className="rc-subtitle">Read AI-generated summaries, project notes and paper-linked observations in a calmer editorial workspace.</div>
+          <div className="rc-pill">Notas</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Notas</h1>
+          <div className="rc-subtitle">Lee resúmenes generados por IA, notas del proyecto y observaciones ligadas a papers en un espacio editorial más tranquilo.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{notes.length}</strong><span>Total notes</span></div>
-          <div className="rc-metric-tile"><strong>{new Set(notes.map((note) => note.note_type)).size || '—'}</strong><span>Note types</span></div>
-          <div className="rc-metric-tile"><strong>{selected ? selected.content.split(/\s+/).filter(Boolean).length : '—'}</strong><span>Words in view</span></div>
+          <div className="rc-metric-tile"><strong>{notes.length}</strong><span>Total de notas</span></div>
+          <div className="rc-metric-tile"><strong>{new Set(notes.map((note) => note.note_type)).size || '—'}</strong><span>Tipos de nota</span></div>
+          <div className="rc-metric-tile"><strong>{selected ? selected.content.split(/\s+/).filter(Boolean).length : '—'}</strong><span>Palabras en vista</span></div>
         </div>
       </div>
 
@@ -104,27 +104,27 @@ export default function NotesPage() {
         <div className="rc-card">
           <div className="rc-toolbar">
             <div>
-              <div className="rc-card-title" style={{ marginBottom: 4 }}>Project notes</div>
-              <div className="rc-help">Filter by title or note type and open any note in the reading pane.</div>
+              <div className="rc-card-title" style={{ marginBottom: 4 }}>Notas del proyecto</div>
+              <div className="rc-help">Filtra por titulo o tipo de nota y abre cualquier nota en el panel de lectura.</div>
             </div>
             <button className="rc-btn" onClick={() => void loadList()} disabled={loading}>
-              {loading ? 'Refreshing...' : 'Refresh'}
+              {loading ? 'Actualizando...' : 'Actualizar'}
             </button>
           </div>
           <div style={{ height: 12 }} />
           <div>
-            <div className="rc-kicker">Filter notes</div>
-            <input className="rc-input" value={filterText} onChange={(e) => setFilterText(e.target.value)} placeholder="Search summaries, extraction notes, screening notes..." />
+            <div className="rc-kicker">Filtrar notas</div>
+            <input className="rc-input" value={filterText} onChange={(e) => setFilterText(e.target.value)} placeholder="Buscar resúmenes, notas de extraccion, notas de screening..." />
           </div>
           <div style={{ height: 12 }} />
           <div className="rc-card-list">
             {filteredNotes.length === 0 ? (
               <div className="rc-empty-state">
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>{notes.length === 0 ? 'No notes yet' : 'No notes match this filter'}</div>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>{notes.length === 0 ? 'Todavia no hay notas' : 'No hay notas para este filtro'}</div>
                 <div className="rc-help">
                   {notes.length === 0
-                    ? 'Notes will appear when summaries, reader actions or other modules generate project-level commentary.'
-                    : 'Try a broader title or note type search.'}
+                    ? 'Las notas apareceran cuando los resúmenes, acciones del lector u otros modulos generen comentarios a nivel de proyecto.'
+                    : 'Prueba con una busqueda mas amplia por titulo o tipo de nota.'}
                 </div>
               </div>
             ) : (
@@ -162,15 +162,15 @@ export default function NotesPage() {
                     {selected.paper_id ? ` · paper ${selected.paper_id}` : ''}
                   </div>
                 </div>
-                <span className="rc-badge rc-badge--info">Open note</span>
+                <span className="rc-badge rc-badge--info">Nota abierta</span>
               </div>
 
               <pre className="rc-code-block">{selected.content}</pre>
             </div>
           ) : (
             <div className="rc-empty-state">
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>Select a note to read it</div>
-              <div className="rc-help">Choose a note from the left column to open its full content in a quieter reading view.</div>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Selecciona una nota para leerla</div>
+              <div className="rc-help">Elige una nota de la columna izquierda para abrir su contenido completo en una vista de lectura mas tranquila.</div>
             </div>
           )}
         </div>

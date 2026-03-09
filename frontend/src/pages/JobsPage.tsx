@@ -17,7 +17,7 @@ type JobRow = {
 };
 
 function formatDate(value?: string | null) {
-  if (!value) return 'Pending';
+  if (!value) return 'Pendiente';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
@@ -55,7 +55,7 @@ export default function JobsPage() {
       const r = await api.get('/jobs?limit=50');
       setJobs(r.data as JobRow[]);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load jobs');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar los jobs');
     } finally {
       setLoading(false);
     }
@@ -68,15 +68,15 @@ export default function JobsPage() {
       const updated = r.data as Partial<JobRow>;
       setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, ...updated } as JobRow : job)));
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Polling failed');
+      setError(e?.response?.data?.detail || 'La consulta del job fallo');
     }
   }
 
   async function cancel(id: string) {
     const ok = await confirm({
-      title: 'Cancel this job?',
-      body: 'This will request cancellation. Some tasks may already be running and cannot stop instantly.',
-      confirmText: 'Cancel job',
+      title: 'Cancelar este job?',
+      body: 'Esto solicitara la cancelacion. Algunas tareas pueden seguir corriendo y no detenerse de inmediato.',
+      confirmText: 'Cancelar job',
       danger: true,
     });
     if (!ok) return;
@@ -84,10 +84,10 @@ export default function JobsPage() {
     setError(null);
     try {
       await api.post(`/jobs/${id}/cancel`);
-      toast.success('Cancel requested', `Job ${id}`);
+      toast.success('Cancelacion solicitada', `Job ${id}`);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Cancel failed');
+      setError(e?.response?.data?.detail || 'La cancelacion fallo');
     }
   }
 
@@ -109,14 +109,14 @@ export default function JobsPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Operations</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Jobs</h1>
-          <div className="rc-subtitle">Monitor background work across parsing, extraction, exports and document processing from one operational queue.</div>
+          <div className="rc-pill">Operaciones</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Tareas</h1>
+          <div className="rc-subtitle">Monitorea el trabajo en segundo plano de parseo, extraccion, exportaciones y procesamiento documental desde una sola cola operativa.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 320 }}>
-          <div className="rc-metric-tile"><strong>{runningJobs.length}</strong><span>Running</span></div>
-          <div className="rc-metric-tile"><strong>{failedJobs}</strong><span>Failed</span></div>
-          <div className="rc-metric-tile"><strong>{completedJobs}</strong><span>Completed</span></div>
+          <div className="rc-metric-tile"><strong>{runningJobs.length}</strong><span>En ejecucion</span></div>
+          <div className="rc-metric-tile"><strong>{failedJobs}</strong><span>Fallidos</span></div>
+          <div className="rc-metric-tile"><strong>{completedJobs}</strong><span>Completados</span></div>
         </div>
       </div>
 
@@ -125,11 +125,11 @@ export default function JobsPage() {
       <div className="rc-card">
         <div className="rc-toolbar">
           <div>
-            <div className="rc-card-title" style={{ marginBottom: 4 }}>Queue health</div>
-            <div className="rc-help">{runningJobs.length ? 'Running jobs are auto-polled every few seconds.' : 'No active jobs right now.'}</div>
+            <div className="rc-card-title" style={{ marginBottom: 4 }}>Salud de la cola</div>
+            <div className="rc-help">{runningJobs.length ? 'Los jobs en ejecucion se consultan automaticamente cada pocos segundos.' : 'No hay jobs activos ahora mismo.'}</div>
           </div>
           <button className="rc-btn" onClick={() => void load()} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh queue'}
+            {loading ? 'Actualizando...' : 'Actualizar cola'}
           </button>
         </div>
       </div>
@@ -144,8 +144,8 @@ export default function JobsPage() {
 
       {!loading && jobs.length === 0 ? (
         <div className="rc-empty-state">
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>No jobs yet</div>
-          <div className="rc-help">Jobs appear here when the workspace runs parsing, extraction, exports or other background tasks.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavia no hay jobs</div>
+          <div className="rc-help">Los jobs apareceran aqui cuando el espacio ejecute parseo, extraccion, exportaciones u otras tareas en segundo plano.</div>
         </div>
       ) : null}
 
@@ -155,7 +155,7 @@ export default function JobsPage() {
             <div className="rc-detail-header">
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ fontWeight: 850, fontSize: 16 }}>{job.job_type}</div>
-                <div className="rc-help" style={{ marginTop: 8 }}>Job ID {job.id}</div>
+                <div className="rc-help" style={{ marginTop: 8 }}>ID del job {job.id}</div>
               </div>
               <StatusPill status={job.status} />
             </div>
@@ -163,19 +163,19 @@ export default function JobsPage() {
             <div className="rc-metric-grid">
               <div className="rc-metric-tile">
                 <strong>{Math.max(0, Math.min(100, job.progress_percent || 0))}%</strong>
-                <span>Progress</span>
+                <span>Progreso</span>
               </div>
               <div className="rc-metric-tile">
                 <strong>{formatDate(job.created_at)}</strong>
-                <span>Created</span>
+                <span>Creado</span>
               </div>
               <div className="rc-metric-tile">
                 <strong>{formatDate(job.started_at)}</strong>
-                <span>Started</span>
+                <span>Iniciado</span>
               </div>
               <div className="rc-metric-tile">
                 <strong>{formatDate(job.completed_at)}</strong>
-                <span>Completed</span>
+                <span>Completado</span>
               </div>
             </div>
 
@@ -188,10 +188,10 @@ export default function JobsPage() {
             {job.error ? <div className="rc-error">{job.error}</div> : null}
 
             <div className="rc-row">
-              <button className="rc-btn" onClick={() => void pollJob(job.id)}>Poll now</button>
+              <button className="rc-btn" onClick={() => void pollJob(job.id)}>Consultar ahora</button>
               {['queued', 'started', 'progress'].includes(job.status) ? (
                 <button className="rc-btn rc-btn--ghost" onClick={() => void cancel(job.id)}>
-                  Cancel
+                  Cancelar
                 </button>
               ) : null}
             </div>

@@ -70,7 +70,7 @@ export default function SearchPage() {
       setBatchJob(null);
       setBatchModalOpen(false);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Search failed');
+      setError(e?.response?.data?.detail || 'La busqueda fallo');
     } finally {
       setLoading(false);
     }
@@ -92,9 +92,9 @@ export default function SearchPage() {
       const resp = await api.post('/papers/download', payload);
       const duplicate = Boolean(resp.data?.duplicate);
       setSavedResults((prev) => ({ ...prev, [key]: duplicate ? 'duplicate' : 'saved' }));
-      toast.info(duplicate ? 'Duplicate' : 'Saved', duplicate ? 'Paper already exists in this project.' : 'Downloaded and saved.');
+      toast.info(duplicate ? 'Duplicado' : 'Guardado', duplicate ? 'El paper ya existe en este proyecto.' : 'PDF descargado y guardado.');
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Download failed');
+      setError(e?.response?.data?.detail || 'La descarga fallo');
     } finally {
       setDownloadingKey(null);
     }
@@ -146,7 +146,7 @@ export default function SearchPage() {
   async function startBatchDownload() {
     if (!projectId) return;
     if (!selectedPapers.length) {
-      toast.info('No papers selected', 'Select at least one OA-eligible paper first.');
+      toast.info('No hay papers seleccionados', 'Selecciona primero al menos un paper elegible con PDF abierto.');
       return;
     }
     setError(null);
@@ -160,7 +160,7 @@ export default function SearchPage() {
       setBatchJob({ status: 'queued', progress: 0, error: null });
       setBatchModalOpen(true);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Batch download failed');
+      setError(e?.response?.data?.detail || 'La descarga por lote fallo');
     }
   }
 
@@ -192,7 +192,7 @@ export default function SearchPage() {
 
         if (status === 'completed' || status === 'failed') return;
       } catch (e: any) {
-        if (alive) setBatchJob((prev) => prev || { status: 'queued', progress: 0, error: e?.message || 'Poll failed' });
+        if (alive) setBatchJob((prev) => prev || { status: 'queued', progress: 0, error: e?.message || 'La consulta del job fallo' });
       }
       t = setTimeout(poll, 1000);
     }
@@ -208,48 +208,48 @@ export default function SearchPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-stage-label rc-stage-label--teal">Step 1 · Discover</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Find the right evidence</h1>
-          <div className="rc-subtitle">Search across PubMed, Europe PMC and DOAJ, then move promising papers into the project library.</div>
+          <div className="rc-stage-label rc-stage-label--teal">Paso 1 · Descubrir</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Encuentra la evidencia correcta</h1>
+          <div className="rc-subtitle">Busca en PubMed, Europe PMC y DOAJ, y mueve los articulos prometedores a la biblioteca del proyecto.</div>
           <div className="rc-help" style={{ marginTop: 12 }}>
-            Use a question-like query, then save OA papers directly. Once you have a core reading list, switch to Reader to ask grounded questions.
+            Usa una consulta parecida a una pregunta y guarda directamente los articulos de acceso abierto. Cuando ya tengas una lista base, pasa al lector para hacer preguntas con evidencia.
           </div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{data?.count ?? '—'}</strong><span>Results</span></div>
-          <div className="rc-metric-tile"><strong>{openableCount || '—'}</strong><span>Openable sources</span></div>
-          <div className="rc-metric-tile"><strong>{saveableCount || '—'}</strong><span>Saveable PDFs</span></div>
+          <div className="rc-metric-tile"><strong>{data?.count ?? '—'}</strong><span>Resultados</span></div>
+          <div className="rc-metric-tile"><strong>{openableCount || '—'}</strong><span>Fuentes abribles</span></div>
+          <div className="rc-metric-tile"><strong>{saveableCount || '—'}</strong><span>PDFs guardables</span></div>
         </div>
       </div>
 
       <div className="rc-shelf">
         <div className="rc-card">
-          <div className="rc-card-title">Search query</div>
+          <div className="rc-card-title">Consulta de busqueda</div>
           <div className="rc-row" style={{ alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 260 }}>
-              <div className="rc-kicker">Research question</div>
-              <input className="rc-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. ACL reconstruction hamstring vs BPTB meta-analysis" />
+              <div className="rc-kicker">Pregunta de investigacion</div>
+              <input className="rc-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ej. metaanalisis reconstruccion ACL isquiotibiales vs BPTB" />
             </div>
             <div style={{ width: 140 }}>
-              <div className="rc-kicker">Max results</div>
+              <div className="rc-kicker">Maximo de resultados</div>
               <input className="rc-input" type="number" value={maxResults} min={1} max={100} onChange={(e) => setMaxResults(Number(e.target.value))} />
             </div>
             <button className="rc-btn rc-btn--primary" disabled={!canSearch || loading} onClick={runSearch}>
-              {loading ? 'Searching…' : 'Search'}
+              {loading ? 'Buscando…' : 'Buscar'}
             </button>
           </div>
-          <div className="rc-help" style={{ marginTop: 8 }}>Tip: use phrases, outcomes, populations and study types. The app merges duplicate hits across providers.</div>
+          <div className="rc-help" style={{ marginTop: 8 }}>Consejo: usa frases, resultados, poblaciones y tipos de estudio. La app fusiona duplicados entre proveedores.</div>
         </div>
 
         <div className="rc-next-step">
-          <div className="rc-kicker">Suggested next step</div>
-          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Build your reading set</div>
+          <div className="rc-kicker">Siguiente paso sugerido</div>
+          <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>Construye tu lista de lectura</div>
           <div className="rc-help" style={{ marginTop: 8 }}>
-            Save OA papers first, then open Reader to compare findings with citations. Library keeps the long list; Reader helps you decide what matters.
+            Guarda primero los articulos abiertos y luego abre el lector para comparar hallazgos con citas. La biblioteca guarda la lista larga; el lector te ayuda a decidir que importa.
           </div>
           <div className="rc-row" style={{ marginTop: 12 }}>
-            <Link className="rc-btn" to={`/projects/${projectId}/library`}>Open library</Link>
-            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/reader`}>Go to reader</Link>
+            <Link className="rc-btn" to={`/projects/${projectId}/library`}>Abrir biblioteca</Link>
+            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/reader`}>Ir al lector</Link>
           </div>
         </div>
       </div>
@@ -260,15 +260,15 @@ export default function SearchPage() {
         <div className="rc-card-list">
           <div className="rc-soft-card">
             <div className="rc-help">
-              Results: <b>{data.count}</b> {data.cached ? '(cached)' : ''}
-              {data.query_translation ? ` · Translation: ${data.query_translation}` : ''}
-              {data.sources?.length ? ` · Sources: ${data.sources.join(', ')}` : ''}
+              Resultados: <b>{data.count}</b> {data.cached ? '(en cache)' : ''}
+              {data.query_translation ? ` · Traduccion: ${data.query_translation}` : ''}
+              {data.sources?.length ? ` · Fuentes: ${data.sources.join(', ')}` : ''}
             </div>
           </div>
 
           <div className="rc-soft-card">
             <div className="rc-help">
-              <b>How to use these results:</b> <b>Open source</b> takes you to DOI, PubMed or the OA location. <b>Save PDF to library</b> only works when the paper has an open-access PDF that PaperFlow can download.
+              <b>Como usar estos resultados:</b> <b>Abrir fuente</b> te lleva al DOI, PubMed o a la fuente abierta. <b>Guardar PDF en biblioteca</b> solo funciona cuando el articulo tiene un PDF de acceso abierto que PaperFlow puede descargar.
             </div>
           </div>
 
@@ -282,11 +282,11 @@ export default function SearchPage() {
 
           <div className="rc-card" style={{ padding: 10 }}>
             <div className="rc-row">
-              <button className="rc-btn" onClick={selectAllOA} disabled={!data.results.length}>Select all saveable PDFs</button>
-              <button className="rc-btn" onClick={clearSelection} disabled={selectedCount === 0}>Clear ({selectedCount})</button>
-              <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}>Save selected PDFs ({selectedCount})</button>
+              <button className="rc-btn" onClick={selectAllOA} disabled={!data.results.length}>Seleccionar todos los PDFs guardables</button>
+              <button className="rc-btn" onClick={clearSelection} disabled={selectedCount === 0}>Limpiar ({selectedCount})</button>
+              <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}>Guardar PDFs seleccionados ({selectedCount})</button>
               {batchJobId ? (
-                <button className="rc-btn" onClick={() => setBatchModalOpen(true)}>View batch job</button>
+                <button className="rc-btn" onClick={() => setBatchModalOpen(true)}>Ver job por lote</button>
               ) : null}
             </div>
           </div>
@@ -301,12 +301,12 @@ export default function SearchPage() {
               return (
                 <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <input type="checkbox" disabled={!canDownload} checked={isSelected} onChange={() => toggleSelect(key)} title={canDownload ? 'Select for batch download' : 'Not eligible for batch download'} style={{ marginTop: 3 }} />
+                    <input type="checkbox" disabled={!canDownload} checked={isSelected} onChange={() => toggleSelect(key)} title={canDownload ? 'Seleccionar para guardado por lote' : 'No elegible para guardado por lote'} style={{ marginTop: 3 }} />
                     <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
-                    {savedState === 'saved' ? <span className="rc-badge rc-badge--success">Saved</span> : null}
-                    {savedState === 'duplicate' ? <span className="rc-badge">Already in library</span> : null}
+                    {savedState === 'saved' ? <span className="rc-badge rc-badge--success">Guardado</span> : null}
+                    {savedState === 'duplicate' ? <span className="rc-badge">Ya esta en la biblioteca</span> : null}
                     {!savedState && r.is_open_access ? <span className="rc-badge rc-badge--success">OA</span> : null}
-                    {!savedState && !r.is_open_access ? <span className="rc-badge">Closed</span> : null}
+                    {!savedState && !r.is_open_access ? <span className="rc-badge">Cerrado</span> : null}
                   </div>
 
                   <div className="rc-help">
@@ -316,8 +316,8 @@ export default function SearchPage() {
                   </div>
 
                   <div className="rc-row">
-                    {href ? <span className="rc-badge rc-badge--info">Openable source</span> : <span className="rc-badge">Metadata only</span>}
-                    {canDownload ? <span className="rc-badge rc-badge--success">Can save PDF</span> : <span className="rc-badge">No direct PDF save</span>}
+                    {href ? <span className="rc-badge rc-badge--info">Fuente abrible</span> : <span className="rc-badge">Solo metadatos</span>}
+                    {canDownload ? <span className="rc-badge rc-badge--success">Puede guardar PDF</span> : <span className="rc-badge">Sin guardado directo</span>}
                   </div>
 
                   {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{r.abstract}</div> : null}
@@ -329,21 +329,21 @@ export default function SearchPage() {
                       onClick={() => downloadOA(r)}
                     >
                       {savedState === 'saved'
-                        ? 'Saved in library'
+                        ? 'Guardado en biblioteca'
                         : savedState === 'duplicate'
-                          ? 'Already in library'
+                          ? 'Ya esta en la biblioteca'
                           : downloadingKey === (r.doi || r.pmid || r.title)
-                            ? 'Saving…'
-                            : 'Save PDF to library'}
+                            ? 'Guardando…'
+                            : 'Guardar PDF en biblioteca'}
                     </button>
                     {href ? (
                       <a className="rc-btn" href={href} target="_blank" rel="noreferrer">
-                        Open source
+                        Abrir fuente
                       </a>
                     ) : null}
-                    <Link className="rc-btn" to={`/projects/${projectId}/library`}>Library</Link>
-                    {!r.is_open_access ? <span className="rc-help">Not marked OA by the providers.</span> : null}
-                    {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID to resolve the PDF.</span> : null}
+                    <Link className="rc-btn" to={`/projects/${projectId}/library`}>Biblioteca</Link>
+                    {!r.is_open_access ? <span className="rc-help">Los proveedores no lo marcaron como acceso abierto.</span> : null}
+                    {r.is_open_access && !canDownload ? <span className="rc-help">Es abierto, pero falta DOI o PMID para resolver el PDF.</span> : null}
                   </div>
                 </div>
               );
@@ -351,7 +351,7 @@ export default function SearchPage() {
           </div>
         </div>
       ) : (
-        <div className="rc-muted">Run a PubMed search to see results.</div>
+        <div className="rc-muted">Ejecuta una busqueda para ver resultados.</div>
       )}
 
       {batchModalOpen ? (
@@ -370,35 +370,35 @@ export default function SearchPage() {
         >
           <div className="rc-card" style={{ width: 'min(860px, 96vw)', maxHeight: '85vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-              <div style={{ fontWeight: 900 }}>Batch OA download</div>
-              <button className="rc-btn" onClick={() => setBatchModalOpen(false)}>Close</button>
+              <div style={{ fontWeight: 900 }}>Guardado por lote de PDFs OA</div>
+              <button className="rc-btn" onClick={() => setBatchModalOpen(false)}>Cerrar</button>
             </div>
             <div style={{ height: 10 }} />
             <div className="rc-help">
               Job: <span style={{ fontFamily: 'monospace' }}>{batchJobId || '—'}</span>
             </div>
             <div className="rc-help">
-              Status: <b>{batchJob?.status || '—'}</b> · Progress: <b>{batchJob?.progress ?? 0}%</b>
+              Estado: <b>{batchJob?.status || '—'}</b> · Progreso: <b>{batchJob?.progress ?? 0}%</b>
             </div>
             {batchJob?.error ? <div className="rc-error" style={{ marginTop: 8 }}>{String(batchJob.error)}</div> : null}
 
             <div className="rc-row" style={{ marginTop: 10 }}>
               <button className="rc-btn rc-btn--ghost" disabled={!batchJobId} onClick={cancelBatch}>
-                Cancel job
+                Cancelar job
               </button>
             </div>
 
             <div style={{ height: 12 }} />
-            <div style={{ fontWeight: 850, marginBottom: 6 }}>Summary</div>
+            <div style={{ fontWeight: 850, marginBottom: 6 }}>Resumen</div>
             {batchJob?.output ? (
               <div className="rc-row" style={{ gap: 8 }}>
-                <span className="rc-badge rc-badge--success">Downloaded: <b>{batchJob.output?.downloaded?.length ?? 0}</b></span>
-                <span className="rc-badge">Already exists: <b>{batchJob.output?.already_exists?.length ?? 0}</b></span>
-                <span className="rc-badge">Not available: <b>{batchJob.output?.not_available?.length ?? 0}</b></span>
-                <span className="rc-badge rc-badge--danger">Failed: <b>{batchJob.output?.failed?.length ?? 0}</b></span>
+                <span className="rc-badge rc-badge--success">Descargados: <b>{batchJob.output?.downloaded?.length ?? 0}</b></span>
+                <span className="rc-badge">Ya existen: <b>{batchJob.output?.already_exists?.length ?? 0}</b></span>
+                <span className="rc-badge">No disponibles: <b>{batchJob.output?.not_available?.length ?? 0}</b></span>
+                <span className="rc-badge rc-badge--danger">Fallidos: <b>{batchJob.output?.failed?.length ?? 0}</b></span>
               </div>
             ) : (
-              <div className="rc-muted">Waiting for job output…</div>
+              <div className="rc-muted">Esperando la salida del job…</div>
             )}
           </div>
         </div>

@@ -10,6 +10,12 @@ type Membership = {
 };
 
 const ROLE_OPTIONS: Membership['role'][] = ['owner', 'editor', 'reviewer', 'viewer'];
+const ROLE_LABELS: Record<Membership['role'], string> = {
+  owner: 'dueno',
+  editor: 'editor',
+  reviewer: 'revisor',
+  viewer: 'lector',
+};
 
 export default function CollaborationPage() {
   const { projectId } = useParams();
@@ -31,7 +37,7 @@ export default function CollaborationPage() {
       const response = await api.get(`/projects/${projectId}/members`);
       setMembers(response.data as Membership[]);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load memberships');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar los miembros');
     } finally {
       setLoading(false);
     }
@@ -48,12 +54,12 @@ export default function CollaborationPage() {
     setNotice(null);
     try {
       await api.post(`/projects/${projectId}/members`, { user_id: newUserId.trim(), role: newRole });
-      setNotice(`Member saved as ${newRole}.`);
+      setNotice(`Miembro guardado como ${ROLE_LABELS[newRole]}.`);
       setNewUserId('');
       setNewRole('viewer');
       await loadMembers();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to add member');
+      setError(e?.response?.data?.detail || 'No se pudo agregar el miembro');
     } finally {
       setSaving(false);
     }
@@ -65,10 +71,10 @@ export default function CollaborationPage() {
     setNotice(null);
     try {
       await api.patch(`/projects/${projectId}/members/${member.id}`, { role });
-      setNotice(`Updated ${member.user_id} to ${role}.`);
+      setNotice(`Se actualizo ${member.user_id} a ${ROLE_LABELS[role]}.`);
       await loadMembers();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to update role');
+      setError(e?.response?.data?.detail || 'No se pudo actualizar el rol');
     }
   }
 
@@ -78,10 +84,10 @@ export default function CollaborationPage() {
     setNotice(null);
     try {
       await api.delete(`/projects/${projectId}/members/${member.id}`);
-      setNotice(`Removed ${member.user_id}.`);
+      setNotice(`Se elimino ${member.user_id}.`);
       await loadMembers();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to remove member');
+      setError(e?.response?.data?.detail || 'No se pudo eliminar el miembro');
     }
   }
 
@@ -89,13 +95,13 @@ export default function CollaborationPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Collaboration</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Project access and review</h1>
-          <div className="rc-subtitle">Manage memberships, roles and reviewer workflows from one place.</div>
+          <div className="rc-pill">Colaboracion</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Accesos y revision del proyecto</h1>
+          <div className="rc-subtitle">Gestiona miembros, roles y flujos de revision desde un solo lugar.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{members.length}</strong><span>Members</span></div>
-          <div className="rc-metric-tile"><strong>{ownerCount}</strong><span>Owners</span></div>
+          <div className="rc-metric-tile"><strong>{members.length}</strong><span>Miembros</span></div>
+          <div className="rc-metric-tile"><strong>{ownerCount}</strong><span>Duenos</span></div>
         </div>
       </div>
 
@@ -104,44 +110,44 @@ export default function CollaborationPage() {
 
       <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
         <div className="rc-card">
-          <div className="rc-card-title">Add member</div>
+          <div className="rc-card-title">Agregar miembro</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 280 }}>
-              <div className="rc-kicker">User UUID</div>
+              <div className="rc-kicker">UUID del usuario</div>
               <input data-testid="member-user-id-input" className="rc-input" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
             </div>
             <div style={{ minWidth: 180 }}>
-              <div className="rc-kicker">Role</div>
+              <div className="rc-kicker">Rol</div>
               <select data-testid="member-role-select" className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])}>
                 {ROLE_OPTIONS.map((role) => (
-                  <option key={role} value={role}>{role}</option>
+                  <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                 ))}
               </select>
             </div>
             <button data-testid="member-add-button" className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim()}>
-              {saving ? 'Saving…' : 'Add member'}
+              {saving ? 'Guardando…' : 'Agregar miembro'}
             </button>
           </div>
         </div>
 
         <div className="rc-card">
-          <div className="rc-card-title">Role policy</div>
-          <div className="rc-help">Owners manage memberships, editors change project content, reviewers validate workflows and viewers stay read-only.</div>
+          <div className="rc-card-title">Politica de roles</div>
+          <div className="rc-help">Los duenos gestionan miembros, los editores cambian el contenido, los revisores validan flujos y los lectores solo consultan.</div>
         </div>
       </div>
 
       <div className="rc-card">
-        <div className="rc-card-title">Members</div>
-        <div className="rc-help" style={{ marginBottom: 10 }}>Owners: {ownerCount}</div>
-        {loading ? <div className="rc-muted">Loading members…</div> : null}
-        {!loading && members.length === 0 ? <div className="rc-muted">No members found.</div> : null}
+        <div className="rc-card-title">Miembros</div>
+        <div className="rc-help" style={{ marginBottom: 10 }}>Duenos: {ownerCount}</div>
+        {loading ? <div className="rc-muted">Cargando miembros…</div> : null}
+        {!loading && members.length === 0 ? <div className="rc-muted">No se encontraron miembros.</div> : null}
         {members.map((member) => (
           <div data-testid={`member-card-${member.user_id}`} key={member.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{member.user_id}</div>
             <div className="rc-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <select data-testid={`member-role-${member.user_id}`} className="rc-input" value={member.role} onChange={(e) => updateRole(member, e.target.value as Membership['role'])}>
                 {ROLE_OPTIONS.map((role) => (
-                  <option key={role} value={role}>{role}</option>
+                  <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                 ))}
               </select>
               <button
@@ -150,9 +156,9 @@ export default function CollaborationPage() {
                 onClick={() => removeMember(member)}
                 disabled={member.role === 'owner' && ownerCount <= 1}
               >
-                Remove
+                Eliminar
               </button>
-              {member.role === 'owner' && ownerCount <= 1 ? <span className="rc-help">Last owner cannot be removed.</span> : null}
+              {member.role === 'owner' && ownerCount <= 1 ? <span className="rc-help">No se puede eliminar al ultimo dueno.</span> : null}
             </div>
           </div>
         ))}

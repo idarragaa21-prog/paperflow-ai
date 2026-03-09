@@ -25,48 +25,48 @@ type Dashboard = {
 
 const TASKS = [
   {
-    label: 'Discover',
+    label: 'Descubrir',
     to: 'research',
-    kicker: 'Step 1',
-    copy: 'Search across scholarly sources and save the right papers.',
+    kicker: 'Paso 1',
+    copy: 'Busca en fuentes cientificas y guarda los papers correctos.',
   },
   {
-    label: 'Read & ask',
+    label: 'Leer y preguntar',
     to: 'reader',
-    kicker: 'Step 2',
-    copy: 'Read papers with grounded answers and page-level evidence.',
+    kicker: 'Paso 2',
+    copy: 'Lee papers con respuestas basadas en evidencia y citas por pagina.',
   },
   {
-    label: 'Extract',
+    label: 'Extraer',
     to: 'meta',
-    kicker: 'Step 3',
-    copy: 'Turn PDFs into structured study records and review outputs.',
+    kicker: 'Paso 3',
+    copy: 'Convierte PDFs en estudios estructurados y revisa los resultados.',
   },
   {
-    label: 'Write',
+    label: 'Redactar',
     to: 'drafts',
-    kicker: 'Step 4',
-    copy: 'Draft literature summaries and evidence-backed sections.',
+    kicker: 'Paso 4',
+    copy: 'Crea borradores, sintesis y secciones respaldadas por evidencia.',
   },
   {
-    label: 'Analyze',
+    label: 'Analizar',
     to: 'analysis',
-    kicker: 'Step 5',
-    copy: 'Run reproducible analyses and export final artifacts.',
+    kicker: 'Paso 5',
+    copy: 'Ejecuta analisis reproducibles y exporta artefactos finales.',
   },
 ];
 
 const MODULES = [
-  { label: 'Discover', to: 'research' },
-  { label: 'Read', to: 'reader' },
-  { label: 'Library', to: 'library' },
-  { label: 'Extract', to: 'meta' },
-  { label: 'References', to: 'references' },
-  { label: 'Write', to: 'drafts' },
-  { label: 'Analyze', to: 'analysis' },
-  { label: 'Review', to: 'screening' },
-  { label: 'Team', to: 'collaboration' },
-  { label: 'Notes', to: 'notes' },
+  { label: 'Descubrir', to: 'research' },
+  { label: 'Leer', to: 'reader' },
+  { label: 'Biblioteca', to: 'library' },
+  { label: 'Extraer', to: 'meta' },
+  { label: 'Referencias', to: 'references' },
+  { label: 'Redactar', to: 'drafts' },
+  { label: 'Analizar', to: 'analysis' },
+  { label: 'Revision', to: 'screening' },
+  { label: 'Equipo', to: 'collaboration' },
+  { label: 'Notas', to: 'notes' },
 ];
 
 function ModuleTab({ to, label }: { to: string; label: string }) {
@@ -88,7 +88,7 @@ export default function ProjectLayout() {
 
   const currentModule = useMemo(() => {
     const segment = location.pathname.split('/').filter(Boolean).pop() || 'research';
-    return MODULES.find((module) => module.to === segment)?.label || 'Workspace';
+    return MODULES.find((module) => module.to === segment)?.label || 'Espacio de trabajo';
   }, [location.pathname]);
 
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function ProjectLayout() {
         if (mounted) setProject(projectResponse.data as Project);
         if (mounted) setDashboard(dashboardResponse.data as Dashboard);
       } catch (e: any) {
-        if (mounted) setError(e?.response?.data?.detail || 'Failed to load project');
+        if (mounted) setError(e?.response?.data?.detail || 'No se pudo cargar el proyecto');
       }
     }
     void load();
@@ -122,7 +122,7 @@ export default function ProjectLayout() {
       setExportJobId(jid);
       setExportJobStatus({ status: 'queued', progress: 0, error: null });
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Export ZIP failed');
+      setError(e?.response?.data?.detail || 'La exportacion ZIP fallo');
     }
   }
 
@@ -130,11 +130,11 @@ export default function ProjectLayout() {
     if (!projectId || !exportJobId) return;
     setError(null);
     try {
-      const filename = String(exportJobStatus?.output?.filename || `project_export_${projectId}.zip`);
+      const filename = String(exportJobStatus?.output?.filename || `exportacion_proyecto_${projectId}.zip`);
       const r = await api.get(`/projects/${projectId}/export-zip/${exportJobId}/download`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, filename);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Download ZIP failed');
+      setError(e?.response?.data?.detail || 'La descarga ZIP fallo');
     }
   }
 
@@ -168,42 +168,42 @@ export default function ProjectLayout() {
     };
   }, [exportJobId]);
 
-  if (!projectId) return <div>Missing project id</div>;
+  if (!projectId) return <div>Falta el id del proyecto</div>;
   if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
 
   return (
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Workspace</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>{project?.title || 'Project'}</h1>
+          <div className="rc-pill">Espacio de trabajo</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>{project?.title || 'Proyecto'}</h1>
           <div className="rc-subtitle">
             {project?.description ||
               project?.clinical_area ||
-              'Move from evidence discovery to writing and analysis inside one guided research workspace.'}
+              'Pasa del descubrimiento de evidencia a la redaccion y al analisis dentro de un unico espacio guiado.'}
           </div>
-          <div className="rc-help" style={{ marginTop: 12 }}>You are currently in <strong>{currentModule}</strong>. The recommended flow is Discover → Read → Extract → Write → Analyze.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>Ahora estas en <strong>{currentModule}</strong>. El flujo recomendado es Descubrir → Leer → Extraer → Redactar → Analizar.</div>
         </div>
 
         <div className="rc-stack" style={{ minWidth: 360, flex: 1 }}>
           <div className="rc-card">
-            <div className="rc-card-title">Project snapshot</div>
+            <div className="rc-card-title">Resumen del proyecto</div>
             <div className="rc-kpi-strip">
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.papers ?? '—'}</strong><span>Papers saved</span></div>
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.references ?? '—'}</strong><span>References</span></div>
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.meta_studies_current ?? '—'}</strong><span>Extracted studies</span></div>
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.notes ?? '—'}</strong><span>Notes</span></div>
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.papers ?? '—'}</strong><span>Articulos guardados</span></div>
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.references ?? '—'}</strong><span>Referencias</span></div>
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.meta_studies_current ?? '—'}</strong><span>Estudios extraidos</span></div>
+              <div className="rc-metric-tile"><strong>{dashboard?.counts?.notes ?? '—'}</strong><span>Notas</span></div>
             </div>
           </div>
 
           <div className="rc-next-step">
-            <div className="rc-kicker">Current workspace mode</div>
-            <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>{project?.runtime_mode || 'local-only'}</div>
-            <div className="rc-help" style={{ marginTop: 8 }}>Need a portable snapshot or handoff? Export the full workspace package below.</div>
+            <div className="rc-kicker">Modo actual del espacio</div>
+            <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>{project?.runtime_mode || 'solo-local'}</div>
+            <div className="rc-help" style={{ marginTop: 8 }}>Si necesitas una copia portable o entregar el trabajo, exporta el paquete completo del proyecto.</div>
             <div className="rc-row" style={{ marginTop: 12 }}>
-              <button className="rc-btn" onClick={startExportZip}>Export workspace ZIP</button>
+              <button className="rc-btn" onClick={startExportZip}>Exportar ZIP del proyecto</button>
               {exportJobId && exportJobStatus?.status === 'completed' ? (
-                <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Download ZIP</button>
+                <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Descargar ZIP</button>
               ) : null}
             </div>
             {exportJobId ? <div className="rc-help" style={{ marginTop: 8 }}>{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
@@ -215,10 +215,10 @@ export default function ProjectLayout() {
       <div className="rc-card">
         <div className="rc-toolbar" style={{ marginBottom: 12 }}>
           <div>
-            <div className="rc-card-title" style={{ marginBottom: 4 }}>What do you want to do next?</div>
-            <div className="rc-help">Use the guided tasks for the main workflow, then fall back to the full module navigation below.</div>
+            <div className="rc-card-title" style={{ marginBottom: 4 }}>Que quieres hacer ahora?</div>
+            <div className="rc-help">Usa las tareas guiadas para el flujo principal y la navegacion completa de modulos cuando necesites mas detalle.</div>
           </div>
-          <Link className="rc-flow-link" to={`/projects/${projectId}/research`}>Return to discovery</Link>
+          <Link className="rc-flow-link" to={`/projects/${projectId}/research`}>Volver a descubrir</Link>
         </div>
         <div className="rc-guided-grid">
           {TASKS.map((task, index) => (
@@ -226,14 +226,14 @@ export default function ProjectLayout() {
               <div className={`rc-stage-label ${index % 2 === 0 ? 'rc-stage-label--teal' : 'rc-stage-label--warm'}`}>{task.kicker}</div>
               <h3>{task.label}</h3>
               <p>{task.copy}</p>
-              <span className="rc-flow-link">Open {task.label.toLowerCase()}</span>
+              <span className="rc-flow-link">Abrir {task.label.toLowerCase()}</span>
             </Link>
           ))}
         </div>
       </div>
 
       <div className="rc-card" style={{ padding: 14 }}>
-        <div className="rc-kicker" style={{ marginBottom: 10 }}>All workspace areas</div>
+        <div className="rc-kicker" style={{ marginBottom: 10 }}>Todas las areas del proyecto</div>
         <div className="rc-module-tabs">
           {MODULES.map((module) => (
             <ModuleTab key={module.to} to={`/projects/${projectId}/${module.to}`} label={module.label} />

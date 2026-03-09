@@ -24,7 +24,7 @@ export default function ProjectsPage() {
       const r = await api.get('/projects');
       setProjects(r.data as Project[]);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load projects');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar los proyectos');
     } finally {
       setLoading(false);
     }
@@ -38,7 +38,7 @@ export default function ProjectsPage() {
       setTitle('');
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create project');
+      setError(e?.response?.data?.detail || 'No se pudo crear el proyecto');
     }
   }
 
@@ -52,23 +52,23 @@ export default function ProjectsPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Projects</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Projects</h1>
+          <div className="rc-pill">Proyectos</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Proyectos</h1>
           <div className="rc-subtitle">
-            One home for literature search, PDF reading, evidence extraction, drafting and reproducible analysis.
+            Un solo lugar para busqueda bibliografica, lectura de PDFs, extraccion de evidencia, redaccion y analisis reproducible.
           </div>
           <div className="rc-help" style={{ marginTop: 12, maxWidth: 640 }}>
-            Start a new research workspace or jump back into the one you were using. PaperFlow is organized around the work you want to complete, not around disconnected tools.
+            Empieza un nuevo espacio de investigacion o vuelve al que estabas usando. PaperFlow se organiza alrededor del trabajo que quieres completar, no de herramientas desconectadas.
           </div>
         </div>
         <div className="rc-kpi-strip" style={{ minWidth: 320 }}>
           <div className="rc-hero-stat">
             <strong>{projects.length}</strong>
-            <span>Active projects</span>
+            <span>Proyectos activos</span>
           </div>
           <div className="rc-hero-stat">
-            <strong>{latestProject ? 'Ready' : 'Start'}</strong>
-            <span>{latestProject ? 'Latest workspace available' : 'Create your first workspace'}</span>
+            <strong>{latestProject ? 'Listo' : 'Empieza'}</strong>
+            <span>{latestProject ? 'Ultimo espacio disponible' : 'Crea tu primer espacio'}</span>
           </div>
         </div>
       </div>
@@ -77,47 +77,47 @@ export default function ProjectsPage() {
 
       <div className="rc-shelf">
         <div className="rc-card">
-          <div className="rc-card-title">Start a new research workspace</div>
+          <div className="rc-card-title">Crear un nuevo espacio de investigacion</div>
           <div className="rc-help" style={{ marginBottom: 12 }}>
-            Give the project a specific working title so search, extraction and writing stay focused around the same question.
+            Dale al proyecto un titulo especifico para que la busqueda, la extraccion y la redaccion se mantengan enfocadas en la misma pregunta.
           </div>
           <div className="rc-row" style={{ alignItems: 'flex-end' }}>
             <div style={{ minWidth: 280, flex: 1 }}>
-              <div className="rc-kicker">Project title</div>
+              <div className="rc-kicker">Titulo del proyecto</div>
               <input
                 data-testid="project-title-input"
                 className="rc-input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Rotator cuff repair outcomes in older adults"
+                placeholder="ej. Resultados de reparacion del manguito rotador en adultos mayores"
               />
             </div>
             <button data-testid="project-create-button" className="rc-btn rc-btn--primary" onClick={create} disabled={!title.trim()}>
-              Create project
+              Crear proyecto
             </button>
           </div>
           <div className="rc-help" style={{ marginTop: 10 }}>
-            Tip: good titles mention the population, intervention or outcome you care about.
+            Consejo: un buen titulo menciona la poblacion, la intervencion o el resultado que te interesa.
           </div>
         </div>
 
         <div className="rc-card">
-          <div className="rc-card-title">How PaperFlow works</div>
+          <div className="rc-card-title">Como funciona PaperFlow</div>
           <div className="rc-guided-grid" style={{ gridTemplateColumns: '1fr' }}>
             <div className="rc-flow-card">
-              <div className="rc-stage-label rc-stage-label--teal">Step 1</div>
-              <h3>Find the right papers</h3>
-              <p>Search across major scholarly sources and save the evidence that matters to your question.</p>
+              <div className="rc-stage-label rc-stage-label--teal">Paso 1</div>
+              <h3>Encuentra los papers correctos</h3>
+              <p>Busca en las principales fuentes cientificas y guarda la evidencia que de verdad responde tu pregunta.</p>
             </div>
             <div className="rc-flow-card">
-              <div className="rc-stage-label rc-stage-label--warm">Step 2</div>
-              <h3>Read, extract and compare</h3>
-              <p>Ask grounded questions, extract structured study data and review evidence in one workspace.</p>
+              <div className="rc-stage-label rc-stage-label--warm">Paso 2</div>
+              <h3>Lee, extrae y compara</h3>
+              <p>Haz preguntas con evidencia, extrae datos estructurados y revisa los hallazgos dentro del mismo espacio.</p>
             </div>
             <div className="rc-flow-card">
-              <div className="rc-stage-label rc-stage-label--teal">Step 3</div>
-              <h3>Write and analyze</h3>
-              <p>Build drafts with citations and run reproducible analyses without breaking context.</p>
+              <div className="rc-stage-label rc-stage-label--teal">Paso 3</div>
+              <h3>Redacta y analiza</h3>
+              <p>Construye borradores con citas y ejecuta analisis reproducibles sin perder el contexto.</p>
             </div>
           </div>
         </div>
@@ -126,19 +126,19 @@ export default function ProjectsPage() {
       <div className="rc-card">
         <div className="rc-toolbar">
           <div>
-            <div className="rc-card-title" style={{ marginBottom: 4 }}>Recent workspaces</div>
-            <div className="rc-help">Pick up where you left off or open a project directly into its research workflow.</div>
+            <div className="rc-card-title" style={{ marginBottom: 4 }}>Espacios recientes</div>
+            <div className="rc-help">Retoma donde lo dejaste o abre un proyecto directamente en su flujo de investigacion.</div>
           </div>
           <button className="rc-btn" onClick={() => void load()} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh'}
+            {loading ? 'Actualizando...' : 'Actualizar'}
           </button>
         </div>
       </div>
 
       {projects.length === 0 ? (
         <div className="rc-empty-state">
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>No projects yet</div>
-          <div className="rc-help">Create your first project above and PaperFlow will open a full research workspace around it.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavia no hay proyectos</div>
+          <div className="rc-help">Crea tu primer proyecto arriba y PaperFlow abrira un espacio completo de investigacion alrededor de el.</div>
         </div>
       ) : (
         <div className="rc-guided-grid">
@@ -160,15 +160,15 @@ export default function ProjectsPage() {
             >
               <div className="rc-detail-header">
                 <span className={`rc-stage-label ${index === 0 ? 'rc-stage-label--teal' : 'rc-stage-label--warm'}`}>
-                  {index === 0 ? 'Continue' : 'Workspace'}
+                  {index === 0 ? 'Continuar' : 'Espacio'}
                 </span>
-                {project.archived ? <span className="rc-badge">Archived</span> : <span className="rc-badge rc-badge--success">Active</span>}
+                {project.archived ? <span className="rc-badge">Archivado</span> : <span className="rc-badge rc-badge--success">Activo</span>}
               </div>
               <h3>{project.title}</h3>
               <p>
                 {project.description ||
                   project.clinical_area ||
-                  'Open the workspace to search, read, extract, write and analyze from the same project context.'}
+                  'Abre el espacio para buscar, leer, extraer, redactar y analizar dentro del mismo contexto del proyecto.'}
               </p>
               <Link
                 data-testid={`project-open-${project.id}`}
@@ -176,7 +176,7 @@ export default function ProjectsPage() {
                 className="rc-flow-link"
                 onClick={(e) => e.stopPropagation()}
               >
-                Open workspace
+                Abrir espacio
               </Link>
             </div>
           ))}

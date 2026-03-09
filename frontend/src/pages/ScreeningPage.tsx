@@ -23,11 +23,11 @@ export default function ScreeningPage() {
   const [prisma, setPrisma] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Comment[]>([]);
   const [reviewActions, setReviewActions] = useState<PeerReviewAction[]>([]);
-  const [title, setTitle] = useState('Main screening batch');
+  const [title, setTitle] = useState('Lote principal de screening');
   const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedPaper, setSelectedPaper] = useState('');
   const [decision, setDecision] = useState('include');
-  const [reasonLabel, setReasonLabel] = useState('Wrong population');
+  const [reasonLabel, setReasonLabel] = useState('Poblacion incorrecta');
   const [commentBody, setCommentBody] = useState('');
   const [reviewAction, setReviewAction] = useState('draft_review');
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export default function ScreeningPage() {
   }
 
   useEffect(() => {
-    load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load screening workspace'));
+    load().catch((e: any) => setError(e?.response?.data?.detail || 'No se pudo cargar el espacio de screening'));
   }, [projectId]);
 
   async function createBatch() {
@@ -64,7 +64,7 @@ export default function ScreeningPage() {
       await api.post('/screening/batches', { project_id: projectId, title, stage: 'title_abstract' });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create screening batch');
+      setError(e?.response?.data?.detail || 'No se pudo crear el lote de screening');
     }
   }
 
@@ -75,7 +75,7 @@ export default function ScreeningPage() {
       setReasonLabel('');
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create reason');
+      setError(e?.response?.data?.detail || 'No se pudo crear el motivo');
     }
   }
 
@@ -91,7 +91,7 @@ export default function ScreeningPage() {
       });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to save screening decision');
+      setError(e?.response?.data?.detail || 'No se pudo guardar la decision');
     }
   }
 
@@ -107,7 +107,7 @@ export default function ScreeningPage() {
       setCommentBody('');
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to save comment');
+      setError(e?.response?.data?.detail || 'No se pudo guardar el comentario');
     }
   }
 
@@ -122,7 +122,7 @@ export default function ScreeningPage() {
       });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create review action');
+      setError(e?.response?.data?.detail || 'No se pudo crear la accion de revision');
     }
   }
 
@@ -131,7 +131,7 @@ export default function ScreeningPage() {
       await api.patch(`/screening/peer-review-actions/${actionId}`, { status: 'resolved' });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to resolve review action');
+      setError(e?.response?.data?.detail || 'No se pudo resolver la accion de revision');
     }
   }
 
@@ -139,13 +139,13 @@ export default function ScreeningPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Screening</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Eligibility review</h1>
-          <div className="rc-subtitle">Title/abstract and full-text screening with auditable reasons and lightweight PRISMA counts.</div>
+          <div className="rc-pill">Cribado</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Revision de elegibilidad</h1>
+          <div className="rc-subtitle">Cribado por titulo/resumen y texto completo con motivos auditables y conteos PRISMA ligeros.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Batches</span></div>
-          <div className="rc-metric-tile"><strong>{comments.length}</strong><span>Comments</span></div>
+          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Lotes</span></div>
+          <div className="rc-metric-tile"><strong>{comments.length}</strong><span>Comentarios</span></div>
         </div>
       </div>
 
@@ -153,18 +153,18 @@ export default function ScreeningPage() {
 
       <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
         <div className="rc-card">
-          <div className="rc-card-title">Setup</div>
+          <div className="rc-card-title">Configuracion</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Batch title</div>
+              <div className="rc-kicker">Titulo del lote</div>
               <input data-testid="screening-batch-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
-            <button data-testid="screening-create-batch" className="rc-btn" onClick={createBatch}>Create batch</button>
+            <button data-testid="screening-create-batch" className="rc-btn" onClick={createBatch}>Crear lote</button>
             <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Exclusion reason</div>
+              <div className="rc-kicker">Motivo de exclusion</div>
               <input data-testid="screening-reason-input" className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
             </div>
-            <button data-testid="screening-add-reason" className="rc-btn" onClick={createReason}>Add reason</button>
+            <button data-testid="screening-add-reason" className="rc-btn" onClick={createReason}>Agregar motivo</button>
           </div>
         </div>
 
@@ -172,9 +172,9 @@ export default function ScreeningPage() {
           <div className="rc-card-title">Decision</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Batch</div>
+              <div className="rc-kicker">Lote</div>
               <select data-testid="screening-batch-select" className="rc-input" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
-                <option value="">Select batch</option>
+                <option value="">Seleccionar lote</option>
                 {batches.map((batch) => (
                   <option key={batch.id} value={batch.id}>
                     {batch.title} · {batch.stage}
@@ -185,7 +185,7 @@ export default function ScreeningPage() {
             <div style={{ minWidth: 240 }}>
               <div className="rc-kicker">Paper</div>
               <select data-testid="screening-paper-select" className="rc-input" value={selectedPaper} onChange={(e) => setSelectedPaper(e.target.value)}>
-                <option value="">Select paper</option>
+                <option value="">Seleccionar paper</option>
                 {papers.map((paper) => (
                   <option key={paper.id} value={paper.id}>{paper.title}</option>
                 ))}
@@ -194,28 +194,28 @@ export default function ScreeningPage() {
             <div style={{ minWidth: 160 }}>
               <div className="rc-kicker">Decision</div>
               <select data-testid="screening-decision-select" className="rc-input" value={decision} onChange={(e) => setDecision(e.target.value)}>
-                <option value="include">Include</option>
-                <option value="exclude">Exclude</option>
-                <option value="maybe">Maybe</option>
+                <option value="include">Incluir</option>
+                <option value="exclude">Excluir</option>
+                <option value="maybe">Tal vez</option>
               </select>
             </div>
-            <button data-testid="screening-save-decision" className="rc-btn rc-btn--primary" onClick={saveDecision}>Save decision</button>
+            <button data-testid="screening-save-decision" className="rc-btn rc-btn--primary" onClick={saveDecision}>Guardar decision</button>
           </div>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div className="rc-card">
-          <div className="rc-card-title">Batches</div>
-          {batches.length === 0 ? <div className="rc-muted">No screening batches yet.</div> : null}
+          <div className="rc-card-title">Lotes</div>
+          {batches.length === 0 ? <div className="rc-muted">Todavia no hay lotes de cribado.</div> : null}
           {batches.map((batch) => (
             <div key={batch.id} className="rc-help">{batch.title} · {batch.stage} · {batch.status}</div>
           ))}
         </div>
 
         <div className="rc-card">
-          <div className="rc-card-title">PRISMA counts</div>
-          {Object.keys(prisma).length === 0 ? <div className="rc-muted">No counts yet.</div> : null}
+          <div className="rc-card-title">Conteos PRISMA</div>
+          {Object.keys(prisma).length === 0 ? <div className="rc-muted">Todavia no hay conteos.</div> : null}
           {Object.entries(prisma).map(([key, value]) => (
             <div key={key} className="rc-help">{key}: {value}</div>
           ))}
@@ -224,19 +224,19 @@ export default function ScreeningPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div className="rc-card">
-          <div className="rc-card-title">Comments</div>
+          <div className="rc-card-title">Comentarios</div>
           <textarea
             data-testid="screening-comment-input"
             className="rc-input"
             style={{ minHeight: 100, width: '100%' }}
             value={commentBody}
             onChange={(e) => setCommentBody(e.target.value)}
-            placeholder="Add a screening or review note…"
+            placeholder="Agrega una nota de screening o revision…"
           />
           <div style={{ height: 10 }} />
-          <button data-testid="screening-add-comment" className="rc-btn" onClick={saveComment}>Add comment</button>
+          <button data-testid="screening-add-comment" className="rc-btn" onClick={saveComment}>Agregar comentario</button>
           <div style={{ height: 10 }} />
-          {comments.length === 0 ? <div className="rc-muted">No comments yet.</div> : null}
+          {comments.length === 0 ? <div className="rc-muted">Todavia no hay comentarios.</div> : null}
           {comments.map((comment) => (
             <div key={comment.id} className="rc-help">
               {comment.body} · {comment.target_type || 'project'} · {comment.user_id}
@@ -245,29 +245,29 @@ export default function ScreeningPage() {
         </div>
 
         <div className="rc-card">
-          <div className="rc-card-title">Peer review queue</div>
+          <div className="rc-card-title">Cola de revision por pares</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Action</div>
+              <div className="rc-kicker">Accion</div>
               <select data-testid="screening-review-action-select" className="rc-input" value={reviewAction} onChange={(e) => setReviewAction(e.target.value)}>
-                <option value="draft_review">Draft review</option>
-                <option value="extraction_review">Extraction review</option>
-                <option value="screening_review">Screening review</option>
+                <option value="draft_review">Revision de borrador</option>
+                <option value="extraction_review">Revision de extraccion</option>
+                <option value="screening_review">Revision de screening</option>
               </select>
             </div>
-            <button data-testid="screening-queue-review-action" className="rc-btn" onClick={createReviewAction}>Queue review action</button>
+            <button data-testid="screening-queue-review-action" className="rc-btn" onClick={createReviewAction}>Encolar accion de revision</button>
           </div>
           <div style={{ height: 10 }} />
-          {reviewActions.length === 0 ? <div className="rc-muted">No peer review actions yet.</div> : null}
+          {reviewActions.length === 0 ? <div className="rc-muted">Todavia no hay acciones de revision.</div> : null}
           {reviewActions.map((action) => (
             <div key={action.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
               <div style={{ fontWeight: 800 }}>{action.action}</div>
               <div className="rc-help">{action.status} · {action.user_id}</div>
               <div className="rc-row">
                 {action.status !== 'resolved' ? (
-                  <button data-testid={`screening-resolve-review-${action.id}`} className="rc-btn" onClick={() => resolveReviewAction(action.id)}>Resolve</button>
+                  <button data-testid={`screening-resolve-review-${action.id}`} className="rc-btn" onClick={() => resolveReviewAction(action.id)}>Resolver</button>
                 ) : (
-                  <span className="rc-help">Resolved</span>
+                  <span className="rc-help">Resuelta</span>
                 )}
               </div>
             </div>

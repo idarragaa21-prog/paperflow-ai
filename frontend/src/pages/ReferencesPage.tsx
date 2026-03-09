@@ -47,7 +47,7 @@ export default function ReferencesPage() {
       setHasMore(Boolean(page.has_more));
       setTotalCount(page.total_count);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load references');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar las referencias');
     } finally {
       setLoading(false);
     }
@@ -67,10 +67,10 @@ export default function ReferencesPage() {
     setNotice(null);
     try {
       const r = await api.post('/references/sync-from-library', null, { params: { project_id: projectId } });
-      setNotice(`References created from library: ${String(r.data?.created || 0)}`);
+      setNotice(`Referencias creadas desde la biblioteca: ${String(r.data?.created || 0)}`);
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Library sync failed');
+      setError(e?.response?.data?.detail || 'La sincronizacion con la biblioteca fallo');
     }
   }
 
@@ -85,11 +85,11 @@ export default function ReferencesPage() {
         format,
         content,
       });
-      setNotice(`Imported ${String(r.data?.imported || 0)} references, skipped ${String(r.data?.skipped || 0)} duplicates.`);
+      setNotice(`Importadas ${String(r.data?.imported || 0)} referencias, se omitieron ${String(r.data?.skipped || 0)} duplicados.`);
       setContent('');
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Import failed');
+      setError(e?.response?.data?.detail || 'La importacion fallo');
     } finally {
       setImporting(false);
     }
@@ -113,7 +113,7 @@ export default function ReferencesPage() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Export failed');
+      setError(e?.response?.data?.detail || 'La exportacion fallo');
     }
   }
 
@@ -121,14 +121,14 @@ export default function ReferencesPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">References</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>References</h1>
-          <div className="rc-subtitle">Build a clean project bibliography, sync from the library and move between BibTeX or RIS without leaving the workspace.</div>
+          <div className="rc-pill">Referencias</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Referencias</h1>
+          <div className="rc-subtitle">Construye una bibliografia limpia del proyecto, sincroniza desde la biblioteca y cambia entre BibTeX o RIS sin salir del espacio de trabajo.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{totalCount ?? items.length}</strong><span>References</span></div>
-          <div className="rc-metric-tile"><strong>{doiCount}</strong><span>With DOI</span></div>
-          <div className="rc-metric-tile"><strong>{formatsPresent || '—'}</strong><span>Formats in catalog</span></div>
+          <div className="rc-metric-tile"><strong>{totalCount ?? items.length}</strong><span>Referencias</span></div>
+          <div className="rc-metric-tile"><strong>{doiCount}</strong><span>Con DOI</span></div>
+          <div className="rc-metric-tile"><strong>{formatsPresent || '—'}</strong><span>Formatos en catalogo</span></div>
         </div>
       </div>
 
@@ -138,23 +138,23 @@ export default function ReferencesPage() {
       <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
         <div className="rc-stack">
           <div className="rc-card">
-            <div className="rc-card-title">Reference operations</div>
-            <div className="rc-help" style={{ marginBottom: 12 }}>Keep the project bibliography aligned with your paper library and export citations for writing or review tools.</div>
+            <div className="rc-card-title">Operaciones de referencias</div>
+            <div className="rc-help" style={{ marginBottom: 12 }}>Mantiene la bibliografia del proyecto alineada con tu biblioteca y exporta citas para escritura o herramientas de revision.</div>
             <div className="rc-card-list">
-              <button className="rc-btn rc-btn--primary" onClick={syncFromLibrary}>Sync from Library</button>
-              <button className="rc-btn" onClick={() => exportReferences('bibtex')}>Export BibTeX</button>
-              <button className="rc-btn" onClick={() => exportReferences('ris')}>Export RIS</button>
+              <button className="rc-btn rc-btn--primary" onClick={syncFromLibrary}>Sincronizar desde biblioteca</button>
+              <button className="rc-btn" onClick={() => exportReferences('bibtex')}>Exportar BibTeX</button>
+              <button className="rc-btn" onClick={() => exportReferences('ris')}>Exportar RIS</button>
               <button className="rc-btn rc-btn--ghost" onClick={() => { void load(); }} disabled={loading}>
-                {loading ? 'Refreshing...' : 'Refresh catalog'}
+                {loading ? 'Actualizando...' : 'Actualizar catalogo'}
               </button>
             </div>
           </div>
 
           <div className="rc-card">
-            <div className="rc-card-title">Import references</div>
+            <div className="rc-card-title">Importar referencias</div>
             <div className="rc-row" style={{ alignItems: 'flex-end' }}>
               <div style={{ width: 160 }}>
-                <div className="rc-kicker">Format</div>
+                <div className="rc-kicker">Formato</div>
                 <select
                   data-testid="references-format-select"
                   className="rc-input"
@@ -171,10 +171,10 @@ export default function ReferencesPage() {
                 disabled={!canImport || importing}
                 onClick={importReferences}
               >
-                {importing ? 'Importing...' : `Import ${format.toUpperCase()}`}
+                {importing ? 'Importando...' : `Importar ${format.toUpperCase()}`}
               </button>
             </div>
-            <div className="rc-help" style={{ marginTop: 8 }}>Paste citations, conference papers or journal exports. Duplicates are ignored during import.</div>
+            <div className="rc-help" style={{ marginTop: 8 }}>Pega citas, papers de congresos o exportaciones de revistas. Los duplicados se ignoran durante la importacion.</div>
             <div style={{ height: 12 }} />
             <textarea
               data-testid="references-content-input"
@@ -190,12 +190,12 @@ export default function ReferencesPage() {
         <div className="rc-card">
           <div className="rc-toolbar">
             <div>
-              <div className="rc-card-title" style={{ marginBottom: 4 }}>Project bibliography</div>
-              <div className="rc-help">Scrollable, deduplicated reference list for the current project.</div>
+              <div className="rc-card-title" style={{ marginBottom: 4 }}>Bibliografia del proyecto</div>
+              <div className="rc-help">Lista desplazable y deduplicada de referencias para el proyecto actual.</div>
             </div>
             {hasMore ? (
               <button className="rc-btn" onClick={() => void load(nextCursor, true)} disabled={loading}>
-                {loading ? 'Loading...' : 'Load more'}
+                {loading ? 'Cargando...' : 'Cargar mas'}
               </button>
             ) : null}
           </div>
@@ -203,15 +203,15 @@ export default function ReferencesPage() {
 
           {loading && items.length === 0 ? (
             <div className="rc-empty-state">
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>Loading references</div>
-              <div className="rc-help">Pulling the first page of citations for this project.</div>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Cargando referencias</div>
+              <div className="rc-help">Trayendo la primera pagina de citas para este proyecto.</div>
             </div>
           ) : null}
 
           {!loading && items.length === 0 ? (
             <div className="rc-empty-state">
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>No references yet</div>
-              <div className="rc-help">Import a BibTeX or RIS file, or sync the bibliography from the paper library to start writing with citations.</div>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavia no hay referencias</div>
+              <div className="rc-help">Importa un archivo BibTeX o RIS, o sincroniza la bibliografia desde la biblioteca para empezar a escribir con citas.</div>
             </div>
           ) : null}
 
@@ -222,7 +222,7 @@ export default function ReferencesPage() {
                   <div style={{ flex: 1, minWidth: 220 }}>
                     <div style={{ fontWeight: 850, lineHeight: 1.25 }}>{item.title}</div>
                     <div className="rc-help" style={{ marginTop: 8 }}>
-                      {item.authors.join(', ') || 'Unknown authors'}
+                      {item.authors.join(', ') || 'Autores desconocidos'}
                       {item.journal ? ` · ${item.journal}` : ''}
                       {item.publication_year ? ` · ${item.publication_year}` : ''}
                     </div>
@@ -232,7 +232,7 @@ export default function ReferencesPage() {
                 <div className="rc-row" style={{ marginTop: 10 }}>
                   {item.doi ? <span className="rc-badge rc-badge--success">DOI {item.doi}</span> : null}
                   {item.pmid ? <span className="rc-badge">PMID {item.pmid}</span> : null}
-                  {!item.doi && !item.pmid ? <span className="rc-badge">Metadata only</span> : null}
+                  {!item.doi && !item.pmid ? <span className="rc-badge">Solo metadatos</span> : null}
                 </div>
               </div>
             ))}

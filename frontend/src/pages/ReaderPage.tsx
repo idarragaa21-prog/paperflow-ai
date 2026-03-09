@@ -35,7 +35,7 @@ export default function ReaderPage() {
   const { projectId } = useParams();
   const [papers, setPapers] = useState<PaperOption[]>([]);
   const [paperId, setPaperId] = useState<string>('project');
-  const [question, setQuestion] = useState('Summarize the main findings with evidence.');
+  const [question, setQuestion] = useState('Resume los hallazgos principales con evidencia.');
   const [result, setResult] = useState<ChatResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export default function ReaderPage() {
   }
 
   useEffect(() => {
-    loadPapers().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load library'));
+    loadPapers().catch((e: any) => setError(e?.response?.data?.detail || 'No se pudo cargar la biblioteca'));
   }, [projectId]);
 
   async function askQuestion() {
@@ -63,7 +63,7 @@ export default function ReaderPage() {
           : await api.post(`/papers/${paperId}/chat`, payload);
       setResult(response.data as ChatResult);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Chat failed');
+      setError(e?.response?.data?.detail || 'La consulta al lector fallo');
     } finally {
       setLoading(false);
     }
@@ -73,14 +73,14 @@ export default function ReaderPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-stage-label rc-stage-label--warm">Step 2 · Read & ask</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Read papers with evidence in view</h1>
-          <div className="rc-subtitle">Ask a single paper or the whole project. Answers stay grounded in retrieved evidence and are blocked when support is weak.</div>
-          <div className="rc-help" style={{ marginTop: 12 }}>Use this view to understand findings before you extract or write. The goal here is confidence, not speed.</div>
+          <div className="rc-stage-label rc-stage-label--warm">Paso 2 · Leer y preguntar</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Lee articulos con la evidencia a la vista</h1>
+          <div className="rc-subtitle">Pregunta sobre un articulo o sobre todo el proyecto. Las respuestas se mantienen ancladas a la evidencia recuperada y se bloquean cuando el soporte es debil.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>Usa esta vista para entender los hallazgos antes de extraer o escribir. Aqui importa la confianza, no la velocidad.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{papers.length}</strong><span>Papers available</span></div>
-          <div className="rc-metric-tile"><strong>{result ? result.citations.length : '—'}</strong><span>Citations in answer</span></div>
+          <div className="rc-metric-tile"><strong>{papers.length}</strong><span>Articulos disponibles</span></div>
+          <div className="rc-metric-tile"><strong>{result ? result.citations.length : '—'}</strong><span>Citas en la respuesta</span></div>
         </div>
       </div>
 
@@ -88,12 +88,12 @@ export default function ReaderPage() {
 
       <div className="rc-shelf">
         <div className="rc-card">
-          <div className="rc-card-title">Ask a question</div>
+          <div className="rc-card-title">Haz una pregunta</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 240 }}>
-              <div className="rc-kicker">Scope</div>
+              <div className="rc-kicker">Alcance</div>
               <select data-testid="reader-scope-select" className="rc-input" value={paperId} onChange={(e) => setPaperId(e.target.value)}>
-                <option value="project">Whole project</option>
+                <option value="project">Todo el proyecto</option>
                 {papers.map((paper) => (
                   <option key={paper.id} value={paper.id}>
                     {paper.title} · {paper.processing_status}
@@ -101,9 +101,9 @@ export default function ReaderPage() {
                 ))}
               </select>
             </div>
-            <button data-testid="reader-refresh-papers" className="rc-btn" onClick={() => loadPapers()} disabled={loading}>Refresh papers</button>
+            <button data-testid="reader-refresh-papers" className="rc-btn" onClick={() => loadPapers()} disabled={loading}>Actualizar articulos</button>
             <button data-testid="reader-ask-button" className="rc-btn rc-btn--primary" onClick={askQuestion} disabled={loading || !question.trim()}>
-              {loading ? 'Asking…' : 'Ask'}
+              {loading ? 'Preguntando…' : 'Preguntar'}
             </button>
           </div>
           <div style={{ height: 10 }} />
@@ -115,25 +115,25 @@ export default function ReaderPage() {
             onChange={(e) => setQuestion(e.target.value)}
           />
           <div className="rc-row" style={{ marginTop: 12 }}>
-            <Link className="rc-btn" to={`/projects/${projectId}/library`}>Open library</Link>
-            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/meta`}>Go to extraction</Link>
+            <Link className="rc-btn" to={`/projects/${projectId}/library`}>Abrir biblioteca</Link>
+            <Link className="rc-btn rc-btn--primary" to={`/projects/${projectId}/meta`}>Ir a extraccion</Link>
           </div>
         </div>
 
         <div data-testid="reader-answer-panel" className="rc-card">
-          <div className="rc-card-title">Answer</div>
-          {!result ? <div className="rc-muted">No answer yet.</div> : null}
+          <div className="rc-card-title">Respuesta</div>
+          {!result ? <div className="rc-muted">Todavia no hay respuesta.</div> : null}
           {result ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="rc-help">
-                {result.claim_type} · confidence {result.confidence.toFixed(2)} · {result.grounded ? 'grounded' : 'not grounded'}
+                {result.claim_type} · confianza {result.confidence.toFixed(2)} · {result.grounded ? 'con evidencia' : 'sin evidencia suficiente'}
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{result.answer}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {result.citations.map((citation, index) => (
                   <div key={`${citation.paper_id}-${index}`} className="rc-soft-card">
-                    <div className="rc-kicker">Citation {index + 1}</div>
-                    <div className="rc-help">Paper {citation.paper_id} · page {citation.page ?? '—'}</div>
+                    <div className="rc-kicker">Cita {index + 1}</div>
+                    <div className="rc-help">Paper {citation.paper_id} · pagina {citation.page ?? '—'}</div>
                     <div style={{ whiteSpace: 'pre-wrap' }}>{citation.quoted_text}</div>
                   </div>
                 ))}

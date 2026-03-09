@@ -44,7 +44,7 @@ type ExportRow = {
 };
 
 function formatDate(value?: string | null) {
-  if (!value) return 'Unknown time';
+  if (!value) return 'Hora desconocida';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
@@ -82,7 +82,7 @@ export default function MetaPage() {
       const r = await api.get(`/meta/batches?project_id=${projectId}`);
       setBatches(r.data as BatchRow[]);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load batches');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar los lotes');
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ export default function MetaPage() {
       setItems(r.data as ItemRow[]);
       setSelectedBatchId(batchId);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load batch items');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar los items del lote');
     }
   }
 
@@ -114,7 +114,7 @@ export default function MetaPage() {
         setSelectedStudyId(nextStudies[0]?.id || null);
       }
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load studies');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar los estudios');
     }
   }
 
@@ -126,14 +126,14 @@ export default function MetaPage() {
       const r = await api.get(`/meta/exports?project_id=${projectId}${q}`);
       setExportsList(r.data as ExportRow[]);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load exports');
+      setError(e?.response?.data?.detail || 'No se pudieron cargar las exportaciones');
     }
   }
 
   async function createBatch() {
     if (!projectId) return;
     if (!files || files.length === 0) {
-      setError('Select at least 1 PDF');
+      setError('Selecciona al menos 1 PDF');
       return;
     }
 
@@ -151,7 +151,7 @@ export default function MetaPage() {
       });
 
       const batchId = r.data?.batch_id as string;
-      setNotice(`Batch created: ${batchId} (job: ${r.data?.job_id})`);
+      setNotice(`Lote creado: ${batchId} (job: ${r.data?.job_id})`);
       setFiles(null);
       setTitle('');
       await loadBatches();
@@ -159,7 +159,7 @@ export default function MetaPage() {
       await loadStudies();
       await loadExports();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create batch');
+      setError(e?.response?.data?.detail || 'No se pudo crear el lote');
     } finally {
       setCreating(false);
     }
@@ -170,10 +170,10 @@ export default function MetaPage() {
     setNotice(null);
     try {
       const r = await api.post(`/meta/items/${itemId}/retry`);
-      setNotice(`Retry enqueued: job ${r.data?.job_id}`);
+      setNotice(`Reintento encolado: job ${r.data?.job_id}`);
       if (selectedBatchId) await loadItems(selectedBatchId);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Retry failed');
+      setError(e?.response?.data?.detail || 'El reintento fallo');
     }
   }
 
@@ -191,9 +191,9 @@ export default function MetaPage() {
         setExportJobId(jid);
         setExportJobStatus({ status: 'queued', progress: 0, error: null });
       }
-      setNotice(`Export job enqueued: ${jid || '(unknown job id)'}`);
+      setNotice(`Job de exportacion encolado: ${jid || '(job desconocido)'}`);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Export failed');
+      setError(e?.response?.data?.detail || 'La exportacion fallo');
     } finally {
       await loadExports();
     }
@@ -203,9 +203,9 @@ export default function MetaPage() {
     setError(null);
     try {
       const r = await api.get(`/meta/exports/${row.id}/download`, { responseType: 'blob' });
-      downloadBlob(r.data as Blob, row.filename || 'meta_export.xlsx');
+      downloadBlob(r.data as Blob, row.filename || 'exportacion_meta.xlsx');
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Download failed');
+      setError(e?.response?.data?.detail || 'La descarga fallo');
     }
   }
 
@@ -251,7 +251,7 @@ export default function MetaPage() {
           setExportJobId(null);
         }
       } catch (e: any) {
-        setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
+        setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'La consulta del job fallo' });
       }
     }
 
@@ -269,16 +269,16 @@ export default function MetaPage() {
     <div className="rc-section-shell">
       <div className="rc-hero-card">
         <div style={{ maxWidth: 760 }}>
-          <div className="rc-stage-label rc-stage-label--warm">Step 3 · Extract</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Extraction Workspace</h1>
-          <div className="rc-subtitle">Upload PDF batches, review extraction health and turn papers into structured evidence before you write or analyze.</div>
-          <div className="rc-help" style={{ marginTop: 12 }}>This is the bridge between reading and writing. Clean extractions here make every downstream draft and analysis easier.</div>
+          <div className="rc-stage-label rc-stage-label--warm">Paso 3 · Extraer</div>
+          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Espacio de extraccion</h1>
+          <div className="rc-subtitle">Sube lotes de PDF, revisa la salud de la extraccion y convierte articulos en evidencia estructurada antes de redactar o analizar.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>Este es el puente entre leer y escribir. Una extraccion limpia aqui hace mas facil cada borrador y analisis posterior.</div>
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 320 }}>
-          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Batches</span></div>
-          <div className="rc-metric-tile"><strong>{studies.length}</strong><span>Studies</span></div>
-          <div className="rc-metric-tile"><strong>{runningItems.length}</strong><span>Running items</span></div>
-          <div className="rc-metric-tile"><strong>{exportsList.length}</strong><span>Exports</span></div>
+          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Lotes</span></div>
+          <div className="rc-metric-tile"><strong>{studies.length}</strong><span>Estudios</span></div>
+          <div className="rc-metric-tile"><strong>{runningItems.length}</strong><span>Items en ejecucion</span></div>
+          <div className="rc-metric-tile"><strong>{exportsList.length}</strong><span>Exportaciones</span></div>
         </div>
       </div>
 
@@ -290,18 +290,18 @@ export default function MetaPage() {
           <div className="rc-card">
             <div className="rc-toolbar">
               <div>
-                <div className="rc-card-title" style={{ marginBottom: 4 }}>Batch queue</div>
-                <div className="rc-help">Select a batch to focus extraction items and study outputs.</div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Cola de lotes</div>
+                <div className="rc-help">Selecciona un lote para enfocarte en sus items y resultados de estudio.</div>
               </div>
               <button className="rc-btn" onClick={() => void loadBatches()} disabled={loading}>
-                {loading ? 'Refreshing...' : 'Refresh'}
+                {loading ? 'Actualizando...' : 'Actualizar'}
               </button>
             </div>
             <div style={{ height: 12 }} />
             {batches.length === 0 ? (
               <div className="rc-empty-state">
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>No extraction batches yet</div>
-                <div className="rc-help">Create a batch from one or more PDFs to start generating structured study records.</div>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavia no hay lotes de extraccion</div>
+                <div className="rc-help">Crea un lote con uno o mas PDFs para empezar a generar registros estructurados de estudio.</div>
               </div>
             ) : (
               <div className="rc-card-list">
@@ -312,7 +312,7 @@ export default function MetaPage() {
                     className={`rc-list-button ${batch.id === selectedBatchId ? 'rc-list-button--active' : ''}`}
                   >
                     <div className="rc-detail-header">
-                      <div style={{ fontWeight: 850 }}>{batch.title || '(untitled batch)'}</div>
+                      <div style={{ fontWeight: 850 }}>{batch.title || '(lote sin titulo)'}</div>
                       <span className={batch.status === 'completed' ? 'rc-badge rc-badge--success' : batch.status === 'failed' ? 'rc-badge rc-badge--danger' : 'rc-badge rc-badge--info'}>
                         {batch.status}
                       </span>
@@ -324,27 +324,27 @@ export default function MetaPage() {
             )}
             <div style={{ height: 12 }} />
             <button className="rc-btn rc-btn--ghost" onClick={() => setSelectedBatchId(null)} disabled={!selectedBatchId}>
-              Clear batch focus
+              Quitar foco del lote
             </button>
           </div>
 
           <div className="rc-card">
-            <div className="rc-card-title">New extraction batch</div>
-            <div className="rc-help" style={{ marginBottom: 12 }}>Choose PDF files, optionally name the run and let the worker queue process them in the background.</div>
+            <div className="rc-card-title">Nuevo lote de extraccion</div>
+            <div className="rc-help" style={{ marginBottom: 12 }}>Elige los PDFs, nombra opcionalmente la corrida y deja que la cola de workers los procese en segundo plano.</div>
             <div className="rc-card-list">
               <div>
-                <div className="rc-kicker">Batch title</div>
-                <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. ACL graft meta-analysis" />
+                <div className="rc-kicker">Titulo del lote</div>
+                <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="ej. metaanalisis injerto ACL" />
               </div>
               <div>
-                <div className="rc-kicker">PDF files</div>
+                <div className="rc-kicker">Archivos PDF</div>
                 <input type="file" multiple accept="application/pdf" onChange={(e) => setFiles(e.target.files)} />
                 <div className="rc-help" style={{ marginTop: 8 }}>
-                  {selectedFilesCount ? `${selectedFilesCount} file(s) selected.` : 'Choose one or more PDFs.'} Extraction runs async through Redis workers.
+                  {selectedFilesCount ? `${selectedFilesCount} archivo(s) seleccionados.` : 'Elige uno o mas PDFs.'} La extraccion se ejecuta de forma asincrona a traves de los workers de Redis.
                 </div>
               </div>
               <button className="rc-btn rc-btn--primary" disabled={creating} onClick={createBatch}>
-                {creating ? 'Creating...' : 'Create and extract'}
+                {creating ? 'Creando...' : 'Crear y extraer'}
               </button>
             </div>
           </div>
@@ -352,26 +352,26 @@ export default function MetaPage() {
           <div className="rc-card">
             <div className="rc-toolbar">
               <div>
-                <div className="rc-card-title" style={{ marginBottom: 4 }}>Exports</div>
-                <div className="rc-help">Package current extraction data for downstream review or analysis.</div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Exportaciones</div>
+                <div className="rc-help">Empaqueta los datos actuales de extraccion para revision o analisis posterior.</div>
               </div>
-              <button className="rc-btn" onClick={() => void loadExports()}>Refresh</button>
+              <button className="rc-btn" onClick={() => void loadExports()}>Actualizar</button>
             </div>
             <div style={{ height: 12 }} />
             <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
-              {exportJobId ? 'Exporting...' : 'Export Excel'}
+              {exportJobId ? 'Exportando...' : 'Exportar Excel'}
             </button>
             {exportJobStatus ? (
               <div className="rc-help" style={{ marginTop: 10 }}>
-                Export status: {exportJobStatus.status} · {exportJobStatus.progress}%
+                Estado de exportacion: {exportJobStatus.status} · {exportJobStatus.progress}%
                 {exportJobStatus.error ? ` · ${String(exportJobStatus.error)}` : ''}
               </div>
             ) : null}
             <div style={{ height: 12 }} />
             {exportsList.length === 0 ? (
               <div className="rc-empty-state">
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>No exports yet</div>
-                <div className="rc-help">Run an export once a batch has produced study outputs.</div>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavia no hay exportaciones</div>
+                <div className="rc-help">Ejecuta una exportacion cuando un lote ya haya producido estudios.</div>
               </div>
             ) : (
               <div className="rc-card-list">
@@ -382,7 +382,7 @@ export default function MetaPage() {
                         <div style={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.filename}</div>
                         <div className="rc-help" style={{ marginTop: 6 }}>{formatDate(item.created_at)}</div>
                       </div>
-                      <button className="rc-btn" onClick={() => void downloadExport(item)}>Download</button>
+                      <button className="rc-btn" onClick={() => void downloadExport(item)}>Descargar</button>
                     </div>
                   </div>
                 ))}
@@ -395,25 +395,25 @@ export default function MetaPage() {
           <div className="rc-card">
             <div className="rc-toolbar">
               <div>
-                <div className="rc-card-title" style={{ marginBottom: 4 }}>Batch items</div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Items del lote</div>
                 <div className="rc-help">
-                  {selectedBatch ? `Tracking papers in "${selectedBatch.title || 'Untitled batch'}".` : 'Select a batch to inspect item-level progress and failures.'}
+                  {selectedBatch ? `Siguiendo los articulos de "${selectedBatch.title || 'Lote sin titulo'}".` : 'Selecciona un lote para inspeccionar el progreso de sus items y sus fallos.'}
                 </div>
               </div>
-              {runningItems.length ? <span className="rc-badge rc-badge--info">Auto-refreshing</span> : null}
+              {runningItems.length ? <span className="rc-badge rc-badge--info">Autoactualizando</span> : null}
             </div>
             <div style={{ height: 12 }} />
             {selectedBatchId ? (
               <>
                 <div className="rc-metric-grid" style={{ marginBottom: 12 }}>
                   <div className="rc-metric-tile"><strong>{items.length}</strong><span>Items</span></div>
-                  <div className="rc-metric-tile"><strong>{completedItems}</strong><span>Completed</span></div>
-                  <div className="rc-metric-tile"><strong>{failedItems}</strong><span>Failed</span></div>
+                  <div className="rc-metric-tile"><strong>{completedItems}</strong><span>Completados</span></div>
+                  <div className="rc-metric-tile"><strong>{failedItems}</strong><span>Fallidos</span></div>
                 </div>
                 {items.length === 0 ? (
                   <div className="rc-empty-state">
-                    <div style={{ fontWeight: 800, marginBottom: 6 }}>Batch has no items yet</div>
-                    <div className="rc-help">Files may still be entering the queue. Check Jobs if Redis workers are busy.</div>
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>El lote todavia no tiene items</div>
+                    <div className="rc-help">Es posible que los archivos sigan entrando a la cola. Revisa Tareas si los workers de Redis estan ocupados.</div>
                   </div>
                 ) : (
                   <div className="rc-card-list">
@@ -421,7 +421,7 @@ export default function MetaPage() {
                       <div key={item.id} className="rc-soft-card">
                         <div className="rc-detail-header">
                           <div style={{ flex: 1, minWidth: 220 }}>
-                            <div style={{ fontWeight: 850 }}>{item.paper_title || item.paper_filename || 'Untitled item'}</div>
+                            <div style={{ fontWeight: 850 }}>{item.paper_title || item.paper_filename || 'Item sin titulo'}</div>
                             <div className="rc-help" style={{ marginTop: 8 }}>
                               {item.paper_filename ? `${item.paper_filename} · ` : ''}
                               paper_id {item.paper_id}
@@ -434,9 +434,9 @@ export default function MetaPage() {
                         {item.error_message ? <div className="rc-error" style={{ marginTop: 10 }}>{item.error_message}</div> : null}
                         <div className="rc-row" style={{ marginTop: 10 }}>
                           <button className="rc-btn" onClick={() => void retryItem(item.id)} disabled={['queued', 'started'].includes(item.status)}>
-                            Retry item
+                            Reintentar item
                           </button>
-                          {item.updated_at ? <div className="rc-help">Updated {formatDate(item.updated_at)}</div> : null}
+                          {item.updated_at ? <div className="rc-help">Actualizado {formatDate(item.updated_at)}</div> : null}
                         </div>
                       </div>
                     ))}
@@ -445,8 +445,8 @@ export default function MetaPage() {
               </>
             ) : (
               <div className="rc-empty-state">
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>No batch selected</div>
-                <div className="rc-help">Pick a batch from the queue to review item progress, failures and retry controls.</div>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>No hay lote seleccionado</div>
+                <div className="rc-help">Elige un lote de la cola para revisar el progreso de sus items, fallos y controles de reintento.</div>
               </div>
             )}
           </div>
@@ -454,16 +454,16 @@ export default function MetaPage() {
           <div className="rc-card">
             <div className="rc-toolbar">
               <div>
-                <div className="rc-card-title" style={{ marginBottom: 4 }}>Study review</div>
-                <div className="rc-help">Browse extracted studies and open the detailed viewer for confidence, risk of bias and effect size review.</div>
+                <div className="rc-card-title" style={{ marginBottom: 4 }}>Revision de estudios</div>
+                <div className="rc-help">Explora los estudios extraidos y abre el visor detallado para revisar confianza, riesgo de sesgo y tamanos de efecto.</div>
               </div>
-              <button className="rc-btn" onClick={() => void loadStudies()}>Refresh</button>
+              <button className="rc-btn" onClick={() => void loadStudies()}>Actualizar</button>
             </div>
             <div style={{ height: 12 }} />
             {studies.length === 0 ? (
               <div className="rc-empty-state">
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>No studies available yet</div>
-                <div className="rc-help">Studies appear here as batch items complete extraction. Once a study lands, this panel turns into a review split view.</div>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavia no hay estudios disponibles</div>
+                <div className="rc-help">Los estudios aparecen aqui a medida que los items completan la extraccion. Cuando llegue uno, este panel se convierte en una vista dividida de revision.</div>
               </div>
             ) : (
               <div className="rc-split-layout">
@@ -476,13 +476,13 @@ export default function MetaPage() {
                     >
                       <div className="rc-detail-header">
                         <div style={{ fontWeight: 850, fontSize: 13, lineHeight: 1.3 }}>
-                          {study.paper_title || study.paper_filename || `Study ${study.id}`}
+                          {study.paper_title || study.paper_filename || `Estudio ${study.id}`}
                         </div>
                         {study.rob_auto_generated ? <span className="rc-badge">ROB auto</span> : null}
                       </div>
                       <div className="rc-help" style={{ marginTop: 8 }}>
-                        v{study.version} · confidence {study.extraction_confidence}
-                        {study.batch_id ? ' · batched' : ''}
+                        v{study.version} · confianza {study.extraction_confidence}
+                        {study.batch_id ? ' · en lote' : ''}
                       </div>
                     </button>
                   ))}
@@ -493,8 +493,8 @@ export default function MetaPage() {
                     <StudyViewer studyId={selectedStudyId} onSelectStudyId={setSelectedStudyId} />
                   ) : (
                     <div className="rc-empty-state">
-                      <div style={{ fontWeight: 800, marginBottom: 6 }}>Select a study</div>
-                      <div className="rc-help">Choose a study from the left column to review extracted evidence in detail.</div>
+                      <div style={{ fontWeight: 800, marginBottom: 6 }}>Selecciona un estudio</div>
+                      <div className="rc-help">Elige un estudio de la columna izquierda para revisar la evidencia extraida en detalle.</div>
                     </div>
                   )}
                 </div>
