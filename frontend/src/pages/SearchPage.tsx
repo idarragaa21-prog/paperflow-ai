@@ -43,6 +43,7 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(null);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+  const [savedResults, setSavedResults] = useState<Record<string, 'saved' | 'duplicate'>>({});
 
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
@@ -64,6 +65,7 @@ export default function SearchPage() {
       });
       setData(r.data as SearchResponse);
       setSelected({});
+      setSavedResults({});
       setBatchJobId(null);
       setBatchJob(null);
       setBatchModalOpen(false);
@@ -89,6 +91,7 @@ export default function SearchPage() {
 
       const resp = await api.post('/papers/download', payload);
       const duplicate = Boolean(resp.data?.duplicate);
+      setSavedResults((prev) => ({ ...prev, [key]: duplicate ? 'duplicate' : 'saved' }));
       toast.info(duplicate ? 'Duplicate' : 'Saved', duplicate ? 'Paper already exists in this project.' : 'Downloaded and saved.');
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Download failed');
@@ -98,6 +101,11 @@ export default function SearchPage() {
   }
 
   const selectedCount = useMemo(() => Object.values(selected).filter(Boolean).length, [selected]);
+  const openableCount = useMemo(() => (data?.results || []).filter((item) => Boolean(sourceHref(item))).length, [data]);
+  const saveableCount = useMemo(
+    () => (data?.results || []).filter((item) => Boolean(item.is_open_access) && Boolean(item.doi || item.pmid)).length,
+    [data],
+  );
 
   const selectedPapers = useMemo(() => {
     if (!data) return [] as any[];
@@ -209,7 +217,8 @@ export default function SearchPage() {
         </div>
         <div className="rc-metric-grid" style={{ minWidth: 300 }}>
           <div className="rc-metric-tile"><strong>{data?.count ?? '—'}</strong><span>Results</span></div>
-          <div className="rc-metric-tile"><strong>{selectedCount}</strong><span>Selected OA papers</span></div>
+          <div className="rc-metric-tile"><strong>{openableCount || '—'}</strong><span>Openable sources</span></div>
+          <div className="rc-metric-tile"><strong>{saveableCount || '—'}</strong><span>Saveable PDFs</span></div>
         </div>
       </div>
 
@@ -257,6 +266,12 @@ export default function SearchPage() {
             </div>
           </div>
 
+          <div className="rc-soft-card">
+            <div className="rc-help">
+              <b>How to use these results:</b> <b>Open source</b> takes you to DOI, PubMed or the OA location. <b>Save PDF to library</b> only works when the paper has an open-access PDF that PaperFlow can download.
+            </div>
+          </div>
+
           {loading ? (
             <div className="rc-card">
               <Skeleton height={14} width="40%" />
@@ -267,9 +282,9 @@ export default function SearchPage() {
 
           <div className="rc-card" style={{ padding: 10 }}>
             <div className="rc-row">
-              <button className="rc-btn" onClick={selectAllOA} disabled={!data.results.length}>Select all OA</button>
+              <button className="rc-btn" onClick={selectAllOA} disabled={!data.results.length}>Select all saveable PDFs</button>
               <button className="rc-btn" onClick={clearSelection} disabled={selectedCount === 0}>Clear ({selectedCount})</button>
-              <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}>Download Selected ({selectedCount})</button>
+              <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}>Save selected PDFs ({selectedCount})</button>
               {batchJobId ? (
                 <button className="rc-btn" onClick={() => setBatchModalOpen(true)}>View batch job</button>
               ) : null}
@@ -282,12 +297,16 @@ export default function SearchPage() {
               const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
               const isSelected = Boolean(selected[key]);
               const href = sourceHref(r);
+              const savedState = savedResults[key];
               return (
                 <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <input type="checkbox" disabled={!canDownload} checked={isSelected} onChange={() => toggleSelect(key)} title={canDownload ? 'Select for batch download' : 'Not eligible for batch download'} style={{ marginTop: 3 }} />
                     <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
-                    {r.is_open_access ? <span className="rc-badge rc-badge--success">OA</span> : <span className="rc-badge">Closed</span>}
+                    {savedState === 'saved' ? <span className="rc-badge rc-badge--success">Saved</span> : null}
+                    {savedState === 'duplicate' ? <span className="rc-badge">Already in library</span> : null}
+                    {!savedState && r.is_open_access ? <span className="rc-badge rc-badge--success">OA</span> : null}
+                    {!savedState && !r.is_open_access ? <span className="rc-badge">Closed</span> : null}
                   </div>
 
                   <div className="rc-help">
@@ -296,19 +315,35 @@ export default function SearchPage() {
                     {r.pmid ? ` · PMID: ${r.pmid}` : ''}
                   </div>
 
+                  <div className="rc-row">
+                    {href ? <span className="rc-badge rc-badge--info">Openable source</span> : <span className="rc-badge">Metadata only</span>}
+                    {canDownload ? <span className="rc-badge rc-badge--success">Can save PDF</span> : <span className="rc-badge">No direct PDF save</span>}
+                  </div>
+
                   {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{r.abstract}</div> : null}
 
                   <div className="rc-row">
-                    <button className="rc-btn" disabled={!canDownload || downloadingKey === (r.doi || r.pmid || r.title)} onClick={() => downloadOA(r)}>
-                      {downloadingKey === (r.doi || r.pmid || r.title) ? 'Downloading…' : 'Save OA PDF'}
+                    <button
+                      className="rc-btn rc-btn--primary"
+                      disabled={!canDownload || Boolean(savedState) || downloadingKey === (r.doi || r.pmid || r.title)}
+                      onClick={() => downloadOA(r)}
+                    >
+                      {savedState === 'saved'
+                        ? 'Saved in library'
+                        : savedState === 'duplicate'
+                          ? 'Already in library'
+                          : downloadingKey === (r.doi || r.pmid || r.title)
+                            ? 'Saving…'
+                            : 'Save PDF to library'}
                     </button>
                     {href ? (
                       <a className="rc-btn" href={href} target="_blank" rel="noreferrer">
                         Open source
                       </a>
                     ) : null}
-                    {!r.is_open_access ? <span className="rc-help">Not marked OA by PubMed metadata.</span> : null}
-                    {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID to resolve PDF.</span> : null}
+                    <Link className="rc-btn" to={`/projects/${projectId}/library`}>Library</Link>
+                    {!r.is_open_access ? <span className="rc-help">Not marked OA by the providers.</span> : null}
+                    {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID to resolve the PDF.</span> : null}
                   </div>
                 </div>
               );
