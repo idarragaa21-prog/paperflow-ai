@@ -23,7 +23,7 @@ type Dashboard = {
   };
 };
 
-const TASKS = [
+const PRIMARY_TASKS = [
   {
     label: 'Descubrir',
     to: 'research',
@@ -56,26 +56,15 @@ const TASKS = [
   },
 ];
 
-const MODULES = [
-  { label: 'Descubrir', to: 'research' },
-  { label: 'Leer', to: 'reader' },
-  { label: 'Biblioteca', to: 'library' },
-  { label: 'Extraer', to: 'meta' },
-  { label: 'Referencias', to: 'references' },
-  { label: 'Redactar', to: 'drafts' },
-  { label: 'Analizar', to: 'analysis' },
-  { label: 'Revision', to: 'screening' },
-  { label: 'Equipo', to: 'collaboration' },
-  { label: 'Notas', to: 'notes' },
+const SECONDARY_TOOLS = [
+  { label: 'Biblioteca', to: 'library', copy: 'Gestiona PDFs y archivos fuente.' },
+  { label: 'Referencias', to: 'references', copy: 'Ordena tu bibliografia y exporta citas.' },
+  { label: 'Revision', to: 'screening', copy: 'Controla elegibilidad, comentarios y decisiones.' },
+  { label: 'Equipo', to: 'collaboration', copy: 'Gestiona miembros, roles y revisiones.' },
+  { label: 'Notas', to: 'notes', copy: 'Consulta resúmenes y notas del proyecto.' },
 ];
 
-function ModuleTab({ to, label }: { to: string; label: string }) {
-  return (
-    <NavLink to={to} end className={({ isActive }) => `rc-module-tab ${isActive ? 'rc-module-tab--active' : ''}`}>
-      {label}
-    </NavLink>
-  );
-}
+const ALL_MODULES = [...PRIMARY_TASKS.map(({ label, to }) => ({ label, to })), ...SECONDARY_TOOLS.map(({ label, to }) => ({ label, to }))];
 
 export default function ProjectLayout() {
   const { projectId } = useParams();
@@ -86,10 +75,21 @@ export default function ProjectLayout() {
   const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null; output?: any } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const currentSegment = useMemo(() => location.pathname.split('/').filter(Boolean).pop() || 'research', [location.pathname]);
+
   const currentModule = useMemo(() => {
-    const segment = location.pathname.split('/').filter(Boolean).pop() || 'research';
-    return MODULES.find((module) => module.to === segment)?.label || 'Espacio de trabajo';
-  }, [location.pathname]);
+    return ALL_MODULES.find((module) => module.to === currentSegment)?.label || 'Espacio de trabajo';
+  }, [currentSegment]);
+
+  const activePrimaryTask = useMemo(
+    () => PRIMARY_TASKS.find((task) => task.to === currentSegment) || null,
+    [currentSegment],
+  );
+
+  const activeSecondaryTool = useMemo(
+    () => SECONDARY_TOOLS.find((tool) => tool.to === currentSegment) || null,
+    [currentSegment],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -182,7 +182,10 @@ export default function ProjectLayout() {
               project?.clinical_area ||
               'Pasa del descubrimiento de evidencia a la redaccion y al analisis dentro de un unico espacio guiado.'}
           </div>
-          <div className="rc-help" style={{ marginTop: 12 }}>Ahora estas en <strong>{currentModule}</strong>. El flujo recomendado es Descubrir → Leer → Extraer → Redactar → Analizar.</div>
+          <div className="rc-help" style={{ marginTop: 12 }}>
+            Ahora estas en <strong>{currentModule}</strong>. El flujo principal es Descubrir → Leer → Extraer → Redactar → Analizar.
+            {activeSecondaryTool ? ` Estás usando una herramienta complementaria para apoyar ese flujo.` : ''}
+          </div>
         </div>
 
         <div className="rc-stack" style={{ minWidth: 360, flex: 1 }}>
@@ -215,28 +218,53 @@ export default function ProjectLayout() {
       <div className="rc-card">
         <div className="rc-toolbar" style={{ marginBottom: 12 }}>
           <div>
-            <div className="rc-card-title" style={{ marginBottom: 4 }}>Que quieres hacer ahora?</div>
-            <div className="rc-help">Usa las tareas guiadas para el flujo principal y la navegacion completa de modulos cuando necesites mas detalle.</div>
+            <div className="rc-card-title" style={{ marginBottom: 4 }}>Flujo principal</div>
+            <div className="rc-help">Concéntrate en estos cinco pasos. Las herramientas de apoyo quedan abajo para no distraerte.</div>
           </div>
-          <Link className="rc-flow-link" to={`/projects/${projectId}/research`}>Volver a descubrir</Link>
+          {activePrimaryTask ? (
+            <div className="rc-stage-label rc-stage-label--teal">{activePrimaryTask.kicker} · {activePrimaryTask.label}</div>
+          ) : activeSecondaryTool ? (
+            <div className="rc-stage-label rc-stage-label--warm">Herramienta complementaria · {activeSecondaryTool.label}</div>
+          ) : (
+            <Link className="rc-flow-link" to={`/projects/${projectId}/research`}>Volver al inicio</Link>
+          )}
         </div>
-        <div className="rc-guided-grid">
-          {TASKS.map((task, index) => (
-            <Link key={task.to} to={`/projects/${projectId}/${task.to}`} className="rc-flow-card" style={{ color: 'inherit' }}>
-              <div className={`rc-stage-label ${index % 2 === 0 ? 'rc-stage-label--teal' : 'rc-stage-label--warm'}`}>{task.kicker}</div>
-              <h3>{task.label}</h3>
-              <p>{task.copy}</p>
-              <span className="rc-flow-link">Abrir {task.label.toLowerCase()}</span>
-            </Link>
+
+        <div className="rc-workflow-bar">
+          {PRIMARY_TASKS.map((task) => (
+            <NavLink
+              key={task.to}
+              to={`/projects/${projectId}/${task.to}`}
+              end
+              className={({ isActive }) => `rc-workflow-tab ${isActive ? 'rc-workflow-tab--active' : ''}`}
+            >
+              <span className="rc-workflow-tab__kicker">{task.kicker}</span>
+              <strong>{task.label}</strong>
+              <span>{task.copy}</span>
+            </NavLink>
           ))}
         </div>
       </div>
 
       <div className="rc-card" style={{ padding: 14 }}>
-        <div className="rc-kicker" style={{ marginBottom: 10 }}>Todas las areas del proyecto</div>
-        <div className="rc-module-tabs">
-          {MODULES.map((module) => (
-            <ModuleTab key={module.to} to={`/projects/${projectId}/${module.to}`} label={module.label} />
+        <div className="rc-toolbar" style={{ marginBottom: 10 }}>
+          <div>
+            <div className="rc-kicker">Herramientas complementarias</div>
+            <div className="rc-help">Úsalas cuando necesites profundizar, pero no deberían reemplazar el flujo principal.</div>
+          </div>
+          <Link className="rc-flow-link" to={`/projects/${projectId}/research`}>Ir al paso 1</Link>
+        </div>
+        <div className="rc-secondary-tools">
+          {SECONDARY_TOOLS.map((tool) => (
+            <NavLink
+              key={tool.to}
+              to={`/projects/${projectId}/${tool.to}`}
+              end
+              className={({ isActive }) => `rc-secondary-tool ${isActive ? 'rc-secondary-tool--active' : ''}`}
+            >
+              <strong>{tool.label}</strong>
+              <span>{tool.copy}</span>
+            </NavLink>
           ))}
         </div>
       </div>
