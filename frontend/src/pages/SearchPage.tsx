@@ -32,6 +32,14 @@ function sourceHref(result: PaperMetadata) {
   return null;
 }
 
+function resultKey(result: PaperMetadata, index?: number) {
+  return result.doi || result.pmid || result.title || String(index || 0);
+}
+
+function canSavePdf(result: PaperMetadata) {
+  return Boolean(result.is_open_access) && Boolean(result.doi || result.pmid);
+}
+
 export default function SearchPage() {
   const { projectId } = useParams();
 
@@ -78,7 +86,7 @@ export default function SearchPage() {
 
   async function downloadOA(r: PaperMetadata) {
     if (!projectId) return;
-    const key = r.doi || r.pmid || r.title;
+    const key = resultKey(r);
     setDownloadingKey(key);
     setError(null);
     try {
@@ -102,18 +110,17 @@ export default function SearchPage() {
 
   const selectedCount = useMemo(() => Object.values(selected).filter(Boolean).length, [selected]);
   const openableCount = useMemo(() => (data?.results || []).filter((item) => Boolean(sourceHref(item))).length, [data]);
-  const saveableCount = useMemo(
-    () => (data?.results || []).filter((item) => Boolean(item.is_open_access) && Boolean(item.doi || item.pmid)).length,
-    [data],
-  );
+  const saveableResults = useMemo(() => (data?.results || []).filter((item) => canSavePdf(item)), [data]);
+  const reviewOnlyResults = useMemo(() => (data?.results || []).filter((item) => !canSavePdf(item)), [data]);
+  const saveableCount = saveableResults.length;
 
   const selectedPapers = useMemo(() => {
     if (!data) return [] as any[];
     return data.results
       .map((r, idx) => ({ r, idx }))
       .filter(({ r, idx }) => {
-        const key = r.doi || r.pmid || String(idx);
-        const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
+        const key = resultKey(r, idx);
+        const canDownload = canSavePdf(r);
         return Boolean(selected[key]) && canDownload;
       })
       .map(({ r }) => ({
@@ -132,8 +139,8 @@ export default function SearchPage() {
     if (!data) return;
     const next: Record<string, boolean> = {};
     data.results.forEach((r, idx) => {
-      const key = r.doi || r.pmid || String(idx);
-      const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
+      const key = resultKey(r, idx);
+      const canDownload = canSavePdf(r);
       if (canDownload) next[key] = true;
     });
     setSelected(next);
@@ -258,17 +265,17 @@ export default function SearchPage() {
 
       {data ? (
         <div className="rc-card-list">
-          <div className="rc-soft-card">
-            <div className="rc-help">
-              Resultados: <b>{data.count}</b> {data.cached ? '(en cache)' : ''}
-              {data.query_translation ? ` · Traduccion: ${data.query_translation}` : ''}
-              {data.sources?.length ? ` · Fuentes: ${data.sources.join(', ')}` : ''}
+          <div className="rc-focus-card">
+            <div>
+              <div className="rc-card-title" style={{ marginBottom: 6 }}>Que hacer aqui</div>
+              <div className="rc-help">
+                Revisa primero los articulos <b>listos para guardar</b>. Si un resultado no tiene PDF descargable, úsalo solo como referencia con <b>Abrir fuente</b>.
+              </div>
             </div>
-          </div>
-
-          <div className="rc-soft-card">
-            <div className="rc-help">
-              <b>Como usar estos resultados:</b> <b>Abrir fuente</b> te lleva al DOI, PubMed o a la fuente abierta. <b>Guardar PDF en biblioteca</b> solo funciona cuando el articulo tiene un PDF de acceso abierto que PaperFlow puede descargar.
+            <div className="rc-chip-list">
+              <span className="rc-chip">Resultados: {data.count}{data.cached ? ' en cache' : ''}</span>
+              {data.query_translation ? <span className="rc-chip">Traduccion: {data.query_translation}</span> : null}
+              {data.sources?.length ? <span className="rc-chip">Fuentes: {data.sources.join(', ')}</span> : null}
             </div>
           </div>
 
@@ -280,75 +287,119 @@ export default function SearchPage() {
             </div>
           ) : null}
 
-          <div className="rc-card" style={{ padding: 10 }}>
-            <div className="rc-row">
-              <button className="rc-btn" onClick={selectAllOA} disabled={!data.results.length}>Seleccionar todos los PDFs guardables</button>
-              <button className="rc-btn" onClick={clearSelection} disabled={selectedCount === 0}>Limpiar ({selectedCount})</button>
-              <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}>Guardar PDFs seleccionados ({selectedCount})</button>
-              {batchJobId ? (
-                <button className="rc-btn" onClick={() => setBatchModalOpen(true)}>Ver job por lote</button>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rc-card-list">
-            {data.results.map((r, idx) => {
-              const key = r.doi || r.pmid || String(idx);
-              const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
-              const isSelected = Boolean(selected[key]);
-              const href = sourceHref(r);
-              const savedState = savedResults[key];
-              return (
-                <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <input type="checkbox" disabled={!canDownload} checked={isSelected} onChange={() => toggleSelect(key)} title={canDownload ? 'Seleccionar para guardado por lote' : 'No elegible para guardado por lote'} style={{ marginTop: 3 }} />
-                    <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
-                    {savedState === 'saved' ? <span className="rc-badge rc-badge--success">Guardado</span> : null}
-                    {savedState === 'duplicate' ? <span className="rc-badge">Ya esta en la biblioteca</span> : null}
-                    {!savedState && r.is_open_access ? <span className="rc-badge rc-badge--success">OA</span> : null}
-                    {!savedState && !r.is_open_access ? <span className="rc-badge">Cerrado</span> : null}
-                  </div>
-
-                  <div className="rc-help">
-                    {(r.journal || '—')}{r.pub_year ? ` · ${r.pub_year}` : ''}
-                    {r.doi ? ` · DOI: ${r.doi}` : ''}
-                    {r.pmid ? ` · PMID: ${r.pmid}` : ''}
-                  </div>
-
-                  <div className="rc-row">
-                    {href ? <span className="rc-badge rc-badge--info">Fuente abrible</span> : <span className="rc-badge">Solo metadatos</span>}
-                    {canDownload ? <span className="rc-badge rc-badge--success">Puede guardar PDF</span> : <span className="rc-badge">Sin guardado directo</span>}
-                  </div>
-
-                  {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{r.abstract}</div> : null}
-
-                  <div className="rc-row">
-                    <button
-                      className="rc-btn rc-btn--primary"
-                      disabled={!canDownload || Boolean(savedState) || downloadingKey === (r.doi || r.pmid || r.title)}
-                      onClick={() => downloadOA(r)}
-                    >
-                      {savedState === 'saved'
-                        ? 'Guardado en biblioteca'
-                        : savedState === 'duplicate'
-                          ? 'Ya esta en la biblioteca'
-                          : downloadingKey === (r.doi || r.pmid || r.title)
-                            ? 'Guardando…'
-                            : 'Guardar PDF en biblioteca'}
-                    </button>
-                    {href ? (
-                      <a className="rc-btn" href={href} target="_blank" rel="noreferrer">
-                        Abrir fuente
-                      </a>
-                    ) : null}
-                    <Link className="rc-btn" to={`/projects/${projectId}/library`}>Biblioteca</Link>
-                    {!r.is_open_access ? <span className="rc-help">Los proveedores no lo marcaron como acceso abierto.</span> : null}
-                    {r.is_open_access && !canDownload ? <span className="rc-help">Es abierto, pero falta DOI o PMID para resolver el PDF.</span> : null}
-                  </div>
+          {saveableResults.length ? (
+            <div className="rc-card">
+              <div className="rc-toolbar" style={{ marginBottom: 12 }}>
+                <div>
+                  <div className="rc-card-title" style={{ marginBottom: 4 }}>Listos para guardar en la biblioteca</div>
+                  <div className="rc-help">Estos resultados tienen PDF descargable. Guarda primero este grupo y deja el resto para revisión manual.</div>
                 </div>
-              );
-            })}
-          </div>
+                <div className="rc-chip-list">
+                  <span className="rc-chip">{saveableResults.length} listos</span>
+                  <span className="rc-chip">{selectedCount} seleccionados</span>
+                </div>
+              </div>
+              <div className="rc-row">
+                <button className="rc-btn" onClick={selectAllOA}>Seleccionar todos</button>
+                <button className="rc-btn" onClick={clearSelection} disabled={selectedCount === 0}>Limpiar ({selectedCount})</button>
+                <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}>Guardar seleccionados ({selectedCount})</button>
+                {batchJobId ? <button className="rc-btn" onClick={() => setBatchModalOpen(true)}>Ver job por lote</button> : null}
+              </div>
+            </div>
+          ) : null}
+
+          {saveableResults.length ? (
+            <div className="rc-result-section">
+              <div className="rc-result-section__title">Articulos listos para guardar</div>
+              <div className="rc-card-list">
+                {saveableResults.map((r, idx) => {
+                  const key = resultKey(r, idx);
+                  const canDownload = canSavePdf(r);
+                  const isSelected = Boolean(selected[key]);
+                  const href = sourceHref(r);
+                  const savedState = savedResults[key];
+                  return (
+                    <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <input type="checkbox" disabled={!canDownload} checked={isSelected} onChange={() => toggleSelect(key)} title={canDownload ? 'Seleccionar para guardado por lote' : 'No elegible para guardado por lote'} style={{ marginTop: 3 }} />
+                        <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
+                        {savedState === 'saved' ? <span className="rc-badge rc-badge--success">Guardado</span> : null}
+                        {savedState === 'duplicate' ? <span className="rc-badge">Ya esta en la biblioteca</span> : null}
+                        {!savedState ? <span className="rc-badge rc-badge--success">PDF listo</span> : null}
+                      </div>
+
+                      <div className="rc-help">
+                        {(r.journal || '—')}{r.pub_year ? ` · ${r.pub_year}` : ''}
+                        {r.doi ? ` · DOI: ${r.doi}` : ''}
+                        {r.pmid ? ` · PMID: ${r.pmid}` : ''}
+                      </div>
+
+                      {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{r.abstract}</div> : null}
+
+                      <div className="rc-row">
+                        <button
+                          className="rc-btn rc-btn--primary"
+                          disabled={!canDownload || Boolean(savedState) || downloadingKey === (r.doi || r.pmid || r.title)}
+                          onClick={() => downloadOA(r)}
+                        >
+                          {savedState === 'saved'
+                            ? 'Guardado en biblioteca'
+                            : savedState === 'duplicate'
+                              ? 'Ya esta en la biblioteca'
+                              : downloadingKey === (r.doi || r.pmid || r.title)
+                                ? 'Guardando…'
+                                : 'Guardar PDF en biblioteca'}
+                        </button>
+                        {href ? (
+                          <a className="rc-btn" href={href} target="_blank" rel="noreferrer">
+                            Abrir fuente
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {reviewOnlyResults.length ? (
+            <div className="rc-result-section">
+              <div className="rc-result-section__title">Resultados para revisar antes de guardar</div>
+              <div className="rc-card-list">
+                {reviewOnlyResults.map((r, idx) => {
+                  const key = resultKey(r, idx);
+                  const href = sourceHref(r);
+                  return (
+                    <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
+                        {href ? <span className="rc-badge rc-badge--info">Fuente disponible</span> : <span className="rc-badge">Solo metadatos</span>}
+                      </div>
+
+                      <div className="rc-help">
+                        {(r.journal || '—')}{r.pub_year ? ` · ${r.pub_year}` : ''}
+                        {r.doi ? ` · DOI: ${r.doi}` : ''}
+                        {r.pmid ? ` · PMID: ${r.pmid}` : ''}
+                      </div>
+
+                      {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{r.abstract}</div> : null}
+
+                      <div className="rc-row">
+                        {href ? (
+                          <a className="rc-btn rc-btn--primary" href={href} target="_blank" rel="noreferrer">
+                            Abrir fuente
+                          </a>
+                        ) : null}
+                        {!r.is_open_access ? <span className="rc-help">Los proveedores no lo marcan como acceso abierto descargable.</span> : null}
+                        {r.is_open_access && !canSavePdf(r) ? <span className="rc-help">Hay acceso abierto, pero falta DOI o PMID para resolver el PDF.</span> : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="rc-muted">Ejecuta una busqueda para ver resultados.</div>

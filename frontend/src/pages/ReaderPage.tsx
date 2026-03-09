@@ -31,6 +31,13 @@ type ChatResult = {
   citations: Citation[];
 };
 
+const QUESTION_PRESETS = [
+  'Resume los hallazgos principales con evidencia.',
+  'Que resultados reporta este articulo?',
+  'Cuales son las limitaciones principales?',
+  'Compara las conclusiones entre los papers disponibles.',
+];
+
 export default function ReaderPage() {
   const { projectId } = useParams();
   const [papers, setPapers] = useState<PaperOption[]>([]);
@@ -89,6 +96,7 @@ export default function ReaderPage() {
       <div className="rc-shelf">
         <div className="rc-card">
           <div className="rc-card-title">Haz una pregunta</div>
+          <div className="rc-help" style={{ marginBottom: 12 }}>Empieza por una pregunta corta y concreta. Si quieres comparar varios papers, deja el alcance en todo el proyecto.</div>
           <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ minWidth: 240 }}>
               <div className="rc-kicker">Alcance</div>
@@ -107,6 +115,13 @@ export default function ReaderPage() {
             </button>
           </div>
           <div style={{ height: 10 }} />
+          <div className="rc-chip-list" style={{ marginBottom: 12 }}>
+            {QUESTION_PRESETS.map((preset) => (
+              <button key={preset} className="rc-chip rc-chip--button" type="button" onClick={() => setQuestion(preset)}>
+                {preset}
+              </button>
+            ))}
+          </div>
           <textarea
             data-testid="reader-question-input"
             className="rc-input"
