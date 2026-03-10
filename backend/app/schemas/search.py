@@ -14,6 +14,12 @@ class SearchFilters(BaseModel):
     source: str | None = None
 
 
+class SearchOpenTarget(BaseModel):
+    kind: str
+    url: str
+    label: str
+
+
 class SearchRequest(BaseModel):
     project_id: UUID
     query: str = Field(..., min_length=3)
@@ -36,6 +42,11 @@ class PaperMetadata(BaseModel):
 
     is_open_access: bool = False
     oa_url: str | None = None
+    has_abstract: bool = False
+    can_save_pdf: bool = False
+    can_open_external: bool = False
+    content_state: str = "metadata_only"
+    open_targets: list[SearchOpenTarget] = Field(default_factory=list)
 
 
 class SearchResponse(BaseModel):

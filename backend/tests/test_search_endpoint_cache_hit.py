@@ -68,7 +68,7 @@ async def test_search_endpoint_cache_hit(monkeypatch):
     async def fake_get(key: str):
         return cached
 
-    async def fake_search_and_fetch(query: str, max_results: int = 20):
+    async def fake_search_and_fetch(query: str, max_results: int = 20, filters=None):
         raise AssertionError("pubmed_client should not be called on cache hit")
 
     from app.api import deps

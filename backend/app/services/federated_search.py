@@ -11,6 +11,7 @@ import httpx
 from app.core.logger import logger
 from app.schemas.search import SearchFilters
 from app.services.pubmed import pubmed_client
+from app.services.search_results import enrich_search_result
 
 
 def _normalize_title(value: str | None) -> str:
@@ -34,6 +35,9 @@ def _passes_filters(item: dict[str, Any], filters: SearchFilters | None) -> bool
     if not filters:
         return True
     pub_year = item.get("pub_year")
+    if filters.year_from or filters.year_to:
+        if not isinstance(pub_year, int):
+            return False
     if filters.year_from and isinstance(pub_year, int) and pub_year < filters.year_from:
         return False
     if filters.year_to and isinstance(pub_year, int) and pub_year > filters.year_to:
@@ -47,12 +51,27 @@ def _passes_filters(item: dict[str, Any], filters: SearchFilters | None) -> bool
     return True
 
 
-async def _search_europe_pmc(query: str, max_results: int) -> list[dict[str, Any]]:
+def _apply_europe_pmc_filters(query: str, filters: SearchFilters | None) -> str:
+    if not filters:
+        return query
+
+    parts = [f"({query})"]
+    if filters.year_from or filters.year_to:
+        start = filters.year_from or 1900
+        end = filters.year_to or 3000
+        parts.append(f"PUB_YEAR:[{start} TO {end}]")
+    if filters.open_access_only:
+        parts.append("OPEN_ACCESS:y")
+    return " AND ".join(parts)
+
+
+async def _search_europe_pmc(query: str, max_results: int, filters: SearchFilters | None = None) -> list[dict[str, Any]]:
     url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+    filtered_query = _apply_europe_pmc_filters(query, filters)
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.get(
             url,
-            params={"query": query, "format": "json", "pageSize": max_results, "resultType": "core"},
+            params={"query": filtered_query, "format": "json", "pageSize": max_results, "resultType": "core"},
         )
         response.raise_for_status()
     hits = ((response.json() or {}).get("resultList") or {}).get("result") or []
@@ -70,20 +89,22 @@ async def _search_europe_pmc(query: str, max_results: int) -> list[dict[str, Any
                 pdf_url = url_value
                 break
         results.append(
-            {
-                "pmid": str(item.get("pmid") or "") or None,
-                "pmcid": str(item.get("pmcid") or "") or None,
-                "doi": str(item.get("doi") or "") or None,
-                "title": str(item.get("title") or "").strip() or "Untitled paper",
-                "authors": authors,
-                "journal": str(item.get("journalTitle") or "").strip() or None,
-                "pub_year": int(item["pubYear"]) if str(item.get("pubYear") or "").isdigit() else None,
-                "abstract": str(item.get("abstractText") or "").strip() or None,
-                "source": "europepmc",
-                "language": str(item.get("language") or "").strip() or None,
-                "is_open_access": is_oa,
-                "oa_url": pdf_url,
-            }
+            enrich_search_result(
+                {
+                    "pmid": str(item.get("pmid") or "") or None,
+                    "pmcid": str(item.get("pmcid") or "") or None,
+                    "doi": str(item.get("doi") or "") or None,
+                    "title": str(item.get("title") or "").strip() or "Untitled paper",
+                    "authors": authors,
+                    "journal": str(item.get("journalTitle") or "").strip() or None,
+                    "pub_year": int(item["pubYear"]) if str(item.get("pubYear") or "").isdigit() else None,
+                    "abstract": str(item.get("abstractText") or "").strip() or None,
+                    "source": "europepmc",
+                    "language": str(item.get("language") or "").strip() or None,
+                    "is_open_access": is_oa,
+                    "oa_url": pdf_url,
+                }
+            )
         )
     return results
 
@@ -120,27 +141,29 @@ async def _search_doaj(query: str, max_results: int) -> list[dict[str, Any]]:
             if url_value.lower().endswith(".pdf"):
                 break
         results.append(
-            {
-                "pmid": None,
-                "pmcid": None,
-                "doi": doi,
-                "title": str(bib.get("title") or "").strip() or "Untitled paper",
-                "authors": authors,
-                "journal": journal,
-                "pub_year": year,
-                "abstract": abstract,
-                "source": "doaj",
-                "language": str(bib.get("language") or "").strip() or None,
-                "is_open_access": True,
-                "oa_url": fulltext,
-            }
+            enrich_search_result(
+                {
+                    "pmid": None,
+                    "pmcid": None,
+                    "doi": doi,
+                    "title": str(bib.get("title") or "").strip() or "Untitled paper",
+                    "authors": authors,
+                    "journal": journal,
+                    "pub_year": year,
+                    "abstract": abstract,
+                    "source": "doaj",
+                    "language": str(bib.get("language") or "").strip() or None,
+                    "is_open_access": True,
+                    "oa_url": fulltext,
+                }
+            )
         )
     return results
 
 
 async def federated_search(query: str, *, max_results: int, filters: SearchFilters | None = None) -> dict[str, Any]:
-    pubmed = await pubmed_client.search_and_fetch(query, max_results=max_results)
-    pubmed_results = [{**item, "source": "pubmed"} for item in pubmed["results"]]
+    pubmed = await pubmed_client.search_and_fetch(query, max_results=max_results, filters=filters)
+    pubmed_results = [enrich_search_result({**item, "source": "pubmed"}) for item in pubmed["results"]]
 
     europe_results: list[dict[str, Any]] = []
     doaj_results: list[dict[str, Any]] = []
@@ -151,7 +174,7 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
     }
     warnings: list[str] = []
     results_or_errors = await asyncio.gather(
-        _search_europe_pmc(query, max_results=max_results),
+        _search_europe_pmc(query, max_results=max_results, filters=filters),
         _search_doaj(query, max_results=max_results),
         return_exceptions=True,
     )
@@ -167,6 +190,9 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
         warnings.append("DOAJ no respondió")
     else:
         doaj_results = results_or_errors[1]
+        if filters and (filters.year_from or filters.year_to):
+            provider_status["doaj"] = "filtered_server_side"
+            warnings.append("DOAJ se filtro por ano en el servidor")
 
     deduped: OrderedDict[str, dict[str, Any]] = OrderedDict()
     for item in [*pubmed_results, *europe_results, *doaj_results]:

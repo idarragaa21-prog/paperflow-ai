@@ -11,6 +11,8 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.core.logger import logger
+from app.schemas.search import SearchFilters
+from app.services.search_results import enrich_search_result
 
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -68,6 +70,19 @@ class PubMedClient:
         }
         resp = await self._get(url, params)
         return resp.json()
+
+    def _apply_filters_to_query(self, query: str, filters: SearchFilters | None) -> str:
+        if not filters:
+            return query
+
+        parts = [f"({query})"]
+        year_from = filters.year_from
+        year_to = filters.year_to
+        if year_from or year_to:
+            start = year_from or 1900
+            end = year_to or 3000
+            parts.append(f'("{start}"[Date - Publication] : "{end}"[Date - Publication])')
+        return " AND ".join(parts)
 
     async def esummary(self, pmids: list[str]) -> dict[str, Any]:
         url = f"{EUTILS_BASE}/esummary.fcgi"
@@ -151,8 +166,9 @@ class PubMedClient:
                 doi = str(val).strip()
         return pmcid, doi
 
-    async def search_and_fetch(self, query: str, max_results: int = 20) -> dict[str, Any]:
-        s = await self.esearch(query=query, retmax=max_results)
+    async def search_and_fetch(self, query: str, max_results: int = 20, filters: SearchFilters | None = None) -> dict[str, Any]:
+        filtered_query = self._apply_filters_to_query(query, filters)
+        s = await self.esearch(query=filtered_query, retmax=max_results)
         es = s.get("esearchresult", {})
         pmids = es.get("idlist", []) or []
         query_translation = es.get("querytranslation")
@@ -206,19 +222,22 @@ class PubMedClient:
                 oa_url = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid}/pdf/"
 
             results.append(
-                {
-                    "pmid": str(pmid),
-                    "pmcid": pmcid,
-                    "doi": doi,
-                    "title": title,
-                    "authors": authors,
-                    "journal": journal,
-                    "pub_year": pub_year,
-                    "abstract": abstract,
-                    "publication_types": publication_types,
-                    "is_open_access": is_oa,
-                    "oa_url": oa_url,
-                }
+                enrich_search_result(
+                    {
+                        "pmid": str(pmid),
+                        "pmcid": pmcid,
+                        "doi": doi,
+                        "title": title,
+                        "authors": authors,
+                        "journal": journal,
+                        "pub_year": pub_year,
+                        "abstract": abstract,
+                        "publication_types": publication_types,
+                        "is_open_access": is_oa,
+                        "oa_url": oa_url,
+                        "source": "pubmed",
+                    }
+                )
             )
 
         return {"results": results, "query_translation": query_translation}

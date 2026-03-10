@@ -10,6 +10,8 @@ from app.config import settings
 
 
 class CacheManager:
+    SEARCH_SCHEMA_VERSION = 2
+
     def __init__(self):
         self._redis = None
 
@@ -49,6 +51,7 @@ class CacheManager:
         source: str = "pubmed",
     ) -> str:
         normalized = {
+            "schema_version": self.SEARCH_SCHEMA_VERSION,
             "source": source,
             "q": query.strip(),
             "filters": filters or {},

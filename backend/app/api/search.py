@@ -15,6 +15,7 @@ from app.services.cache import cache
 from app.services.federated_search import federated_search
 from app.services.permissions import require_project_access
 from app.services.pubmed import pubmed_client
+from app.services.search_results import enrich_search_result
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -50,7 +51,7 @@ async def search_pubmed(
     if cached_payload:
         return SearchResponse(**{**cached_payload, "cached": True})
 
-    data = await pubmed_client.search_and_fetch(payload.query, max_results=payload.max_results)
+    data = await pubmed_client.search_and_fetch(payload.query, max_results=payload.max_results, filters=payload.filters)
     results = data["results"]
 
     search = Search(
@@ -194,7 +195,8 @@ async def get_search_results(
     q2 = await db.execute(select(SearchResult).where(SearchResult.search_id == search.id))
     results = q2.scalars().all()
     return [
-        {
+        enrich_search_result(
+            {
             "id": str(r.id),
             "pmid": r.pmid,
             "pmcid": r.pmcid,
@@ -209,6 +211,7 @@ async def get_search_results(
             "is_open_access": r.is_open_access,
             "oa_url": r.oa_url,
         }
+        )
         for r in results
     ]
 
