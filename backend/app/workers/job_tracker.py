@@ -11,11 +11,15 @@ from app.services.jobs import queue_name_for_job_type
 from app.core.metrics import job_failures_total
 from app.models.job import Job
 
+IMMUTABLE_JOB_STATUSES = {"cancelled", "completed"}
+
 
 async def job_mark_started(job_id: UUID) -> None:
     async with async_session_maker() as db:
         job = await db.get(Job, job_id)
         if not job:
+            return
+        if job.status in IMMUTABLE_JOB_STATUSES:
             return
         rq_job = get_current_job()
         job.status = "started"
@@ -43,6 +47,8 @@ async def job_set_progress(job_id: UUID, percent: int, status: str = "progress",
         job = await db.get(Job, job_id)
         if not job:
             return
+        if job.status in IMMUTABLE_JOB_STATUSES:
+            return
         job.status = status
         job.progress_percent = percent
         job.started_at = job.started_at or datetime.utcnow()
@@ -56,6 +62,8 @@ async def job_mark_completed(job_id: UUID, result: dict[str, Any] | None = None)
     async with async_session_maker() as db:
         job = await db.get(Job, job_id)
         if not job:
+            return
+        if job.status == "cancelled":
             return
         job.completed_at = job.completed_at or datetime.utcnow()
         await db.commit()
@@ -74,6 +82,8 @@ async def job_mark_failed(job_id: UUID, error_message: str) -> None:
     async with async_session_maker() as db:
         job = await db.get(Job, job_id)
         if not job:
+            return
+        if job.status in IMMUTABLE_JOB_STATUSES:
             return
         job.status = "failed"
         job.error_message = error_message
