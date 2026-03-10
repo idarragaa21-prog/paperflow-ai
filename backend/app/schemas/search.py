@@ -44,6 +44,9 @@ class SearchResponse(BaseModel):
     query_translation: str | None = None
     cached: bool = False
     sources: list[str] = []
+    partial_success: bool = False
+    provider_status: dict[str, str] = {}
+    warnings: list[str] = []
 
 
 class SearchRecordResponse(BaseModel):

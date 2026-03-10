@@ -144,6 +144,12 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
 
     europe_results: list[dict[str, Any]] = []
     doaj_results: list[dict[str, Any]] = []
+    provider_status: dict[str, str] = {
+        "pubmed": "ok",
+        "europepmc": "ok",
+        "doaj": "ok",
+    }
+    warnings: list[str] = []
     results_or_errors = await asyncio.gather(
         _search_europe_pmc(query, max_results=max_results),
         _search_doaj(query, max_results=max_results),
@@ -151,10 +157,14 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
     )
     if isinstance(results_or_errors[0], Exception):
         logger.warning(f"Federated search Europe PMC failure: {results_or_errors[0]}")
+        provider_status["europepmc"] = "error"
+        warnings.append("Europe PMC no respondió")
     else:
         europe_results = results_or_errors[0]
     if isinstance(results_or_errors[1], Exception):
         logger.warning(f"Federated search DOAJ failure: {results_or_errors[1]}")
+        provider_status["doaj"] = "error"
+        warnings.append("DOAJ no respondió")
     else:
         doaj_results = results_or_errors[1]
 
@@ -181,4 +191,7 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
         "query_translation": pubmed.get("query_translation"),
         "cached": False,
         "sources": ["pubmed", "europepmc", "doaj"],
+        "partial_success": any(status != "ok" for status in provider_status.values()),
+        "provider_status": provider_status,
+        "warnings": warnings,
     }

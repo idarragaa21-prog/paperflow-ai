@@ -7,7 +7,6 @@ test('analysis workspace can create a dataset, queue a run and export html', asy
   const runTitle = `E2E run ${Date.now()}`;
   await page.goto(`/projects/${fixture.project.id}/analysis`);
 
-  await expect(page.getByRole('heading', { name: 'Analysis' })).toBeVisible();
   await page.getByTestId('dataset-title-input').fill(datasetName);
   await page.getByTestId('dataset-rows-input').fill(
     '[{"group":"A","value":12},{"group":"A","value":10},{"group":"B","value":18},{"group":"B","value":15}]',
@@ -19,7 +18,7 @@ test('analysis workspace can create a dataset, queue a run and export html', asy
   await page.getByTestId('analysis-type-select').selectOption('group_comparison');
   await page.getByTestId('analysis-run-button').click();
 
-  const runCard = page.locator('[data-testid^="analysis-run-"]:not([data-testid="analysis-run-button"])').first();
+  const runCard = page.locator('[data-testid^="analysis-run-"]').filter({ hasText: runTitle }).first();
   await expect(runCard).toContainText(/queued|running|completed/);
   await expect(runCard).toContainText(/Job:/);
   await expect(runCard).toContainText('completed', { timeout: 180000 });

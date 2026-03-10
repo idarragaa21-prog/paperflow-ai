@@ -29,6 +29,10 @@ function StatusPill({ status }: { status: string }) {
       ? 'rc-badge rc-badge--success'
       : status === 'failed'
         ? 'rc-badge rc-badge--danger'
+        : status === 'cancelled'
+          ? 'rc-badge'
+          : status === 'retry_pending'
+            ? 'rc-badge rc-badge--info'
         : status === 'started' || status === 'progress'
           ? 'rc-badge rc-badge--info'
           : 'rc-badge';
@@ -44,7 +48,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const runningJobs = useMemo(() => jobs.filter((job) => ['queued', 'started', 'progress'].includes(job.status)), [jobs]);
+  const runningJobs = useMemo(() => jobs.filter((job) => ['queued', 'started', 'progress', 'retry_pending'].includes(job.status)), [jobs]);
   const failedJobs = useMemo(() => jobs.filter((job) => job.status === 'failed').length, [jobs]);
   const completedJobs = useMemo(() => jobs.filter((job) => job.status === 'completed').length, [jobs]);
 
@@ -91,6 +95,17 @@ export default function JobsPage() {
     }
   }
 
+  async function retry(id: string) {
+    setError(null);
+    try {
+      await api.post(`/jobs/${id}/retry`);
+      toast.success('Reintento encolado', `Job ${id}`);
+      await load();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'El reintento fallo');
+    }
+  }
+
   useEffect(() => {
     void load();
   }, []);
@@ -126,7 +141,7 @@ export default function JobsPage() {
         <div className="rc-toolbar">
           <div>
             <div className="rc-card-title" style={{ marginBottom: 4 }}>Salud de la cola</div>
-            <div className="rc-help">{runningJobs.length ? 'Los jobs en ejecucion se consultan automaticamente cada pocos segundos.' : 'No hay jobs activos ahora mismo.'}</div>
+            <div className="rc-help">{runningJobs.length ? 'Los jobs activos se consultan automaticamente. Si una cola o Redis fallan, el problema se mostrara aqui.' : 'No hay jobs activos ahora mismo.'}</div>
           </div>
           <button className="rc-btn" onClick={() => void load()} disabled={loading}>
             {loading ? 'Actualizando...' : 'Actualizar cola'}
@@ -189,9 +204,14 @@ export default function JobsPage() {
 
             <div className="rc-row">
               <button className="rc-btn" onClick={() => void pollJob(job.id)}>Consultar ahora</button>
-              {['queued', 'started', 'progress'].includes(job.status) ? (
+              {['queued', 'started', 'progress', 'retry_pending'].includes(job.status) ? (
                 <button className="rc-btn rc-btn--ghost" onClick={() => void cancel(job.id)}>
                   Cancelar
+                </button>
+              ) : null}
+              {['failed', 'retry_pending'].includes(job.status) ? (
+                <button className="rc-btn" onClick={() => void retry(job.id)}>
+                  Reintentar
                 </button>
               ) : null}
             </div>

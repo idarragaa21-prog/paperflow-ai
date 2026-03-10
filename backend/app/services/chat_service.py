@@ -60,6 +60,14 @@ def _block_response(retrieved: list[dict[str, Any]]) -> tuple[str, float, str]:
     )
 
 
+def _dependency_failure_response(code: str) -> tuple[str, float, str]:
+    return (
+        "No se pudo generar una respuesta fiable porque una dependencia del lector no está disponible en este momento.",
+        0.0,
+        code,
+    )
+
+
 def _build_messages(question: str, retrieved: list[dict[str, Any]], *, max_citations: int) -> tuple[str, str]:
     evidence_lines = []
     for index, item in enumerate(retrieved[:max_citations], start=1):
@@ -120,11 +128,11 @@ async def _generate_grounded_answer(
     retrieved: list[dict[str, Any]],
     route,
     max_citations: int,
-) -> tuple[str, float, str, str, float]:
+) -> tuple[str, float, str, str | None, float, str | None]:
     strong_hits = [item for item in retrieved if float(item.get("final_score") or item.get("score") or 0.0) >= settings.CHAT_MIN_GROUNDED_SCORE]
     if len(strong_hits) < settings.CHAT_MIN_RETRIEVED_CHUNKS:
         answer, confidence, blocked_reason = _block_response(retrieved)
-        return answer, confidence, "dato", blocked_reason, 0.0
+        return answer, confidence, "dato", blocked_reason, 0.0, None
 
     system, user = _build_messages(question, strong_hits, max_citations=max_citations)
     adapter = _adapter_for_route(route)
@@ -138,8 +146,8 @@ async def _generate_grounded_answer(
         )
         payload = _parse_model_json(response.text)
     except Exception:
-        answer, confidence, blocked_reason = _block_response(retrieved)
-        return answer, confidence, "dato", "generation_unavailable", 0.0
+        answer, confidence, dependency_error_code = _dependency_failure_response("generation_unavailable")
+        return answer, confidence, "dato", None, 0.0, dependency_error_code
     grounding_score = _grounding_score(strong_hits, max_citations=max_citations)
     model_confidence = float(payload.get("confidence") or 0.0)
     if model_confidence > 1:
@@ -147,12 +155,13 @@ async def _generate_grounded_answer(
     confidence = max(0.0, min(0.99, (grounding_score * 0.65) + (model_confidence * 0.35)))
     answer = str(payload.get("answer") or "").strip()
     blocked_reason = payload.get("blocked_reason")
+    dependency_error_code = None
     claim_type = _normalized_claim_type(str(payload.get("claim_type") or "resumen"), grounded=blocked_reason is None)
     if not answer:
-        answer = "No se pudo generar una respuesta grounded."
-        blocked_reason = blocked_reason or "empty_model_response"
+        answer, confidence, dependency_error_code = _dependency_failure_response("empty_model_response")
+        blocked_reason = None
         confidence = 0.0
-    return answer, confidence, claim_type, blocked_reason, grounding_score
+    return answer, confidence, claim_type, blocked_reason, grounding_score, dependency_error_code
 
 
 async def _get_or_create_session(
@@ -227,13 +236,13 @@ async def ask(
         limit=max_citations + 3,
     )
 
-    answer_text, confidence, claim_type, blocked_reason, grounding_score = await _generate_grounded_answer(
+    answer_text, confidence, claim_type, blocked_reason, grounding_score, dependency_error_code = await _generate_grounded_answer(
         question=question,
         retrieved=retrieved,
         route=route,
         max_citations=max_citations,
     )
-    grounded = blocked_reason is None
+    grounded = blocked_reason is None and dependency_error_code is None
     retrieval_trace = _build_retrieval_trace(retrieved)
     answer_message = ChatMessage(
         session_id=session.id,
@@ -246,6 +255,7 @@ async def ask(
         metadata_json={
             "route": route.__dict__,
             "blocked_reason": blocked_reason,
+            "dependency_error_code": dependency_error_code,
             "retrieval_trace": retrieval_trace,
             "model_name": route.model,
             "prompt_version": PROMPT_VERSION,
@@ -290,7 +300,7 @@ async def ask(
     await db.commit()
     if grounded:
         chat_grounded_answers_total.inc()
-    else:
+    elif blocked_reason is not None:
         chat_blocked_answers_total.inc()
 
     response = {
@@ -301,6 +311,7 @@ async def ask(
         "grounded": grounded,
         "citations": citations,
         "blocked_reason": blocked_reason,
+        "dependency_error_code": dependency_error_code,
         "model_name": route.model,
         "grounding_score": grounding_score,
     }

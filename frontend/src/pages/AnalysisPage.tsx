@@ -28,6 +28,7 @@ export default function AnalysisPage() {
   const [analysisTitle, setAnalysisTitle] = useState('Comparacion de grupos');
   const [analysisType, setAnalysisType] = useState('group_comparison');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -60,11 +61,13 @@ export default function AnalysisPage() {
     if (!projectId) return;
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       const rows = JSON.parse(rowsText) as Array<Record<string, unknown>>;
       const response = await api.post('/datasets', { project_id: projectId, title: datasetTitle, rows });
       const dataset = response.data as Dataset;
       setSelectedDataset(dataset.id);
+      setNotice(`Conjunto de datos "${dataset.title}" creado.`);
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'No se pudo crear el dataset');
@@ -77,6 +80,7 @@ export default function AnalysisPage() {
     if (!projectId) return;
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       const response = await api.post('/analysis-runs', {
         project_id: projectId,
@@ -91,6 +95,7 @@ export default function AnalysisPage() {
               : {},
       });
       setRuns((prev) => [response.data as AnalysisRun, ...prev]);
+      setNotice('La corrida de analisis quedó encolada. Sigue su estado abajo.');
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'No se pudo ejecutar el analisis');
@@ -100,6 +105,8 @@ export default function AnalysisPage() {
   }
 
   async function exportRun(runId: string, format: 'html' | 'pdf' | 'docx') {
+    setError(null);
+    setNotice(null);
     try {
       const response = await api.post(`/analysis-runs/${runId}/export`, null, { params: { format }, responseType: 'blob' });
       const blob = response.data as Blob;
@@ -111,7 +118,18 @@ export default function AnalysisPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      setNotice(`Exportacion ${format.toUpperCase()} lista.`);
     } catch (e: any) {
+      if (e?.response?.data instanceof Blob) {
+        try {
+          const text = await e.response.data.text();
+          const payload = JSON.parse(text);
+          setError(payload?.detail || 'No se pudo exportar el analisis');
+          return;
+        } catch {
+          // fall through
+        }
+      }
       setError(e?.response?.data?.detail || 'No se pudo exportar el analisis');
     }
   }
@@ -132,6 +150,7 @@ export default function AnalysisPage() {
       </div>
 
       {error ? <div className="rc-error">{error}</div> : null}
+      {notice ? <div className="rc-help">{notice}</div> : null}
 
       <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
         <div className="rc-card">
@@ -198,6 +217,9 @@ export default function AnalysisPage() {
             <div style={{ fontWeight: 800 }}>{run.title}</div>
             <div className="rc-help">{run.analysis_type} · {run.status}</div>
             {run.runtime_metadata?.job_id ? <div className="rc-help">Job: {run.runtime_metadata.job_id}</div> : null}
+            {run.runtime_metadata?.artifact_manifest?.length ? (
+              <div className="rc-help">Artefactos: {run.runtime_metadata.artifact_manifest.map((item) => item.format || item.artifact_type).join(', ')}</div>
+            ) : null}
             {run.warnings?.length ? <div className="rc-help">Alertas: {run.warnings.join(' | ')}</div> : null}
             <div className="rc-row">
               <button data-testid={`analysis-export-html-${run.id}`} className="rc-btn" onClick={() => exportRun(run.id, 'html')} disabled={run.status !== 'completed'}>HTML</button>

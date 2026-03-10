@@ -18,17 +18,14 @@ from app.services.pubmed import pubmed_client
 
 router = APIRouter(prefix="/search", tags=["search"])
 
-
-async def _search_result_exists(db: AsyncSession, *, pmid: str | None, doi: str | None) -> bool:
-    if pmid:
-        existing = await db.execute(select(SearchResult.id).where(SearchResult.pmid == pmid).limit(1))
-        if existing.scalar_one_or_none():
-            return True
-    if doi:
-        existing = await db.execute(select(SearchResult.id).where(SearchResult.doi == doi).limit(1))
-        if existing.scalar_one_or_none():
-            return True
-    return False
+def _search_result_key(result: dict) -> str:
+    for key in ("doi", "pmid", "pmcid"):
+        value = str(result.get(key) or "").strip().lower()
+        if value:
+            return f"{key}:{value}"
+    title = str(result.get("title") or "").strip().lower()
+    year = str(result.get("pub_year") or "")
+    return f"title:{title}:{year}"
 
 
 @router.post("/pubmed", response_model=SearchResponse)
@@ -42,7 +39,12 @@ async def search_pubmed(
     await require_project_access(db, project_id=payload.project_id, user=user, required_role="viewer")
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
-    cache_key = cache.generate_search_key(payload.query, filters_dict)
+    cache_key = cache.generate_search_key(
+        payload.query,
+        filters_dict,
+        max_results=payload.max_results,
+        source="pubmed",
+    )
 
     cached_payload = await cache.get(cache_key)
     if cached_payload:
@@ -62,13 +64,14 @@ async def search_pubmed(
     db.add(search)
     await db.flush()
 
+    seen_keys: set[str] = set()
     for r in results:
+        dedupe_key = _search_result_key(r)
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
         pmid = r.get("pmid")
         doi = r.get("doi")
-
-        # Dedup safety for partial unique constraints on pmid/doi.
-        if await _search_result_exists(db, pmid=pmid, doi=doi):
-            continue
 
         sr = SearchResult(
             search_id=search.id,
@@ -95,6 +98,9 @@ async def search_pubmed(
         "query_translation": data.get("query_translation"),
         "cached": False,
         "sources": ["pubmed"],
+        "partial_success": False,
+        "provider_status": {"pubmed": "ok"},
+        "warnings": [],
     }
     await cache.set(cache_key, response_payload, ttl=3600)
 
@@ -112,7 +118,12 @@ async def search_federated(
     await require_project_access(db, project_id=payload.project_id, user=user, required_role="viewer")
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
-    cache_key = cache.generate_search_key(f"federated::{payload.query}", filters_dict)
+    cache_key = cache.generate_search_key(
+        payload.query,
+        filters_dict,
+        max_results=payload.max_results,
+        source="federated",
+    )
     cached_payload = await cache.get(cache_key)
     if cached_payload:
         return SearchResponse(**{**cached_payload, "cached": True})
@@ -131,11 +142,14 @@ async def search_federated(
     db.add(search)
     await db.flush()
 
+    seen_keys: set[str] = set()
     for r in results:
+        dedupe_key = _search_result_key(r)
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
         pmid = r.get("pmid")
         doi = r.get("doi")
-        if await _search_result_exists(db, pmid=pmid, doi=doi):
-            continue
 
         sr = SearchResult(
             search_id=search.id,

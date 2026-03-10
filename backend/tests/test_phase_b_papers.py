@@ -23,10 +23,24 @@ class FakeProject:
 
 
 class FakeDB:
+    def __init__(self):
+        self.added = []
+
     def add(self, obj):
+        if getattr(obj, "id", None) is None:
+            try:
+                obj.id = uuid.uuid4()
+            except Exception:
+                pass
+        self.added.append(obj)
         return None
 
     async def commit(self):
+        return None
+
+    async def refresh(self, obj):
+        if getattr(obj, "id", None) is None:
+            obj.id = uuid.uuid4()
         return None
 
 
@@ -265,3 +279,58 @@ async def test_upload_duplicate_by_hash(monkeypatch):
         assert body["id"] == str(existing.id)
 
     app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_batch_download_enqueues_for_editor(monkeypatch):
+    from app.api import deps
+    from app.api.papers import get_repo
+
+    user_id = "00000000-0000-0000-0000-000000000000"
+    project_id = "11111111-1111-1111-1111-111111111111"
+    repo = FakeRepo(user_id, project_id)
+
+    async def repo_override():
+        return repo
+
+    async def fake_get_db():
+        yield None
+
+    async def fake_access(db, project_id, user, required_role="viewer"):
+        return FakeProject(str(project_id), str(user.id)), type("Membership", (), {"role": required_role})()
+
+    class U:
+        id = uuid.UUID(user_id)
+        is_active = True
+
+    async def fake_user(request=None, db=None):
+        return U()
+
+    monkeypatch.setattr("app.api.papers.require_project_access", fake_access)
+    monkeypatch.setattr("app.api.papers.enqueue_with_retry", lambda queue_name, func, args, job_timeout: "rq-123")
+
+    app.dependency_overrides[get_repo] = repo_override
+    app.dependency_overrides[deps.get_db] = fake_get_db
+    app.dependency_overrides[deps.get_current_user] = fake_user
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        ac.cookies.set("csrf_token", "abc")
+        ac.cookies.set("access_token", create_access_token(user_id))
+        resp = await ac.post(
+            "/papers/batch-download",
+            json={
+                "project_id": project_id,
+                "papers": [{"doi": "10.1000/test", "title": "Alpha paper"}],
+            },
+            headers={"X-CSRF-Token": "abc"},
+        )
+
+    app.dependency_overrides = {}
+
+    assert resp.status_code == 200
+    assert resp.json()["job_id"]
+    job_records = [obj for obj in repo.db.added if obj.__class__.__name__ == "Job"]
+    assert len(job_records) == 1
+    assert job_records[0].queue_name == "documents"
+    assert job_records[0].result["rq_job_id"] == "rq-123"

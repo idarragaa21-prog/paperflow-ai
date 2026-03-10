@@ -23,6 +23,9 @@ type SearchResponse = {
   query_translation?: string | null;
   cached: boolean;
   sources?: string[];
+  partial_success?: boolean;
+  provider_status?: Record<string, string>;
+  warnings?: string[];
 };
 
 function sourceHref(result: PaperMetadata) {
@@ -271,13 +274,26 @@ export default function SearchPage() {
               <div className="rc-help">
                 Revisa primero los articulos <b>listos para guardar</b>. Si un resultado no tiene PDF descargable, úsalo solo como referencia con <b>Abrir fuente</b>.
               </div>
+              {data.partial_success ? (
+                <div className="rc-help" style={{ marginTop: 8 }}>
+                  La busqueda fue parcial. Algunas fuentes externas no respondieron, pero los resultados visibles son válidos.
+                </div>
+              ) : null}
             </div>
             <div className="rc-chip-list">
               <span className="rc-chip">Resultados: {data.count}{data.cached ? ' en cache' : ''}</span>
               {data.query_translation ? <span className="rc-chip">Traduccion: {data.query_translation}</span> : null}
               {data.sources?.length ? <span className="rc-chip">Fuentes: {data.sources.join(', ')}</span> : null}
+              {data.partial_success ? <span className="rc-chip">Busqueda parcial</span> : null}
             </div>
           </div>
+
+          {data.warnings?.length ? (
+            <div className="rc-card">
+              <div className="rc-card-title" style={{ marginBottom: 6 }}>Alertas de proveedores</div>
+              <div className="rc-help">{data.warnings.join(' · ')}</div>
+            </div>
+          ) : null}
 
           {loading ? (
             <div className="rc-card">

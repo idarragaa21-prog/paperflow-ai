@@ -29,6 +29,9 @@ type ChatResult = {
   confidence: number;
   grounded: boolean;
   citations: Citation[];
+  blocked_reason?: string | null;
+  dependency_error_code?: string | null;
+  grounding_score?: number | null;
 };
 
 const QUESTION_PRESETS = [
@@ -140,8 +143,18 @@ export default function ReaderPage() {
           {!result ? <div className="rc-muted">Todavia no hay respuesta.</div> : null}
           {result ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {result.dependency_error_code ? (
+                <div className="rc-error">
+                  El lector no pudo responder por un problema de infraestructura ({result.dependency_error_code}).
+                </div>
+              ) : null}
+              {result.blocked_reason ? (
+                <div className="rc-help">
+                  Respuesta bloqueada por evidencia insuficiente ({result.blocked_reason}).
+                </div>
+              ) : null}
               <div className="rc-help">
-                {result.claim_type} · confianza {result.confidence.toFixed(2)} · {result.grounded ? 'con evidencia' : 'sin evidencia suficiente'}
+                {result.claim_type} · confianza {result.confidence.toFixed(2)} · {result.grounded ? 'con evidencia' : (result.dependency_error_code ? 'fallo de dependencia' : 'sin evidencia suficiente')}
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{result.answer}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

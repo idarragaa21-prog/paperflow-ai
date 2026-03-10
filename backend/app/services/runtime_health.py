@@ -7,6 +7,19 @@ import httpx
 from app.config import settings
 from app.core.redis_conn import redis_available
 from app.core.storage import storage_manager
+
+
+def _feature_status(*, enabled: bool, degraded: bool = False, detail: str | None = None) -> dict:
+    if degraded:
+        status = "degraded"
+    else:
+        status = "enabled" if enabled else "disabled"
+    payload = {"status": status}
+    if detail:
+        payload["detail"] = detail
+    return payload
+
+
 async def collect_runtime_health() -> dict:
     required_services: dict[str, dict] = {
         "redis": {"status": "ok" if redis_available() else "down"},
@@ -76,4 +89,13 @@ async def collect_runtime_health() -> dict:
         "overall_status": overall,
         "required_services": required_services,
         "optional_services": optional_services,
+        "optional_features": {
+            "rate_limit": _feature_status(
+                enabled=settings.RATE_LIMIT_ENABLED and redis_available(),
+                degraded=settings.RATE_LIMIT_ENABLED and not redis_available(),
+                detail="Redis requerido para rate limiting" if settings.RATE_LIMIT_ENABLED and not redis_available() else None,
+            ),
+            "ocr": _feature_status(enabled=settings.OCR_ENABLED),
+            "grobid": _feature_status(enabled=settings.GROBID_ENABLED),
+        },
     }

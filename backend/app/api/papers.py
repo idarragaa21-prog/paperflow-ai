@@ -23,7 +23,7 @@ from app.schemas.papers import (
     PapersBatchDownloadRequest,
 )
 from app.services.audit import log_audit
-from app.services.jobs import enqueue_process_pdf, get_job_queue
+from app.services.jobs import enqueue_process_pdf, enqueue_with_retry
 from app.services.pagination import apply_desc_cursor, encode_cursor
 from app.services.paper_repo import SQLPaperRepository
 from app.services.paper_service import PaperDownloadService, PaperServiceError, sha256_hex
@@ -182,7 +182,7 @@ async def batch_download(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=payload.project_id, user=user)
+    await require_project_access(repo.db, project_id=payload.project_id, user=user, required_role="editor")
 
     papers = [p.model_dump() for p in (payload.papers or [])]
     if not papers:
@@ -207,15 +207,19 @@ async def batch_download(
     try:
         from app.workers.tasks import batch_download_papers_job
 
-        q = get_job_queue("documents")
-        rq_job = q.enqueue(batch_download_papers_job, args=(str(job_record.id), str(payload.project_id), papers), job_timeout="60m")
+        rq_job_id = enqueue_with_retry(
+            "documents",
+            batch_download_papers_job,
+            args=(str(job_record.id), str(payload.project_id), papers),
+            job_timeout="60m",
+        )
     except Exception:
         job_record.status = "failed"
         job_record.error_message = "No se pudo encolar job (Redis no disponible?)"
         await repo.db.commit()
         raise HTTPException(status_code=503, detail="No se pudo encolar job")
 
-    job_record.result = {"rq_job_id": rq_job.id}
+    job_record.result = {"rq_job_id": rq_job_id}
     await repo.db.commit()
 
     await log_audit(

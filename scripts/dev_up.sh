@@ -56,6 +56,23 @@ start_if_not_running() {
   echo "[dev_up] $name started (pid=$(cat "$pid_file"))"
 }
 
+stop_app_process() {
+  local name="$1"
+  local pid_file="$LOG_DIR/${name}.pid"
+
+  if [[ -f "$pid_file" ]]; then
+    local pid
+    pid="$(cat "$pid_file" || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      echo "[dev_up] restarting $name (pid=$pid)"
+      kill "$pid" 2>/dev/null || true
+      sleep 1
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+}
+
 copy_if_missing "$ROOT_DIR/.env.example" "$ROOT_DIR/.env"
 copy_if_missing "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
 copy_if_missing "$FRONTEND_DIR/.env.example" "$FRONTEND_DIR/.env"
@@ -96,6 +113,16 @@ fi
 
 echo "[dev_up] applying migrations..."
 (cd "$BACKEND_DIR" && source .venv/bin/activate && alembic upgrade head)
+
+# Force app-service restart so backend/frontend/workers always inherit the same runtime env.
+stop_app_process frontend
+stop_app_process worker-analysis
+stop_app_process worker-presentations
+stop_app_process worker-documents
+stop_app_process backend
+pkill -f "uvicorn app.main:app --host 127.0.0.1 --port 8000" 2>/dev/null || true
+pkill -f "python -m app.workers.worker" 2>/dev/null || true
+pkill -f "vite --host 127.0.0.1 --port 5173" 2>/dev/null || true
 
 start_if_not_running backend bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && exec uvicorn app.main:app --host 127.0.0.1 --port 8000"
 start_if_not_running worker-documents bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && export WORKER_QUEUES=documents OTEL_SERVICE_NAME=paperflow-worker-documents && exec python -m app.workers.worker"

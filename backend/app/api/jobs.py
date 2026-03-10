@@ -91,8 +91,8 @@ async def cancel_job(
         except Exception:
             pass
 
-    # Mark as failed/cancelled (stable semantics)
-    job.status = "failed"
+    # Keep explicit cancellation semantics for the UI.
+    job.status = "cancelled"
     job.error_message = "Cancelled by user"
     job.completed_at = job.completed_at or datetime.utcnow()
     await db.commit()
@@ -145,6 +145,18 @@ async def get_job(
     job = await db.get(Job, job_id)
     if not job or job.user_id != user.id:
         raise HTTPException(status_code=404, detail="Job no encontrado")
+
+    if job.status == "cancelled":
+        return {
+            "id": str(job.id),
+            "status": job.status,
+            "progress_percent": job.progress_percent or 0,
+            "queue_name": job.queue_name,
+            "attempt": job.attempt,
+            "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
+            "result": job.result,
+            "error": job.error_message,
+        }
 
     # En development Redis puede estar apagado → 503
     if not redis_available():
