@@ -49,9 +49,11 @@ export default function ReaderPage() {
   const [result, setResult] = useState<ChatResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requestState, setRequestState] = useState<'idle' | 'loading' | 'success' | 'blocked' | 'dependency_error' | 'error'>('idle');
 
   async function loadPapers() {
     if (!projectId) return;
+    setError(null);
     const response = await api.get(`/projects/${projectId}/library`, { params: { limit: 100 } });
     const page = response.data as PaginatedResponse<PaperOption>;
     setPapers(page.items);
@@ -65,15 +67,26 @@ export default function ReaderPage() {
     if (!projectId || !question.trim()) return;
     setLoading(true);
     setError(null);
+    setResult(null);
+    setRequestState('loading');
     try {
       const payload = { question, task_type: 'chat', max_citations: 4 };
       const response =
         paperId === 'project'
           ? await api.post(`/projects/${projectId}/chat`, payload)
           : await api.post(`/papers/${paperId}/chat`, payload);
-      setResult(response.data as ChatResult);
+      const nextResult = response.data as ChatResult;
+      setResult(nextResult);
+      if (nextResult.dependency_error_code) {
+        setRequestState('dependency_error');
+      } else if (nextResult.blocked_reason) {
+        setRequestState('blocked');
+      } else {
+        setRequestState('success');
+      }
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'La consulta al lector fallo');
+      setRequestState('error');
     } finally {
       setLoading(false);
     }
@@ -140,7 +153,8 @@ export default function ReaderPage() {
 
         <div data-testid="reader-answer-panel" className="rc-card">
           <div className="rc-card-title">Respuesta</div>
-          {!result ? <div className="rc-muted">Todavia no hay respuesta.</div> : null}
+          {requestState === 'loading' ? <div className="rc-help">Consultando la evidencia recuperada…</div> : null}
+          {!result && requestState !== 'loading' ? <div className="rc-muted">Todavia no hay respuesta.</div> : null}
           {result ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {result.dependency_error_code ? (
@@ -153,7 +167,7 @@ export default function ReaderPage() {
                   Respuesta bloqueada por evidencia insuficiente ({result.blocked_reason}).
                 </div>
               ) : null}
-              <div className="rc-help">
+              <div className="rc-help" data-testid="reader-answer-state">
                 {result.claim_type} · confianza {result.confidence.toFixed(2)} · {result.grounded ? 'con evidencia' : (result.dependency_error_code ? 'fallo de dependencia' : 'sin evidencia suficiente')}
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{result.answer}</div>

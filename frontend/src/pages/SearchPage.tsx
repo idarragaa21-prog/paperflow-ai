@@ -28,6 +28,12 @@ type SearchResponse = {
   warnings?: string[];
 };
 
+type ResultUiState = {
+  openStatus?: 'idle' | 'opening' | 'opened' | 'error';
+  saveStatus?: 'idle' | 'saving' | 'saved' | 'duplicate' | 'error';
+  error?: string | null;
+};
+
 function sourceHref(result: PaperMetadata) {
   if (result.oa_url) return result.oa_url;
   if (result.doi) return `https://doi.org/${encodeURIComponent(result.doi)}`;
@@ -51,10 +57,9 @@ export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [maxResults, setMaxResults] = useState<number>(20);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(null);
-  const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
-  const [savedResults, setSavedResults] = useState<Record<string, 'saved' | 'duplicate'>>({});
+  const [resultStates, setResultStates] = useState<Record<string, ResultUiState>>({});
 
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
@@ -67,7 +72,7 @@ export default function SearchPage() {
   async function runSearch() {
     if (!projectId) return;
     setLoading(true);
-    setError(null);
+    setPageError(null);
     try {
       const r = await api.post('/search/federated', {
         project_id: projectId,
@@ -76,22 +81,50 @@ export default function SearchPage() {
       });
       setData(r.data as SearchResponse);
       setSelected({});
-      setSavedResults({});
+      setResultStates({});
       setBatchJobId(null);
       setBatchJob(null);
       setBatchModalOpen(false);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'La busqueda fallo');
+      setPageError(e?.response?.data?.detail || 'La busqueda fallo');
     } finally {
       setLoading(false);
     }
   }
 
+  function patchResultState(key: string, next: Partial<ResultUiState>) {
+    setResultStates((prev) => ({
+      ...prev,
+      [key]: {
+        openStatus: 'idle',
+        saveStatus: 'idle',
+        error: null,
+        ...(prev[key] || {}),
+        ...next,
+      },
+    }));
+  }
+
+  function openSource(r: PaperMetadata, key: string) {
+    const href = sourceHref(r);
+    if (!href) {
+      patchResultState(key, { openStatus: 'error', error: 'Este resultado solo tiene metadatos y no ofrece una fuente abrible.' });
+      return;
+    }
+    patchResultState(key, { openStatus: 'opening', error: null });
+    const popup = window.open(href, '_blank', 'noopener,noreferrer');
+    if (!popup) {
+      patchResultState(key, { openStatus: 'error', error: 'El navegador bloqueo la apertura de la fuente. Permite popups o abre el enlace manualmente.' });
+      return;
+    }
+    patchResultState(key, { openStatus: 'opened' });
+  }
+
   async function downloadOA(r: PaperMetadata) {
     if (!projectId) return;
     const key = resultKey(r);
-    setDownloadingKey(key);
-    setError(null);
+    patchResultState(key, { saveStatus: 'saving', error: null });
+    setPageError(null);
     try {
       const payload: any = {
         project_id: projectId,
@@ -102,12 +135,12 @@ export default function SearchPage() {
 
       const resp = await api.post('/papers/download', payload);
       const duplicate = Boolean(resp.data?.duplicate);
-      setSavedResults((prev) => ({ ...prev, [key]: duplicate ? 'duplicate' : 'saved' }));
+      patchResultState(key, { saveStatus: duplicate ? 'duplicate' : 'saved', error: null });
       toast.info(duplicate ? 'Duplicado' : 'Guardado', duplicate ? 'El paper ya existe en este proyecto.' : 'PDF descargado y guardado.');
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'La descarga fallo');
+      patchResultState(key, { saveStatus: 'error', error: e?.response?.data?.detail || 'La descarga fallo' });
     } finally {
-      setDownloadingKey(null);
+      setSelected((prev) => ({ ...prev, [key]: false }));
     }
   }
 
@@ -159,7 +192,7 @@ export default function SearchPage() {
       toast.info('No hay papers seleccionados', 'Selecciona primero al menos un paper elegible con PDF abierto.');
       return;
     }
-    setError(null);
+    setPageError(null);
     try {
       const resp = await api.post('/papers/batch-download', {
         project_id: projectId,
@@ -170,7 +203,7 @@ export default function SearchPage() {
       setBatchJob({ status: 'queued', progress: 0, error: null });
       setBatchModalOpen(true);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'La descarga por lote fallo');
+      setPageError(e?.response?.data?.detail || 'La descarga por lote fallo');
     }
   }
 
@@ -178,6 +211,7 @@ export default function SearchPage() {
     if (!batchJobId) return;
     try {
       await api.post(`/jobs/${batchJobId}/cancel`);
+      setBatchJob((prev) => prev ? { ...prev, status: 'cancelled', error: prev.error || 'Cancelado por el usuario' } : prev);
     } catch {
       // ignore
     }
@@ -200,7 +234,7 @@ export default function SearchPage() {
 
         if (alive) setBatchJob({ status, progress, error, output });
 
-        if (status === 'completed' || status === 'failed') return;
+        if (status === 'completed' || status === 'failed' || status === 'cancelled') return;
       } catch (e: any) {
         if (alive) setBatchJob((prev) => prev || { status: 'queued', progress: 0, error: e?.message || 'La consulta del job fallo' });
       }
@@ -238,13 +272,13 @@ export default function SearchPage() {
           <div className="rc-row" style={{ alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 260 }}>
               <div className="rc-kicker">Pregunta de investigacion</div>
-              <input className="rc-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ej. metaanalisis reconstruccion ACL isquiotibiales vs BPTB" />
+              <input data-testid="search-query-input" className="rc-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ej. metaanalisis reconstruccion ACL isquiotibiales vs BPTB" />
             </div>
             <div style={{ width: 140 }}>
               <div className="rc-kicker">Maximo de resultados</div>
-              <input className="rc-input" type="number" value={maxResults} min={1} max={100} onChange={(e) => setMaxResults(Number(e.target.value))} />
+              <input data-testid="search-max-results-input" className="rc-input" type="number" value={maxResults} min={1} max={100} onChange={(e) => setMaxResults(Number(e.target.value))} />
             </div>
-            <button className="rc-btn rc-btn--primary" disabled={!canSearch || loading} onClick={runSearch}>
+            <button data-testid="search-submit-button" className="rc-btn rc-btn--primary" disabled={!canSearch || loading} onClick={runSearch}>
               {loading ? 'Buscando…' : 'Buscar'}
             </button>
           </div>
@@ -264,7 +298,7 @@ export default function SearchPage() {
         </div>
       </div>
 
-      {error ? <div className="rc-error">{String(error)}</div> : null}
+      {pageError ? <div className="rc-error">{String(pageError)}</div> : null}
 
       {data ? (
         <div className="rc-card-list">
@@ -332,8 +366,9 @@ export default function SearchPage() {
                   const key = resultKey(r, idx);
                   const canDownload = canSavePdf(r);
                   const isSelected = Boolean(selected[key]);
+                  const itemState = resultStates[key] || {};
                   const href = sourceHref(r);
-                  const savedState = savedResults[key];
+                  const savedState = itemState.saveStatus === 'saved' || itemState.saveStatus === 'duplicate' ? itemState.saveStatus : undefined;
                   return (
                     <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -352,24 +387,34 @@ export default function SearchPage() {
 
                       {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{r.abstract}</div> : null}
 
+                      {itemState.error ? <div className="rc-error">{itemState.error}</div> : null}
+
                       <div className="rc-row">
                         <button
+                          data-testid={`search-save-${idx}`}
                           className="rc-btn rc-btn--primary"
-                          disabled={!canDownload || Boolean(savedState) || downloadingKey === (r.doi || r.pmid || r.title)}
+                          disabled={!canDownload || Boolean(savedState) || itemState.saveStatus === 'saving'}
                           onClick={() => downloadOA(r)}
                         >
                           {savedState === 'saved'
                             ? 'Guardado en biblioteca'
                             : savedState === 'duplicate'
                               ? 'Ya esta en la biblioteca'
-                              : downloadingKey === (r.doi || r.pmid || r.title)
+                              : itemState.saveStatus === 'error'
+                                ? 'Reintentar guardado'
+                              : itemState.saveStatus === 'saving'
                                 ? 'Guardando…'
                                 : 'Guardar PDF en biblioteca'}
                         </button>
                         {href ? (
-                          <a className="rc-btn" href={href} target="_blank" rel="noreferrer">
-                            Abrir fuente
-                          </a>
+                          <button
+                            data-testid={`search-open-${idx}`}
+                            className="rc-btn"
+                            type="button"
+                            onClick={() => openSource(r, key)}
+                          >
+                            {itemState.openStatus === 'opening' ? 'Abriendo…' : itemState.openStatus === 'opened' ? 'Fuente abierta' : 'Abrir fuente'}
+                          </button>
                         ) : null}
                       </div>
                     </div>
@@ -386,6 +431,7 @@ export default function SearchPage() {
                 {reviewOnlyResults.map((r, idx) => {
                   const key = resultKey(r, idx);
                   const href = sourceHref(r);
+                  const itemState = resultStates[key] || {};
                   return (
                     <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -401,11 +447,18 @@ export default function SearchPage() {
 
                       {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{r.abstract}</div> : null}
 
+                      {itemState.error ? <div className="rc-error">{itemState.error}</div> : null}
+
                       <div className="rc-row">
                         {href ? (
-                          <a className="rc-btn rc-btn--primary" href={href} target="_blank" rel="noreferrer">
-                            Abrir fuente
-                          </a>
+                          <button
+                            data-testid={`search-open-review-${idx}`}
+                            className="rc-btn rc-btn--primary"
+                            type="button"
+                            onClick={() => openSource(r, key)}
+                          >
+                            {itemState.openStatus === 'opening' ? 'Abriendo…' : itemState.openStatus === 'opened' ? 'Fuente abierta' : 'Abrir fuente'}
+                          </button>
                         ) : null}
                         {!r.is_open_access ? <span className="rc-help">Los proveedores no lo marcan como acceso abierto descargable.</span> : null}
                         {r.is_open_access && !canSavePdf(r) ? <span className="rc-help">Hay acceso abierto, pero falta DOI o PMID para resolver el PDF.</span> : null}

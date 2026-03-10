@@ -27,5 +27,5 @@ test('references, drafts and screening workflows stay usable in the seeded fixtu
   await page.goto(`/projects/${fixture.project.id}/screening`);
   await page.getByTestId('screening-comment-input').fill('Playwright screening note');
   await page.getByTestId('screening-add-comment').click();
-  await expect(page.getByText('Playwright screening note')).toBeVisible();
+  await expect(page.locator('.rc-help').filter({ hasText: 'Playwright screening note' }).first()).toBeVisible();
 });

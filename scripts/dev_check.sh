@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HEALTH_URL="${PAPERFLOW_HEALTH_URL:-http://127.0.0.1:8000/health}"
+FRONTEND_URL="${PAPERFLOW_FRONTEND_URL:-http://127.0.0.1:5173}"
+LOG_DIR="$ROOT_DIR/.dev_logs"
 
 echo "[dev_check] checking $HEALTH_URL"
 
@@ -36,3 +38,34 @@ if reported_storage_backend != expected_storage_backend:
     )
     sys.exit(1)
 PY
+
+check_pid_file() {
+  local name="$1"
+  local pid_file="$LOG_DIR/${name}.pid"
+  if [[ ! -f "$pid_file" ]]; then
+    return 0
+  fi
+
+  local pid
+  pid="$(cat "$pid_file" || true)"
+  if [[ -z "$pid" ]]; then
+    echo "[dev_check] missing pid for $name" >&2
+    return 1
+  fi
+  if ! kill -0 "$pid" 2>/dev/null; then
+    echo "[dev_check] process for $name is not alive (pid=$pid)" >&2
+    return 1
+  fi
+  echo "[dev_check] process ok: $name (pid=$pid)"
+}
+
+check_pid_file backend
+check_pid_file worker-documents
+check_pid_file worker-presentations
+check_pid_file worker-analysis
+check_pid_file frontend
+
+if [[ -f "$LOG_DIR/frontend.pid" ]]; then
+  curl -fsS "$FRONTEND_URL" >/dev/null
+  echo "[dev_check] frontend reachable at $FRONTEND_URL"
+fi

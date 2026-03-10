@@ -56,4 +56,15 @@ export default async function globalSetup() {
 
   await context.storageState({ path: path.resolve(authDir, 'owner.json') });
   await context.dispose();
+
+  const reviewerContext = await request.newContext({ baseURL: apiURL });
+  const reviewerResponse = await reviewerContext.post('/auth/login', {
+    data: { email: fixture.reviewer.email, password: fixture.reviewer.password },
+  });
+  if (!reviewerResponse.ok()) {
+    throw new Error(`Playwright reviewer login failed: ${reviewerResponse.status()} ${await reviewerResponse.text()}`);
+  }
+
+  await reviewerContext.storageState({ path: path.resolve(authDir, 'reviewer.json') });
+  await reviewerContext.dispose();
 }

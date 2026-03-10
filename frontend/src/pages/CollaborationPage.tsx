@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 type Membership = {
   id: string;
@@ -16,9 +17,9 @@ const ROLE_LABELS: Record<Membership['role'], string> = {
   reviewer: 'revisor',
   viewer: 'lector',
 };
-
 export default function CollaborationPage() {
   const { projectId } = useParams();
+  const user = useAuthStore((state) => state.user);
   const [members, setMembers] = useState<Membership[]>([]);
   const [newUserId, setNewUserId] = useState('');
   const [newRole, setNewRole] = useState<Membership['role']>('viewer');
@@ -28,6 +29,11 @@ export default function CollaborationPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const ownerCount = useMemo(() => members.filter((member) => member.role === 'owner').length, [members]);
+  const currentRole = useMemo(() => {
+    const membership = members.find((member) => member.user_id === user?.id);
+    return membership?.role || null;
+  }, [members, user?.id]);
+  const canManageMembers = currentRole === 'owner';
 
   async function loadMembers() {
     if (!projectId) return;
@@ -48,7 +54,7 @@ export default function CollaborationPage() {
   }, [projectId]);
 
   async function addMember() {
-    if (!projectId || !newUserId.trim()) return;
+    if (!projectId || !newUserId.trim() || !canManageMembers) return;
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -66,7 +72,7 @@ export default function CollaborationPage() {
   }
 
   async function updateRole(member: Membership, role: Membership['role']) {
-    if (!projectId || role === member.role) return;
+    if (!projectId || role === member.role || !canManageMembers) return;
     setError(null);
     setNotice(null);
     try {
@@ -79,7 +85,7 @@ export default function CollaborationPage() {
   }
 
   async function removeMember(member: Membership) {
-    if (!projectId) return;
+    if (!projectId || !canManageMembers) return;
     setError(null);
     setNotice(null);
     try {
@@ -107,6 +113,12 @@ export default function CollaborationPage() {
 
       {error ? <div className="rc-error">{error}</div> : null}
       {notice ? <div className="rc-help">{notice}</div> : null}
+      {currentRole ? (
+        <div className="rc-help">
+          Tu rol actual es <b>{ROLE_LABELS[currentRole]}</b>.
+          {!canManageMembers ? ' Puedes revisar miembros, pero solo un dueno puede cambiarlos.' : ' Puedes gestionar altas, cambios de rol y eliminaciones.'}
+        </div>
+      ) : null}
 
       <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
         <div className="rc-card">
@@ -118,13 +130,13 @@ export default function CollaborationPage() {
             </div>
             <div style={{ minWidth: 180 }}>
               <div className="rc-kicker">Rol</div>
-              <select data-testid="member-role-select" className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])}>
+              <select data-testid="member-role-select" className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])} disabled={!canManageMembers}>
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                 ))}
               </select>
             </div>
-            <button data-testid="member-add-button" className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim()}>
+            <button data-testid="member-add-button" className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim() || !canManageMembers}>
               {saving ? 'Guardando…' : 'Agregar miembro'}
             </button>
           </div>
@@ -145,7 +157,13 @@ export default function CollaborationPage() {
           <div data-testid={`member-card-${member.user_id}`} key={member.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{member.user_id}</div>
             <div className="rc-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
-              <select data-testid={`member-role-${member.user_id}`} className="rc-input" value={member.role} onChange={(e) => updateRole(member, e.target.value as Membership['role'])}>
+              <select
+                data-testid={`member-role-${member.user_id}`}
+                className="rc-input"
+                value={member.role}
+                onChange={(e) => updateRole(member, e.target.value as Membership['role'])}
+                disabled={!canManageMembers}
+              >
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                 ))}
@@ -154,10 +172,11 @@ export default function CollaborationPage() {
                 data-testid={`member-remove-${member.user_id}`}
                 className="rc-btn"
                 onClick={() => removeMember(member)}
-                disabled={member.role === 'owner' && ownerCount <= 1}
+                disabled={!canManageMembers || (member.role === 'owner' && ownerCount <= 1)}
               >
                 Eliminar
               </button>
+              {!canManageMembers ? <span className="rc-help">Solo un dueno puede cambiar miembros.</span> : null}
               {member.role === 'owner' && ownerCount <= 1 ? <span className="rc-help">No se puede eliminar al ultimo dueno.</span> : null}
             </div>
           </div>

@@ -27,7 +27,7 @@ class PaperMetadata(BaseModel):
     doi: str | None = None
 
     title: str
-    authors: list[str] = []
+    authors: list[str] = Field(default_factory=list)
     journal: str | None = None
     pub_year: int | None = None
     abstract: str | None = None
@@ -43,10 +43,10 @@ class SearchResponse(BaseModel):
     results: list[PaperMetadata]
     query_translation: str | None = None
     cached: bool = False
-    sources: list[str] = []
+    sources: list[str] = Field(default_factory=list)
     partial_success: bool = False
-    provider_status: dict[str, str] = {}
-    warnings: list[str] = []
+    provider_status: dict[str, str] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class SearchRecordResponse(BaseModel):

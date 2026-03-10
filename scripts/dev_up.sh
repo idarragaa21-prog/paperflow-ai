@@ -133,6 +133,9 @@ start_if_not_running frontend bash -lc "cd '$FRONTEND_DIR' && exec npm run dev -
 wait_for_url "http://127.0.0.1:8000/health" "backend" 120 2
 if [[ -x "$ROOT_DIR/scripts/dev_check.sh" ]]; then
   "$ROOT_DIR/scripts/dev_check.sh"
+  echo "[dev_up] verifying app processes remain alive after bootstrap..."
+  sleep 2
+  "$ROOT_DIR/scripts/dev_check.sh"
 fi
 
 echo "[dev_up] URLs:"
