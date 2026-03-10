@@ -137,3 +137,93 @@ async def test_retry_job_requeues_failed_job(monkeypatch):
         assert payload["rq_job_id"] == "rq-123"
 
     app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_get_job_returns_completed_record_even_if_redis_is_down(monkeypatch):
+    from app.api import deps
+
+    app = FastAPI()
+    app.include_router(jobs_router)
+
+    user1 = "00000000-0000-0000-0000-000000000000"
+    job = FakeJob(user1, "analysis_run", "completed")
+    job.progress_percent = 100
+    job.result = {"rq_job_id": "rq-gone", "artifact_count": 3}
+    db = FakeSession([job])
+
+    async def get_db_override():
+        yield db
+
+    class U:
+        id = uuid.UUID(user1)
+        is_active = True
+
+    async def fake_user(request=None, db=None):
+        return U()
+
+    app.dependency_overrides[deps.get_db] = get_db_override
+    app.dependency_overrides[deps.get_current_user] = fake_user
+
+    monkeypatch.setattr("app.api.jobs.redis_available", lambda: False)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        ac.cookies.set("csrf_token", "abc")
+        ac.cookies.set("access_token", "x")
+        response = await ac.get(f"/jobs/{job.id}", headers={"X-CSRF-Token": "abc"})
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "completed"
+        assert payload["result"]["artifact_count"] == 3
+
+    app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_get_job_marks_active_job_failed_when_rq_record_disappears(monkeypatch):
+    from app.api import deps
+
+    app = FastAPI()
+    app.include_router(jobs_router)
+
+    user1 = "00000000-0000-0000-0000-000000000000"
+    job = FakeJob(user1, "analysis_run", "running")
+    job.result = {"rq_job_id": "rq-missing"}
+    db = FakeSession([job])
+
+    async def get_db_override():
+        yield db
+
+    class U:
+        id = uuid.UUID(user1)
+        is_active = True
+
+    async def fake_user(request=None, db=None):
+        return U()
+
+    app.dependency_overrides[deps.get_db] = get_db_override
+    app.dependency_overrides[deps.get_current_user] = fake_user
+
+    monkeypatch.setattr("app.api.jobs.redis_available", lambda: True)
+    monkeypatch.setattr("app.api.jobs.get_redis", lambda: object())
+
+    class MissingRQJob:
+        @staticmethod
+        def fetch(job_id, connection=None):
+            del job_id, connection
+            raise RuntimeError("missing")
+
+    monkeypatch.setattr("app.api.jobs.RQJob", MissingRQJob)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        ac.cookies.set("csrf_token", "abc")
+        ac.cookies.set("access_token", "x")
+        response = await ac.get(f"/jobs/{job.id}", headers={"X-CSRF-Token": "abc"})
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "failed"
+        assert payload["error"] == "RQ job no encontrado en Redis"
+
+    app.dependency_overrides = {}

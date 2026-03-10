@@ -4,10 +4,17 @@ import { getCookie } from './cookies';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
+export const requestTimeouts = {
+  default: 15_000,
+  search: 45_000,
+  chat: 90_000,
+  export: 90_000,
+} as const;
+
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
-  timeout: 15000,
+  timeout: requestTimeouts.default,
 });
 
 // CSRF: send header on mutating requests
@@ -30,7 +37,7 @@ let refreshing: Promise<void> | null = null;
 const raw = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
-  timeout: 15000,
+  timeout: requestTimeouts.default,
 });
 
 async function refreshSession(): Promise<void> {

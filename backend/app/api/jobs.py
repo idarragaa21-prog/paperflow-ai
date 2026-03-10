@@ -15,6 +15,21 @@ from app.services.jobs import retry_job_record
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
+TERMINAL_JOB_STATUSES = {"completed", "failed", "cancelled"}
+
+
+def _serialize_job(job: Job) -> dict:
+    return {
+        "id": str(job.id),
+        "status": job.status,
+        "progress_percent": job.progress_percent or 0,
+        "queue_name": job.queue_name,
+        "attempt": job.attempt,
+        "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
+        "result": job.result,
+        "error": job.error_message,
+    }
+
 
 @router.get("")
 @limiter.limit("60/minute")
@@ -146,54 +161,29 @@ async def get_job(
     if not job or job.user_id != user.id:
         raise HTTPException(status_code=404, detail="Job no encontrado")
 
-    if job.status == "cancelled":
-        return {
-            "id": str(job.id),
-            "status": job.status,
-            "progress_percent": job.progress_percent or 0,
-            "queue_name": job.queue_name,
-            "attempt": job.attempt,
-            "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
-            "result": job.result,
-            "error": job.error_message,
-        }
+    if job.status in TERMINAL_JOB_STATUSES:
+        return _serialize_job(job)
 
-    # En development Redis puede estar apagado → 503
+    # Solo los jobs activos dependen de Redis para polling.
     if not redis_available():
         raise HTTPException(status_code=503, detail="Redis no disponible; polling de jobs deshabilitado")
 
     rq_job_id = (job.result or {}).get("rq_job_id")
     if not rq_job_id:
-        return {
-            "id": str(job.id),
-            "status": job.status,
-            "progress_percent": job.progress_percent or 0,
-            "queue_name": job.queue_name,
-            "attempt": job.attempt,
-            "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
-            "result": job.result,
-            "error": job.error_message,
-        }
+        return _serialize_job(job)
 
     try:
         redis = get_redis()
         try:
             rq_job = RQJob.fetch(rq_job_id, connection=redis)
         except Exception:
+            if job.status in TERMINAL_JOB_STATUSES:
+                return _serialize_job(job)
             job.status = "failed"
             job.error_message = "RQ job no encontrado en Redis"
             job.completed_at = job.completed_at or datetime.utcnow()
             await db.commit()
-            return {
-                "id": str(job.id),
-                "status": job.status,
-                "progress_percent": job.progress_percent or 0,
-                "queue_name": job.queue_name,
-                "attempt": job.attempt,
-                "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
-                "result": job.result,
-                "error": job.error_message,
-            }
+            return _serialize_job(job)
 
         status = _map_rq_status(rq_job.get_status())
         meta_progress = rq_job.meta.get("progress_percent") if isinstance(rq_job.meta, dict) else None
@@ -220,13 +210,4 @@ async def get_job(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error consultando job: {e}")
 
-    return {
-        "id": str(job.id),
-        "status": job.status,
-        "progress_percent": job.progress_percent or 0,
-        "queue_name": job.queue_name,
-        "attempt": job.attempt,
-        "next_retry_at": job.next_retry_at.isoformat() if job.next_retry_at else None,
-        "result": job.result,
-        "error": job.error_message,
-    }
+    return _serialize_job(job)

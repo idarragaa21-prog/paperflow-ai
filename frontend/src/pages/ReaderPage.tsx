@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, requestTimeouts } from '../services/api';
 
 type PaperOption = {
   id: string;
@@ -73,8 +73,8 @@ export default function ReaderPage() {
       const payload = { question, task_type: 'chat', max_citations: 4 };
       const response =
         paperId === 'project'
-          ? await api.post(`/projects/${projectId}/chat`, payload)
-          : await api.post(`/papers/${paperId}/chat`, payload);
+          ? await api.post(`/projects/${projectId}/chat`, payload, { timeout: requestTimeouts.chat })
+          : await api.post(`/papers/${paperId}/chat`, payload, { timeout: requestTimeouts.chat });
       const nextResult = response.data as ChatResult;
       setResult(nextResult);
       if (nextResult.dependency_error_code) {

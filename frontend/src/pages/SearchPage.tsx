@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, requestTimeouts } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
 
@@ -78,7 +78,7 @@ export default function SearchPage() {
         project_id: projectId,
         query: query.trim(),
         max_results: maxResults,
-      });
+      }, { timeout: requestTimeouts.search });
       setData(r.data as SearchResponse);
       setSelected({});
       setResultStates({});
