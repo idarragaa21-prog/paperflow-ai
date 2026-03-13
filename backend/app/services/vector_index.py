@@ -72,6 +72,8 @@ class VectorIndex:
         self.collection_name = f"{settings.QDRANT_COLLECTION_PREFIX}_paper_chunks"
         self._client = None
         self._embed_dim: int | None = None
+        self._embedding_strategy: tuple[str, str] | None = None
+        self._embedding_warning_emitted = False
 
     @staticmethod
     def _qdrant_modules():
@@ -93,25 +95,80 @@ class VectorIndex:
             self._client = None
             return None
 
+    @staticmethod
+    def _extract_embedding(payload: dict[str, Any]) -> list[float] | None:
+        embeddings = payload.get("embeddings") or []
+        if embeddings and isinstance(embeddings[0], list):
+            vector = embeddings[0]
+        else:
+            vector = payload.get("embedding")
+        if isinstance(vector, list) and vector:
+            return [float(value) for value in vector]
+        return None
+
+    @staticmethod
+    def _embedding_attempts(text: str, *, model: str) -> list[tuple[str, dict[str, Any]]]:
+        return [
+            ("/api/embed", {"model": model, "input": text}),
+            ("/api/embeddings", {"model": model, "prompt": text}),
+        ]
+
+    def _candidate_embedding_models(self) -> list[str]:
+        candidates = [settings.PAPERFLOW_EMBEDDING_MODEL, settings.PAPERFLOW_CHAT_MODEL]
+        unique: list[str] = []
+        for model in candidates:
+            if model and model not in unique:
+                unique.append(model)
+        return unique
+
+    def _emit_embedding_warning(self, message: str) -> None:
+        if self._embedding_warning_emitted:
+            return
+        logger.warning(message)
+        self._embedding_warning_emitted = True
+
     def _embed_text(self, text: str) -> list[float]:
-        try:
-            response = httpx.post(
-                f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/embed",
-                json={"model": settings.PAPERFLOW_EMBEDDING_MODEL, "input": text},
-                timeout=10.0,
+        base_url = settings.OLLAMA_BASE_URL.rstrip("/")
+        attempts: list[tuple[str, str, dict[str, Any]]] = []
+
+        if self._embedding_strategy is not None:
+            endpoint, model = self._embedding_strategy
+            attempts.append((endpoint, model, {"model": model, "input": text} if endpoint == "/api/embed" else {"model": model, "prompt": text}))
+        else:
+            for model in self._candidate_embedding_models():
+                for endpoint, payload in self._embedding_attempts(text, model=model):
+                    attempts.append((endpoint, model, payload))
+
+        errors: list[str] = []
+        for endpoint, model, payload in attempts:
+            try:
+                response = httpx.post(
+                    f"{base_url}{endpoint}",
+                    json=payload,
+                    timeout=15.0,
+                )
+                response.raise_for_status()
+                payload_json = response.json()
+                vector = self._extract_embedding(payload_json)
+                if vector:
+                    self._embed_dim = len(vector)
+                    self._embedding_strategy = (endpoint, model)
+                    if model != settings.PAPERFLOW_EMBEDDING_MODEL:
+                        self._emit_embedding_warning(
+                            f"Configured embedding model '{settings.PAPERFLOW_EMBEDDING_MODEL}' unavailable in Ollama; using '{model}' via {endpoint}"
+                        )
+                    elif endpoint != "/api/embed":
+                        self._emit_embedding_warning(
+                            f"Ollama /api/embed unavailable; using legacy embeddings endpoint {endpoint} for model '{model}'"
+                        )
+                    return vector
+            except Exception as exc:
+                errors.append(f"{model}@{endpoint}: {exc}")
+
+        if errors:
+            self._emit_embedding_warning(
+                "Ollama embeddings unavailable, using hashed embeddings: " + " | ".join(errors[:4])
             )
-            response.raise_for_status()
-            payload = response.json()
-            embeddings = payload.get("embeddings") or []
-            if embeddings and isinstance(embeddings[0], list):
-                vector = embeddings[0]
-            else:
-                vector = payload.get("embedding")
-            if isinstance(vector, list) and vector:
-                self._embed_dim = len(vector)
-                return [float(value) for value in vector]
-        except Exception as exc:
-            logger.debug(f"Ollama embeddings unavailable, using hashed embeddings: {exc}")
         vector = _hash_embed(text)
         self._embed_dim = len(vector)
         return vector
