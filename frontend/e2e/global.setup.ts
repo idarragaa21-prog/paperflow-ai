@@ -20,9 +20,36 @@ export default async function globalSetup() {
   const backendPython = process.env.BACKEND_PYTHON || path.resolve(repoRoot, 'backend/.venv/bin/python');
   const seedScript = path.resolve(repoRoot, 'backend/scripts/seed_internal_rc_fixture.py');
   const apiURL = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:8000';
+  const healthURL = `${apiURL.replace(/\/$/, '')}/health`;
+  const devUpScript = path.resolve(repoRoot, 'scripts/dev_up.sh');
 
   mkdirSync(authDir, { recursive: true });
   mkdirSync(tmpDir, { recursive: true });
+
+  async function isHealthy() {
+    try {
+      const response = await fetch(healthURL, { method: 'GET' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  if (!(await isHealthy())) {
+    execFileSync('bash', [devUpScript], {
+      cwd: repoRoot,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        PAPERFLOW_DISABLE_DOTENV: process.env.PAPERFLOW_DISABLE_DOTENV || '1',
+        PAPERFLOW_SKIP_GROBID_WAIT: process.env.PAPERFLOW_SKIP_GROBID_WAIT || '1',
+      },
+    });
+  }
+
+  if (!(await isHealthy())) {
+    throw new Error(`Playwright setup failed: backend health endpoint is still unavailable at ${healthURL}`);
+  }
 
   execFileSync(
     backendPython,

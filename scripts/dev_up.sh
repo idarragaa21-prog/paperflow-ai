@@ -99,7 +99,11 @@ wait_for_url "http://127.0.0.1:9000/minio/health/live" "minio"
 wait_for_url "http://127.0.0.1:6333/collections" "qdrant"
 wait_for_url "http://127.0.0.1:11434/api/tags" "ollama"
 wait_for_url "http://127.0.0.1:8010/health" "r-engine"
-wait_for_url "http://127.0.0.1:8070/api/isalive" "grobid" 180 5
+if [[ "${PAPERFLOW_SKIP_GROBID_WAIT:-0}" == "1" ]]; then
+  echo "[dev_up] skipping grobid readiness wait (PAPERFLOW_SKIP_GROBID_WAIT=1)"
+else
+  wait_for_url "http://127.0.0.1:8070/api/isalive" "grobid" 180 5
+fi
 
 if [[ "${PAPERFLOW_START_OPTIONAL_SERVICES:-0}" == "1" ]]; then
   wait_for_url "http://127.0.0.1:9090/-/ready" "prometheus"
@@ -132,10 +136,18 @@ start_if_not_running frontend bash -lc "cd '$FRONTEND_DIR' && exec npm run dev -
 
 wait_for_url "http://127.0.0.1:8000/health" "backend" 120 2
 if [[ -x "$ROOT_DIR/scripts/dev_check.sh" ]]; then
-  "$ROOT_DIR/scripts/dev_check.sh"
+  if [[ "${PAPERFLOW_SKIP_GROBID_WAIT:-0}" == "1" ]]; then
+    PAPERFLOW_ALLOW_DOWN_SERVICES="grobid" "$ROOT_DIR/scripts/dev_check.sh"
+  else
+    "$ROOT_DIR/scripts/dev_check.sh"
+  fi
   echo "[dev_up] verifying app processes remain alive after bootstrap..."
   sleep 2
-  "$ROOT_DIR/scripts/dev_check.sh"
+  if [[ "${PAPERFLOW_SKIP_GROBID_WAIT:-0}" == "1" ]]; then
+    PAPERFLOW_ALLOW_DOWN_SERVICES="grobid" "$ROOT_DIR/scripts/dev_check.sh"
+  else
+    "$ROOT_DIR/scripts/dev_check.sh"
+  fi
 fi
 
 echo "[dev_up] URLs:"

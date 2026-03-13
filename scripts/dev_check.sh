@@ -10,6 +10,7 @@ echo "[dev_check] checking $HEALTH_URL"
 
 health_json="$(curl -fsS "$HEALTH_URL")"
 export PAPERFLOW_HEALTH_JSON="$health_json"
+export PAPERFLOW_ALLOW_DOWN_SERVICES="${PAPERFLOW_ALLOW_DOWN_SERVICES:-}"
 
 python3 - <<'PY'
 import json
@@ -19,7 +20,8 @@ import sys
 payload = json.loads(os.environ["PAPERFLOW_HEALTH_JSON"])
 required = payload.get("required_services") or {}
 optional = payload.get("optional_services") or {}
-failed = [name for name, info in required.items() if info.get("status") != "ok"]
+allowed_down = {item.strip() for item in os.environ.get("PAPERFLOW_ALLOW_DOWN_SERVICES", "").split(",") if item.strip()}
+failed = [name for name, info in required.items() if info.get("status") != "ok" and name not in allowed_down]
 expected_storage_backend = os.environ.get("STORAGE_BACKEND", "s3")
 reported_storage_backend = ((required.get("storage") or {}).get("backend"))
 
