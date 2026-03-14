@@ -110,16 +110,113 @@
   gap: 10px;
 }
 
+/* Mobile topbar: hidden on desktop */
+.rc-mobile-topbar {
+  display: none;
+}
+
+.rc-sidebar--drawer {
+  display: none;
+}
+
+.rc-drawer-overlay {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .rc-shell {
     grid-template-columns: 1fr;
   }
-  .rc-sidebar {
-    position: relative;
-    height: auto;
+  .rc-sidebar--desktop {
+    display: none;
   }
   .rc-grid2 {
     grid-template-columns: 1fr;
+  }
+
+  /* Mobile topbar */
+  .rc-mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--rc-surface);
+    border-bottom: 1px solid var(--rc-border);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+
+  .rc-hamburger {
+    background: var(--rc-surface);
+    border: 1px solid var(--rc-border);
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rc-avatar-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--rc-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* Drawer overlay */
+  .rc-drawer-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 39;
+  }
+
+  /* Sidebar drawer */
+  .rc-sidebar--drawer {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 40;
+    background: var(--rc-surface);
+    border-right: 1px solid var(--rc-border);
+    padding: 14px;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    animation: slide-in-left 180ms ease;
+  }
+
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+
+  /* Tab scroll fade */
+  .rc-tab-scroll {
+    position: relative;
+  }
+  .rc-tab-scroll::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(to right, transparent, white);
+    pointer-events: none;
   }
 }
 

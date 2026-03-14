@@ -29,7 +29,7 @@ function Tab({ to, label }: { to: string; label: string }) {
       to={to}
       end
       className={({ isActive }) => `rc-nav-item ${isActive ? 'rc-nav-item--active' : ''}`}
-      style={{ padding: '8px 10px', borderRadius: 10 }}
+      style={{ padding: '8px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}
     >
       {label}
     </NavLink>
@@ -159,8 +159,8 @@ export default function ProjectLayout() {
         </div>
       </div>
 
-      <div className="rc-card" style={{ padding: 10 }}>
-        <div className="rc-row" style={{ gap: 6 }}>
+      <div className="rc-card rc-tab-scroll" style={{ padding: 10 }}>
+        <div className="rc-row" style={{ gap: 6, overflowX: 'auto', flexWrap: 'nowrap' }}>
           <Tab to={`/projects/${projectId}/research`} label="Research" />
           <Tab to={`/projects/${projectId}/reader`} label="Reader" />
           <Tab to={`/projects/${projectId}/library`} label="Library" />
