@@ -265,6 +265,9 @@ async def patch_record(db: AsyncSession, *, record: ExtractionRecord, status: st
 
 
 def export_records(records: list[ExtractionRecord], fmt: str) -> Response:
+    if not records:
+        raise ValueError("No extraction records available for export")
+
     rows: list[dict] = []
     for record in records:
         row = {"record_id": str(record.id), "project_id": str(record.project_id), "paper_id": str(record.paper_id) if record.paper_id else None}

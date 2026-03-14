@@ -130,4 +130,7 @@ async def export_extraction_records(
 ):
     await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     records = await list_records(db, project_id=project_id)
-    return export_records(records, format)
+    try:
+        return export_records(records, format)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc

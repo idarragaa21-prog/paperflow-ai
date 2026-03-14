@@ -79,13 +79,16 @@ async def create_dataset_endpoint(
     user: User = Depends(get_current_user),
 ):
     await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
-    dataset = await create_dataset(
-        db,
-        project_id=payload.project_id,
-        title=payload.title,
-        description=payload.description,
-        rows=payload.rows,
-    )
+    try:
+        dataset = await create_dataset(
+            db,
+            project_id=payload.project_id,
+            title=payload.title,
+            description=payload.description,
+            rows=payload.rows,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _dataset_to_response(dataset)
 
 

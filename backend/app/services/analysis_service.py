@@ -65,7 +65,14 @@ async def create_dataset(
 ) -> Dataset:
     import pandas as pd
 
+    if not rows:
+        raise ValueError("Dataset rows cannot be empty")
+    if not all(isinstance(row, dict) for row in rows):
+        raise ValueError("Dataset rows must be objects")
+
     df = pd.DataFrame(rows)
+    if df.empty or len(df.columns) == 0:
+        raise ValueError("Dataset must include at least one column and one row")
     csv_bytes = df.to_csv(index=False).encode("utf-8")
     saved = await storage_manager.save_dataset_bytes(data=csv_bytes, filename=f"{title}.csv", project_id=project_id)
 
@@ -219,6 +226,28 @@ async def run_analysis_pipeline(db: AsyncSession, *, run_id: UUID) -> AnalysisRu
     template_version = _stringify_scalar(response_data.get("template_version"), default="analysis_report_v2")
     figure = _normalize_r_engine_value(response_data.get("figure") or {})
     artifact_manifest: list[dict] = []
+    report_artifacts = response_data.get("artifacts") or []
+    returned_formats: set[str] = set()
+    for artifact in report_artifacts:
+        metadata = _normalize_r_engine_value(artifact.get("metadata_json") or {})
+        fmt = str(metadata.get("format") or "").strip().lower()
+        if fmt:
+            returned_formats.add(fmt)
+    missing_formats = [fmt for fmt in REPORT_MIME_TYPES if fmt not in returned_formats]
+    if missing_formats:
+        message = f"r-engine did not return persisted artifacts for: {', '.join(missing_formats)}"
+        run.status = "failed"
+        run.warnings = warnings + [message]
+        run.result_summary = {"error": message}
+        run.runtime_metadata = {
+            **(run.runtime_metadata or {}),
+            "engine": "r-engine",
+            "engine_version": engine_version,
+            "template_version": template_version,
+            "warnings": warnings + [message],
+        }
+        await db.commit()
+        raise ValueError(message)
 
     for artifact in list(run.artifacts):
         await db.delete(artifact)
@@ -247,7 +276,7 @@ async def run_analysis_pipeline(db: AsyncSession, *, run_id: UUID) -> AnalysisRu
         }
     )
 
-    for artifact in response_data.get("artifacts") or []:
+    for artifact in report_artifacts:
         content, filename, mime_type, metadata = _decode_artifact(artifact)
         saved = await storage_manager.save_artifact_bytes(data=content, filename=filename, project_id=run.project_id)
         artifact_type = f"report_{metadata.get('format') or 'bin'}"
@@ -348,5 +377,8 @@ async def export_analysis_run(db: AsyncSession, *, run: AnalysisRun, fmt: str) -
     if artifact is None:
         raise ValueError(f"No persisted {normalized} artifact found")
 
-    data = storage_manager.read_bytes(artifact.file_path)
+    try:
+        data = storage_manager.read_bytes(artifact.file_path)
+    except Exception as exc:
+        raise ValueError(f"Persisted {normalized} artifact is missing from storage: {exc}") from exc
     return data, artifact.mime_type, artifact.filename

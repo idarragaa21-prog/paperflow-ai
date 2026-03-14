@@ -8,7 +8,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -335,6 +335,9 @@ class VectorIndex:
         stmt = select(PaperChunk, Paper.project_id).join(Paper, Paper.id == PaperChunk.paper_id).where(Paper.project_id == project_id)
         if paper_id is not None:
             stmt = stmt.where(PaperChunk.paper_id == paper_id)
+        limited_terms = sorted(query_terms)[:6]
+        if limited_terms:
+            stmt = stmt.where(or_(*[PaperChunk.text.ilike(f"%{term}%") for term in limited_terms]))
         rows = await db.execute(stmt)
         ranked: list[dict[str, Any]] = []
         for chunk, _project_id in rows.all():

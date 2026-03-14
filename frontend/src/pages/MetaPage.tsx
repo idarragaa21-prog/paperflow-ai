@@ -247,7 +247,7 @@ export default function MetaPage() {
           await loadExports();
           setExportJobId(null);
         }
-        if (status === 'failed') {
+        if (status === 'failed' || status === 'cancelled') {
           setExportJobId(null);
         }
       } catch (e: any) {

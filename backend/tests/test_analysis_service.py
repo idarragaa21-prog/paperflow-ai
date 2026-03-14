@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.services.analysis_service import export_analysis_run
+from app.services.analysis_service import create_dataset, export_analysis_run
 
 
 class _FakeScalarResult:
@@ -30,6 +30,27 @@ class _FakeDB:
 
     async def execute(self, stmt):
         return _FakeExecuteResult(self._run)
+
+
+class _CaptureDB:
+    def __init__(self):
+        self.added = []
+        self.flushed = False
+        self.committed = False
+
+    def add(self, item):
+        self.added.append(item)
+
+    async def flush(self):
+        self.flushed = True
+
+    async def commit(self):
+        self.committed = True
+
+    async def execute(self, stmt):
+        dataset = next(item for item in self.added if getattr(item, "__class__", type("", (), {})).__name__ == "Dataset")
+        dataset.columns = [item for item in self.added if getattr(item, "__class__", type("", (), {})).__name__ == "DatasetColumn"]
+        return _FakeExecuteResult(dataset)
 
 
 @pytest.mark.asyncio
@@ -69,3 +90,38 @@ async def test_export_analysis_run_fails_when_artifact_missing():
 
     with pytest.raises(ValueError, match="No persisted html artifact found"):
         await export_analysis_run(db, run=run, fmt="html")
+
+
+@pytest.mark.asyncio
+async def test_export_analysis_run_fails_when_storage_object_is_missing(monkeypatch):
+    artifact = SimpleNamespace(
+        artifact_type="report_pdf",
+        filename="report.pdf",
+        file_path="artifacts/report.pdf",
+        mime_type="application/pdf",
+        metadata_json={"format": "pdf"},
+    )
+    run = SimpleNamespace(id=uuid4(), status="completed", artifacts=[artifact])
+    db = _FakeDB(run)
+
+    def _missing(path):
+        raise FileNotFoundError(path)
+
+    monkeypatch.setattr("app.services.analysis_service.storage_manager.read_bytes", _missing)
+
+    with pytest.raises(ValueError, match="missing from storage"):
+        await export_analysis_run(db, run=run, fmt="pdf")
+
+
+@pytest.mark.asyncio
+async def test_create_dataset_rejects_empty_rows():
+    db = _CaptureDB()
+
+    with pytest.raises(ValueError, match="cannot be empty"):
+        await create_dataset(
+            db,
+            project_id=uuid4(),
+            title="empty",
+            description=None,
+            rows=[],
+        )

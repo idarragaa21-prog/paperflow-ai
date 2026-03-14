@@ -92,6 +92,12 @@ class FakeSession:
     async def commit(self):
         return None
 
+    async def flush(self):
+        return None
+
+    def add(self, obj):
+        del obj
+
     async def execute(self, stmt):
         class R:
             def __init__(self):
@@ -99,6 +105,9 @@ class FakeSession:
 
             def scalars(self):
                 class S:
+                    def first(self):
+                        return None
+
                     def all(self):
                         return []
 

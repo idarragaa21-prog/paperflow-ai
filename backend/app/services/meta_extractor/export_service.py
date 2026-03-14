@@ -231,6 +231,8 @@ async def create_meta_export(
     batch_id: UUID | None,
 ) -> MetaExport:
     payload = await build_export_payload(db=db, project_id=project_id, batch_id=batch_id)
+    if not payload.studies:
+        raise ValueError("No extracted studies available for export")
     xlsx_bytes = build_meta_xlsx(payload)
 
     # save under slides/?? We'll store under notes-like directory: meta_exports

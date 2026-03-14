@@ -119,7 +119,7 @@ export default function StudyViewer({
           }
           setReextractJobId(null);
         }
-        if (status === 'failed') {
+        if (status === 'failed' || status === 'cancelled') {
           setReextractJobId(null);
         }
       } catch (e: any) {
