@@ -16,17 +16,33 @@ type JobRow = {
   result?: any;
 };
 
-function StatusPill({ status }: { status: string }) {
-  const cls =
-    status === 'completed'
-      ? 'rc-badge rc-badge--success'
-      : status === 'failed'
-        ? 'rc-badge rc-badge--danger'
-        : status === 'started'
-          ? 'rc-badge rc-badge--info'
-          : 'rc-badge';
+type TypeFilter = 'all' | string;
 
-  return <span className={cls}>{status}</span>;
+function statusBadge(status: string) {
+  if (status === 'completed') return 'rc-badge rc-badge--success';
+  if (status === 'failed') return 'rc-badge rc-badge--danger';
+  if (status === 'started' || status === 'progress') return 'rc-badge rc-badge--info';
+  return 'rc-badge';
+}
+
+function duration(j: JobRow): string {
+  const start = j.started_at || j.created_at;
+  const end = j.completed_at || ((['completed', 'failed'].includes(j.status)) ? null : new Date().toISOString());
+  if (!start) return '\u2014';
+  try {
+    const ms = new Date(end || new Date().toISOString()).getTime() - new Date(start).getTime();
+    if (ms < 1000) return '<1s';
+    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+    return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
+  } catch { return '\u2014'; }
+}
+
+function formatDate(iso?: string | null): string {
+  if (!iso) return '\u2014';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
 }
 
 export default function JobsPage() {
@@ -36,68 +52,65 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   const runningJobs = useMemo(
-    () => jobs.filter((j) => ['queued', 'started', 'progress'].includes(j.status)),
+    () => jobs.filter(j => ['queued', 'started', 'progress'].includes(j.status)),
     [jobs],
   );
 
+  const jobTypes = useMemo(() => {
+    const types = new Set(jobs.map(j => j.job_type));
+    return Array.from(types).sort();
+  }, [jobs]);
+
+  const filtered = useMemo(() => {
+    if (typeFilter === 'all') return jobs;
+    return jobs.filter(j => j.job_type === typeFilter);
+  }, [jobs, typeFilter]);
+
   async function load() {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const r = await api.get('/jobs?limit=50');
       setJobs(r.data as JobRow[]);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load jobs');
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to load jobs'); }
+    finally { setLoading(false); }
   }
 
   async function pollJob(id: string) {
-    setError(null);
     try {
       const r = await api.get(`/jobs/${id}`);
       const updated = r.data as Partial<JobRow>;
-      setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...updated } as JobRow : j)));
-    } catch (e: any) {
-      // common in dev if Redis is off
-      setError(e?.response?.data?.detail || 'Polling failed');
-    }
+      setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updated } as JobRow : j));
+    } catch { /* ignore polling errors */ }
   }
 
   async function cancel(id: string) {
     const ok = await confirm({
-      title: 'Cancel this job?',
-      body: 'This will request cancellation. Some tasks may already be running and cannot stop instantly.',
+      title: '\u00bfCancelar este job?',
+      body: 'Se solicitar\u00e1 la cancelaci\u00f3n. Algunos tasks ya ejecut\u00e1ndose no pueden detenerse de inmediato.',
       confirmText: 'Cancel job',
       danger: true,
     });
     if (!ok) return;
-
-    setError(null);
     try {
       await api.post(`/jobs/${id}/cancel`);
-      toast.success('Cancel requested', `Job ${id}`);
+      toast.success('Cancel requested', `Job ${id.slice(0, 8)}`);
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Cancel failed');
-    }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Cancel failed'); }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
+  // Polling cada 3s si hay jobs activos
   useEffect(() => {
     if (runningJobs.length === 0) return;
     const t = window.setInterval(() => {
-      // Poll up to 5 running jobs per tick to keep it light
-      runningJobs.slice(0, 5).forEach((j) => pollJob(j.id));
-    }, 4000);
+      runningJobs.slice(0, 5).forEach(j => pollJob(j.id));
+    }, 3000);
     return () => window.clearInterval(t);
-  }, [runningJobs.map((j) => j.id).join('|')]);
+  }, [runningJobs.map(j => j.id).join('|')]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -106,53 +119,94 @@ export default function JobsPage() {
         <div className="rc-subtitle">Background work queue: search ingestion, document parsing, extraction, exports and legacy jobs.</div>
       </div>
 
-      <div className="rc-row">
-        <button className="rc-btn" onClick={load} disabled={loading}>
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-        {runningJobs.length ? <div className="rc-help">Auto-polling running jobs…</div> : null}
+      <div className="rc-row" style={{ justifyContent: 'space-between' }}>
+        <div className="rc-row" style={{ gap: 8 }}>
+          <button className="rc-btn" onClick={load} disabled={loading} style={{ padding: '8px 12px', fontSize: 12 }}>
+            {loading ? 'Loading\u2026' : 'Refresh'}
+          </button>
+          <select className="rc-input" style={{ width: 180, padding: '8px 10px', fontSize: 13 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <option value="all">All types</option>
+            {jobTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          {runningJobs.length > 0 && (
+            <span className="rc-badge rc-badge--info" style={{ fontSize: 11 }}>Auto-polling {runningJobs.length} active</span>
+          )}
+        </div>
+        <span className="rc-help">{filtered.length} job{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
-      {error ? <div className="rc-error">{String(error)}</div> : null}
+      {error && <div className="rc-error">{String(error)}</div>}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {loading && jobs.length === 0 ? (
-          <div className="rc-card">
-            <Skeleton height={14} width="35%" />
-            <div style={{ height: 10 }} />
-            <SkeletonLines lines={4} lineHeight={12} lastLineWidth="55%" />
-          </div>
-        ) : null}
-        {!loading && jobs.length === 0 ? <div className="rc-muted">No jobs yet.</div> : null}
-        {jobs.map((j) => (
-          <div key={j.id} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-              <div style={{ fontWeight: 800 }}>{j.job_type}</div>
-              <StatusPill status={j.status} />
+      {loading && jobs.length === 0 ? (
+        <div className="rc-card">
+          <Skeleton height={14} width="35%" />
+          <div style={{ height: 10 }} />
+          <SkeletonLines lines={4} lineHeight={12} lastLineWidth="55%" />
+        </div>
+      ) : null}
+
+      {!loading && jobs.length === 0 ? (
+        <div className="rc-card" style={{ textAlign: 'center', padding: 32 }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>{'\u2699\uFE0F'}</div>
+          <div style={{ fontWeight: 800, marginBottom: 4 }}>No jobs yet</div>
+          <div className="rc-help">Background jobs appear here when you process papers, run searches, or export data.</div>
+        </div>
+      ) : null}
+
+      {filtered.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--rc-border)', textAlign: 'left' }}>
+                <th style={{ padding: '8px 6px' }}>Type</th>
+                <th style={{ padding: '8px 6px', width: 100 }}>Status</th>
+                <th style={{ padding: '8px 6px', width: 120 }}>Progress</th>
+                <th style={{ padding: '8px 6px', width: 120 }}>Started</th>
+                <th style={{ padding: '8px 6px', width: 80 }}>Duration</th>
+                <th style={{ padding: '8px 6px', width: 120 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(j => (
+                <tr key={j.id} style={{ borderBottom: '1px solid var(--rc-border)' }}>
+                  <td style={{ padding: '8px 6px' }}>
+                    <div style={{ fontWeight: 700 }}>{j.job_type}</div>
+                    <div className="rc-help" style={{ fontSize: 10 }}>{j.id.slice(0, 8)}</div>
+                  </td>
+                  <td style={{ padding: '8px 6px' }}>
+                    <span className={statusBadge(j.status)} style={{ fontSize: 11 }}>{j.status}</span>
+                  </td>
+                  <td style={{ padding: '8px 6px' }}>
+                    <div className="rc-progress" style={{ height: 6 }}>
+                      <div style={{ width: `${Math.max(0, Math.min(100, j.progress_percent || 0))}%` }} />
+                    </div>
+                    <div className="rc-help" style={{ fontSize: 10, marginTop: 2 }}>{j.progress_percent || 0}%</div>
+                  </td>
+                  <td style={{ padding: '8px 6px', fontSize: 12 }}>{formatDate(j.started_at || j.created_at)}</td>
+                  <td style={{ padding: '8px 6px', fontSize: 12, fontFamily: 'monospace' }}>{duration(j)}</td>
+                  <td style={{ padding: '8px 6px' }}>
+                    <div className="rc-row" style={{ gap: 4 }}>
+                      <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => pollJob(j.id)}>Poll</button>
+                      {['queued', 'started', 'progress'].includes(j.status) && (
+                        <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => cancel(j.id)}>Cancel</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.some(j => j.error) && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {filtered.filter(j => j.error).map(j => (
+                <div key={j.id} className="rc-error" style={{ fontSize: 11, padding: '6px 10px', background: 'rgba(185,28,28,0.06)', borderRadius: 8 }}>
+                  <b>{j.job_type} ({j.id.slice(0, 8)}):</b> {j.error}
+                </div>
+              ))}
             </div>
-
-            <div className="rc-help">id: {j.id}</div>
-
-            <div>
-              <div className="rc-help">progress: {j.progress_percent || 0}%</div>
-              <div className="rc-progress" style={{ marginTop: 6 }}>
-                <div style={{ width: `${Math.max(0, Math.min(100, j.progress_percent || 0))}%` }} />
-              </div>
-            </div>
-
-            {j.error ? <div className="rc-error" style={{ fontSize: 12 }}>{j.error}</div> : null}
-
-            <div className="rc-row" style={{ marginTop: 2 }}>
-              <button className="rc-btn" onClick={() => pollJob(j.id)}>Poll</button>
-              {['queued', 'started', 'progress'].includes(j.status) ? (
-                <button className="rc-btn rc-btn--ghost" onClick={() => cancel(j.id)}>
-                  Cancel
-                </button>
-              ) : null}
-            </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
