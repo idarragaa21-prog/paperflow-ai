@@ -266,3 +266,8 @@
   .rc-search-panel { width: 100%; max-width: 100%; position: static; max-height: none; }
   .rc-project-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Login ── */
+@media (max-width: 768px) {
+  .rc-login-left { display: none !important; }
+}
