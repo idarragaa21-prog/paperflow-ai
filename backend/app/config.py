@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     PAPERFLOW_EXTRACTION_MODEL: str = "qwen2.5:3b"
     PAPERFLOW_WRITING_MODEL: str = "llama3.1:8b"
     PAPERFLOW_EMBEDDING_MODEL: str = "qwen2.5:3b"
+    PAPERFLOW_EMBEDDING_TIMEOUT_SECONDS: int = 45
+    PAPERFLOW_EMBED_BATCH_SIZE: int = 16
     QDRANT_URL: str = "http://127.0.0.1:6333"
     QDRANT_COLLECTION_PREFIX: str = "paperflow"
     R_ENGINE_URL: str = "http://127.0.0.1:8010"

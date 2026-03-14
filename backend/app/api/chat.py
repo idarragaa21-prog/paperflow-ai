@@ -10,7 +10,6 @@ from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse, ChatSessionResponse, HighlightCreate
 from app.services.chat_service import add_highlight, ask, get_session
 from app.services.permissions import require_paper_access, require_project_access
-from app.services.vector_index import vector_index
 
 router = APIRouter(tags=["chat"])
 
@@ -23,7 +22,6 @@ async def chat_with_paper(
 ):
     paper, _membership = await require_paper_access(db, paper_id=paper_id, user=user, required_role="viewer")
     project, _project_membership = await require_project_access(db, project_id=paper.project_id, user=user, required_role="viewer")
-    await vector_index.index_paper(db, paper_id=paper.id)
     result = await ask(
         db,
         project=project,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import math
 from collections import Counter
@@ -96,22 +97,24 @@ class VectorIndex:
             return None
 
     @staticmethod
-    def _extract_embedding(payload: dict[str, Any]) -> list[float] | None:
+    def _extract_embeddings(payload: dict[str, Any]) -> list[list[float]]:
         embeddings = payload.get("embeddings") or []
         if embeddings and isinstance(embeddings[0], list):
-            vector = embeddings[0]
-        else:
-            vector = payload.get("embedding")
-        if isinstance(vector, list) and vector:
-            return [float(value) for value in vector]
-        return None
+            return [[float(value) for value in vector] for vector in embeddings if isinstance(vector, list) and vector]
+
+        vector = payload.get("embedding")
+        if isinstance(vector, list) and vector and not isinstance(vector[0], list):
+            return [[float(value) for value in vector]]
+        if isinstance(vector, list) and vector and isinstance(vector[0], list):
+            return [[float(value) for value in nested] for nested in vector if isinstance(nested, list) and nested]
+        return []
 
     @staticmethod
-    def _embedding_attempts(text: str, *, model: str) -> list[tuple[str, dict[str, Any]]]:
-        return [
-            ("/api/embed", {"model": model, "input": text}),
-            ("/api/embeddings", {"model": model, "prompt": text}),
-        ]
+    def _embedding_attempts(text_or_texts: str | list[str], *, model: str) -> list[tuple[str, dict[str, Any]]]:
+        attempts = [("/api/embed", {"model": model, "input": text_or_texts})]
+        if isinstance(text_or_texts, str):
+            attempts.append(("/api/embeddings", {"model": model, "prompt": text_or_texts}))
+        return attempts
 
     def _candidate_embedding_models(self) -> list[str]:
         candidates = [settings.PAPERFLOW_EMBEDDING_MODEL, settings.PAPERFLOW_CHAT_MODEL]
@@ -127,16 +130,51 @@ class VectorIndex:
         logger.warning(message)
         self._embedding_warning_emitted = True
 
-    def _embed_text(self, text: str) -> list[float]:
+    @staticmethod
+    def _collection_vector_size(collection_info: Any) -> int | None:
+        vectors = getattr(getattr(getattr(collection_info, "config", None), "params", None), "vectors", None)
+        if vectors is None:
+            return None
+        size = getattr(vectors, "size", None)
+        return int(size) if isinstance(size, int) else None
+
+    def _recreate_collection(self, *, dims: int, qm) -> None:
+        client = self._client_or_none()
+        if client is None:
+            return
+        client.delete_collection(collection_name=self.collection_name)
+        client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=qm.VectorParams(size=dims, distance=qm.Distance.COSINE),
+        )
+        logger.warning(
+            f"Recreated Qdrant collection '{self.collection_name}' with vector size {dims} to match the active embedding model"
+        )
+
+    def _embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
         base_url = settings.OLLAMA_BASE_URL.rstrip("/")
         attempts: list[tuple[str, str, dict[str, Any]]] = []
 
+        payload_input: str | list[str] = texts[0] if len(texts) == 1 else texts
         if self._embedding_strategy is not None:
             endpoint, model = self._embedding_strategy
-            attempts.append((endpoint, model, {"model": model, "input": text} if endpoint == "/api/embed" else {"model": model, "prompt": text}))
+            if len(texts) > 1 and endpoint != "/api/embed":
+                attempts.append(("/api/embed", model, {"model": model, "input": payload_input}))
+            if endpoint == "/api/embed" or len(texts) == 1:
+                attempts.append(
+                    (
+                        endpoint,
+                        model,
+                        {"model": model, "input": payload_input}
+                        if endpoint == "/api/embed"
+                        else {"model": model, "prompt": texts[0]},
+                    )
+                )
         else:
             for model in self._candidate_embedding_models():
-                for endpoint, payload in self._embedding_attempts(text, model=model):
+                for endpoint, payload in self._embedding_attempts(payload_input, model=model):
                     attempts.append((endpoint, model, payload))
 
         errors: list[str] = []
@@ -145,13 +183,13 @@ class VectorIndex:
                 response = httpx.post(
                     f"{base_url}{endpoint}",
                     json=payload,
-                    timeout=15.0,
+                    timeout=settings.PAPERFLOW_EMBEDDING_TIMEOUT_SECONDS,
                 )
                 response.raise_for_status()
                 payload_json = response.json()
-                vector = self._extract_embedding(payload_json)
-                if vector:
-                    self._embed_dim = len(vector)
+                vectors = self._extract_embeddings(payload_json)
+                if vectors and len(vectors) == len(texts):
+                    self._embed_dim = len(vectors[0])
                     self._embedding_strategy = (endpoint, model)
                     if model != settings.PAPERFLOW_EMBEDDING_MODEL:
                         self._emit_embedding_warning(
@@ -161,17 +199,22 @@ class VectorIndex:
                         self._emit_embedding_warning(
                             f"Ollama /api/embed unavailable; using legacy embeddings endpoint {endpoint} for model '{model}'"
                         )
-                    return vector
+                    return vectors
             except Exception as exc:
                 errors.append(f"{model}@{endpoint}: {exc}")
 
+        if len(texts) > 1:
+            return [self._embed_text(text) for text in texts]
         if errors:
             self._emit_embedding_warning(
                 "Ollama embeddings unavailable, using hashed embeddings: " + " | ".join(errors[:4])
             )
-        vector = _hash_embed(text)
+        vector = _hash_embed(texts[0])
         self._embed_dim = len(vector)
-        return vector
+        return [vector]
+
+    def _embed_text(self, text: str) -> list[float]:
+        return self._embed_texts([text])[0]
 
     def _ensure_collection(self) -> None:
         client = self._client_or_none()
@@ -186,6 +229,11 @@ class VectorIndex:
                     collection_name=self.collection_name,
                     vectors_config=qm.VectorParams(size=dims, distance=qm.Distance.COSINE),
                 )
+                return
+            collection_info = client.get_collection(self.collection_name)
+            current_dims = self._collection_vector_size(collection_info)
+            if current_dims is not None and current_dims != dims:
+                self._recreate_collection(dims=dims, qm=qm)
         except Exception as exc:
             logger.warning(f"Failed to ensure Qdrant collection: {exc}")
 
@@ -204,26 +252,29 @@ class VectorIndex:
 
         _QdrantClient, qm = self._qdrant_modules()
         points: list[qm.PointStruct] = []
-        for chunk in chunks:
-            vector = self._embed_text(chunk.text)
-            points.append(
-                qm.PointStruct(
-                    id=str(chunk.id),
-                    vector=vector,
-                    payload={
-                        "chunk_id": str(chunk.id),
-                        "paper_id": str(chunk.paper_id),
-                        "project_id": str(paper.project_id),
-                        "page_number": chunk.page_number,
-                        "locator": chunk.locator,
-                        "text": chunk.text[:1500],
-                        "source_type": chunk.source_type,
-                    },
+        batch_size = max(1, int(settings.PAPERFLOW_EMBED_BATCH_SIZE))
+        for batch_start in range(0, len(chunks), batch_size):
+            batch = chunks[batch_start : batch_start + batch_size]
+            vectors = await asyncio.to_thread(self._embed_texts, [chunk.text for chunk in batch])
+            for chunk, vector in zip(batch, vectors, strict=True):
+                points.append(
+                    qm.PointStruct(
+                        id=str(chunk.id),
+                        vector=vector,
+                        payload={
+                            "chunk_id": str(chunk.id),
+                            "paper_id": str(chunk.paper_id),
+                            "project_id": str(paper.project_id),
+                            "page_number": chunk.page_number,
+                            "locator": chunk.locator,
+                            "text": chunk.text[:1500],
+                            "source_type": chunk.source_type,
+                        },
+                    )
                 )
-            )
         self._ensure_collection()
         try:
-            client.upsert(collection_name=self.collection_name, points=points, wait=False)
+            await asyncio.to_thread(client.upsert, collection_name=self.collection_name, points=points, wait=False)
         except Exception as exc:
             logger.warning(f"Failed to upsert chunk vectors: {exc}")
 
@@ -238,15 +289,17 @@ class VectorIndex:
         client = self._client_or_none()
         if client is None:
             return []
-        self._ensure_collection()
         try:
             _QdrantClient, qm = self._qdrant_modules()
             filters = [qm.FieldCondition(key="project_id", match=qm.MatchValue(value=str(project_id)))]
             if paper_id is not None:
                 filters.append(qm.FieldCondition(key="paper_id", match=qm.MatchValue(value=str(paper_id))))
-            hits = client.search(
+            query_vector = await asyncio.to_thread(self._embed_text, query)
+            self._ensure_collection()
+            hits = await asyncio.to_thread(
+                client.search,
                 collection_name=self.collection_name,
-                query_vector=self._embed_text(query),
+                query_vector=query_vector,
                 limit=limit,
                 query_filter=qm.Filter(must=filters),
             )

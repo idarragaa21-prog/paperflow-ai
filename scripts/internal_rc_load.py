@@ -66,7 +66,9 @@ async def _run(args) -> int:
         if not first_paper_id:
             raise RuntimeError("No seeded papers found for load test")
 
-        chat_timings = await asyncio.gather(*[_measure(_chat_once(client, project_id)) for _ in range(args.chat_requests)])
+        chat_timings = []
+        for _ in range(args.chat_requests):
+            chat_timings.append(await _measure(_chat_once(client, project_id)))
         process_results = await asyncio.gather(*[_enqueue_process(client, first_paper_id) for _ in range(args.job_requests)])
 
         library_latencies = [seconds for seconds, _ in library_timings]

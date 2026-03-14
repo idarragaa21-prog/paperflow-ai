@@ -19,6 +19,21 @@ from app.services.references_io import export_bibtex, export_ris, parse_bibtex_e
 
 router = APIRouter(prefix="/references", tags=["references"])
 
+REFERENCE_ITEM_FIELDS = {
+    "source_format",
+    "citation_key",
+    "title",
+    "authors",
+    "journal",
+    "publication_year",
+    "doi",
+    "pmid",
+    "pmcid",
+    "abstract_text",
+    "language",
+    "raw_payload",
+}
+
 
 def _to_response(item: ReferenceItem) -> ReferenceItemResponse:
     return ReferenceItemResponse(
@@ -36,6 +51,17 @@ def _to_response(item: ReferenceItem) -> ReferenceItemResponse:
         pmcid=item.pmcid,
         language=item.language,
     )
+
+
+def _reference_item_payload(*, project_id: UUID, entry: dict) -> dict:
+    raw_payload = dict(entry.get("raw_payload") or {})
+    extra_fields = {key: value for key, value in entry.items() if key not in REFERENCE_ITEM_FIELDS}
+    if extra_fields:
+        raw_payload["parsed_extras"] = extra_fields
+
+    payload = {"project_id": project_id, **{key: value for key, value in entry.items() if key in REFERENCE_ITEM_FIELDS}}
+    payload["raw_payload"] = raw_payload or None
+    return payload
 
 @router.post("/import", response_model=ReferencesImportResponse)
 @limiter.limit("10/minute")
@@ -81,7 +107,7 @@ async def import_references(
                 skipped += 1
                 continue
         entry["raw_payload"] = {**(entry.get("raw_payload") or {}), "canonical_identity": identity}
-        item = ReferenceItem(project_id=payload.project_id, **entry)
+        item = ReferenceItem(**_reference_item_payload(project_id=payload.project_id, entry=entry))
         db.add(item)
         imported.append(item)
     await db.commit()

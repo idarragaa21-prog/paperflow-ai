@@ -54,9 +54,24 @@ export default function ReaderPage() {
   async function loadPapers() {
     if (!projectId) return;
     setError(null);
-    const response = await api.get(`/projects/${projectId}/library`, { params: { limit: 100 } });
-    const page = response.data as PaginatedResponse<PaperOption>;
-    setPapers(page.items);
+    const loadedPapers: PaperOption[] = [];
+    const seen = new Set<string>();
+    let cursor: string | null = null;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await api.get(`/projects/${projectId}/library`, { params: { limit: 100, cursor: cursor || undefined } });
+      const page = response.data as PaginatedResponse<PaperOption>;
+      for (const paper of page.items) {
+        if (seen.has(paper.id)) continue;
+        seen.add(paper.id);
+        loadedPapers.push(paper);
+      }
+      cursor = page.next_cursor || null;
+      hasMore = Boolean(page.has_more && cursor);
+    }
+
+    setPapers(loadedPapers);
   }
 
   useEffect(() => {

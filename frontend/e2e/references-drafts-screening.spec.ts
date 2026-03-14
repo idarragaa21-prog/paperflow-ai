@@ -11,7 +11,7 @@ test('references, drafts and screening workflows stay usable in the seeded fixtu
     '@article{fixture2026,title={Internal RC Imported Study},author={Fixture, Team},year={2026},journal={PaperFlow Bench},doi={10.4242/paperflow.imported}}',
   );
   await page.getByTestId('references-import-button').click();
-  await expect(page.getByText('Internal RC Imported Study')).toBeVisible();
+  await expect(page.locator('.rc-soft-card').filter({ hasText: 'Internal RC Imported Study' }).first()).toBeVisible();
 
   await page.goto(`/projects/${fixture.project.id}/drafts`);
   await page.getByTestId('draft-title-input').fill(draftTitle);

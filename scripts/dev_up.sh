@@ -5,6 +5,15 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT_DIR/.dev_logs"
 mkdir -p "$LOG_DIR"
 
+PROCESS_MANAGER="${PAPERFLOW_PROCESS_MANAGER:-auto}"
+if [[ "$PROCESS_MANAGER" == "auto" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    PROCESS_MANAGER="fork"
+  else
+    PROCESS_MANAGER="nohup"
+  fi
+fi
+
 BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 copy_if_missing() {
@@ -51,8 +60,49 @@ start_if_not_running() {
   fi
 
   echo "[dev_up] starting $name..."
-  nohup "$@" >"$LOG_DIR/${name}.log" 2>&1 &
-  echo $! >"$pid_file"
+  if [[ "$PROCESS_MANAGER" == "fork" ]]; then
+    local log_file="$LOG_DIR/${name}.log"
+    python3 - "$pid_file" "$log_file" "$@" <<'PY'
+import os
+import sys
+
+pid_file = sys.argv[1]
+log_file = sys.argv[2]
+command = sys.argv[3:]
+
+first = os.fork()
+if first > 0:
+    sys.exit(0)
+
+os.setsid()
+second = os.fork()
+if second > 0:
+    with open(pid_file, "w", encoding="utf-8") as fh:
+        fh.write(str(second))
+    os._exit(0)
+
+os.chdir("/")
+stdin_fd = os.open("/dev/null", os.O_RDONLY)
+os.dup2(stdin_fd, 0)
+stdout_fd = os.open(log_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+os.dup2(stdout_fd, 1)
+os.dup2(stdout_fd, 2)
+os.execvp(command[0], command)
+PY
+    for _ in $(seq 1 20); do
+      if [[ -f "$pid_file" ]]; then
+        break
+      fi
+      sleep 0.1
+    done
+    if [[ ! -f "$pid_file" ]]; then
+      echo "[dev_up] failed to capture pid for $name" >&2
+      return 1
+    fi
+  else
+    nohup "$@" >"$LOG_DIR/${name}.log" 2>&1 &
+    echo $! >"$pid_file"
+  fi
   echo "[dev_up] $name started (pid=$(cat "$pid_file"))"
 }
 
@@ -128,6 +178,7 @@ pkill -f "uvicorn app.main:app --host 127.0.0.1 --port 8000" 2>/dev/null || true
 pkill -f "python -m app.workers.worker" 2>/dev/null || true
 pkill -f "vite --host 127.0.0.1 --port 5173" 2>/dev/null || true
 
+echo "[dev_up] process manager: $PROCESS_MANAGER"
 start_if_not_running backend bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && exec uvicorn app.main:app --host 127.0.0.1 --port 8000"
 start_if_not_running worker-documents bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && export WORKER_QUEUES=documents OTEL_SERVICE_NAME=paperflow-worker-documents && exec python -m app.workers.worker"
 start_if_not_running worker-presentations bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && export WORKER_QUEUES=presentations OTEL_SERVICE_NAME=paperflow-worker-presentations && exec python -m app.workers.worker"
