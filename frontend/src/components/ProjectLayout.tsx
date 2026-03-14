@@ -45,6 +45,19 @@ export default function ProjectLayout() {
   const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null; output?: any } | null>(null);
 
   const [error, setError] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem(`pf_onboard_${projectId}`) === '1'; } catch { return true; }
+  });
+
+  function dismissBanner() {
+    try { localStorage.setItem(`pf_onboard_${projectId}`, '1'); } catch {}
+    setBannerDismissed(true);
+  }
+
+  const showOnboardBanner =
+    !bannerDismissed &&
+    dashboard !== null &&
+    (dashboard.counts.papers === 0 && dashboard.counts.notes === 0);
 
   useEffect(() => {
     let mounted = true;
@@ -158,6 +171,37 @@ export default function ProjectLayout() {
           </div>
         </div>
       </div>
+
+      {showOnboardBanner ? (
+        <div className="rc-card" style={{ background: 'rgba(79,70,229,0.05)', border: '1px solid rgba(79,70,229,0.18)', padding: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>🚀 Primeros pasos</div>
+              <div className="rc-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { step: '1', label: 'Busca literatura', tab: 'research' },
+                  { step: '2', label: 'Descarga PDFs', tab: 'library' },
+                  { step: '3', label: 'Extrae datos', tab: 'meta' },
+                  { step: '4', label: 'Escribe', tab: 'drafts' },
+                ].map(({ step, label, tab }) => (
+                  <a
+                    key={step}
+                    href={`/projects/${projectId}/${tab}`}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <span className="rc-badge rc-badge--info" style={{ cursor: 'pointer', fontSize: 13 }}>
+                      <b>{step}</b> {label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <button className="rc-btn" style={{ whiteSpace: 'nowrap', fontSize: 12 }} onClick={dismissBanner}>
+              Entendido ✓
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="rc-card" style={{ padding: 10 }}>
         <div className="rc-row" style={{ gap: 6 }}>

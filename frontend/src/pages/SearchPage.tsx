@@ -278,7 +278,25 @@ export default function SearchPage() {
           </div>
         </div>
       ) : (
-        <div className="rc-muted">Run a PubMed search to see results.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+        <div className="rc-muted">Run a search to see results. Try one of these:</div>
+        <div className="rc-row" style={{ gap: 8 }}>
+          {[
+            'ACL reconstruction meta-analysis',
+            'hip arthroplasty outcomes RCT',
+            'tibial osteotomy return to sport',
+          ].map((example) => (
+            <button
+              key={example}
+              className="rc-btn"
+              style={{ fontSize: 13 }}
+              onClick={() => { setQuery(example); setTimeout(runSearch, 0); }}
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+      </div>
       )}
 
       {batchModalOpen ? (
