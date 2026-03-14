@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import EmptyState from '../ui/EmptyState/EmptyState';
 import { useParams } from 'react-router-dom';
 import StudyViewer from '../components/meta/StudyViewer';
 import { downloadBlob } from '../components/meta/exportUtils';
@@ -272,7 +273,7 @@ export default function MetaPage() {
           {error ? <div className="rc-error" style={{ marginTop: 8 }}>{String(error)}</div> : null}
           <div style={{ height: 10 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {batches.length === 0 ? <div className="rc-muted">No batches yet.</div> : null}
+            {batches.length === 0 ? <EmptyState title="No hay estudios extraídos" description="Sube PDFs y lanza una extracción para comenzar el meta-análisis." /> : null}
             {batches.map((b) => (
               <button
                 key={b.id}
