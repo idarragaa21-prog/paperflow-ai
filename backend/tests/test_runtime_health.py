@@ -29,7 +29,7 @@ class DummyAsyncClient:
 
     async def get(self, url: str):
         if url.endswith("/api/tags"):
-            return DummyResponse(json_payload={"models": []})
+            return DummyResponse(json_payload={"models": [{"name": "qwen2.5:3b"}]})
         if url.endswith("/api/isalive"):
             return DummyResponse(text="true")
         return DummyResponse(text="ok")
@@ -56,4 +56,29 @@ async def test_collect_runtime_health_separates_required_and_optional(monkeypatc
     assert health["required_services"]["redis"]["status"] == "ok"
     assert health["required_services"]["qdrant"]["status"] == "ok"
     assert health["required_services"]["ollama"]["status"] == "ok"
+    assert health["required_services"]["ollama"]["configured_models"]["embedding"]["available"] is True
     assert "prometheus" in health["optional_services"]
+
+
+@pytest.mark.asyncio
+async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(monkeypatch):
+    class MissingModelAsyncClient(DummyAsyncClient):
+        async def get(self, url: str):
+            if url.endswith("/api/tags"):
+                return DummyResponse(json_payload={"models": [{"name": "qwen2.5:3b"}]})
+            if url.endswith("/-/ready") or url.endswith("/api/health"):
+                return DummyResponse(text="ok")
+            return await super().get(url)
+
+    monkeypatch.setattr(runtime_health, "redis_available", lambda: True)
+    monkeypatch.setattr(runtime_health.storage_manager, "ensure_bucket", lambda: None)
+    monkeypatch.setattr(runtime_health.httpx, "AsyncClient", MissingModelAsyncClient)
+    monkeypatch.setattr("qdrant_client.QdrantClient", DummyQdrantClient)
+    monkeypatch.setattr(runtime_health.settings, "PAPERFLOW_EMBEDDING_MODEL", "bge-m3")
+
+    health = await runtime_health.collect_runtime_health()
+
+    assert health["overall_status"] == "degraded"
+    assert health["required_services"]["ollama"]["status"] == "degraded"
+    assert health["required_services"]["ollama"]["configured_models"]["embedding"]["available"] is False
+    assert "bge-m3" in health["required_services"]["ollama"]["detail"]

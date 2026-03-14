@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     PAPERFLOW_CHAT_MODEL: str = "qwen2.5:3b"
     PAPERFLOW_EXTRACTION_MODEL: str = "qwen2.5:3b"
     PAPERFLOW_WRITING_MODEL: str = "llama3.1:8b"
-    PAPERFLOW_EMBEDDING_MODEL: str = "bge-m3"
+    PAPERFLOW_EMBEDDING_MODEL: str = "qwen2.5:3b"
     QDRANT_URL: str = "http://127.0.0.1:6333"
     QDRANT_COLLECTION_PREFIX: str = "paperflow"
     R_ENGINE_URL: str = "http://127.0.0.1:8010"

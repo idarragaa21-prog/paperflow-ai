@@ -20,6 +20,10 @@ def _feature_status(*, enabled: bool, degraded: bool = False, detail: str | None
     return payload
 
 
+def _configured_model_payload(*, name: str, available_models: set[str]) -> dict:
+    return {"name": name, "available": name in available_models}
+
+
 async def collect_runtime_health() -> dict:
     required_services: dict[str, dict] = {
         "redis": {"status": "ok" if redis_available() else "down"},
@@ -60,11 +64,34 @@ async def collect_runtime_health() -> dict:
         try:
             response = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
             response.raise_for_status()
-            required_services["ollama"] = {
-                "status": "ok",
-                "base_url": settings.OLLAMA_BASE_URL,
-                "models": len((response.json() or {}).get("models") or []),
+            payload = response.json() or {}
+            available_models = {
+                model_name
+                for item in payload.get("models") or []
+                for model_name in (item.get("name") or item.get("model"),)
+                if model_name
             }
+            configured_models = {
+                "chat": _configured_model_payload(name=settings.PAPERFLOW_CHAT_MODEL, available_models=available_models),
+                "embedding": _configured_model_payload(
+                    name=settings.PAPERFLOW_EMBEDDING_MODEL,
+                    available_models=available_models,
+                ),
+                "extraction": _configured_model_payload(
+                    name=settings.PAPERFLOW_EXTRACTION_MODEL,
+                    available_models=available_models,
+                ),
+            }
+            missing_models = [item["name"] for item in configured_models.values() if not item["available"]]
+            required_services["ollama"] = {
+                "status": "degraded" if missing_models else "ok",
+                "base_url": settings.OLLAMA_BASE_URL,
+                "models": len(available_models),
+                "available_models": sorted(available_models),
+                "configured_models": configured_models,
+            }
+            if missing_models:
+                required_services["ollama"]["detail"] = "Missing configured models: " + ", ".join(missing_models)
         except Exception as exc:
             required_services["ollama"] = {"status": "down", "detail": str(exc), "base_url": settings.OLLAMA_BASE_URL}
 
@@ -80,8 +107,10 @@ async def collect_runtime_health() -> dict:
                 optional_services[label] = {"status": "down", "detail": str(exc)}
 
     overall = "ok"
-    if any(item["status"] != "ok" for item in required_services.values()):
+    if any(item["status"] == "down" for item in required_services.values()):
         overall = "down"
+    elif any(item["status"] == "degraded" for item in required_services.values()):
+        overall = "degraded"
     elif any(item["status"] != "ok" for item in optional_services.values()):
         overall = "degraded"
     return {

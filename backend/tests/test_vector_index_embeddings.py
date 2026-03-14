@@ -45,6 +45,8 @@ def test_vector_index_falls_back_to_legacy_ollama_embeddings_endpoint(monkeypatc
 
 def test_vector_index_falls_back_to_chat_model_when_embedding_model_unavailable(monkeypatch):
     calls: list[tuple[str, dict]] = []
+    monkeypatch.setattr("app.services.vector_index.settings.PAPERFLOW_EMBEDDING_MODEL", "bge-m3")
+    monkeypatch.setattr("app.services.vector_index.settings.PAPERFLOW_CHAT_MODEL", "qwen2.5:3b")
 
     def fake_post(url: str, json: dict, timeout: float):
         calls.append((url, json))
