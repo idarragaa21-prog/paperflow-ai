@@ -91,7 +91,7 @@ export default function DraftsPage() {
     setBusy(true);
     setError(null);
     try {
-      await api.get('/evidence/tables', { params: { project_id: projectId, build: true } });
+      await api.post('/evidence/tables/build', { project_id: projectId });
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to build evidence table');

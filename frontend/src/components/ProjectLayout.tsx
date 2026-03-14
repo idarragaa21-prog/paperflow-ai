@@ -1,6 +1,6 @@
 import { Search, BookOpen, Library, FlaskConical, Quote, FileText, BarChart2, CheckSquare, StickyNote } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 
@@ -42,6 +42,7 @@ function Tab({ to, label, icon }: { to: string; label: string; icon?: React.Reac
 
 export default function ProjectLayout() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
 
@@ -140,8 +141,18 @@ export default function ProjectLayout() {
     };
   }, [exportJobId]);
 
-  if (!projectId) return <div>Missing project id</div>;
-  if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
+  if (!projectId) return (
+    <div style={{ padding: 32 }}>
+      <div className="rc-error" style={{ marginBottom: 12 }}>Missing project id</div>
+      <button className="rc-btn" onClick={() => navigate('/projects')}>← Volver a proyectos</button>
+    </div>
+  );
+  if (error) return (
+    <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="rc-error">{String(error)}</div>
+      <button className="rc-btn" style={{ width: 'fit-content' }} onClick={() => navigate('/projects')}>← Volver a proyectos</button>
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
