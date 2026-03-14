@@ -1,13 +1,18 @@
+import { FolderOpen, Clock } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import ServiceStatusBanner from './ServiceStatusBanner';
 
-function NavItem({ to, label }: { to: string; label: string }) {
+function NavItem({ to, label, icon }: { to: string; label: string; icon: React.ReactNode }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) => `rc-nav-item ${isActive ? 'rc-nav-item--active' : ''}`}
     >
-      {label}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {icon}
+        {label}
+      </span>
     </NavLink>
   );
 }
@@ -34,8 +39,8 @@ export default function AuthedLayout() {
         </div>
 
         <nav className="rc-nav">
-          <NavItem to="/projects" label="Projects" />
-          <NavItem to="/jobs" label="Jobs" />
+          <NavItem to="/projects" label="Projects" icon={<FolderOpen size={16} />} />
+          <NavItem to="/jobs" label="Jobs" icon={<Clock size={16} />} />
         </nav>
 
         <div style={{ flex: 1 }} />
@@ -53,6 +58,7 @@ export default function AuthedLayout() {
       </aside>
 
       <main className="rc-main">
+        <ServiceStatusBanner />
         <div className="rc-container">
           <Outlet />
         </div>

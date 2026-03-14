@@ -1,3 +1,4 @@
+import { Search, BookOpen, Library, FlaskConical, Quote, FileText, BarChart2, CheckSquare, StickyNote } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useParams } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
@@ -23,7 +24,7 @@ type Dashboard = {
   };
 };
 
-function Tab({ to, label }: { to: string; label: string }) {
+function Tab({ to, label, icon }: { to: string; label: string; icon?: React.ReactNode }) {
   return (
     <NavLink
       to={to}
@@ -31,7 +32,10 @@ function Tab({ to, label }: { to: string; label: string }) {
       className={({ isActive }) => `rc-nav-item ${isActive ? 'rc-nav-item--active' : ''}`}
       style={{ padding: '8px 10px', borderRadius: 10 }}
     >
-      {label}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {icon}
+        {label}
+      </span>
     </NavLink>
   );
 }
@@ -205,15 +209,15 @@ export default function ProjectLayout() {
 
       <div className="rc-card" style={{ padding: 10 }}>
         <div className="rc-row" style={{ gap: 6 }}>
-          <Tab to={`/projects/${projectId}/research`} label="Research" />
-          <Tab to={`/projects/${projectId}/reader`} label="Reader" />
-          <Tab to={`/projects/${projectId}/library`} label="Library" />
-          <Tab to={`/projects/${projectId}/meta`} label="Extraction" />
-          <Tab to={`/projects/${projectId}/references`} label="References" />
-          <Tab to={`/projects/${projectId}/drafts`} label="Drafts" />
-          <Tab to={`/projects/${projectId}/analysis`} label="Analysis" />
-          <Tab to={`/projects/${projectId}/screening`} label="Screening" />
-          <Tab to={`/projects/${projectId}/notes`} label="Notes" />
+          <Tab to={`/projects/${projectId}/research`} label="Research" icon={<Search size={14} />} />
+          <Tab to={`/projects/${projectId}/reader`} label="Reader" icon={<BookOpen size={14} />} />
+          <Tab to={`/projects/${projectId}/library`} label="Library" icon={<Library size={14} />} />
+          <Tab to={`/projects/${projectId}/meta`} label="Extraction" icon={<FlaskConical size={14} />} />
+          <Tab to={`/projects/${projectId}/references`} label="References" icon={<Quote size={14} />} />
+          <Tab to={`/projects/${projectId}/drafts`} label="Drafts" icon={<FileText size={14} />} />
+          <Tab to={`/projects/${projectId}/analysis`} label="Analysis" icon={<BarChart2 size={14} />} />
+          <Tab to={`/projects/${projectId}/screening`} label="Screening" icon={<CheckSquare size={14} />} />
+          <Tab to={`/projects/${projectId}/notes`} label="Notes" icon={<StickyNote size={14} />} />
         </div>
       </div>
 
