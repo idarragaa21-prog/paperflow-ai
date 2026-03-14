@@ -1,6 +1,7 @@
 type EmptyStateVariant = 'papers' | 'projects' | 'notes' | 'references' | 'search' | 'generic';
 
-const illustrations: Record<EmptyStateVariant, JSX.Element> = {
+import React from "react";
+const illustrations: Record<EmptyStateVariant, React.ReactElement> = {
   projects: (
     <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
       <rect x="8" y="22" width="50" height="62" rx="6" fill="rgba(67,56,202,0.07)" stroke="rgba(67,56,202,0.2)" strokeWidth="1.5"/>

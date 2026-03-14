@@ -2,41 +2,19 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { DEMO_MODE, demoProjects, demoCounts } from '../services/demo';
 
-type Project = { id: string; title: string; description?: string | null; clinical_area?: string | null; archived: boolean; };
-type ProjectCounts = { papers: number; notes: number; presentations: number; references: number; meta_studies_current: number; };
+type Project = { id: string; title: string; description?: string|null; clinical_area?: string|null; archived: boolean; };
+type Counts = { papers: number; notes: number; presentations: number; references: number; meta_studies_current: number; };
 
-function StatCard({ label, value, icon, color }: { label: string; value: number | string; icon: React.ReactNode; color: string }) {
+function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
   return (
     <div className="rc-card" style={{ display:'flex',alignItems:'center',gap:14 }}>
-      <div style={{ width:44,height:44,borderRadius:12,background:color,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
-        {icon}
-      </div>
+      <div style={{ width:44,height:44,borderRadius:12,background:color,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>{icon}</div>
       <div>
-        <div style={{ fontSize:22,fontWeight:850,letterSpacing:'-0.03em',fontFamily:'var(--font-display)',lineHeight:1 }}>{value}</div>
+        <div style={{ fontSize:24,fontWeight:850,letterSpacing:'-0.04em',fontFamily:'var(--font-display)',lineHeight:1 }}>{value}</div>
         <div style={{ fontSize:12,color:'var(--rc-muted)',marginTop:3 }}>{label}</div>
       </div>
-    </div>
-  );
-}
-
-function EmptyProjects() {
-  return (
-    <div style={{ textAlign:'center',padding:'60px 24px' }}>
-      <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ margin:'0 auto 20px',display:'block' }}>
-        <rect x="10" y="18" width="44" height="52" rx="6" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5"/>
-        <rect x="18" y="12" width="44" height="52" rx="6" fill="rgba(99,102,241,0.06)" stroke="rgba(99,102,241,0.15)" strokeWidth="1.5"/>
-        <rect x="26" y="6" width="44" height="52" rx="6" fill="var(--rc-surface)" stroke="rgba(99,102,241,0.25)" strokeWidth="1.5"/>
-        <line x1="36" y1="22" x2="60" y2="22" stroke="rgba(99,102,241,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
-        <line x1="36" y1="30" x2="60" y2="30" stroke="rgba(99,102,241,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
-        <line x1="36" y1="38" x2="52" y2="38" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
-        <circle cx="62" cy="62" r="16" fill="var(--rc-surface)" stroke="rgba(99,102,241,0.25)" strokeWidth="1.5"/>
-        <line x1="62" y1="56" x2="62" y2="68" stroke="rgba(99,102,241,0.5)" strokeWidth="2" strokeLinecap="round"/>
-        <line x1="56" y1="62" x2="68" y2="62" stroke="rgba(99,102,241,0.5)" strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-      <div style={{ fontWeight:700,fontSize:16,fontFamily:'var(--font-display)',letterSpacing:'-0.02em' }}>No projects yet</div>
-      <div style={{ fontSize:13,color:'var(--rc-muted)',marginTop:6,marginBottom:20 }}>Create your first project to start organizing research</div>
-      <Link to="/projects" className="rc-btn rc-btn--primary" style={{ textDecoration:'none' }}>Go to Projects →</Link>
     </div>
   );
 }
@@ -45,22 +23,29 @@ export default function DashboardPage() {
   const user = useAuthStore(s => s.user);
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [countsMap, setCountsMap] = useState<Record<string, ProjectCounts>>({});
+  const [countsMap, setCountsMap] = useState<Record<string, Counts>>({});
   const [loading, setLoading] = useState(true);
-
   const firstName = (user?.full_name || user?.email || 'Researcher').split(/[\s@]/)[0];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   useEffect(() => {
     (async () => {
       try {
+        if (DEMO_MODE) {
+          setProjects(demoProjects);
+          setCountsMap(demoCounts);
+          setLoading(false);
+          return;
+        }
         const r = await api.get('/projects');
         const list = r.data as Project[];
         setProjects(list);
         const active = list.filter(p => !p.archived).slice(0, 6);
         const entries = await Promise.allSettled(
-          active.map(p => api.get(`/projects/${p.id}/dashboard`).then(res => [p.id, res.data.counts] as [string, ProjectCounts]))
+          active.map(p => api.get(`/projects/${p.id}/dashboard`).then(res => [p.id, res.data.counts] as [string, Counts]))
         );
-        const map: Record<string, ProjectCounts> = {};
+        const map: Record<string, Counts> = {};
         entries.forEach(e => { if (e.status === 'fulfilled') map[e.value[0]] = e.value[1]; });
         setCountsMap(map);
       } catch (_) {} finally { setLoading(false); }
@@ -68,36 +53,30 @@ export default function DashboardPage() {
   }, []);
 
   const active = projects.filter(p => !p.archived);
-  const totalPapers = Object.values(countsMap).reduce((s, c) => s + c.papers, 0);
-  const totalRefs = Object.values(countsMap).reduce((s, c) => s + c.references, 0);
-  const totalNotes = Object.values(countsMap).reduce((s, c) => s + c.notes, 0);
-
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const totalPapers = Object.values(countsMap).reduce((s,c)=>s+c.papers,0);
+  const totalRefs = Object.values(countsMap).reduce((s,c)=>s+c.references,0);
+  const totalNotes = Object.values(countsMap).reduce((s,c)=>s+c.notes,0);
 
   return (
     <div className="rc-page-enter" style={{ display:'flex',flexDirection:'column',gap:24 }}>
-      {/* Hero */}
-      <div style={{
-        borderRadius:20, padding:'28px 32px',
-        background:'linear-gradient(135deg, #1a1040 0%, #13122a 100%)',
-        position:'relative', overflow:'hidden',
-      }}>
-        <div style={{ position:'absolute',inset:0,opacity:0.5,
-          backgroundImage:'radial-gradient(circle at 80% 50%, rgba(139,92,246,0.15) 0%, transparent 50%)',
-          pointerEvents:'none' }}/>
+      {/* Hero banner */}
+      <div style={{ borderRadius:20,padding:'28px 32px',background:'linear-gradient(135deg,#1a1040 0%,#13122a 100%)',position:'relative',overflow:'hidden' }}>
+        <div style={{ position:'absolute',inset:0,opacity:0.5,backgroundImage:'radial-gradient(circle at 80% 50%,rgba(139,92,246,0.18) 0%,transparent 50%)',pointerEvents:'none' }}/>
         <div style={{ position:'relative',zIndex:1 }}>
           <div style={{ fontSize:22,fontWeight:800,color:'white',letterSpacing:'-0.03em',fontFamily:'var(--font-display)' }}>
             {greeting}, {firstName} 👋
           </div>
           <div style={{ fontSize:13,color:'rgba(255,255,255,0.45)',marginTop:6 }}>
-            {active.length === 0
-              ? 'Create your first project to get started.'
-              : `You have ${active.length} active project${active.length !== 1 ? 's' : ''} and ${totalPapers} papers across your workspace.`
-            }
+            {active.length === 0 ? 'Create your first project to get started.'
+              : `You have ${active.length} active project${active.length!==1?'s':''} and ${totalPapers} papers across your workspace.`}
           </div>
+          {DEMO_MODE && (
+            <div style={{ marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:'rgba(245,158,11,0.15)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:8,padding:'4px 10px',fontSize:12,color:'rgba(245,158,11,0.9)' }}>
+              <span>⚡</span> Demo mode — UI preview with mock data
+            </div>
+          )}
           <div style={{ marginTop:18,display:'flex',gap:10,flexWrap:'wrap' }}>
-            <Link to="/projects" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:'white',backdropFilter:'blur(8px)' }}>
+            <Link to="/projects" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:'white' }}>
               View Projects
             </Link>
             <Link to="/clinical" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.7)' }}>
@@ -109,58 +88,44 @@ export default function DashboardPage() {
 
       {/* Stats */}
       {!loading && active.length > 0 && (
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12 }}>
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:12 }}>
           <StatCard label="Active projects" value={active.length} color="rgba(99,102,241,0.12)"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.9)" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="8" height="8" rx="1.5"/><rect x="14" y="3" width="8" height="8" rx="1.5"/><rect x="2" y="13" width="8" height="8" rx="1.5"/><rect x="14" y="13" width="8" height="8" rx="1.5"/></svg>}
-          />
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.9)" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="8" height="8" rx="1.5"/><rect x="14" y="3" width="8" height="8" rx="1.5"/><rect x="2" y="13" width="8" height="8" rx="1.5"/><rect x="14" y="13" width="8" height="8" rx="1.5"/></svg>}/>
           <StatCard label="Total papers" value={totalPapers} color="rgba(16,185,129,0.12)"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(16,185,129,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}
-          />
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(16,185,129,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}/>
           <StatCard label="References" value={totalRefs} color="rgba(245,158,11,0.12)"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(245,158,11,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>}
-          />
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(245,158,11,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>}/>
           <StatCard label="Notes" value={totalNotes} color="rgba(139,92,246,0.12)"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
-          />
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}/>
         </div>
       )}
 
-      {/* Recent projects */}
+      {/* Projects grid */}
       <div>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em' }}>
-            Recent projects
-          </div>
+          <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em' }}>Recent projects</div>
           <Link to="/projects" style={{ fontSize:12,color:'var(--rc-primary)',textDecoration:'none' }}>View all →</Link>
         </div>
-
         {loading ? (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12 }}>
-            {[1,2,3].map(i=>(
-              <div key={i} className="rc-card rc-skeleton" style={{ height:110 }}/>
-            ))}
+            {[1,2,3].map(i=><div key={i} className="rc-card rc-skeleton" style={{ height:110 }}/>)}
           </div>
-        ) : active.length === 0 ? (
-          <div className="rc-card"><EmptyProjects/></div>
         ) : (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12 }}>
-            {active.slice(0, 6).map(p => {
-              const counts = countsMap[p.id];
+            {active.slice(0,6).map(p=>{
+              const c = countsMap[p.id];
               return (
-                <div key={p.id} className="rc-card rc-card--hover" onClick={() => navigate(`/projects/${p.id}/research`)}
-                  style={{ display:'flex',flexDirection:'column',gap:10,cursor:'pointer' }}>
+                <div key={p.id} className="rc-card rc-card--hover" onClick={()=>navigate(`/projects/${p.id}/research`)} style={{ display:'flex',flexDirection:'column',gap:10,cursor:'pointer' }}>
                   <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8 }}>
-                    <div style={{ fontWeight:750,fontSize:14,letterSpacing:'-0.02em',fontFamily:'var(--font-display)',lineHeight:1.35 }}>
-                      {p.title}
-                    </div>
+                    <div style={{ fontWeight:750,fontSize:14,letterSpacing:'-0.02em',fontFamily:'var(--font-display)',lineHeight:1.35 }}>{p.title}</div>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rc-muted)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0,marginTop:2 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </div>
                   {p.clinical_area && <div className="rc-help">{p.clinical_area}</div>}
-                  {counts && (
+                  {c && (
                     <div style={{ display:'flex',gap:14,marginTop:'auto',paddingTop:8,borderTop:'1px solid var(--rc-border)' }}>
-                      {[['Papers', counts.papers],['Refs', counts.references],['Notes', counts.notes]].map(([l,v]) => (
+                      {[['Papers',c.papers,'#4f46e5'],['Refs',c.references,'#d97706'],['Notes',c.notes,'#7c3aed']].map(([l,v,col])=>(
                         <div key={l as string} style={{ fontSize:12 }}>
-                          <span style={{ fontWeight:700,color:'var(--rc-text)' }}>{v}</span>
+                          <span style={{ fontWeight:750,color:col as string }}>{v}</span>
                           <span style={{ color:'var(--rc-muted)',marginLeft:3 }}>{l}</span>
                         </div>
                       ))}
@@ -175,16 +140,14 @@ export default function DashboardPage() {
 
       {/* Quick links */}
       <div>
-        <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em',marginBottom:12 }}>
-          Quick access
-        </div>
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10 }}>
+        <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em',marginBottom:12 }}>Quick access</div>
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:10 }}>
           {[
-            { label:'Books & Scans', sub:'Manage book library', to:'/books', color:'rgba(59,130,246,0.1)', stroke:'rgba(59,130,246,0.8)' },
-            { label:'Clinical Sheets', sub:'AI clinical summaries', to:'/clinical', color:'rgba(16,185,129,0.1)', stroke:'rgba(16,185,129,0.8)' },
-            { label:'Background Jobs', sub:'Processing & downloads', to:'/jobs', color:'rgba(245,158,11,0.1)', stroke:'rgba(245,158,11,0.8)' },
-            { label:'Settings', sub:'Profile & services', to:'/settings', color:'rgba(139,92,246,0.1)', stroke:'rgba(139,92,246,0.8)' },
-          ].map(item => (
+            { label:'Books & Scans',sub:'Manage book library',to:'/books',color:'rgba(59,130,246,0.1)',stroke:'rgba(59,130,246,0.8)'},
+            { label:'Clinical Sheets',sub:'AI clinical summaries',to:'/clinical',color:'rgba(16,185,129,0.1)',stroke:'rgba(16,185,129,0.8)'},
+            { label:'Background Jobs',sub:'Processing & downloads',to:'/jobs',color:'rgba(245,158,11,0.1)',stroke:'rgba(245,158,11,0.8)'},
+            { label:'Settings',sub:'Profile & services',to:'/settings',color:'rgba(139,92,246,0.1)',stroke:'rgba(139,92,246,0.8)'},
+          ].map(item=>(
             <Link key={item.to} to={item.to} style={{ textDecoration:'none' }}>
               <div className="rc-card rc-card--hover" style={{ display:'flex',alignItems:'center',gap:12 }}>
                 <div style={{ width:36,height:36,borderRadius:10,background:item.color,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center' }}>
