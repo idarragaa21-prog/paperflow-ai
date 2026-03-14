@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams } from 'react-router-dom';
+import { NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 
@@ -38,6 +38,7 @@ function Tab({ to, label }: { to: string; label: string }) {
 
 export default function ProjectLayout() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
 
@@ -134,6 +135,13 @@ export default function ProjectLayout() {
             <h1 className="rc-page-title" style={{ marginBottom: 0 }}>{project?.title || 'Project'}</h1>
             {project?.clinical_area ? <div className="rc-subtitle">{project.clinical_area}</div> : <div className="rc-subtitle">Research project workspace</div>}
             {project?.runtime_mode ? <div className="rc-help">Runtime: {project.runtime_mode}</div> : null}
+            <button
+              className="rc-btn"
+              style={{ marginTop: 8, padding: '6px 12px', fontSize: 12 }}
+              onClick={() => navigate(`/clinical?from_project=${projectId}`)}
+            >
+              {'\uD83E\uDE7A'} Generate Clinical Sheet &rarr;
+            </button>
           </div>
 
           <div className="rc-card" style={{ minWidth: 360 }}>

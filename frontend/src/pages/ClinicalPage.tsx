@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 
 type ProjectRow = { id: string; title: string };
@@ -15,9 +15,11 @@ type SheetRow = {
 
 export default function ClinicalPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromProject = searchParams.get('from_project');
 
   const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [projectId, setProjectId] = useState<string>('');
+  const [projectId, setProjectId] = useState<string>(fromProject || '');
 
   const [topic, setTopic] = useState('');
   const [context, setContext] = useState('');
@@ -153,6 +155,14 @@ export default function ClinicalPage() {
       </div>
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
+
+      {fromProject && (
+        <div className="rc-card" style={{ background: 'rgba(79,70,229,0.06)', border: '1px solid rgba(79,70,229,0.15)' }}>
+          <div style={{ fontSize: 13 }}>
+            {'\uD83D\uDD17'} Generating based on project: <b>{projects.find(p => p.id === fromProject)?.title || fromProject}</b>
+          </div>
+        </div>
+      )}
 
       <div className="rc-card">
         <div className="rc-card-title">Topic</div>
