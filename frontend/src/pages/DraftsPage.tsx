@@ -74,7 +74,13 @@ export default function DraftsPage() {
       await api.post(`/drafts/${selectedDraft}/generate-section`, { heading, paper_ids: [], extraction_record_ids: [] });
       await load();
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to generate section');
+      const detail = e?.response?.data?.detail || '';
+      const status = e?.response?.status;
+      if (status === 503 || detail.toLowerCase().includes('openclaw') || detail.toLowerCase().includes('connection refused')) {
+        setError('El servicio LLM no está disponible. Asegúrate de que OpenClaw y Ollama estén corriendo.');
+      } else {
+        setError(detail || 'Failed to generate section');
+      }
     } finally {
       setBusy(false);
     }

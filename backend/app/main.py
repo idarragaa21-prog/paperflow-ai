@@ -79,6 +79,12 @@ app.include_router(books_router)
 # private_sources_router disabled
 
 
+@app.get("/health/services")
+async def health_services() -> dict:
+    from app.services.runtime_health import collect_services_health
+    return await collect_services_health()
+
+
 @app.get("/health")
 async def health() -> dict:
     details = await collect_runtime_health()

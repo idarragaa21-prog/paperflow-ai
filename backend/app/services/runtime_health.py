@@ -47,3 +47,43 @@ async def collect_runtime_health() -> dict:
     if any(item["status"] == "down" for item in services.values()):
         overall = "degraded"
     return {"status": overall, "services": services}
+
+
+async def collect_services_health() -> dict:
+    """Returns a flat dict of service health for the frontend banner.
+    Each service: { ok: bool, latency_ms: int | None }
+    Timeout per service: 2 seconds. Never raises.
+    """
+    import time
+
+    result: dict[str, dict] = {}
+
+    # Redis
+    result["redis"] = {"ok": redis_available(), "latency_ms": None}
+
+    # Qdrant
+    try:
+        from qdrant_client import QdrantClient
+        t0 = time.monotonic()
+        QdrantClient(url=settings.QDRANT_URL, timeout=2.0).get_collections()
+        result["qdrant"] = {"ok": True, "latency_ms": int((time.monotonic() - t0) * 1000)}
+    except Exception:
+        result["qdrant"] = {"ok": False, "latency_ms": None}
+
+    # Ollama, Grobid, OpenClaw — HTTP checks with 2s timeout
+    async with httpx.AsyncClient(timeout=2.0) as client:
+        checks = {
+            "ollama": f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags",
+            "grobid": f"{settings.GROBID_URL.rstrip('/')}/api/isalive",
+            "openclaw": f"{settings.OPENCLAW_BASE_URL.rstrip('/')}/health",
+        }
+        for label, url in checks.items():
+            try:
+                t0 = time.monotonic()
+                resp = await client.get(url)
+                ok = resp.status_code < 400
+                result[label] = {"ok": ok, "latency_ms": int((time.monotonic() - t0) * 1000)}
+            except Exception:
+                result[label] = {"ok": False, "latency_ms": None}
+
+    return result
