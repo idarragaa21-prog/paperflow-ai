@@ -123,6 +123,38 @@ async def patch_draft(
     return _draft_to_response(draft)
 
 
+@router.patch("/drafts/{draft_id}/sections/{section_id}")
+async def patch_draft_section(
+    draft_id: UUID,
+    section_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    from fastapi import Request as _Req  # already imported via param
+
+    stmt = select(Draft).where(Draft.id == draft_id)
+    result = await db.execute(stmt)
+    draft = result.scalars().first()
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    await _require_project(db, draft.project_id, user)
+
+    sec_stmt = select(DraftSection).where(DraftSection.id == section_id, DraftSection.draft_id == draft_id)
+    sec_result = await db.execute(sec_stmt)
+    section = sec_result.scalars().first()
+    if section is None:
+        raise HTTPException(status_code=404, detail="Section not found")
+
+    body = await request.json()
+    if "content" in body:
+        section.content = body["content"]
+    if "heading" in body:
+        section.heading = body["heading"]
+    await db.commit()
+    return {"id": str(section.id), "heading": section.heading, "content": section.content}
+
+
 @router.post("/drafts/{draft_id}/generate-section", response_model=DraftResponse)
 async def generate_draft_section(
     draft_id: UUID,
