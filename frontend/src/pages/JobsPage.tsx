@@ -146,10 +146,18 @@ export default function JobsPage() {
       ) : null}
 
       {!loading && jobs.length === 0 ? (
-        <div className="rc-card" style={{ textAlign: 'center', padding: 32 }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>{'\u2699\uFE0F'}</div>
-          <div style={{ fontWeight: 800, marginBottom: 4 }}>No jobs yet</div>
-          <div className="rc-help">Background jobs appear here when you process papers, run searches, or export data.</div>
+        <div className="rc-card" style={{ textAlign: 'center', padding: '56px 24px' }}>
+          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ margin: '0 auto 16px', display: 'block' }}>
+            <circle cx="40" cy="40" r="30" fill="rgba(245,158,11,0.07)" stroke="rgba(245,158,11,0.2)" strokeWidth="1.5"/>
+            <circle cx="40" cy="40" r="20" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.18)" strokeWidth="1.5"/>
+            <circle cx="40" cy="40" r="6" fill="rgba(245,158,11,0.2)" stroke="rgba(245,158,11,0.4)" strokeWidth="1.5"/>
+            <line x1="40" y1="10" x2="40" y2="20" stroke="rgba(245,158,11,0.35)" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="40" y1="60" x2="40" y2="70" stroke="rgba(245,158,11,0.35)" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="10" y1="40" x2="20" y2="40" stroke="rgba(245,158,11,0.35)" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="60" y1="40" x2="70" y2="40" stroke="rgba(245,158,11,0.35)" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>No jobs yet</div>
+          <div className="rc-help" style={{ marginTop: 6 }}>Background jobs appear here when you process papers, run searches, or generate reports.</div>
         </div>
       ) : null}
 

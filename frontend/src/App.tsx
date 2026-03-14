@@ -5,8 +5,8 @@ import ProjectLayout from './components/ProjectLayout';
 import BooksPage from './pages/BooksPage';
 import ClinicalPage from './pages/ClinicalPage';
 import ClinicalSheetPage from './pages/ClinicalSheetPage';
-// PrivateSourcesPage removed by scope change
 import AnalysisPage from './pages/AnalysisPage';
+import DashboardPage from './pages/DashboardPage';
 import DraftsPage from './pages/DraftsPage';
 import JobsPage from './pages/JobsPage';
 import LoginPage from './pages/LoginPage';
@@ -32,23 +32,14 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  useEffect(() => { checkAuth(); }, [checkAuth]);
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-
-        <Route
-          element={
-            <RequireAuth>
-              <AuthedLayout />
-            </RequireAuth>
-          }
-        >
+        <Route element={<RequireAuth><AuthedLayout /></RequireAuth>}>
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectLayout />}>
             <Route index element={<Navigate to="research" replace />} />
@@ -65,18 +56,13 @@ export default function App() {
             <Route path="analysis" element={<AnalysisPage />} />
             <Route path="screening" element={<ScreeningPage />} />
           </Route>
-
           <Route path="/clinical" element={<ClinicalPage />} />
           <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />
-
           <Route path="/books" element={<BooksPage />} />
-          {/* private sources removed by scope change */}
-
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
-
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

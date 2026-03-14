@@ -140,7 +140,19 @@ export default function ScreeningPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div className="rc-card">
           <div className="rc-card-title">Batches</div>
-          {batches.length === 0 ? <div className="rc-muted">No screening batches yet.</div> : null}
+          {batches.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+              <svg width="56" height="56" viewBox="0 0 56 56" fill="none" style={{ margin: '0 auto 10px', display: 'block' }}>
+                <rect x="6" y="8" width="44" height="32" rx="4" fill="rgba(16,185,129,0.07)" stroke="rgba(16,185,129,0.2)" strokeWidth="1.5"/>
+                <line x1="14" y1="18" x2="38" y2="18" stroke="rgba(16,185,129,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="14" y1="24" x2="38" y2="24" stroke="rgba(16,185,129,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="42" cy="42" r="12" fill="var(--rc-surface)" stroke="rgba(16,185,129,0.3)" strokeWidth="1.5"/>
+                <path d="M38 42h8M42 38v8" stroke="rgba(16,185,129,0.65)" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rc-text)' }}>No screening batches yet</div>
+              <div style={{ fontSize: 12, color: 'var(--rc-muted)', marginTop: 3 }}>Create a batch to start screening papers</div>
+            </div>
+          ) : null}
           {batches.map((batch) => (
             <div key={batch.id} className="rc-help">{batch.title} · {batch.stage} · {batch.status}</div>
           ))}

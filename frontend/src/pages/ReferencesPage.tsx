@@ -223,10 +223,20 @@ export default function ReferencesPage() {
 
       {/* Tabla */}
       {items.length === 0 && !loading ? (
-        <div className="rc-card" style={{ textAlign: 'center', padding: 32 }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>{'\uD83D\uDCDA'}</div>
-          <div style={{ fontWeight: 800, marginBottom: 4 }}>No references yet</div>
-          <div className="rc-help">Sync from Library, import BibTeX/RIS, or add by DOI.</div>
+        <div className="rc-card" style={{ textAlign: 'center', padding: '56px 24px' }}>
+          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ margin: '0 auto 16px', display: 'block' }}>
+            <rect x="12" y="8" width="40" height="52" rx="5" fill="rgba(245,158,11,0.07)" stroke="rgba(245,158,11,0.2)" strokeWidth="1.5"/>
+            <rect x="20" y="4" width="40" height="52" rx="5" fill="rgba(245,158,11,0.05)" stroke="rgba(245,158,11,0.15)" strokeWidth="1.5"/>
+            <rect x="28" y="0" width="40" height="52" rx="5" fill="var(--rc-surface)" stroke="rgba(245,158,11,0.22)" strokeWidth="1.5"/>
+            <line x1="36" y1="14" x2="60" y2="14" stroke="rgba(245,158,11,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="36" y1="22" x2="60" y2="22" stroke="rgba(245,158,11,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="36" y1="30" x2="52" y2="30" stroke="rgba(245,158,11,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="20" cy="64" r="14" fill="var(--rc-surface)" stroke="rgba(245,158,11,0.28)" strokeWidth="1.5"/>
+            <line x1="20" y1="58" x2="20" y2="70" stroke="rgba(245,158,11,0.6)" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="14" y1="64" x2="26" y2="64" stroke="rgba(245,158,11,0.6)" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>No references yet</div>
+          <div className="rc-help" style={{ marginTop: 6 }}>Sync from Library, import BibTeX/RIS, or add by DOI.</div>
         </div>
       ) : null}
 

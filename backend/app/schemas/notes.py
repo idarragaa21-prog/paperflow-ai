@@ -10,6 +10,20 @@ class SummarizeNoteRequest(BaseModel):
     custom_instructions: str | None = None
 
 
+class NoteCreate(BaseModel):
+    project_id: UUID
+    title: str
+    content: str
+    note_type: str = "general"
+    paper_id: UUID | None = None
+
+
+class NotePatch(BaseModel):
+    title: str | None = None
+    content: str | None = None
+    note_type: str | None = None
+
+
 class NoteResponse(BaseModel):
     id: UUID
     project_id: UUID

@@ -278,7 +278,17 @@ export default function SearchPage() {
           </div>
         </div>
       ) : (
-        <div className="rc-muted">Run a PubMed search to see results.</div>
+        <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <svg width="72" height="72" viewBox="0 0 72 72" fill="none" style={{ margin: '0 auto 14px', display: 'block' }}>
+            <circle cx="32" cy="32" r="22" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5"/>
+            <circle cx="32" cy="32" r="14" fill="rgba(99,102,241,0.05)" stroke="rgba(99,102,241,0.15)" strokeWidth="1.5"/>
+            <line x1="24" y1="32" x2="40" y2="32" stroke="rgba(99,102,241,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="32" y1="24" x2="32" y2="40" stroke="rgba(99,102,241,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="49" y1="49" x2="62" y2="62" stroke="rgba(99,102,241,0.4)" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+          <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>Search PubMed</div>
+          <div style={{ fontSize: 13, color: 'var(--rc-muted)', marginTop: 5 }}>Enter a query above to search millions of research papers.</div>
+        </div>
       )}
 
       {batchModalOpen ? (

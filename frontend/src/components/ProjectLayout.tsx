@@ -128,7 +128,7 @@ export default function ProjectLayout() {
   if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div>
@@ -144,25 +144,31 @@ export default function ProjectLayout() {
             </button>
           </div>
 
-          <div className="rc-card" style={{ minWidth: 360 }}>
-            <div className="rc-card-title">Dashboard</div>
-            <div className="rc-row" style={{ gap: 10 }}>
-              <span className="rc-badge">Papers: <b>{dashboard?.counts?.papers ?? '—'}</b></span>
-              <span className="rc-badge">Notes: <b>{dashboard?.counts?.notes ?? '—'}</b></span>
-              <span className="rc-badge">Refs: <b>{dashboard?.counts?.references ?? '—'}</b></span>
-              <span className="rc-badge">Extracted: <b>{dashboard?.counts?.meta_studies_current ?? '—'}</b></span>
-            </div>
-
-            <div style={{ height: 10 }} />
-
-            <div className="rc-row">
-              <button className="rc-btn" onClick={startExportZip}>Export ZIP</button>
-              {exportJobId ? <div className="rc-help">{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
-              {exportJobId && exportJobStatus?.status === 'completed' ? (
-                <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Download ZIP</button>
-              ) : null}
-            </div>
-            {exportJobStatus?.error ? <div className="rc-error" style={{ fontSize: 12, marginTop: 8 }}>{String(exportJobStatus.error)}</div> : null}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Papers', value: dashboard?.counts?.papers ?? '—', icon: '📄', color: 'var(--rc-info)' },
+              { label: 'Notes', value: dashboard?.counts?.notes ?? '—', icon: '📝', color: 'var(--rc-success)' },
+              { label: 'References', value: dashboard?.counts?.references ?? '—', icon: '🔗', color: 'var(--rc-warning)' },
+              { label: 'Extracted', value: dashboard?.counts?.meta_studies_current ?? '—', icon: '🔬', color: 'var(--rc-primary)' },
+            ].map(s => (
+              <div key={s.label} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                background: 'var(--rc-surface)', border: '1px solid var(--rc-border)',
+                borderRadius: 10, padding: '8px 14px', boxShadow: 'var(--rc-shadow-xs)',
+              }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, lineHeight: 1, color: 'var(--rc-text)' }}>{s.value}</span>
+                <span style={{ fontSize: 10, color: 'var(--rc-muted)', fontWeight: 600 }}>{s.label}</span>
+              </div>
+            ))}
+            <button className="rc-btn rc-btn--sm" onClick={startExportZip} style={{ gap: 5 }}>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/></svg>
+              Export ZIP
+            </button>
+            {exportJobId ? <div className="rc-help">{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
+            {exportJobId && exportJobStatus?.status === 'completed' ? (
+              <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={downloadZip}>⬇ Download</button>
+            ) : null}
+            {exportJobStatus?.error ? <div className="rc-error" style={{ fontSize: 12 }}>{String(exportJobStatus.error)}</div> : null}
           </div>
         </div>
       </div>
