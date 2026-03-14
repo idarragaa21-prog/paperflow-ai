@@ -36,6 +36,7 @@ export default function AuthedLayout() {
         <nav className="rc-nav">
           <NavItem to="/projects" label="Projects" />
           <NavItem to="/jobs" label="Jobs" />
+          <NavItem to="/settings" label="Settings" />
         </nav>
 
         <div style={{ flex: 1 }} />

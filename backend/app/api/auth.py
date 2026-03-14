@@ -161,3 +161,38 @@ async def logout(response: Response) -> dict:
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)) -> dict:
     return {"id": user.id, "email": user.email, "full_name": user.full_name}
+
+
+@router.patch("/me")
+async def update_me(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    body = await request.json()
+    if "full_name" in body:
+        user.full_name = body["full_name"]
+    await db.commit()
+    return {"id": user.id, "email": user.email, "full_name": user.full_name}
+
+
+@router.post("/change-password")
+async def change_password(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    from app.core.security import hash_password
+
+    body = await request.json()
+    current = body.get("current_password", "")
+    new_pw = body.get("new_password", "")
+    if not current or not new_pw:
+        raise HTTPException(status_code=400, detail="current_password and new_password required")
+    if len(new_pw) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if not verify_password(current, user.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    user.password_hash = hash_password(new_pw)
+    await db.commit()
+    return {"ok": True}

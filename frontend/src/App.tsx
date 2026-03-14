@@ -19,6 +19,7 @@ import ReaderPage from './pages/ReaderPage';
 import ReferencesPage from './pages/ReferencesPage';
 import ScreeningPage from './pages/ScreeningPage';
 import SearchPage from './pages/SearchPage';
+import SettingsPage from './pages/SettingsPage';
 import { useAuthStore } from './store/authStore';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -72,6 +73,7 @@ export default function App() {
           {/* private sources removed by scope change */}
 
           <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/" element={<Navigate to="/projects" replace />} />
         </Route>
 
