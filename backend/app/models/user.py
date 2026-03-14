@@ -22,6 +22,9 @@ class User(Base, TimestampMixin):
 
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    invite_token: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    invite_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
     jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
