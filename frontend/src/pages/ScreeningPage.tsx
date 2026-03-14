@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import EmptyState from '../ui/EmptyState/EmptyState';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -140,7 +141,7 @@ export default function ScreeningPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div className="rc-card">
           <div className="rc-card-title">Batches</div>
-          {batches.length === 0 ? <div className="rc-muted">No screening batches yet.</div> : null}
+          {batches.length === 0 ? <EmptyState title="No hay batches de screening" description="Crea tu primer batch para empezar el cribado PRISMA de títulos y abstracts." /> : null}
           {batches.map((batch) => (
             <div key={batch.id} className="rc-help">{batch.title} · {batch.stage} · {batch.status}</div>
           ))}

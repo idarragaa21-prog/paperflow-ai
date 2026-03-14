@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import EmptyState from '../ui/EmptyState/EmptyState';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -141,7 +142,7 @@ export default function ReferencesPage() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.length === 0 ? <div className="rc-muted">No references yet.</div> : null}
+        {items.length === 0 ? <EmptyState title="No hay referencias" description="Las referencias se generan automáticamente al procesar papers o puedes importarlas en formato BibTeX/RIS." /> : null}
         {items.map((item) => (
           <div key={item.id} className="rc-card">
             <div style={{ fontWeight: 850, lineHeight: 1.25 }}>{item.title}</div>

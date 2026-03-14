@@ -33,6 +33,9 @@ from app.services.runtime_health import collect_runtime_health
 app = FastAPI(title="PaperFlow AI")
 setup_telemetry()
 
+# Validate production config on startup (raises RuntimeError if SECRET_KEY is unsafe)
+settings.validate_production()
+
 # Middleware (orden importa: auth → csrf → rate limit)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(CSRFMiddleware)
@@ -74,6 +77,12 @@ app.include_router(meta_router)
 app.include_router(clinical_router)
 app.include_router(books_router)
 # private_sources_router disabled
+
+
+@app.get("/health/services")
+async def health_services() -> dict:
+    from app.services.runtime_health import collect_services_health
+    return await collect_services_health()
 
 
 @app.get("/health")

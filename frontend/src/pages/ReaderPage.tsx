@@ -55,7 +55,13 @@ export default function ReaderPage() {
           : await api.post(`/papers/${paperId}/chat`, payload);
       setResult(response.data as ChatResult);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Chat failed');
+      const detail = e?.response?.data?.detail || '';
+      const status = e?.response?.status;
+      if (status === 503 || detail.toLowerCase().includes('openclaw') || detail.toLowerCase().includes('connection refused')) {
+        setError('El servicio LLM no está disponible. Asegúrate de que OpenClaw y Ollama estén corriendo.');
+      } else {
+        setError(detail || 'Chat failed');
+      }
     } finally {
       setLoading(false);
     }

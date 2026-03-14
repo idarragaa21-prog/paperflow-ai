@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import EmptyState from '../ui/EmptyState/EmptyState';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
@@ -219,7 +220,7 @@ export default function PapersPage() {
             <SkeletonLines lines={4} lineHeight={12} lastLineWidth="50%" />
           </div>
         ) : null}
-        {!loading && papers.length === 0 ? <div className="rc-muted">No papers in this project yet.</div> : null}
+        {!loading && papers.length === 0 ? <EmptyState title="No hay papers aún" description="Ve a Research para buscar y descargar literatura científica." action={{ label: "Ir a Research", onClick: () => window.location.href = window.location.href.replace("library", "research") }} /> : null}
         {papers.map((p) => (
           <div key={p.id} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>

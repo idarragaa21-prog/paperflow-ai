@@ -1,3 +1,4 @@
+import { Search as SearchIcon, Download } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
@@ -208,7 +209,7 @@ export default function SearchPage() {
             <input className="rc-input" type="number" value={maxResults} min={1} max={100} onChange={(e) => setMaxResults(Number(e.target.value))} />
           </div>
           <button className="rc-btn rc-btn--primary" disabled={!canSearch || loading} onClick={runSearch}>
-            {loading ? 'Searching…' : 'Search'}
+            <span style={{display:'flex',alignItems:'center',gap:6}}>{loading ? 'Searching…' : <><SearchIcon size={15}/>Search</>}</span>
           </button>
         </div>
         <div className="rc-help" style={{ marginTop: 8 }}>Tip: use phrases, outcomes, populations and study types. The app will merge duplicate hits across providers.</div>
@@ -236,7 +237,7 @@ export default function SearchPage() {
             <div className="rc-row">
               <button className="rc-btn" onClick={selectAllOA} disabled={!data.results.length}>Select all OA</button>
               <button className="rc-btn" onClick={clearSelection} disabled={selectedCount === 0}>Clear ({selectedCount})</button>
-              <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}>Download Selected ({selectedCount})</button>
+              <button className="rc-btn rc-btn--primary" onClick={startBatchDownload} disabled={selectedCount === 0}><span style={{display:'flex',alignItems:'center',gap:6}}><Download size={14}/>Download Selected ({selectedCount})</span></button>
               {batchJobId ? (
                 <button className="rc-btn" onClick={() => setBatchModalOpen(true)}>View batch job</button>
               ) : null}
@@ -266,7 +267,7 @@ export default function SearchPage() {
 
                   <div className="rc-row">
                     <button className="rc-btn" disabled={!canDownload || downloadingKey === (r.doi || r.pmid || r.title)} onClick={() => downloadOA(r)}>
-                      {downloadingKey === (r.doi || r.pmid || r.title) ? 'Downloading…' : 'Download OA PDF'}
+                      <span style={{display:'flex',alignItems:'center',gap:6}}>{downloadingKey === (r.doi || r.pmid || r.title) ? 'Downloading…' : <><Download size={14}/>Download OA PDF</>}</span>
                     </button>
                     {r.oa_url ? <a href={r.oa_url} target="_blank" rel="noreferrer">OA link</a> : null}
                     {!r.is_open_access ? <span className="rc-help">Not marked OA by PubMed metadata.</span> : null}
@@ -278,7 +279,25 @@ export default function SearchPage() {
           </div>
         </div>
       ) : (
-        <div className="rc-muted">Run a PubMed search to see results.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+        <div className="rc-muted">Run a search to see results. Try one of these:</div>
+        <div className="rc-row" style={{ gap: 8 }}>
+          {[
+            'ACL reconstruction meta-analysis',
+            'hip arthroplasty outcomes RCT',
+            'tibial osteotomy return to sport',
+          ].map((example) => (
+            <button
+              key={example}
+              className="rc-btn"
+              style={{ fontSize: 13 }}
+              onClick={() => { setQuery(example); setTimeout(runSearch, 0); }}
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+      </div>
       )}
 
       {batchModalOpen ? (

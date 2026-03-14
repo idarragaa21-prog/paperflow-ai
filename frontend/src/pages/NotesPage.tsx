@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import EmptyState from '../ui/EmptyState/EmptyState';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -75,7 +76,7 @@ export default function NotesPage() {
           {error ? <div className="rc-error" style={{ marginTop: 8 }}>{String(error)}</div> : null}
           <div style={{ height: 10 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {notes.length === 0 ? <div className="rc-muted">No notes yet.</div> : null}
+            {notes.length === 0 ? <EmptyState title="No hay notas todavía" description="Crea notas para documentar ideas, hallazgos y decisiones de tu proyecto." /> : null}
             {notes.map((n) => (
               <button
                 key={n.id}

@@ -161,3 +161,119 @@ async def logout(response: Response) -> dict:
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)) -> dict:
     return {"id": user.id, "email": user.email, "full_name": user.full_name}
+
+
+# ─── Registration ─────────────────────────────────────────────────────────────
+
+from app.core.security import hash_password
+from app.schemas.auth import UserRegister, UserInvite, AcceptInviteRequest
+
+
+@router.post("/register", status_code=201)
+async def register(
+    payload: UserRegister,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if not settings.REGISTRATION_OPEN:
+        raise HTTPException(
+            status_code=403,
+            detail="Registro cerrado. Contacta al administrador.",
+        )
+
+    existing = await db.execute(select(User).where(User.email == payload.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Email ya registrado.")
+
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=422, detail="La contraseña debe tener al menos 8 caracteres.")
+
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        full_name=payload.full_name,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+    csrf_token = generate_csrf_token()
+    _set_auth_cookies(response, access_token, refresh_token)
+    _set_csrf_cookie(response, csrf_token)
+
+    return {"id": str(user.id), "email": user.email, "full_name": user.full_name}
+
+
+@router.post("/invite", status_code=201)
+async def invite_user(
+    payload: UserInvite,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Admin-only: create an invitation for a new user."""
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Solo administradores pueden invitar usuarios.")
+
+    existing = await db.execute(select(User).where(User.email == payload.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Email ya registrado.")
+
+    import secrets as _secrets
+    from datetime import timedelta
+
+    token = _secrets.token_urlsafe(32)
+    expires = datetime.utcnow() + timedelta(hours=24)
+
+    invited = User(
+        email=payload.email,
+        password_hash="",  # set on accept
+        full_name=payload.full_name,
+        is_active=False,
+        invite_token=token,
+        invite_expires=expires,
+    )
+    db.add(invited)
+    await db.commit()
+
+    return {
+        "email": payload.email,
+        "invite_token": token,
+        "expires_at": expires.isoformat(),
+        "accept_url": f"/auth/accept-invite?token={token}",
+    }
+
+
+@router.post("/accept-invite", status_code=200)
+async def accept_invite(
+    payload: AcceptInviteRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=422, detail="La contraseña debe tener al menos 8 caracteres.")
+
+    q = await db.execute(select(User).where(User.invite_token == payload.token))
+    invited = q.scalar_one_or_none()
+
+    if not invited:
+        raise HTTPException(status_code=404, detail="Token de invitación inválido.")
+    if invited.invite_expires and invited.invite_expires < datetime.utcnow():
+        raise HTTPException(status_code=410, detail="El token de invitación ha expirado.")
+
+    invited.password_hash = hash_password(payload.password)
+    invited.is_active = True
+    invited.invite_token = None
+    invited.invite_expires = None
+    await db.commit()
+    await db.refresh(invited)
+
+    access_token = create_access_token(invited.id)
+    refresh_token = create_refresh_token(invited.id)
+    csrf_token = generate_csrf_token()
+    _set_auth_cookies(response, access_token, refresh_token)
+    _set_csrf_cookie(response, csrf_token)
+
+    return {"id": str(invited.id), "email": invited.email, "full_name": invited.full_name}

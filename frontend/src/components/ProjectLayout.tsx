@@ -1,5 +1,6 @@
+import { Search, BookOpen, Library, FlaskConical, Quote, FileText, BarChart2, CheckSquare, StickyNote } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 
@@ -23,7 +24,7 @@ type Dashboard = {
   };
 };
 
-function Tab({ to, label }: { to: string; label: string }) {
+function Tab({ to, label, icon }: { to: string; label: string; icon?: React.ReactNode }) {
   return (
     <NavLink
       to={to}
@@ -31,13 +32,17 @@ function Tab({ to, label }: { to: string; label: string }) {
       className={({ isActive }) => `rc-nav-item ${isActive ? 'rc-nav-item--active' : ''}`}
       style={{ padding: '8px 10px', borderRadius: 10 }}
     >
-      {label}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {icon}
+        {label}
+      </span>
     </NavLink>
   );
 }
 
 export default function ProjectLayout() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
 
@@ -45,6 +50,19 @@ export default function ProjectLayout() {
   const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null; output?: any } | null>(null);
 
   const [error, setError] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem(`pf_onboard_${projectId}`) === '1'; } catch { return true; }
+  });
+
+  function dismissBanner() {
+    try { localStorage.setItem(`pf_onboard_${projectId}`, '1'); } catch {}
+    setBannerDismissed(true);
+  }
+
+  const showOnboardBanner =
+    !bannerDismissed &&
+    dashboard !== null &&
+    (dashboard.counts.papers === 0 && dashboard.counts.notes === 0);
 
   useEffect(() => {
     let mounted = true;
@@ -123,8 +141,18 @@ export default function ProjectLayout() {
     };
   }, [exportJobId]);
 
-  if (!projectId) return <div>Missing project id</div>;
-  if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
+  if (!projectId) return (
+    <div style={{ padding: 32 }}>
+      <div className="rc-error" style={{ marginBottom: 12 }}>Missing project id</div>
+      <button className="rc-btn" onClick={() => navigate('/projects')}>← Volver a proyectos</button>
+    </div>
+  );
+  if (error) return (
+    <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="rc-error">{String(error)}</div>
+      <button className="rc-btn" style={{ width: 'fit-content' }} onClick={() => navigate('/projects')}>← Volver a proyectos</button>
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -159,17 +187,48 @@ export default function ProjectLayout() {
         </div>
       </div>
 
+      {showOnboardBanner ? (
+        <div className="rc-card" style={{ background: 'rgba(79,70,229,0.05)', border: '1px solid rgba(79,70,229,0.18)', padding: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>🚀 Primeros pasos</div>
+              <div className="rc-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { step: '1', label: 'Busca literatura', tab: 'research' },
+                  { step: '2', label: 'Descarga PDFs', tab: 'library' },
+                  { step: '3', label: 'Extrae datos', tab: 'meta' },
+                  { step: '4', label: 'Escribe', tab: 'drafts' },
+                ].map(({ step, label, tab }) => (
+                  <a
+                    key={step}
+                    href={`/projects/${projectId}/${tab}`}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <span className="rc-badge rc-badge--info" style={{ cursor: 'pointer', fontSize: 13 }}>
+                      <b>{step}</b> {label}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <button className="rc-btn" style={{ whiteSpace: 'nowrap', fontSize: 12 }} onClick={dismissBanner}>
+              Entendido ✓
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rc-card" style={{ padding: 10 }}>
         <div className="rc-row" style={{ gap: 6 }}>
-          <Tab to={`/projects/${projectId}/research`} label="Research" />
-          <Tab to={`/projects/${projectId}/reader`} label="Reader" />
-          <Tab to={`/projects/${projectId}/library`} label="Library" />
-          <Tab to={`/projects/${projectId}/meta`} label="Extraction" />
-          <Tab to={`/projects/${projectId}/references`} label="References" />
-          <Tab to={`/projects/${projectId}/drafts`} label="Drafts" />
-          <Tab to={`/projects/${projectId}/analysis`} label="Analysis" />
-          <Tab to={`/projects/${projectId}/screening`} label="Screening" />
-          <Tab to={`/projects/${projectId}/notes`} label="Notes" />
+          <Tab to={`/projects/${projectId}/research`} label="Research" icon={<Search size={14} />} />
+          <Tab to={`/projects/${projectId}/reader`} label="Reader" icon={<BookOpen size={14} />} />
+          <Tab to={`/projects/${projectId}/library`} label="Library" icon={<Library size={14} />} />
+          <Tab to={`/projects/${projectId}/meta`} label="Extraction" icon={<FlaskConical size={14} />} />
+          <Tab to={`/projects/${projectId}/references`} label="References" icon={<Quote size={14} />} />
+          <Tab to={`/projects/${projectId}/drafts`} label="Drafts" icon={<FileText size={14} />} />
+          <Tab to={`/projects/${projectId}/analysis`} label="Analysis" icon={<BarChart2 size={14} />} />
+          <Tab to={`/projects/${projectId}/screening`} label="Screening" icon={<CheckSquare size={14} />} />
+          <Tab to={`/projects/${projectId}/notes`} label="Notes" icon={<StickyNote size={14} />} />
         </div>
       </div>
 

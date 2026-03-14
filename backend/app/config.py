@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/paperflow_ai"
 
     # Security
+    # REQUIRED in production: set via .env, never commit the real value
     SECRET_KEY: str = "CHANGE_ME"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
@@ -66,18 +67,13 @@ class Settings(BaseSettings):
     PRESENTATION_SLIDE_MAX: int = 40
 
     # OpenClaw (multi-vendor routing)
-    OPENCLAW_BASE_URL: str = "http://127.0.0.1:18789"  # OpenClaw server
+    OPENCLAW_BASE_URL: str = "http://127.0.0.1:18789"
     OPENCLAW_TIMEOUT: int = 120
     OPENCLAW_GATEWAY_TOKEN: str | None = None
 
-    # Multi-pass model refs used by Clinical PRO pipeline.
-    # Defaults are intentionally "default" so a single configured provider (e.g. Groq) works out of the box.
-    # Override via env if you have multiple providers configured in OpenClaw.
     OPENCLAW_CLAUDE_MODEL: str = "default"
     OPENCLAW_OPENAI_MODEL: str = "default"
     OPENCLAW_GEMINI_MODEL: str = "default"
-
-    # Default/single-model fallback (if LLM_STRATEGY=single)
     OPENCLAW_MODEL: str = "default"
 
     # Optional direct providers (limited)
@@ -87,11 +83,16 @@ class Settings(BaseSettings):
     CLAUDE_TEMPERATURE: float = 0.3
 
     # CORS
-    # Vite dev server typically runs on localhost:5173 or 127.0.0.1:5173
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = True
+
+    # Auth / Registration
+    # Set REGISTRATION_OPEN=true in .env to allow public sign-up
+    REGISTRATION_OPEN: bool = False
+    # Set COOKIE_DOMAIN to your actual domain in production (e.g. paperflow.ai)
+    COOKIE_DOMAIN: str | None = None
 
     @property
     def cookie_secure(self) -> bool:
@@ -99,7 +100,17 @@ class Settings(BaseSettings):
 
     @property
     def cookie_domain(self) -> str | None:
-        return None if self.ENV == "development" else "yourdomain.com"
+        return self.COOKIE_DOMAIN
+
+    def validate_production(self) -> None:
+        """Call on app startup. Raises RuntimeError if production config is unsafe."""
+        if self.ENV == "production":
+            if self.SECRET_KEY == "CHANGE_ME":
+                raise RuntimeError(
+                    "FATAL: SECRET_KEY is set to 'CHANGE_ME' in production. "
+                    "Set a strong random value in your .env file. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                )
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

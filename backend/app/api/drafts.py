@@ -197,3 +197,22 @@ async def list_evidence_tables(
         EvidenceTableResponse(id=item.id, title=item.title, table_json=item.table_json, confidence=item.confidence)
         for item in result.scalars().all()
     ]
+
+
+
+@router.post("/evidence/tables/build", response_model=EvidenceTableResponse)
+async def build_evidence_table_endpoint(
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Build (or rebuild) the evidence table for a project from current extraction records."""
+    project_id = payload.get("project_id")
+    if not project_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="project_id required")
+    from uuid import UUID as _UUID
+    pid = _UUID(str(project_id))
+    await _require_project(db, pid, user)
+    table = await build_evidence_table(db, project_id=pid)
+    return EvidenceTableResponse(id=table.id, project_id=table.project_id, title=table.title, table_json=table.table_json, confidence=table.confidence)
