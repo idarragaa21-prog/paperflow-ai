@@ -1,6 +1,24 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // GitHub Pages SPA: handle redirect from 404.html
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+        // Handle ?p= from 404.html
+        var search = window.location.search;
+        if (search.slice(1,3) === 'p=') {
+          var decoded = search.slice(1).split('&').reduce(function(r, v) {
+            return v.slice(0,2) === 'p=' ? (r + '/' + v.slice(2)) : r + (v.slice(0,2) === 'q=' ? ('?' + v.slice(2)) : ('&' + v));
+          }, '').replace(/~and~/g, '&');
+          window.history.replaceState(null, null, decoded || '/');
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
