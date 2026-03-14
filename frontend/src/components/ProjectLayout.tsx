@@ -172,45 +172,7 @@ export default function ProjectLayout() {
   if (!projectId) return <div>Falta el id del proyecto</div>;
   if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
 
-  if (isDiscoveryRoute) {
-    return (
-      <div className="rc-section-shell">
-        <div className="rc-discovery-project-shell">
-          <div className="rc-discovery-project-shell__header">
-            <div style={{ maxWidth: 760 }}>
-              <div className="rc-pill">Proyecto</div>
-              <h1 className="rc-page-title" style={{ marginTop: 12 }}>{project?.title || 'Proyecto'}</h1>
-              <div className="rc-help" style={{ marginTop: 10 }}>
-                Empieza aqui: formula la pregunta, limita la recencia y separa rapidamente que papers solo son referencia y cuales si merecen entrar a tu biblioteca.
-              </div>
-            </div>
-
-            <div className="rc-chip-list">
-              <span className="rc-chip">{dashboard?.counts?.papers ?? '—'} articulos</span>
-              <span className="rc-chip">{dashboard?.counts?.references ?? '—'} referencias</span>
-              <span className="rc-chip">{dashboard?.counts?.meta_studies_current ?? '—'} estudios</span>
-            </div>
-          </div>
-
-          <div className="rc-module-tabs">
-            {PRIMARY_TASKS.map((task) => (
-              <NavLink
-                key={task.to}
-                to={`/projects/${projectId}/${task.to}`}
-                end
-                className={({ isActive }) => `rc-module-tab ${isActive ? 'rc-module-tab--active' : ''}`}
-              >
-                <span>{task.kicker}</span>
-                <strong>{task.label}</strong>
-              </NavLink>
-            ))}
-          </div>
-        </div>
-
-        <Outlet />
-      </div>
-    );
-  }
+  if (isDiscoveryRoute) return <Outlet />;
 
   return (
     <div className="rc-section-shell">

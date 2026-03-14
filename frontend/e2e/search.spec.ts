@@ -6,6 +6,7 @@ test('search can return openable results and save at least one paper with honest
   await page.goto(`/projects/${fixture.project.id}`);
   await expect(page).toHaveURL(new RegExp(`/projects/${fixture.project.id}/research$`));
 
+  await page.getByRole('button', { name: 'Filtros' }).click();
   await expect(page.getByTestId('search-recency-select')).toHaveValue('5y');
 
   await page.getByTestId('search-query-input').fill('rotator cuff repair augmentation review');
@@ -42,6 +43,6 @@ test('search can return openable results and save at least one paper with honest
   const firstSaveButton = page.locator('[data-testid^="search-save-"]').first();
   if (await firstSaveButton.count()) {
     await firstSaveButton.click();
-    await expect(firstSaveButton).toHaveText(/Guardado en biblioteca|Ya esta en la biblioteca|Reintentar guardado/, { timeout: 120000 });
+    await expect(firstSaveButton).toHaveText(/Guardado en biblioteca|Ya est[aá] en la biblioteca|Reintentar guardado/, { timeout: 120000 });
   }
 });
