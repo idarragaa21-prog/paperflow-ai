@@ -84,40 +84,45 @@ export default function NotesPage() {
   }, [notes, filterText]);
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Notas</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Notas</h1>
-          <div className="rc-subtitle">Lee resúmenes generados por IA, notas del proyecto y observaciones ligadas a papers en un espacio editorial más tranquilo.</div>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Notas</div>
+          <h2>Resúmenes, observaciones y notas de trabajo</h2>
+          <p>Consulta notas generadas por IA o por el equipo sin salir del flujo principal del proyecto.</p>
         </div>
-        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{notes.length}</strong><span>Total de notas</span></div>
-          <div className="rc-metric-tile"><strong>{new Set(notes.map((note) => note.note_type)).size || '—'}</strong><span>Tipos de nota</span></div>
-          <div className="rc-metric-tile"><strong>{selected ? selected.content.split(/\s+/).filter(Boolean).length : '—'}</strong><span>Palabras en vista</span></div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">{notes.length} notas</span>
+          <span className="rc-discover-badge">{new Set(notes.map((note) => note.note_type)).size || '—'} tipos</span>
+          <span className="rc-discover-badge">
+            {selected ? selected.content.split(/\s+/).filter(Boolean).length : '—'} palabras
+          </span>
         </div>
       </div>
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
 
-      <div className="rc-split-layout">
-        <div className="rc-card">
-          <div className="rc-toolbar">
+      <div className="rc-product-two-column rc-product-two-column--wide">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
             <div>
               <div className="rc-card-title" style={{ marginBottom: 4 }}>Notas del proyecto</div>
               <div className="rc-help">Filtra por titulo o tipo de nota y abre cualquier nota en el panel de lectura.</div>
             </div>
-            <button className="rc-btn" onClick={() => void loadList()} disabled={loading}>
+            <button className="rc-btn rc-btn--subtle" onClick={() => void loadList()} disabled={loading}>
               {loading ? 'Actualizando...' : 'Actualizar'}
             </button>
           </div>
-          <div style={{ height: 12 }} />
-          <div>
-            <div className="rc-kicker">Filtrar notas</div>
-            <input className="rc-input" value={filterText} onChange={(e) => setFilterText(e.target.value)} placeholder="Buscar resúmenes, notas de extraccion, notas de screening..." />
-          </div>
-          <div style={{ height: 12 }} />
-          <div className="rc-card-list">
+          <label className="rc-discover-filter-field">
+            <span>Filtrar notas</span>
+            <input
+              className="rc-input"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="Buscar resúmenes, notas de extracción o screening..."
+            />
+          </label>
+          <div className="rc-product-record-list">
             {filteredNotes.length === 0 ? (
               <div className="rc-empty-state">
                 <div style={{ fontWeight: 800, marginBottom: 6 }}>{notes.length === 0 ? 'Todavia no hay notas' : 'No hay notas para este filtro'}</div>
@@ -146,9 +151,9 @@ export default function NotesPage() {
               ))
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="rc-card">
+        <section className="rc-product-card">
           {selected ? (
             <div className="rc-stack">
               <div className="rc-detail-header">
@@ -173,7 +178,7 @@ export default function NotesPage() {
               <div className="rc-help">Elige una nota de la columna izquierda para abrir su contenido completo en una vista de lectura mas tranquila.</div>
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

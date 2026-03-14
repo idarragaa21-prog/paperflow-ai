@@ -1832,10 +1832,142 @@
   gap: 12px;
 }
 
+.rc-product-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rc-product-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rc-product-record {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(20, 24, 39, 0.08);
+  box-shadow: 0 12px 28px rgba(20, 24, 39, 0.04);
+}
+
+.rc-product-record--soft {
+  background: rgba(248, 246, 242, 0.72);
+}
+
+.rc-product-record__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rc-product-record__title {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
+
+.rc-product-record__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rc-product-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.rc-product-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(20, 24, 39, 0.08);
+  background: rgba(248, 246, 242, 0.72);
+}
+
+.rc-product-selection-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+.rc-product-three-column {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.rc-product-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rc-product-sticky {
+  position: sticky;
+  top: 18px;
+}
+
+.rc-product-outline-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.rc-product-outline-link:hover {
+  text-decoration: none;
+  color: #111827;
+}
+
+.rc-product-markdown {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rc-product-markdown h2 {
+  margin: 18px 0 0;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
+
+.rc-product-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rc-product-markdown th,
+.rc-product-markdown td {
+  border: 1px solid rgba(20, 24, 39, 0.1);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.rc-product-markdown th {
+  background: rgba(248, 246, 242, 0.82);
+}
+
 @media (max-width: 1100px) {
   .rc-projects-home__hero,
   .rc-product-two-column,
-  .rc-product-two-column--wide {
+  .rc-product-two-column--wide,
+  .rc-product-three-column {
     grid-template-columns: 1fr;
   }
 }

@@ -143,74 +143,95 @@ export default function BooksPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 980 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0 }}>Books</h2>
-        <button onClick={load} disabled={loading}>
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Books</div>
+          <h2>Indexa libros y capítulos dentro del mismo sistema visual</h2>
+          <p>Escanea la carpeta del servidor o sube PDFs manualmente sin salir del flujo principal del producto.</p>
+        </div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">{books.length} libros indexados</span>
+          {scanStatus ? <span className="rc-discover-badge">{scanStatus.status} · {scanStatus.progress}%</span> : null}
+        </div>
       </div>
 
-      {notice ? (
-        <div style={{ fontSize: 12, background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)', padding: 8, borderRadius: 10 }}>
-          {notice}
-        </div>
-      ) : null}
+      {notice ? <div className="rc-help">{notice}</div> : null}
       {error ? <div style={{ color: 'crimson' }}>{String(error)}</div> : null}
 
-      <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Index books from the server BOOKS folder (recommended)</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button onClick={scanFolder} disabled={Boolean(scanJobId)}>
+      <div className="rc-product-two-column">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Indexar carpeta BOOKS del servidor</div>
+              <div className="rc-help">Recomendado para mantener el catálogo interno sin subir archivos uno por uno.</div>
+            </div>
+          </div>
+          <div className="rc-product-actions">
+          <button className="rc-btn rc-btn--primary" onClick={scanFolder} disabled={Boolean(scanJobId)}>
             {scanJobId ? 'Scanning…' : 'Scan BOOKS folder + index'}
           </button>
           {scanStatus ? (
-            <span style={{ fontSize: 12, opacity: 0.8 }}>
+            <span className="rc-help">
               {scanStatus.status} · {scanStatus.progress}%
               {scanStatus.error ? <span style={{ color: 'crimson' }}> · {String(scanStatus.error)}</span> : null}
             </span>
           ) : null}
-        </div>
-        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
-          Put your PDFs in STORAGE_BASE_PATH/BOOKS on the server (no upload needed). Indexing runs async (RQ/Redis).
-        </div>
-      </div>
+          </div>
+          <div className="rc-help" style={{ marginTop: 12 }}>
+            Coloca tus PDFs en `STORAGE_BASE_PATH/BOOKS`. El indexado corre como job asíncrono.
+          </div>
+        </section>
 
-      <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Upload a book (optional)</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Subir un libro</div>
+              <div className="rc-help">Úsalo cuando no quieras depender de la carpeta del servidor.</div>
+            </div>
+          </div>
+          <div className="rc-product-actions">
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <button onClick={upload} disabled={!file || uploading}>
+          <button className="rc-btn rc-btn--primary" onClick={upload} disabled={!file || uploading}>
             {uploading ? 'Uploading…' : 'Upload + index'}
           </button>
-        </div>
+          <button className="rc-btn rc-btn--subtle" onClick={load} disabled={loading}>
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+          </div>
+        </section>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <section className="rc-product-card">
+        <div className="rc-product-card__header">
+          <div className="rc-card-title">Catálogo de libros</div>
+        </div>
+      <div className="rc-product-record-list">
         {loading && books.length === 0 ? (
-          <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
+          <div className="rc-product-record">
             <Skeleton height={14} width="52%" radius={10} />
             <div style={{ height: 10 }} />
             <SkeletonLines lines={3} lineHeight={12} lastLineWidth="45%" />
           </div>
         ) : null}
-        {!loading && books.length === 0 ? <div style={{ opacity: 0.75 }}>No books indexed yet.</div> : null}
+        {!loading && books.length === 0 ? <div className="rc-empty-state">No books indexed yet.</div> : null}
         {books.map((b) => (
-          <div key={b.id} style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
+          <div key={b.id} className="rc-product-record rc-product-record--soft">
             <div style={{ fontWeight: 800 }}>{b.title || b.filename}</div>
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
+            <div className="rc-help">
               {b.total_pages ? `${b.total_pages} pages · ` : ''}
               chapters: {b.chapters_count} · indexed_at: {b.indexed_at || '—'}
             </div>
-            <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={() => reindex(b)}>Re-index</button>
-              <button onClick={() => del(b)} style={{ background: 'rgba(220,38,38,0.15)' }}>
+            <div className="rc-product-actions" style={{ marginTop: 10 }}>
+              <button className="rc-btn" onClick={() => reindex(b)}>Re-index</button>
+              <button className="rc-btn rc-btn--ghost" onClick={() => del(b)} style={{ background: 'rgba(220,38,38,0.15)' }}>
                 Delete
               </button>
             </div>
           </div>
         ))}
       </div>
+      </section>
     </div>
   );
 }

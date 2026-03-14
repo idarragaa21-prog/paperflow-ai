@@ -116,8 +116,16 @@ export default function ClinicalSheetPage() {
 
   if (vm.status === 'loading' && !vm.sheet) {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 360px', gap: 12, alignItems: 'start' }}>
-        <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
+      <div className="rc-product-page">
+        <div className="rc-product-page__header">
+          <div>
+            <div className="rc-kicker">Clinical sheet</div>
+            <h2>Cargando ficha clínica</h2>
+          </div>
+        </div>
+
+        <div className="rc-product-three-column">
+        <aside className="rc-product-card rc-product-sticky">
           <div className="rc-card-title">Outline</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Skeleton height={12} width="85%" />
@@ -129,7 +137,7 @@ export default function ClinicalSheetPage() {
         </aside>
 
         <main>
-          <div className="rc-card" style={{ position: 'sticky', top: 12, zIndex: 5 }}>
+          <div className="rc-product-card rc-product-sticky" style={{ zIndex: 5 }}>
             <Skeleton height={18} width="55%" />
             <div style={{ height: 8 }} />
             <Skeleton height={12} width="35%" />
@@ -143,15 +151,15 @@ export default function ClinicalSheetPage() {
 
           <div style={{ height: 12 }} />
 
-          <div className="rc-card">
+          <div className="rc-product-card">
             <SkeletonLines lines={10} lineHeight={12} />
             <div style={{ height: 14 }} />
             <SkeletonLines lines={10} lineHeight={12} lastLineWidth="45%" />
           </div>
         </main>
 
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12, height: 'fit-content' }}>
-          <div className="rc-card">
+        <aside className="rc-product-aside rc-product-sticky">
+          <div className="rc-product-card">
             <div className="rc-card-title">Versions</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Skeleton height={46} radius={12} />
@@ -160,23 +168,40 @@ export default function ClinicalSheetPage() {
             </div>
           </div>
 
-          <div className="rc-card">
+          <div className="rc-product-card">
             <div className="rc-card-title">Evidence</div>
             <SkeletonLines lines={6} lineHeight={12} lastLineWidth="55%" />
           </div>
         </aside>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 360px', gap: 12, alignItems: 'start' }}>
-      <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Clinical sheet</div>
+          <h2>{vm.sheet?.topic || 'Clinical sheet'}</h2>
+          <p>
+            Versión clínica con contenido trazable, exportable y lista para reutilizar en revisión, docencia o presentaciones.
+          </p>
+        </div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">v{vm.sheet?.version}</span>
+          {vm.sheet?.is_current ? <span className="rc-discover-badge rc-discover-badge--strong">current</span> : null}
+          {vm.sheet?.format_version ? <span className="rc-discover-badge">{vm.sheet.format_version}</span> : null}
+        </div>
+      </div>
+
+      <div className="rc-product-three-column">
+      <aside className="rc-product-card rc-product-sticky">
         <div className="rc-card-title">Outline</div>
         {vm.toc.length === 0 ? <div className="rc-muted">No headings.</div> : null}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {vm.toc.map((t) => (
-            <a key={t.id} href={`#${t.id}`} className="rc-help" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <a key={t.id} href={`#${t.id}`} className="rc-help rc-product-outline-link">
               {t.text}
             </a>
           ))}
@@ -186,7 +211,7 @@ export default function ClinicalSheetPage() {
       </aside>
 
       <main>
-        <div className="rc-card" style={{ position: 'sticky', top: 12, zIndex: 5 }}>
+        <div className="rc-product-card rc-product-sticky" style={{ zIndex: 5 }}>
           {vm.error ? <div className="rc-error">{String(vm.error)}</div> : null}
           {notice ? (
             <div className="rc-badge rc-badge--success" style={{ justifyContent: 'flex-start', borderRadius: 12, padding: 10 }}>
@@ -217,7 +242,7 @@ export default function ClinicalSheetPage() {
 
         <div style={{ height: 12 }} />
 
-        <div className="rc-card">
+        <div className="rc-product-card rc-product-markdown">
           {vm.sheet?.format_version === 'clinical_pro_v1' && vm.sheet?.content_json ? (
             <ClinicalProViewer pro={vm.sheet.content_json} />
           ) : (
@@ -228,20 +253,16 @@ export default function ClinicalSheetPage() {
                   const text = String(children || '').trim();
                   const id = slugify(text);
                   return (
-                    <h2 id={id} style={{ marginTop: 18 }}>
+                    <h2 id={id}>
                       {children}
                     </h2>
                   );
                 },
                 table: ({ children }) => (
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ borderCollapse: 'collapse', width: '100%' }}>{children}</table>
+                    <table>{children}</table>
                   </div>
                 ),
-                th: ({ children }) => (
-                  <th style={{ border: '1px solid rgba(0,0,0,0.12)', padding: 6, background: 'rgba(0,0,0,0.04)', textAlign: 'left' }}>{children}</th>
-                ),
-                td: ({ children }) => <td style={{ border: '1px solid rgba(0,0,0,0.12)', padding: 6 }}>{children}</td>,
               }}
             >
               {vm.sheet?.content_markdown || ''}
@@ -250,8 +271,8 @@ export default function ClinicalSheetPage() {
         </div>
       </main>
 
-      <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12, height: 'fit-content' }}>
-        <div className="rc-card">
+      <aside className="rc-product-aside rc-product-sticky">
+        <div className="rc-product-card">
           <div className="rc-card-title">Versions</div>
           {vm.versions.length === 0 ? <div className="rc-muted">No versions.</div> : null}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -259,12 +280,9 @@ export default function ClinicalSheetPage() {
               <button
                 key={v.id}
                 onClick={() => vm.openVersion(v.id)}
-                className="rc-btn"
+                className={`rc-list-button ${v.id === sheetId ? 'rc-list-button--active' : ''}`}
                 style={{
                   textAlign: 'left',
-                  padding: 12,
-                  borderColor: v.id === sheetId ? 'rgba(79,70,229,0.35)' : 'rgba(15,23,42,0.16)',
-                  background: v.id === sheetId ? 'rgba(79,70,229,0.08)' : 'white',
                 }}
               >
                 <div style={{ fontWeight: 850 }}>
@@ -278,6 +296,7 @@ export default function ClinicalSheetPage() {
 
         <EvidenceDrawer summary={vm.evidenceSummary} />
       </aside>
+      </div>
     </div>
   );
 }

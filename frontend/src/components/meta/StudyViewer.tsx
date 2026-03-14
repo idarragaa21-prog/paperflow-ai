@@ -135,9 +135,9 @@ export default function StudyViewer({
     };
   }, [reextractJobId]);
 
-  if (loading && !study) return <div className="rc-help">Loading study…</div>;
+  if (loading && !study) return <div className="rc-empty-state">Loading study…</div>;
   if (error) return <div className="rc-error">{String(error)}</div>;
-  if (!study) return <div className="rc-help">Select a study.</div>;
+  if (!study) return <div className="rc-empty-state">Select a study.</div>;
 
   const sj = (study.study_json || {}) as any;
   const title = String(sj.title || '(untitled)');
@@ -152,17 +152,17 @@ export default function StudyViewer({
     <div className="rc-product-study-viewer">
       <div className="rc-product-card__header">
         <div style={{ minWidth: 280 }}>
-          <div style={{ fontWeight: 900, fontSize: 16 }}>{title}</div>
-          <div style={{ fontSize: 12, opacity: 0.78 }}>
+          <div className="rc-card-title" style={{ marginBottom: 4 }}>{title}</div>
+          <div className="rc-help">
             {authors} · {year} · {journal}
           </div>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>
+          <div className="rc-help">
             design: <span style={{ fontWeight: 700 }}>{design}</span> · version {study.version} {study.is_current ? '(current)' : ''} · confidence{' '}
             {study.extraction_confidence}
           </div>
-          <div style={{ fontSize: 11, opacity: 0.55 }}>study_id: {study.id}</div>
+          <div className="rc-help">study_id: {study.id}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="rc-product-actions">
           <button className="rc-btn rc-btn--subtle" onClick={load} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
@@ -175,7 +175,7 @@ export default function StudyViewer({
       <div className="rc-product-study-grid">
         <div className="rc-product-study-panel">
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Arms</div>
-          {arms.length === 0 ? <div style={{ opacity: 0.7 }}>No arms extracted.</div> : null}
+          {arms.length === 0 ? <div className="rc-help">No arms extracted.</div> : null}
           {arms.slice(0, 6).map((a: any, idx: number) => {
             const nRand = a.n_randomized;
             const nAna = a.n_analyzed;
@@ -183,36 +183,36 @@ export default function StudyViewer({
             return (
               <div key={idx} style={{ padding: '6px 0', borderTop: idx ? '1px solid rgba(0,0,0,0.08)' : 'none' }}>
                 <div style={{ fontWeight: 700 }}>{String(a.arm_name || `Arm ${idx + 1}`)}</div>
-                {a.intervention_description ? <div style={{ fontSize: 12, opacity: 0.78 }}>{String(a.intervention_description)}</div> : null}
-                <div style={{ fontSize: 12, opacity: 0.7, color: impossible ? 'crimson' : 'inherit' }}>
+                {a.intervention_description ? <div className="rc-help">{String(a.intervention_description)}</div> : null}
+                <div className="rc-help" style={{ color: impossible ? 'crimson' : 'inherit' }}>
                   n_randomized: {nRand ?? '—'} · n_analyzed: {nAna ?? '—'}
                   {impossible ? <span style={{ marginLeft: 8, fontWeight: 700 }}>(impossible: analyzed &gt; randomized)</span> : null}
                 </div>
               </div>
             );
           })}
-          {arms.length > 6 ? <div style={{ fontSize: 12, opacity: 0.6 }}>+{arms.length - 6} more…</div> : null}
+          {arms.length > 6 ? <div className="rc-help">+{arms.length - 6} more…</div> : null}
         </div>
 
         <div className="rc-product-study-panel">
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Outcomes</div>
-          {outcomes.length === 0 ? <div style={{ opacity: 0.7 }}>No outcomes extracted.</div> : null}
+          {outcomes.length === 0 ? <div className="rc-help">No outcomes extracted.</div> : null}
           {outcomes.slice(0, 10).map((o: any, idx: number) => (
             <div key={idx} style={{ padding: '6px 0', borderTop: idx ? '1px solid rgba(0,0,0,0.08)' : 'none' }}>
               <div style={{ fontWeight: 700 }}>{String(o.outcome_name || `Outcome ${idx + 1}`)}</div>
-              <div style={{ fontSize: 12, opacity: 0.7 }}>
+              <div className="rc-help">
                 type: {String(o.outcome_type || '—')} {o.timepoint ? `· timepoint: ${String(o.timepoint)}` : ''}
               </div>
-              {o.definition ? <div style={{ fontSize: 12, opacity: 0.7 }}>{String(o.definition)}</div> : null}
+              {o.definition ? <div className="rc-help">{String(o.definition)}</div> : null}
             </div>
           ))}
-          {outcomes.length > 10 ? <div style={{ fontSize: 12, opacity: 0.6 }}>+{outcomes.length - 10} more…</div> : null}
+          {outcomes.length > 10 ? <div className="rc-help">+{outcomes.length - 10} more…</div> : null}
         </div>
       </div>
 
       {versions.length ? (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Versions:</div>
+        <div className="rc-product-actions">
+          <div className="rc-help">Versions:</div>
           {versions.map((v) => (
             <button
               key={v.id}
@@ -226,7 +226,7 @@ export default function StudyViewer({
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="rc-product-actions">
         <button className="rc-btn rc-btn--subtle" onClick={() => setTab('effects')} disabled={tab === 'effects'}>
           Effect sizes
         </button>
@@ -237,7 +237,7 @@ export default function StudyViewer({
           Raw JSON
         </button>
         {reextractStatus ? (
-          <div style={{ fontSize: 12, opacity: 0.75 }}>
+          <div className="rc-help">
             re-extract: {reextractStatus.status} · {reextractStatus.progress}%
             {reextractStatus.error ? <span style={{ color: 'crimson' }}> · {String(reextractStatus.error)}</span> : null}
           </div>
@@ -247,20 +247,12 @@ export default function StudyViewer({
       {tab === 'effects' ? <EffectSizesGrid studyId={study.id} effects={study.effects} onChanged={load} /> : null}
       {tab === 'rob' ? <RiskOfBiasGrid studyId={study.id} rows={study.risk_of_bias} onChanged={load} /> : null}
       {tab === 'json' ? (
-        <pre
-          style={{
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-            background: 'rgba(0,0,0,0.04)',
-            borderRadius: 10,
-            padding: 12,
-          }}
-        >
+        <pre className="rc-code-block">
           {JSON.stringify(study.study_json, null, 2)}
         </pre>
       ) : null}
 
-      <div style={{ fontSize: 12, opacity: 0.7 }}>
+      <div className="rc-help">
         Tip: usually you want to edit the current version. Older versions are read-only by convention (we don't enforce it yet).
       </div>
     </div>

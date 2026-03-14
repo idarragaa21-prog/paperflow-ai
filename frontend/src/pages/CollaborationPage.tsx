@@ -98,16 +98,19 @@ export default function CollaborationPage() {
   }
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Colaboracion</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Accesos y revision del proyecto</h1>
-          <div className="rc-subtitle">Gestiona miembros, roles y flujos de revision desde un solo lugar.</div>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Colaboración</div>
+          <h2>Accesos, roles y revisión del proyecto</h2>
+          <p>
+            Mantén el trabajo coordinado desde una sola vista: altas, cambios de rol y revisión con permisos claros.
+          </p>
         </div>
-        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{members.length}</strong><span>Miembros</span></div>
-          <div className="rc-metric-tile"><strong>{ownerCount}</strong><span>Duenos</span></div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">{members.length} miembros</span>
+          <span className="rc-discover-badge">{ownerCount} dueños</span>
+          {currentRole ? <span className="rc-discover-badge">Tu rol: {ROLE_LABELS[currentRole]}</span> : null}
         </div>
       </div>
 
@@ -120,43 +123,100 @@ export default function CollaborationPage() {
         </div>
       ) : null}
 
-      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
-        <div className="rc-card">
-          <div className="rc-card-title">Agregar miembro</div>
-          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 280 }}>
-              <div className="rc-kicker">UUID del usuario</div>
-              <input data-testid="member-user-id-input" className="rc-input" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+      <div className="rc-product-two-column">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Agregar miembro</div>
+              <div className="rc-help">Añade usuarios por UUID y define el nivel de acceso desde esta misma vista.</div>
             </div>
-            <div style={{ minWidth: 180 }}>
-              <div className="rc-kicker">Rol</div>
-              <select data-testid="member-role-select" className="rc-input" value={newRole} onChange={(e) => setNewRole(e.target.value as Membership['role'])} disabled={!canManageMembers}>
+          </div>
+
+          <div className="rc-product-form-grid rc-product-form-grid--three">
+            <label className="rc-discover-filter-field" style={{ gridColumn: 'span 2' }}>
+              <span>UUID del usuario</span>
+              <input
+                data-testid="member-user-id-input"
+                className="rc-input"
+                value={newUserId}
+                onChange={(e) => setNewUserId(e.target.value)}
+                placeholder="00000000-0000-0000-0000-000000000000"
+              />
+            </label>
+            <label className="rc-discover-filter-field">
+              <span>Rol</span>
+              <select
+                data-testid="member-role-select"
+                className="rc-input"
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value as Membership['role'])}
+                disabled={!canManageMembers}
+              >
                 {ROLE_OPTIONS.map((role) => (
-                  <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                  <option key={role} value={role}>
+                    {ROLE_LABELS[role]}
+                  </option>
                 ))}
               </select>
-            </div>
-            <button data-testid="member-add-button" className="rc-btn rc-btn--primary" onClick={addMember} disabled={saving || !newUserId.trim() || !canManageMembers}>
-              {saving ? 'Guardando…' : 'Agregar miembro'}
-            </button>
+            </label>
           </div>
-        </div>
 
-        <div className="rc-card">
-          <div className="rc-card-title">Politica de roles</div>
-          <div className="rc-help">Los duenos gestionan miembros, los editores cambian el contenido, los revisores validan flujos y los lectores solo consultan.</div>
-        </div>
+          <button
+            data-testid="member-add-button"
+            className="rc-btn rc-btn--primary"
+            onClick={addMember}
+            disabled={saving || !newUserId.trim() || !canManageMembers}
+          >
+            {saving ? 'Guardando…' : 'Agregar miembro'}
+          </button>
+        </section>
+
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Política de roles</div>
+              <div className="rc-help">
+                Dueños gestionan miembros, editores modifican contenido, revisores validan flujos y lectores consultan.
+              </div>
+            </div>
+          </div>
+          <div className="rc-product-record-list">
+            {ROLE_OPTIONS.map((role) => (
+              <div key={role} className="rc-product-study-panel">
+                <div style={{ fontWeight: 800 }}>{ROLE_LABELS[role]}</div>
+                <div className="rc-help" style={{ marginTop: 6 }}>
+                  {role === 'owner'
+                    ? 'Gestiona membresías, cambios de rol y configuración sensible.'
+                    : role === 'editor'
+                      ? 'Puede editar contenido del proyecto y operar módulos de trabajo.'
+                      : role === 'reviewer'
+                        ? 'Puede revisar, comentar y participar en flujos de validación.'
+                        : 'Solo lectura para seguimiento o consulta.'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
-      <div className="rc-card">
-        <div className="rc-card-title">Miembros</div>
-        <div className="rc-help" style={{ marginBottom: 10 }}>Duenos: {ownerCount}</div>
+      <section className="rc-product-card">
+        <div className="rc-product-card__header">
+          <div>
+            <div className="rc-card-title">Miembros del proyecto</div>
+            <div className="rc-help">Revisa roles activos y cambia permisos solo cuando tu rol lo permita.</div>
+          </div>
+          <div className="rc-discover-badge">Dueños: {ownerCount}</div>
+        </div>
+
         {loading ? <div className="rc-muted">Cargando miembros…</div> : null}
-        {!loading && members.length === 0 ? <div className="rc-muted">No se encontraron miembros.</div> : null}
+        {!loading && members.length === 0 ? <div className="rc-empty-state">No se encontraron miembros.</div> : null}
         {members.map((member) => (
-          <div data-testid={`member-card-${member.user_id}`} key={member.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
-            <div style={{ fontWeight: 800 }}>{member.user_id}</div>
-            <div className="rc-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <div data-testid={`member-card-${member.user_id}`} key={member.id} className="rc-product-record rc-product-record--soft">
+            <div className="rc-product-record__header">
+              <div style={{ fontWeight: 800 }}>{member.user_id}</div>
+              <span className="rc-discover-badge">{ROLE_LABELS[member.role]}</span>
+            </div>
+            <div className="rc-product-actions" style={{ marginTop: 12 }}>
               <select
                 data-testid={`member-role-${member.user_id}`}
                 className="rc-input"
@@ -181,7 +241,7 @@ export default function CollaborationPage() {
             </div>
           </div>
         ))}
-      </div>
+      </section>
     </div>
   );
 }

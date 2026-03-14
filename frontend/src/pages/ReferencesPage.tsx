@@ -118,27 +118,32 @@ export default function ReferencesPage() {
   }
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Referencias</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Referencias</h1>
-          <div className="rc-subtitle">Construye una bibliografia limpia del proyecto, sincroniza desde la biblioteca y cambia entre BibTeX o RIS sin salir del espacio de trabajo.</div>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Referencias</div>
+          <h2>Bibliografía limpia y exportable</h2>
+          <p>
+            Sincroniza desde la biblioteca, importa BibTeX o RIS y mantén una referencia consistente para escritura y
+            revisión.
+          </p>
         </div>
-        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{totalCount ?? items.length}</strong><span>Referencias</span></div>
-          <div className="rc-metric-tile"><strong>{doiCount}</strong><span>Con DOI</span></div>
-          <div className="rc-metric-tile"><strong>{formatsPresent || '—'}</strong><span>Formatos en catalogo</span></div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">{totalCount ?? items.length} referencias</span>
+          <span className="rc-discover-badge">{doiCount} con DOI</span>
+          <span className="rc-discover-badge">{formatsPresent || '—'} formatos</span>
         </div>
       </div>
 
       {error ? <div className="rc-error">{error}</div> : null}
       {notice ? <div className="rc-soft-card"><div className="rc-help">{notice}</div></div> : null}
 
-      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
-        <div className="rc-stack">
-          <div className="rc-card">
-            <div className="rc-card-title">Operaciones de referencias</div>
+      <div className="rc-product-two-column rc-product-two-column--wide">
+        <div className="rc-product-stack">
+          <section className="rc-product-card">
+            <div className="rc-product-card__header">
+              <div className="rc-card-title">Operaciones de referencias</div>
+            </div>
             <div className="rc-help" style={{ marginBottom: 12 }}>Mantiene la bibliografia del proyecto alineada con tu biblioteca y exporta citas para escritura o herramientas de revision.</div>
             <div className="rc-card-list">
               <button className="rc-btn rc-btn--primary" onClick={syncFromLibrary}>Sincronizar desde biblioteca</button>
@@ -148,13 +153,15 @@ export default function ReferencesPage() {
                 {loading ? 'Actualizando...' : 'Actualizar catalogo'}
               </button>
             </div>
-          </div>
+          </section>
 
-          <div className="rc-card">
-            <div className="rc-card-title">Importar referencias</div>
-            <div className="rc-row" style={{ alignItems: 'flex-end' }}>
-              <div style={{ width: 160 }}>
-                <div className="rc-kicker">Formato</div>
+          <section className="rc-product-card">
+            <div className="rc-product-card__header">
+              <div className="rc-card-title">Importar referencias</div>
+            </div>
+            <div className="rc-product-form-grid">
+              <label className="rc-discover-filter-field" style={{ maxWidth: 160 }}>
+                <span>Formato</span>
                 <select
                   data-testid="references-format-select"
                   className="rc-input"
@@ -164,7 +171,7 @@ export default function ReferencesPage() {
                   <option value="bibtex">BibTeX</option>
                   <option value="ris">RIS</option>
                 </select>
-              </div>
+              </label>
               <button
                 data-testid="references-import-button"
                 className="rc-btn rc-btn--primary"
@@ -175,31 +182,28 @@ export default function ReferencesPage() {
               </button>
             </div>
             <div className="rc-help" style={{ marginTop: 8 }}>Pega citas, papers de congresos o exportaciones de revistas. Los duplicados se ignoran durante la importacion.</div>
-            <div style={{ height: 12 }} />
             <textarea
               data-testid="references-content-input"
-              className="rc-input"
-              style={{ minHeight: 240, width: '100%' }}
+              className="rc-discover-composer__input rc-product-textarea"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder={format === 'bibtex' ? '@article{...}' : 'TY  - JOUR'}
             />
-          </div>
+          </section>
         </div>
 
-        <div className="rc-card">
-          <div className="rc-toolbar">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
             <div>
               <div className="rc-card-title" style={{ marginBottom: 4 }}>Bibliografia del proyecto</div>
               <div className="rc-help">Lista desplazable y deduplicada de referencias para el proyecto actual.</div>
             </div>
             {hasMore ? (
-              <button className="rc-btn" onClick={() => void load(nextCursor, true)} disabled={loading}>
+              <button className="rc-btn rc-btn--subtle" onClick={() => void load(nextCursor, true)} disabled={loading}>
                 {loading ? 'Cargando...' : 'Cargar mas'}
               </button>
             ) : null}
           </div>
-          <div style={{ height: 12 }} />
 
           {loading && items.length === 0 ? (
             <div className="rc-empty-state">
@@ -237,7 +241,7 @@ export default function ReferencesPage() {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

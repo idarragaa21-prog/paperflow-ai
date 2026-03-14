@@ -181,87 +181,109 @@ export default function PapersPage() {
   }
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Biblioteca</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Biblioteca de investigacion</h1>
-          <div className="rc-subtitle">Curate PDFs, elimina duplicados, procesa texto completo y construye una biblioteca reutilizable de evidencia.</div>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Biblioteca</div>
+          <h2>PDFs, metadatos y procesamiento en un solo lugar</h2>
+          <p>
+            Sube artículos, resuelve open access por DOI o PMID y mantén la biblioteca lista para lectura, extracción y análisis.
+          </p>
         </div>
-        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{papers.length}</strong><span>Articulos visibles</span></div>
-          <div className="rc-metric-tile"><strong>{hasMore ? '50+' : papers.length}</strong><span>Registros cargados</span></div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">{papers.length} artículos visibles</span>
+          <span className="rc-discover-badge">{hasMore ? '50+' : papers.length} cargados</span>
         </div>
-      </div>
-
-      <div className="rc-row">
-        <button className="rc-btn" onClick={() => { void load(); }} disabled={loading}>
-          {loading ? 'Cargando…' : 'Actualizar'}
-        </button>
       </div>
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
 
-      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
-        <div className="rc-card">
-          <div className="rc-card-title">Descargar OA (por DOI / PMID)</div>
-          <div className="rc-row" style={{ alignItems: 'flex-end' }}>
-            <div style={{ minWidth: 240 }}>
-              <div className="rc-kicker">DOI</div>
+      <div className="rc-product-two-column">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Descargar OA</div>
+              <div className="rc-help">Usa DOI o PMID para lanzar el resolvedor de PDF open access.</div>
+            </div>
+          </div>
+          <div className="rc-product-form-grid">
+            <label className="rc-discover-filter-field">
+              <span>DOI</span>
               <input className="rc-input" value={doi} onChange={(e) => setDoi(e.target.value)} placeholder="10.xxxx/xxxxx" />
-            </div>
-            <div style={{ width: 180 }}>
-              <div className="rc-kicker">PMID</div>
+            </label>
+            <label className="rc-discover-filter-field">
+              <span>PMID</span>
               <input className="rc-input" value={pmid} onChange={(e) => setPmid(e.target.value)} placeholder="12345678" />
-            </div>
+            </label>
+          </div>
+          <div className="rc-product-actions">
             <button className="rc-btn rc-btn--primary" disabled={!canDownload || downloading} onClick={downloadOA}>
               {downloading ? 'Descargando…' : 'Descargar'}
             </button>
+            <button className="rc-btn rc-btn--subtle" onClick={() => { void load(); }} disabled={loading}>
+              {loading ? 'Cargando…' : 'Actualizar'}
+            </button>
           </div>
-        </div>
+        </section>
 
-        <div className="rc-card">
-          <div className="rc-card-title">Subir PDF</div>
-          <div className="rc-row" style={{ alignItems: 'center' }}>
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Subir PDF</div>
+              <div className="rc-help">Las subidas se deduplican en servidor por hash y metadatos.</div>
+            </div>
+          </div>
+          <div className="rc-product-actions">
             <input type="file" accept="application/pdf" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
             <button className="rc-btn rc-btn--primary" disabled={!uploadFile || uploading} onClick={upload}>
               {uploading ? 'Subiendo…' : 'Subir'}
             </button>
           </div>
-          <div className="rc-help" style={{ marginTop: 8 }}>Las subidas se deduplican en el servidor (hash + metadatos).</div>
-        </div>
+        </section>
       </div>
 
-      <div className="rc-card-list">
+      <section className="rc-product-card">
+        <div className="rc-product-card__header">
+          <div>
+            <div className="rc-card-title">Biblioteca del proyecto</div>
+            <div className="rc-help">Cada paper deja claro su origen, estado de procesamiento y acciones disponibles.</div>
+          </div>
+        </div>
+
+      <div className="rc-product-record-list">
         {loading && papers.length === 0 ? (
-          <div className="rc-card">
+          <div className="rc-product-record">
             <Skeleton height={14} width="55%" />
             <div style={{ height: 10 }} />
             <SkeletonLines lines={4} lineHeight={12} lastLineWidth="50%" />
           </div>
         ) : null}
-        {!loading && papers.length === 0 ? <div className="rc-muted">Todavia no hay articulos en este proyecto.</div> : null}
+        {!loading && papers.length === 0 ? <div className="rc-empty-state">Todavia no hay articulos en este proyecto.</div> : null}
         {papers.map((p) => (
-          <div key={p.id} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-              <div style={{ fontWeight: 850, lineHeight: 1.25 }}>{p.title}</div>
+          <div key={p.id} className="rc-product-record">
+            <div className="rc-product-record__header">
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <h3 className="rc-product-record__title">{p.title}</h3>
+                <div className="rc-help" style={{ marginTop: 10 }}>
+                  {p.authors ? `${p.authors} · ` : ''}
+                  {p.journal ? `${p.journal} · ` : ''}
+                  {p.publication_year ? `${p.publication_year} · ` : ''}
+                  {p.filename}
+                  {p.file_size_kb ? ` · ${p.file_size_kb} KB` : ''}
+                </div>
+              </div>
               {p.processing_status === 'parsed' ? <span className="rc-badge rc-badge--success">procesado</span> : <span className="rc-badge">{p.processing_status || (p.is_processed ? 'procesado' : 'subido')}</span>}
             </div>
 
-            <div className="rc-help">
-              {p.authors ? `${p.authors} · ` : ''}
-              {p.journal ? `${p.journal} · ` : ''}
-              {p.publication_year ? `${p.publication_year} · ` : ''}
-              {p.doi ? `DOI: ${p.doi} · ` : ''}
-              {p.pmid ? `PMID: ${p.pmid} · ` : ''}
-              {p.filename}
-              {p.file_size_kb ? ` · ${p.file_size_kb} KB` : ''}
-              {p.source_provider ? ` · ${p.source_provider}` : ''}
-              {p.is_open_access ? ' · OA' : ''}
+            <div className="rc-product-record__meta">
+              {p.doi ? <span className="rc-discover-badge">DOI {p.doi}</span> : null}
+              {p.pmid ? <span className="rc-discover-badge">PMID {p.pmid}</span> : null}
+              {p.source_provider ? <span className="rc-discover-badge">{p.source_provider}</span> : null}
+              {p.is_open_access ? <span className="rc-discover-badge rc-discover-badge--strong">Open access</span> : null}
             </div>
             {p.processing_warnings?.length ? <div className="rc-help">Alertas: {p.processing_warnings.join(', ')}</div> : null}
 
-            <div className="rc-row" style={{ marginTop: 2 }}>
+            <div className="rc-product-actions" style={{ marginTop: 12 }}>
               <button className="rc-btn" onClick={() => downloadFile(p)}>Descargar PDF</button>
               <button className="rc-btn" onClick={() => processPaper(p)} disabled={p.is_processed}>Procesar</button>
               <button className="rc-btn rc-btn--primary" onClick={() => summarizePaper(p)}>Resumir</button>
@@ -272,13 +294,14 @@ export default function PapersPage() {
           </div>
         ))}
         {hasMore ? (
-          <div className="rc-row">
+          <div className="rc-product-actions">
             <button className="rc-btn" onClick={() => load(nextCursor, true)} disabled={loading}>
               {loading ? 'Cargando…' : 'Cargar mas'}
             </button>
           </div>
         ) : null}
       </div>
+      </section>
     </div>
   );
 }

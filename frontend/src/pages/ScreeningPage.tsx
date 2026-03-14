@@ -146,16 +146,19 @@ export default function ScreeningPage() {
   }
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Cribado</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Revision de elegibilidad</h1>
-          <div className="rc-subtitle">Cribado por titulo/resumen y texto completo con motivos auditables y conteos PRISMA ligeros.</div>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Screening</div>
+          <h2>Revisión de elegibilidad con contexto y trazabilidad</h2>
+          <p>
+            Gestiona lotes, motivos de exclusión, decisiones y revisión por pares sin perder claridad sobre permisos y estado.
+          </p>
         </div>
-        <div className="rc-metric-grid" style={{ minWidth: 300 }}>
-          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Lotes</span></div>
-          <div className="rc-metric-tile"><strong>{comments.length}</strong><span>Comentarios</span></div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">{batches.length} lotes</span>
+          <span className="rc-discover-badge">{comments.length} comentarios</span>
+          <span className="rc-discover-badge">{reviewActions.length} acciones de revisión</span>
         </div>
       </div>
 
@@ -166,28 +169,38 @@ export default function ScreeningPage() {
         </div>
       ) : null}
 
-      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
-        <div className="rc-card">
-          <div className="rc-card-title">Configuracion</div>
-          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Titulo del lote</div>
+      <div className="rc-product-two-column">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Configuración</div>
+              <div className="rc-help">Crea lotes y motivos de exclusión solo si tu rol permite editar configuración.</div>
+            </div>
+          </div>
+          <div className="rc-product-form-grid rc-product-form-grid--three">
+            <label className="rc-discover-filter-field">
+              <span>Título del lote</span>
               <input data-testid="screening-batch-title-input" className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </div>
+            </label>
             <button data-testid="screening-create-batch" className="rc-btn" onClick={createBatch} disabled={!canEditConfiguration}>Crear lote</button>
-            <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Motivo de exclusion</div>
+            <label className="rc-discover-filter-field">
+              <span>Motivo de exclusión</span>
               <input data-testid="screening-reason-input" className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
-            </div>
+            </label>
             <button data-testid="screening-add-reason" className="rc-btn" onClick={createReason} disabled={!canEditConfiguration}>Agregar motivo</button>
           </div>
-        </div>
+        </section>
 
-        <div className="rc-card">
-          <div className="rc-card-title">Decision</div>
-          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Lote</div>
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Decisión</div>
+              <div className="rc-help">Selecciona lote, paper y decisión. El backend sigue siendo la fuente de verdad para permisos.</div>
+            </div>
+          </div>
+          <div className="rc-product-form-grid rc-product-form-grid--three">
+            <label className="rc-discover-filter-field">
+              <span>Lote</span>
               <select data-testid="screening-batch-select" className="rc-input" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
                 <option value="">Seleccionar lote</option>
                 {batches.map((batch) => (
@@ -196,89 +209,115 @@ export default function ScreeningPage() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div style={{ minWidth: 240 }}>
-              <div className="rc-kicker">Paper</div>
+            </label>
+            <label className="rc-discover-filter-field">
+              <span>Paper</span>
               <select data-testid="screening-paper-select" className="rc-input" value={selectedPaper} onChange={(e) => setSelectedPaper(e.target.value)}>
                 <option value="">Seleccionar paper</option>
                 {papers.map((paper) => (
                   <option key={paper.id} value={paper.id}>{paper.title}</option>
                 ))}
               </select>
-            </div>
-            <div style={{ minWidth: 160 }}>
-              <div className="rc-kicker">Decision</div>
+            </label>
+            <label className="rc-discover-filter-field">
+              <span>Decisión</span>
               <select data-testid="screening-decision-select" className="rc-input" value={decision} onChange={(e) => setDecision(e.target.value)}>
                 <option value="include">Incluir</option>
                 <option value="exclude">Excluir</option>
                 <option value="maybe">Tal vez</option>
               </select>
-            </div>
+            </label>
+          </div>
+          <div className="rc-product-actions">
             <button data-testid="screening-save-decision" className="rc-btn rc-btn--primary" onClick={saveDecision} disabled={!canReview}>Guardar decision</button>
           </div>
-        </div>
+        </section>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div className="rc-card">
-          <div className="rc-card-title">Lotes</div>
+      <div className="rc-product-two-column">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div className="rc-card-title">Lotes</div>
+          </div>
           {batches.length === 0 ? <div className="rc-muted">Todavia no hay lotes de cribado.</div> : null}
-          {batches.map((batch) => (
-            <div key={batch.id} className="rc-help">{batch.title} · {batch.stage} · {batch.status}</div>
-          ))}
-        </div>
+          <div className="rc-product-record-list">
+            {batches.map((batch) => (
+              <div key={batch.id} className="rc-product-study-panel">
+                <div style={{ fontWeight: 800 }}>{batch.title}</div>
+                <div className="rc-help">{batch.stage} · {batch.status}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <div className="rc-card">
-          <div className="rc-card-title">Conteos PRISMA</div>
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div className="rc-card-title">Conteos PRISMA</div>
+          </div>
           {Object.keys(prisma).length === 0 ? <div className="rc-muted">Todavia no hay conteos.</div> : null}
-          {Object.entries(prisma).map(([key, value]) => (
-            <div key={key} className="rc-help">{key}: {value}</div>
-          ))}
-        </div>
+          <div className="rc-product-record-list">
+            {Object.entries(prisma).map(([key, value]) => (
+              <div key={key} className="rc-product-study-panel">
+                <div style={{ fontWeight: 800 }}>{key}</div>
+                <div className="rc-help">{value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div className="rc-card">
-          <div className="rc-card-title">Comentarios</div>
+      <div className="rc-product-two-column">
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div className="rc-card-title">Comentarios</div>
+          </div>
           <textarea
             data-testid="screening-comment-input"
-            className="rc-input"
-            style={{ minHeight: 100, width: '100%' }}
+            className="rc-discover-composer__input rc-product-textarea"
             value={commentBody}
             onChange={(e) => setCommentBody(e.target.value)}
             placeholder="Agrega una nota de screening o revision…"
           />
-          <div style={{ height: 10 }} />
           <button data-testid="screening-add-comment" className="rc-btn" onClick={saveComment} disabled={!canReview}>Agregar comentario</button>
-          <div style={{ height: 10 }} />
           {comments.length === 0 ? <div className="rc-muted">Todavia no hay comentarios.</div> : null}
-          {comments.map((comment) => (
-            <div key={comment.id} className="rc-help">
-              {comment.body} · {comment.target_type || 'project'} · {comment.user_id}
-            </div>
-          ))}
-        </div>
+          <div className="rc-product-record-list" style={{ marginTop: 12 }}>
+            {comments.map((comment) => (
+              <div key={comment.id} className="rc-product-study-panel">
+                <div className="rc-help">
+                  {comment.body} · {comment.target_type || 'project'} · {comment.user_id}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <div className="rc-card">
-          <div className="rc-card-title">Cola de revision por pares</div>
-          <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 220 }}>
-              <div className="rc-kicker">Accion</div>
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Cola de revisión por pares</div>
+              <div className="rc-help">Encola acciones y resuélvelas desde esta misma vista.</div>
+            </div>
+          </div>
+          <div className="rc-product-form-grid">
+            <label className="rc-discover-filter-field">
+              <span>Acción</span>
               <select data-testid="screening-review-action-select" className="rc-input" value={reviewAction} onChange={(e) => setReviewAction(e.target.value)}>
                 <option value="draft_review">Revision de borrador</option>
                 <option value="extraction_review">Revision de extraccion</option>
                 <option value="screening_review">Revision de screening</option>
               </select>
-            </div>
+            </label>
+          </div>
+          <div className="rc-product-actions">
             <button data-testid="screening-queue-review-action" className="rc-btn" onClick={createReviewAction} disabled={!canReview}>Encolar accion de revision</button>
           </div>
-          <div style={{ height: 10 }} />
           {reviewActions.length === 0 ? <div className="rc-muted">Todavia no hay acciones de revision.</div> : null}
-          {reviewActions.map((action) => (
-            <div key={action.id} className="rc-soft-card" style={{ marginBottom: 10 }}>
+          <div className="rc-product-record-list" style={{ marginTop: 12 }}>
+            {reviewActions.map((action) => (
+            <div key={action.id} className="rc-product-record rc-product-record--soft">
               <div style={{ fontWeight: 800 }}>{action.action}</div>
               <div className="rc-help">{action.status} · {action.user_id}</div>
-              <div className="rc-row">
+              <div className="rc-product-actions" style={{ marginTop: 10 }}>
                 {action.status !== 'resolved' ? (
                   <button data-testid={`screening-resolve-review-${action.id}`} className="rc-btn" onClick={() => resolveReviewAction(action.id)} disabled={!canReview}>Resolver</button>
                 ) : (
@@ -287,7 +326,8 @@ export default function ScreeningPage() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        </section>
       </div>
     </div>
   );
