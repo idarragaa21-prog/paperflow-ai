@@ -266,34 +266,33 @@ export default function MetaPage() {
   }, [exportJobId]);
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-stage-label rc-stage-label--warm">Paso 3 · Extraer</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Espacio de extraccion</h1>
-          <div className="rc-subtitle">Sube lotes de PDF, revisa la salud de la extraccion y convierte articulos en evidencia estructurada antes de redactar o analizar.</div>
-          <div className="rc-help" style={{ marginTop: 12 }}>Este es el puente entre leer y escribir. Una extraccion limpia aqui hace mas facil cada borrador y analisis posterior.</div>
+    <div className="rc-product-page">
+      <div className="rc-product-page__header">
+        <div>
+          <div className="rc-kicker">Extracción estructurada</div>
+          <h2>Convierte PDFs en estudios revisables</h2>
+          <p>Sube lotes, sigue su procesamiento y revisa los estudios extraídos antes de exportar o analizar.</p>
         </div>
-        <div className="rc-metric-grid" style={{ minWidth: 320 }}>
-          <div className="rc-metric-tile"><strong>{batches.length}</strong><span>Lotes</span></div>
-          <div className="rc-metric-tile"><strong>{studies.length}</strong><span>Estudios</span></div>
-          <div className="rc-metric-tile"><strong>{runningItems.length}</strong><span>Items en ejecucion</span></div>
-          <div className="rc-metric-tile"><strong>{exportsList.length}</strong><span>Exportaciones</span></div>
+        <div className="rc-discover-badges">
+          <span className="rc-discover-badge">{batches.length} lotes</span>
+          <span className="rc-discover-badge">{studies.length} estudios</span>
+          <span className="rc-discover-badge">{runningItems.length} items activos</span>
+          <span className="rc-discover-badge">{exportsList.length} exportaciones</span>
         </div>
       </div>
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
-      {notice ? <div className="rc-soft-card"><div className="rc-help">{notice}</div></div> : null}
+      {notice ? <div className="rc-product-card"><div className="rc-help">{notice}</div></div> : null}
 
-      <div className="rc-panel-grid" style={{ alignItems: 'start' }}>
+      <div className="rc-product-two-column rc-product-two-column--wide" style={{ alignItems: 'start' }}>
         <div className="rc-stack">
-          <div className="rc-card">
+          <div className="rc-product-card">
             <div className="rc-toolbar">
               <div>
                 <div className="rc-card-title" style={{ marginBottom: 4 }}>Cola de lotes</div>
                 <div className="rc-help">Selecciona un lote para enfocarte en sus items y resultados de estudio.</div>
               </div>
-              <button className="rc-btn" onClick={() => void loadBatches()} disabled={loading}>
+              <button className="rc-btn rc-btn--subtle" onClick={() => void loadBatches()} disabled={loading}>
                 {loading ? 'Actualizando...' : 'Actualizar'}
               </button>
             </div>
@@ -323,12 +322,12 @@ export default function MetaPage() {
               </div>
             )}
             <div style={{ height: 12 }} />
-            <button className="rc-btn rc-btn--ghost" onClick={() => setSelectedBatchId(null)} disabled={!selectedBatchId}>
+            <button className="rc-btn rc-btn--subtle" onClick={() => setSelectedBatchId(null)} disabled={!selectedBatchId}>
               Quitar foco del lote
             </button>
           </div>
 
-          <div className="rc-card">
+          <div className="rc-product-card">
             <div className="rc-card-title">Nuevo lote de extraccion</div>
             <div className="rc-help" style={{ marginBottom: 12 }}>Elige los PDFs, nombra opcionalmente la corrida y deja que la cola de workers los procese en segundo plano.</div>
             <div className="rc-card-list">
@@ -349,18 +348,18 @@ export default function MetaPage() {
             </div>
           </div>
 
-          <div className="rc-card">
+          <div className="rc-product-card">
             <div className="rc-toolbar">
               <div>
                 <div className="rc-card-title" style={{ marginBottom: 4 }}>Exportaciones</div>
                 <div className="rc-help">Empaqueta los datos actuales de extraccion para revision o analisis posterior.</div>
               </div>
-              <button className="rc-btn" onClick={() => void loadExports()}>Actualizar</button>
+              <button className="rc-btn rc-btn--subtle" onClick={() => void loadExports()}>Actualizar</button>
             </div>
             <div style={{ height: 12 }} />
-            <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
-              {exportJobId ? 'Exportando...' : 'Exportar Excel'}
-            </button>
+              <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
+                {exportJobId ? 'Exportando...' : 'Exportar Excel'}
+              </button>
             {exportJobStatus ? (
               <div className="rc-help" style={{ marginTop: 10 }}>
                 Estado de exportacion: {exportJobStatus.status} · {exportJobStatus.progress}%
@@ -382,7 +381,7 @@ export default function MetaPage() {
                         <div style={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.filename}</div>
                         <div className="rc-help" style={{ marginTop: 6 }}>{formatDate(item.created_at)}</div>
                       </div>
-                      <button className="rc-btn" onClick={() => void downloadExport(item)}>Descargar</button>
+                      <button className="rc-btn rc-btn--subtle" onClick={() => void downloadExport(item)}>Descargar</button>
                     </div>
                   </div>
                 ))}
@@ -392,7 +391,7 @@ export default function MetaPage() {
         </div>
 
         <div className="rc-stack">
-          <div className="rc-card">
+          <div className="rc-product-card">
             <div className="rc-toolbar">
               <div>
                 <div className="rc-card-title" style={{ marginBottom: 4 }}>Items del lote</div>
@@ -451,13 +450,13 @@ export default function MetaPage() {
             )}
           </div>
 
-          <div className="rc-card">
+          <div className="rc-product-card">
             <div className="rc-toolbar">
               <div>
                 <div className="rc-card-title" style={{ marginBottom: 4 }}>Revision de estudios</div>
                 <div className="rc-help">Explora los estudios extraidos y abre el visor detallado para revisar confianza, riesgo de sesgo y tamanos de efecto.</div>
               </div>
-              <button className="rc-btn" onClick={() => void loadStudies()}>Actualizar</button>
+              <button className="rc-btn rc-btn--subtle" onClick={() => void loadStudies()}>Actualizar</button>
             </div>
             <div style={{ height: 12 }} />
             {studies.length === 0 ? (

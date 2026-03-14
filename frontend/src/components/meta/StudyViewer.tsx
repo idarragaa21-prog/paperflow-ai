@@ -135,9 +135,9 @@ export default function StudyViewer({
     };
   }, [reextractJobId]);
 
-  if (loading && !study) return <div>Loading study…</div>;
-  if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
-  if (!study) return <div>Select a study.</div>;
+  if (loading && !study) return <div className="rc-help">Loading study…</div>;
+  if (error) return <div className="rc-error">{String(error)}</div>;
+  if (!study) return <div className="rc-help">Select a study.</div>;
 
   const sj = (study.study_json || {}) as any;
   const title = String(sj.title || '(untitled)');
@@ -149,8 +149,8 @@ export default function StudyViewer({
   const outcomes = Array.isArray(sj.outcomes) ? sj.outcomes : [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+    <div className="rc-product-study-viewer">
+      <div className="rc-product-card__header">
         <div style={{ minWidth: 280 }}>
           <div style={{ fontWeight: 900, fontSize: 16 }}>{title}</div>
           <div style={{ fontSize: 12, opacity: 0.78 }}>
@@ -163,17 +163,17 @@ export default function StudyViewer({
           <div style={{ fontSize: 11, opacity: 0.55 }}>study_id: {study.id}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={load} disabled={loading}>
+          <button className="rc-btn rc-btn--subtle" onClick={load} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
-          <button onClick={reextract} disabled={Boolean(reextractJobId)}>
+          <button className="rc-btn rc-btn--subtle" onClick={reextract} disabled={Boolean(reextractJobId)}>
             {reextractJobId ? 'Re-extracting…' : 'Re-extract'}
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 10 }}>
+      <div className="rc-product-study-grid">
+        <div className="rc-product-study-panel">
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Arms</div>
           {arms.length === 0 ? <div style={{ opacity: 0.7 }}>No arms extracted.</div> : null}
           {arms.slice(0, 6).map((a: any, idx: number) => {
@@ -194,7 +194,7 @@ export default function StudyViewer({
           {arms.length > 6 ? <div style={{ fontSize: 12, opacity: 0.6 }}>+{arms.length - 6} more…</div> : null}
         </div>
 
-        <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 10 }}>
+        <div className="rc-product-study-panel">
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Outcomes</div>
           {outcomes.length === 0 ? <div style={{ opacity: 0.7 }}>No outcomes extracted.</div> : null}
           {outcomes.slice(0, 10).map((o: any, idx: number) => (
@@ -218,13 +218,7 @@ export default function StudyViewer({
               key={v.id}
               onClick={() => onSelectStudyId?.(v.id)}
               disabled={!onSelectStudyId || v.id === studyId}
-              style={{
-                fontSize: 12,
-                padding: '3px 8px',
-                borderRadius: 999,
-                border: '1px solid rgba(0,0,0,0.18)',
-                background: v.is_current ? 'rgba(16,185,129,0.14)' : 'rgba(0,0,0,0.04)',
-              }}
+              className={`rc-discover-badge ${v.is_current ? 'rc-discover-badge--strong' : ''}`}
             >
               v{v.version}{v.is_current ? ' (current)' : ''}
             </button>
@@ -233,13 +227,13 @@ export default function StudyViewer({
       ) : null}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button onClick={() => setTab('effects')} disabled={tab === 'effects'}>
+        <button className="rc-btn rc-btn--subtle" onClick={() => setTab('effects')} disabled={tab === 'effects'}>
           Effect sizes
         </button>
-        <button onClick={() => setTab('rob')} disabled={tab === 'rob'}>
+        <button className="rc-btn rc-btn--subtle" onClick={() => setTab('rob')} disabled={tab === 'rob'}>
           Risk of bias
         </button>
-        <button onClick={() => setTab('json')} disabled={tab === 'json'}>
+        <button className="rc-btn rc-btn--subtle" onClick={() => setTab('json')} disabled={tab === 'json'}>
           Raw JSON
         </button>
         {reextractStatus ? (

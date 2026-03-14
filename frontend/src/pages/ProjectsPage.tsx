@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
 type Project = {
@@ -10,19 +10,26 @@ type Project = {
   archived: boolean;
 };
 
+const PROJECT_PROMPTS = [
+  'Comparación de estrategias para control de dolor postoperatorio',
+  'Resultados de reconstrucción ACL con distintos injertos',
+  'Efectividad de monitoreo remoto en insuficiencia cardiaca',
+];
+
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const r = await api.get('/projects');
-      setProjects(r.data as Project[]);
+      const response = await api.get('/projects');
+      setProjects(response.data as Project[]);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'No se pudieron cargar los proyectos');
     } finally {
@@ -32,13 +39,18 @@ export default function ProjectsPage() {
 
   async function create() {
     if (!title.trim()) return;
+    setCreating(true);
     setError(null);
     try {
-      await api.post('/projects', { title: title.trim() });
+      const response = await api.post('/projects', { title: title.trim() });
+      const project = response.data as Project;
       setTitle('');
       await load();
+      navigate(`/projects/${project.id}/research`);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'No se pudo crear el proyecto');
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -49,138 +61,88 @@ export default function ProjectsPage() {
   const latestProject = useMemo(() => projects[0] || null, [projects]);
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Proyectos</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>Proyectos</h1>
-          <div className="rc-subtitle">
-            Un solo lugar para busqueda bibliografica, lectura de PDFs, extraccion de evidencia, redaccion y analisis reproducible.
+    <div className="rc-projects-home">
+      <section className="rc-projects-home__hero">
+        <div className="rc-projects-home__hero-copy">
+          <div className="rc-kicker">PaperFlow workspace</div>
+          <h1>Empieza una investigación sin ruido.</h1>
+          <p>
+            Crea un proyecto, entra directo a `Descubrir` y mantén búsqueda, lectura, extracción y análisis dentro del
+            mismo espacio.
+          </p>
+        </div>
+
+        <div className="rc-projects-home__composer">
+          <div className="rc-projects-home__composer-title">Crear nuevo proyecto</div>
+          <input
+            data-testid="project-title-input"
+            className="rc-input rc-projects-home__input"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Haz una pregunta o define el foco del proyecto…"
+          />
+
+          <div className="rc-chip-list">
+            {PROJECT_PROMPTS.map((prompt) => (
+              <button key={prompt} type="button" className="rc-discover-mini-chip" onClick={() => setTitle(prompt)}>
+                {prompt}
+              </button>
+            ))}
           </div>
-          <div className="rc-help" style={{ marginTop: 12, maxWidth: 640 }}>
-            Empieza un nuevo espacio de investigacion o vuelve al que estabas usando. PaperFlow se organiza alrededor del trabajo que quieres completar, no de herramientas desconectadas.
+
+          <div className="rc-row">
+            <button
+              data-testid="project-create-button"
+              className="rc-btn rc-btn--primary"
+              onClick={() => void create()}
+              disabled={!title.trim() || creating}
+            >
+              {creating ? 'Creando…' : 'Crear proyecto'}
+            </button>
+            <button className="rc-btn rc-btn--subtle" onClick={() => void load()} disabled={loading}>
+              {loading ? 'Actualizando…' : 'Actualizar'}
+            </button>
           </div>
         </div>
-        <div className="rc-kpi-strip" style={{ minWidth: 320 }}>
-          <div className="rc-hero-stat">
-            <strong>{projects.length}</strong>
-            <span>Proyectos activos</span>
-          </div>
-          <div className="rc-hero-stat">
-            <strong>{latestProject ? 'Listo' : 'Empieza'}</strong>
-            <span>{latestProject ? 'Ultimo espacio disponible' : 'Crea tu primer espacio'}</span>
-          </div>
-        </div>
-      </div>
+      </section>
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
 
-      <div className="rc-shelf">
-        <div className="rc-card">
-          <div className="rc-card-title">Crear un nuevo espacio de investigacion</div>
-          <div className="rc-help" style={{ marginBottom: 12 }}>
-            Dale al proyecto un titulo especifico para que la busqueda, la extraccion y la redaccion se mantengan enfocadas en la misma pregunta.
-          </div>
-          <div className="rc-row" style={{ alignItems: 'flex-end' }}>
-            <div style={{ minWidth: 280, flex: 1 }}>
-              <div className="rc-kicker">Titulo del proyecto</div>
-              <input
-                data-testid="project-title-input"
-                className="rc-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="ej. Resultados de reparacion del manguito rotador en adultos mayores"
-              />
-            </div>
-            <button data-testid="project-create-button" className="rc-btn rc-btn--primary" onClick={create} disabled={!title.trim()}>
-              Crear proyecto
-            </button>
-          </div>
-          <div className="rc-help" style={{ marginTop: 10 }}>
-            Consejo: un buen titulo menciona la poblacion, la intervencion o el resultado que te interesa.
-          </div>
-        </div>
-
-        <div className="rc-card">
-          <div className="rc-card-title">Como funciona PaperFlow</div>
-          <div className="rc-guided-grid" style={{ gridTemplateColumns: '1fr' }}>
-            <div className="rc-flow-card">
-              <div className="rc-stage-label rc-stage-label--teal">Paso 1</div>
-              <h3>Encuentra los papers correctos</h3>
-              <p>Busca en las principales fuentes cientificas y guarda la evidencia que de verdad responde tu pregunta.</p>
-            </div>
-            <div className="rc-flow-card">
-              <div className="rc-stage-label rc-stage-label--warm">Paso 2</div>
-              <h3>Lee, extrae y compara</h3>
-              <p>Haz preguntas con evidencia, extrae datos estructurados y revisa los hallazgos dentro del mismo espacio.</p>
-            </div>
-            <div className="rc-flow-card">
-              <div className="rc-stage-label rc-stage-label--teal">Paso 3</div>
-              <h3>Redacta y analiza</h3>
-              <p>Construye borradores con citas y ejecuta analisis reproducibles sin perder el contexto.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="rc-card">
-        <div className="rc-toolbar">
-          <div>
-            <div className="rc-card-title" style={{ marginBottom: 4 }}>Espacios recientes</div>
-            <div className="rc-help">Retoma donde lo dejaste o abre un proyecto directamente en su flujo de investigacion.</div>
-          </div>
-          <button className="rc-btn" onClick={() => void load()} disabled={loading}>
-            {loading ? 'Actualizando...' : 'Actualizar'}
-          </button>
-        </div>
-      </div>
+      <section className="rc-projects-home__summary">
+        <div className="rc-discover-badge">{projects.length} proyectos</div>
+        <div className="rc-discover-badge">{latestProject ? 'Listo para continuar' : 'Crea tu primer espacio'}</div>
+      </section>
 
       {projects.length === 0 ? (
         <div className="rc-empty-state">
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavia no hay proyectos</div>
-          <div className="rc-help">Crea tu primer proyecto arriba y PaperFlow abrira un espacio completo de investigacion alrededor de el.</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Todavía no hay proyectos</div>
+          <div className="rc-help">Crea uno arriba y PaperFlow te llevará directo al flujo principal de búsqueda.</div>
         </div>
       ) : (
-        <div className="rc-guided-grid">
-          {projects.map((project, index) => (
-            <div
+        <section className="rc-projects-grid">
+          {projects.map((project) => (
+            <button
               data-testid={`project-card-${project.id}`}
               key={project.id}
-              className="rc-flow-card"
+              type="button"
+              className="rc-project-card"
               onClick={() => navigate(`/projects/${project.id}/research`)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  navigate(`/projects/${project.id}/research`);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              style={{ cursor: 'pointer' }}
             >
-              <div className="rc-detail-header">
-                <span className={`rc-stage-label ${index === 0 ? 'rc-stage-label--teal' : 'rc-stage-label--warm'}`}>
-                  {index === 0 ? 'Continuar' : 'Espacio'}
-                </span>
-                {project.archived ? <span className="rc-badge">Archivado</span> : <span className="rc-badge rc-badge--success">Activo</span>}
+              <div className="rc-project-card__top">
+                <span className="rc-discover-badge">{project.archived ? 'Archivado' : 'Activo'}</span>
               </div>
               <h3>{project.title}</h3>
               <p>
                 {project.description ||
                   project.clinical_area ||
-                  'Abre el espacio para buscar, leer, extraer, redactar y analizar dentro del mismo contexto del proyecto.'}
+                  'Abrir este proyecto te lleva directo a una experiencia centrada en descubrir literatura y construir el trabajo desde ahí.'}
               </p>
-              <Link
-                data-testid={`project-open-${project.id}`}
-                to={`/projects/${project.id}/research`}
-                className="rc-flow-link"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <span data-testid={`project-open-${project.id}`} className="rc-project-card__link">
                 Abrir espacio
-              </Link>
-            </div>
+              </span>
+            </button>
           ))}
-        </div>
+        </section>
       )}
     </div>
   );

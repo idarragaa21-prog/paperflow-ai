@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
+import { Outlet, useLocation, useParams } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 
@@ -86,10 +86,6 @@ export default function ProjectLayout() {
     [currentSegment],
   );
 
-  const activeSecondaryTool = useMemo(
-    () => SECONDARY_TOOLS.find((tool) => tool.to === currentSegment) || null,
-    [currentSegment],
-  );
   const isDiscoveryRoute = currentSegment === 'research' || currentSegment === 'search';
 
   useEffect(() => {
@@ -153,7 +149,7 @@ export default function ProjectLayout() {
         const result = (r.data as any)?.result || {};
         const output = result?.output || result?.rq_result?.output;
         setExportJobStatus({ status, progress, error: err, output });
-        if (status === 'completed' || status === 'failed') return;
+        if (status === 'completed' || status === 'failed' || status === 'cancelled') return;
       } catch (e: any) {
         setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
       }
@@ -175,106 +171,38 @@ export default function ProjectLayout() {
   if (isDiscoveryRoute) return <Outlet />;
 
   return (
-    <div className="rc-section-shell">
-      <div className="rc-hero-card">
-        <div style={{ maxWidth: 760 }}>
-          <div className="rc-pill">Espacio de trabajo</div>
-          <h1 className="rc-page-title" style={{ marginTop: 12 }}>{project?.title || 'Proyecto'}</h1>
-          <div className="rc-subtitle">
+    <div className="rc-workspace-page">
+      <div className="rc-workspace-page__header">
+        <div>
+          <div className="rc-kicker">{activePrimaryTask ? `${activePrimaryTask.kicker} · ${activePrimaryTask.label}` : currentModule}</div>
+          <h1 className="rc-page-title rc-page-title--compact">{project?.title || 'Proyecto'}</h1>
+          <div className="rc-help" style={{ marginTop: 8 }}>
             {project?.description ||
               project?.clinical_area ||
-              'Pasa del descubrimiento de evidencia a la redaccion y al analisis dentro de un unico espacio guiado.'}
-          </div>
-          <div className="rc-help" style={{ marginTop: 12 }}>
-            Ahora estas en <strong>{currentModule}</strong>. El flujo principal es Descubrir → Leer → Extraer → Redactar → Analizar.
-            {activeSecondaryTool ? ` Estás usando una herramienta complementaria para apoyar ese flujo.` : ''}
+              'Un solo espacio para descubrir evidencia, leer papers, extraer datos, redactar y analizar.'}
           </div>
         </div>
 
-        <div className="rc-stack" style={{ minWidth: 360, flex: 1 }}>
-          <div className="rc-card">
-            <div className="rc-card-title">Resumen del proyecto</div>
-            <div className="rc-kpi-strip">
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.papers ?? '—'}</strong><span>Articulos guardados</span></div>
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.references ?? '—'}</strong><span>Referencias</span></div>
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.meta_studies_current ?? '—'}</strong><span>Estudios extraidos</span></div>
-              <div className="rc-metric-tile"><strong>{dashboard?.counts?.notes ?? '—'}</strong><span>Notas</span></div>
-            </div>
-          </div>
-
-          <div className="rc-next-step">
-            <div className="rc-kicker">Modo actual del espacio</div>
-            <div style={{ fontWeight: 800, letterSpacing: '-0.02em', marginTop: 4 }}>{project?.runtime_mode || 'solo-local'}</div>
-            <div className="rc-help" style={{ marginTop: 8 }}>Si necesitas una copia portable o entregar el trabajo, exporta el paquete completo del proyecto.</div>
-            <div className="rc-row" style={{ marginTop: 12 }}>
-              <button className="rc-btn" onClick={startExportZip}>Exportar ZIP del proyecto</button>
-              {exportJobId && exportJobStatus?.status === 'completed' ? (
-                <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Descargar ZIP</button>
-              ) : null}
-            </div>
-            {exportJobId ? <div className="rc-help" style={{ marginTop: 8 }}>{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
-            {exportJobStatus?.error ? <div className="rc-error" style={{ marginTop: 8 }}>{String(exportJobStatus.error)}</div> : null}
-          </div>
+        <div className="rc-workspace-page__meta">
+          <span className="rc-discover-badge">{dashboard?.counts?.papers ?? '—'} artículos</span>
+          <span className="rc-discover-badge">{dashboard?.counts?.references ?? '—'} referencias</span>
+          <span className="rc-discover-badge">{dashboard?.counts?.meta_studies_current ?? '—'} estudios</span>
+          <span className="rc-discover-badge">{project?.runtime_mode || 'local_only'}</span>
+          <button className="rc-btn rc-btn--subtle" onClick={startExportZip}>Exportar ZIP</button>
+          {exportJobId && exportJobStatus?.status === 'completed' ? (
+            <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Descargar ZIP</button>
+          ) : null}
         </div>
       </div>
 
-      <div className="rc-card">
-        <div className="rc-toolbar" style={{ marginBottom: 12 }}>
-          <div>
-            <div className="rc-card-title" style={{ marginBottom: 4 }}>Flujo principal</div>
-            <div className="rc-help">Concéntrate en estos cinco pasos. Las herramientas de apoyo quedan abajo para no distraerte.</div>
-          </div>
-          {activePrimaryTask ? (
-            <div className="rc-stage-label rc-stage-label--teal">{activePrimaryTask.kicker} · {activePrimaryTask.label}</div>
-          ) : activeSecondaryTool ? (
-            <div className="rc-stage-label rc-stage-label--warm">Herramienta complementaria · {activeSecondaryTool.label}</div>
-          ) : (
-            <Link className="rc-flow-link" to={`/projects/${projectId}/research`}>Volver al inicio</Link>
-          )}
+      {exportJobId ? (
+        <div className="rc-help">
+          Exportación {exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%
         </div>
+      ) : null}
+      {exportJobStatus?.error ? <div className="rc-error">{String(exportJobStatus.error)}</div> : null}
 
-        <div className="rc-workflow-bar">
-          {PRIMARY_TASKS.map((task) => (
-            <NavLink
-              key={task.to}
-              to={`/projects/${projectId}/${task.to}`}
-              end
-              className={({ isActive }) => `rc-workflow-tab ${isActive ? 'rc-workflow-tab--active' : ''}`}
-            >
-              <span className="rc-workflow-tab__kicker">{task.kicker}</span>
-              <strong>{task.label}</strong>
-              <span>{task.copy}</span>
-            </NavLink>
-          ))}
-        </div>
-      </div>
-
-      <div className="rc-card" style={{ padding: 14 }}>
-        <div className="rc-toolbar" style={{ marginBottom: 10 }}>
-          <div>
-            <div className="rc-kicker">Herramientas complementarias</div>
-            <div className="rc-help">Úsalas cuando necesites profundizar, pero no deberían reemplazar el flujo principal.</div>
-          </div>
-          <Link className="rc-flow-link" to={`/projects/${projectId}/research`}>Ir al paso 1</Link>
-        </div>
-        <div className="rc-secondary-tools">
-          {SECONDARY_TOOLS.map((tool) => (
-            <NavLink
-              key={tool.to}
-              to={`/projects/${projectId}/${tool.to}`}
-              end
-              className={({ isActive }) => `rc-secondary-tool ${isActive ? 'rc-secondary-tool--active' : ''}`}
-            >
-              <strong>{tool.label}</strong>
-              <span>{tool.copy}</span>
-            </NavLink>
-          ))}
-        </div>
-      </div>
-
-      <div className="rc-card">
-        <Outlet />
-      </div>
+      <Outlet />
     </div>
   );
 }
