@@ -138,6 +138,58 @@ async def _search_doaj(query: str, max_results: int) -> list[dict[str, Any]]:
     return results
 
 
+def _relevance_score(item: dict[str, Any], query: str) -> float:
+    """Compute a relevance score for ranking federated results.
+
+    Components (all 0-1, weighted):
+      - title_match   (0.30): token overlap between query and title
+      - recency       (0.20): newer papers score higher (2024=1.0, 2000=0.0)
+      - metadata_qual (0.20): completeness of abstract, DOI, journal, authors
+      - oa_available  (0.15): has OA URL
+      - id_strength   (0.15): has DOI and/or PMID (resolvability)
+    """
+    score = 0.0
+
+    # --- Title match (0.30) ---
+    query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
+    title_tokens = set(re.sub(r"[^a-z0-9 ]+", "", (item.get("title") or "").lower()).split())
+    if query_tokens and title_tokens:
+        overlap = len(query_tokens & title_tokens)
+        score += 0.30 * (overlap / max(len(query_tokens), 1))
+
+    # --- Recency (0.20) ---
+    pub_year = item.get("pub_year")
+    if isinstance(pub_year, int) and 1900 < pub_year <= 2026:
+        # Linear scale: 2026 → 1.0, 2000 → 0.0, older → 0.0
+        recency = max(0.0, min(1.0, (pub_year - 2000) / 26))
+        score += 0.20 * recency
+
+    # --- Metadata quality (0.20) ---
+    meta_fields = ["abstract", "doi", "journal", "authors"]
+    filled = sum(1 for f in meta_fields if item.get(f))
+    score += 0.20 * (filled / len(meta_fields))
+
+    # --- OA availability (0.15) ---
+    if item.get("oa_url"):
+        score += 0.15
+    elif item.get("is_open_access"):
+        score += 0.07
+
+    # --- ID strength / resolvability (0.15) ---
+    has_doi = bool(item.get("doi"))
+    has_pmid = bool(item.get("pmid"))
+    id_score = 0.0
+    if has_doi and has_pmid:
+        id_score = 1.0
+    elif has_doi:
+        id_score = 0.8
+    elif has_pmid:
+        id_score = 0.6
+    score += 0.15 * id_score
+
+    return round(score, 4)
+
+
 async def federated_search(query: str, *, max_results: int, filters: SearchFilters | None = None) -> dict[str, Any]:
     pubmed = await pubmed_client.search_and_fetch(query, max_results=max_results)
     pubmed_results = [{**item, "source": "pubmed"} for item in pubmed["results"]]
@@ -158,6 +210,7 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
     else:
         doaj_results = results_or_errors[1]
 
+    # Dedup: keep the record with richer metadata per unique key.
     deduped: OrderedDict[str, dict[str, Any]] = OrderedDict()
     for item in [*pubmed_results, *europe_results, *doaj_results]:
         if not _passes_filters(item, filters):
@@ -174,7 +227,15 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
         if score_new > score_existing:
             deduped[key] = item
 
-    results = list(deduped.values())[:max_results]
+    # Rank by relevance score instead of arbitrary source order.
+    ranked = sorted(deduped.values(), key=lambda r: _relevance_score(r, query), reverse=True)
+
+    # Attach score to each result for transparency.
+    results: list[dict[str, Any]] = []
+    for item in ranked[:max_results]:
+        item["relevance_score"] = _relevance_score(item, query)
+        results.append(item)
+
     return {
         "count": len(results),
         "results": results,

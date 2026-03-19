@@ -36,6 +36,7 @@ class PaperMetadata(BaseModel):
 
     is_open_access: bool = False
     oa_url: str | None = None
+    relevance_score: float | None = None
 
 
 class SearchResponse(BaseModel):

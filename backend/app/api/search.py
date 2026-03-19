@@ -31,7 +31,10 @@ async def search_pubmed(
         raise HTTPException(status_code=404, detail="Project not found")
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
-    cache_key = cache.generate_search_key(payload.query, filters_dict)
+    cache_key = cache.generate_search_key(
+        payload.query, filters_dict,
+        max_results=payload.max_results, source="pubmed",
+    )
 
     cached_payload = await cache.get(cache_key)
     if cached_payload:
@@ -51,19 +54,17 @@ async def search_pubmed(
     db.add(search)
     await db.flush()
 
+    # Deduplicate WITHIN this search only (not globally).
+    seen_keys: set[str] = set()
     for r in results:
         pmid = r.get("pmid")
         doi = r.get("doi")
 
-        # Dedup safety for partial unique constraints on pmid/doi.
-        if pmid:
-            existing = await db.execute(select(SearchResult.id).where(SearchResult.pmid == pmid).limit(1))
-            if existing.scalar_one_or_none():
-                continue
-        if doi:
-            existing = await db.execute(select(SearchResult.id).where(SearchResult.doi == doi).limit(1))
-            if existing.scalar_one_or_none():
-                continue
+        dedup_key = f"pmid:{pmid}" if pmid else (f"doi:{doi}" if doi else None)
+        if dedup_key and dedup_key in seen_keys:
+            continue
+        if dedup_key:
+            seen_keys.add(dedup_key)
 
         sr = SearchResult(
             search_id=search.id,
@@ -109,7 +110,10 @@ async def search_federated(
         raise HTTPException(status_code=404, detail="Project not found")
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
-    cache_key = cache.generate_search_key(f"federated::{payload.query}", filters_dict)
+    cache_key = cache.generate_search_key(
+        payload.query, filters_dict,
+        max_results=payload.max_results, source="federated",
+    )
     cached_payload = await cache.get(cache_key)
     if cached_payload:
         return SearchResponse(**{**cached_payload, "cached": True})

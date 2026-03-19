@@ -46,6 +46,7 @@ async def batch_download_papers(
         pmid = (it.get("pmid") or None)
         pmcid = (it.get("pmcid") or None)
         doi = (it.get("doi") or None)
+        oa_url = (it.get("oa_url") or None)
         title = (it.get("title") or None) or doi or pmid or "Paper"
 
         try:
@@ -55,7 +56,8 @@ async def batch_download_papers(
                 already_exists.append({"pmid": pmid, "title": title, "paper_id": str(dup.id)})
                 continue
 
-            # Resolve OA URL with required priority:
+            # Resolve OA URL with priority:
+            # 0) Caller-provided oa_url (from search result the user saw)
             # 1) Europe PMC if PMCID exists (uses PMID query)
             # 2) Unpaywall if DOI exists
             # 3) otherwise not_available
@@ -63,7 +65,12 @@ async def batch_download_papers(
             source = None
             last_err = None
 
-            if pmcid and pmid:
+            # Priority 0: caller-provided OA URL from search results.
+            if oa_url:
+                resolved_url = oa_url
+                source = "user_provided_oa"
+
+            if (not resolved_url) and pmcid and pmid:
                 try:
                     r = await downloader.europepmc.resolve_by_pmid(pmid, client)
                     resolved_url, source = r.url_for_pdf, r.source
@@ -95,8 +102,37 @@ async def batch_download_papers(
             pdf_bytes = resp.content
 
             if not storage_manager.validate_pdf(pdf_bytes):
-                ct = resp.headers.get("content-type")
-                raise PaperServiceError(f"Resolved URL did not return a valid PDF (content-type={ct})")
+                # If this was a user-provided URL, retry with resolver chain.
+                if source == "user_provided_oa":
+                    fallback_url = None
+                    fallback_source = None
+                    if pmcid and pmid:
+                        try:
+                            r = await downloader.europepmc.resolve_by_pmid(pmid, client)
+                            fallback_url, fallback_source = r.url_for_pdf, r.source
+                        except Exception:
+                            pass
+                    if (not fallback_url) and doi:
+                        try:
+                            r = await downloader.unpaywall.resolve(doi, client)
+                            fallback_url, fallback_source = r.url_for_pdf, r.source
+                        except Exception:
+                            pass
+                    if fallback_url and fallback_source:
+                        resp2 = await client.get(fallback_url, timeout=60, follow_redirects=True)
+                        resp2.raise_for_status()
+                        pdf_bytes = resp2.content
+                        resolved_url = fallback_url
+                        source = fallback_source
+                        if not storage_manager.validate_pdf(pdf_bytes):
+                            ct = resp2.headers.get("content-type")
+                            raise PaperServiceError(f"Resolved URL did not return a valid PDF (content-type={ct})")
+                    else:
+                        ct = resp.headers.get("content-type")
+                        raise PaperServiceError(f"Resolved URL did not return a valid PDF (content-type={ct})")
+                else:
+                    ct = resp.headers.get("content-type")
+                    raise PaperServiceError(f"Resolved URL did not return a valid PDF (content-type={ct})")
 
             content_hash = sha256_hex(pdf_bytes)
 
@@ -119,6 +155,10 @@ async def batch_download_papers(
                 doi=doi,
                 pmid=pmid,
                 pmcid=pmcid,
+                source_provider=source,
+                source_type="download",
+                is_open_access=True,
+                oa_url=resolved_url,
                 filename=saved["filename"],
                 file_path=saved["file_path"],
                 file_size_kb=saved["size_kb"],
