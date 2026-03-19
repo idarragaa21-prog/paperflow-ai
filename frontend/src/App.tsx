@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import './App.css';
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthedLayout from './components/AuthedLayout';
 import ProjectLayout from './components/ProjectLayout';
