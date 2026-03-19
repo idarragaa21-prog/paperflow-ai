@@ -9,7 +9,7 @@ python -c "
 import asyncio, os
 from app.database import async_session_maker
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import hash_password
 from sqlalchemy import select
 
 async def create_admin():
@@ -19,7 +19,7 @@ async def create_admin():
             user = User(
                 email='demo@paperflow.ai',
                 full_name='Demo User',
-                hashed_password=get_password_hash('demo1234'),
+                password_hash=hash_password('demo1234'),
                 is_active=True,
             )
             db.add(user)

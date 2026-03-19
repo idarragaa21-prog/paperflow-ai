@@ -9,7 +9,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - researchconsole_pgdata:/var/lib/postgresql/data
+      - paperflow_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -23,7 +23,7 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - researchconsole_redisdata:/data
+      - paperflow_redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -149,7 +149,7 @@ services:
     command: ["python", "-m", "app.workers.worker"]
 
 volumes:
-  researchconsole_pgdata:
-  researchconsole_redisdata:
+  paperflow_pgdata:
+  paperflow_redisdata:
   paperflow_qdrant:
   paperflow_minio:

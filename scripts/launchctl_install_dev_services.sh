@@ -51,13 +51,13 @@ PLIST
   echo "[launchctl] installed: $label"
 }
 
-install_plist "ai.openclaw.researchconsole.backend" \
+install_plist "ai.paperflow.backend" \
   "cd '$BACKEND_DIR' && source .venv/bin/activate && export PYTHONPATH=. && exec uvicorn app.main:app --host 127.0.0.1 --port 8000"
 
-install_plist "ai.openclaw.researchconsole.worker" \
+install_plist "ai.paperflow.worker" \
   "cd '$BACKEND_DIR' && source .venv/bin/activate && export PYTHONPATH=. && exec python -m app.workers.worker"
 
-install_plist "ai.openclaw.researchconsole.frontend" \
+install_plist "ai.paperflow.frontend" \
   "cd '$FRONTEND_DIR' && exec npm run dev -- --host 127.0.0.1 --port 5173"
 
 echo "[launchctl] done. URLs:"

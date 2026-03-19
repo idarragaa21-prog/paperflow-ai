@@ -6,6 +6,7 @@
 set -e
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
+mkdir -p "$REPO_DIR/logs"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -63,7 +64,7 @@ cd "$REPO_DIR/backend"
 # Crear venv si no existe
 if [ ! -d ".venv" ]; then
   info "Creando virtualenv..."
-  python3 -m venv .venv
+  python3.11 -m venv .venv
 fi
 source .venv/bin/activate
 
@@ -82,7 +83,7 @@ python3 -c "
 import asyncio
 from app.database import async_session_maker
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import hash_password
 from sqlalchemy import select
 
 async def run():
@@ -92,7 +93,7 @@ async def run():
             user = User(
                 email='demo@paperflow.ai',
                 full_name='Demo User',
-                hashed_password=get_password_hash('demo1234'),
+                password_hash=hash_password('demo1234'),
                 is_active=True,
             )
             db.add(user)

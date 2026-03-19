@@ -8,9 +8,9 @@ UID_NUM="$(id -u)"
 LA_DIR="$HOME/Library/LaunchAgents"
 
 labels=(
-  "ai.openclaw.researchconsole.backend"
-  "ai.openclaw.researchconsole.worker"
-  "ai.openclaw.researchconsole.frontend"
+  "ai.paperflow.backend"
+  "ai.paperflow.worker"
+  "ai.paperflow.frontend"
 )
 
 for label in "${labels[@]}"; do
