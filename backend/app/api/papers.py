@@ -623,3 +623,18 @@ async def delete_paper(
     )
 
     return PaperDeleteResponse(ok=True)
+
+
+@router.patch("/{paper_id}/favorite")
+async def toggle_favorite(
+    paper_id: UUID,
+    repo: SQLPaperRepository = Depends(get_repo),
+    user: User = Depends(get_current_user),
+):
+    paper = await repo.get_paper(paper_id)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    paper.favorite = not paper.favorite
+    await repo.db.commit()
+    return {"id": str(paper.id), "favorite": paper.favorite}

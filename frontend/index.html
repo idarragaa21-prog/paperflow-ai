@@ -1,10 +1,31 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      // GitHub Pages SPA: handle redirect from 404.html
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+        // Handle ?p= from 404.html
+        var search = window.location.search;
+        if (search.slice(1,3) === 'p=') {
+          var decoded = search.slice(1).split('&').reduce(function(r, v) {
+            return v.slice(0,2) === 'p=' ? (r + '/' + v.slice(2)) : r + (v.slice(0,2) === 'q=' ? ('?' + v.slice(2)) : ('&' + v));
+          }, '').replace(/~and~/g, '&');
+          window.history.replaceState(null, null, decoded || '/');
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PaperFlow AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

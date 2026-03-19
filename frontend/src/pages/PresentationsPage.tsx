@@ -164,7 +164,18 @@ export default function PresentationsPage() {
               <span style={{ lineHeight: 1.3 }}>{p.title}</span>
             </label>
           ))}
-          {papers.length === 0 ? <div className="rc-muted">No papers available yet.</div> : null}
+          {papers.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--rc-muted)' }}>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ margin: '0 auto 10px', display: 'block' }}>
+                <rect x="6" y="8" width="28" height="34" rx="4" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5"/>
+                <line x1="12" y1="18" x2="28" y2="18" stroke="rgba(99,102,241,0.25)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="12" y1="24" x2="28" y2="24" stroke="rgba(99,102,241,0.25)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="12" y1="30" x2="22" y2="30" stroke="rgba(99,102,241,0.15)" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>No papers in this project yet</div>
+              <div style={{ fontSize: 12, marginTop: 3 }}>Add papers to the library first</div>
+            </div>
+          ) : null}
         </div>
 
         <div style={{ height: 12 }} />
@@ -178,7 +189,21 @@ export default function PresentationsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontWeight: 850 }}>Decks</div>
-        {presentations.length === 0 ? <div className="rc-muted">No presentations yet.</div> : null}
+        {presentations.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <svg width="72" height="72" viewBox="0 0 72 72" fill="none" style={{ margin: '0 auto 14px', display: 'block' }}>
+              <rect x="6" y="14" width="60" height="40" rx="5" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5"/>
+              <rect x="12" y="20" width="48" height="28" rx="3" fill="rgba(99,102,241,0.05)" stroke="rgba(99,102,241,0.15)" strokeWidth="1"/>
+              <line x1="20" y1="28" x2="52" y2="28" stroke="rgba(99,102,241,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="20" y1="34" x2="52" y2="34" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="20" y1="40" x2="40" y2="40" stroke="rgba(99,102,241,0.15)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="30" y1="54" x2="42" y2="54" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="36" y1="54" x2="36" y2="60" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>No presentations yet</div>
+            <div style={{ fontSize: 13, color: 'var(--rc-muted)', marginTop: 5 }}>Select papers and generate your first presentation</div>
+          </div>
+        ) : null}
         {presentations.map((p) => (
           <div key={p.id} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontWeight: 750 }}>{p.title}</div>

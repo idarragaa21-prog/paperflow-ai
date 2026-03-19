@@ -215,6 +215,7 @@ async def project_library(
             "doi": p.doi,
             "pmid": p.pmid,
             "filename": p.filename,
+            "file_size_kb": p.file_size_kb,
             "language": p.language,
             "source_provider": p.source_provider,
             "source_type": p.source_type,

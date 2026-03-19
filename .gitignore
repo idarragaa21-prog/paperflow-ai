@@ -1,19 +1,35 @@
+# Environment
 .env
 backend/.env
 frontend/.env
+frontend/.env.local
 
+# Python
 backend/.venv/
-frontend/node_modules/
-frontend/dist/
-
 __pycache__/
 *.pyc
+*.pyo
 .pytest_cache/
 .mypy_cache/
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Logs & pids
 logs/
 backend/logs/
 .dev_logs/
+*.log
+.backend.pid
+.worker.pid
 
+# Vercel
+.vercel/
+
+# Reports
 reports/
+
+# OS
 .DS_Store
+Thumbs.db

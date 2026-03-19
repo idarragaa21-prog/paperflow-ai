@@ -17,7 +17,7 @@ if config.config_file_name is not None:
 
 
 def get_url() -> str:
-    return settings.DATABASE_URL
+    return settings.async_database_url
 
 
 def run_migrations_offline() -> None:

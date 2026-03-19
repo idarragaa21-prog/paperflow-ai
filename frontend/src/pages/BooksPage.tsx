@@ -194,7 +194,26 @@ export default function BooksPage() {
             <SkeletonLines lines={3} lineHeight={12} lastLineWidth="45%" />
           </div>
         ) : null}
-        {!loading && books.length === 0 ? <div style={{ opacity: 0.75 }}>No books indexed yet.</div> : null}
+        {!loading && books.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 24px' }}>
+            <svg width="88" height="88" viewBox="0 0 88 88" fill="none" style={{ margin: '0 auto 16px', display: 'block' }}>
+              <rect x="10" y="14" width="44" height="58" rx="5" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.2)" strokeWidth="1.5"/>
+              <rect x="18" y="8" width="44" height="58" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.15)" strokeWidth="1.5"/>
+              <rect x="26" y="2" width="44" height="58" rx="5" fill="var(--rc-surface)" stroke="rgba(59,130,246,0.22)" strokeWidth="1.5"/>
+              <line x1="36" y1="16" x2="60" y2="16" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="36" y1="24" x2="60" y2="24" stroke="rgba(59,130,246,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="36" y1="32" x2="50" y2="32" stroke="rgba(59,130,246,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="36" y1="44" x2="60" y2="44" stroke="rgba(59,130,246,0.15)" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="36" y1="52" x2="55" y2="52" stroke="rgba(59,130,246,0.15)" strokeWidth="1" strokeLinecap="round"/>
+              <circle cx="68" cy="70" r="16" fill="var(--rc-surface)" stroke="rgba(59,130,246,0.28)" strokeWidth="1.5"/>
+              <path d="M64 70h8M68 66v8" stroke="rgba(59,130,246,0.65)" strokeWidth="2.2" strokeLinecap="round"/>
+            </svg>
+            <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>No books indexed yet</div>
+            <div style={{ fontSize: 13, color: 'var(--rc-muted)', marginTop: 5, maxWidth: 280, margin: '5px auto 0' }}>
+              Place PDFs in <code style={{ background: 'rgba(59,130,246,0.08)', padding: '1px 5px', borderRadius: 4, fontSize: 12 }}>STORAGE_BASE_PATH/BOOKS</code> on the server to start indexing.
+            </div>
+          </div>
+        ) : null}
         {books.map((b) => (
           <div key={b.id} style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
             <div style={{ fontWeight: 800 }}>{b.title || b.filename}</div>

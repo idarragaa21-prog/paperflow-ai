@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams } from 'react-router-dom';
+import { NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 
@@ -29,7 +29,7 @@ function Tab({ to, label }: { to: string; label: string }) {
       to={to}
       end
       className={({ isActive }) => `rc-nav-item ${isActive ? 'rc-nav-item--active' : ''}`}
-      style={{ padding: '8px 10px', borderRadius: 10 }}
+      style={{ padding: '8px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}
     >
       {label}
     </NavLink>
@@ -38,6 +38,7 @@ function Tab({ to, label }: { to: string; label: string }) {
 
 export default function ProjectLayout() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
 
@@ -127,40 +128,53 @@ export default function ProjectLayout() {
   if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div>
             <h1 className="rc-page-title" style={{ marginBottom: 0 }}>{project?.title || 'Project'}</h1>
             {project?.clinical_area ? <div className="rc-subtitle">{project.clinical_area}</div> : <div className="rc-subtitle">Research project workspace</div>}
             {project?.runtime_mode ? <div className="rc-help">Runtime: {project.runtime_mode}</div> : null}
+            <button
+              className="rc-btn"
+              style={{ marginTop: 8, padding: '6px 12px', fontSize: 12 }}
+              onClick={() => navigate(`/clinical?from_project=${projectId}`)}
+            >
+              {'\uD83E\uDE7A'} Generate Clinical Sheet &rarr;
+            </button>
           </div>
 
-          <div className="rc-card" style={{ minWidth: 360 }}>
-            <div className="rc-card-title">Dashboard</div>
-            <div className="rc-row" style={{ gap: 10 }}>
-              <span className="rc-badge">Papers: <b>{dashboard?.counts?.papers ?? '—'}</b></span>
-              <span className="rc-badge">Notes: <b>{dashboard?.counts?.notes ?? '—'}</b></span>
-              <span className="rc-badge">Refs: <b>{dashboard?.counts?.references ?? '—'}</b></span>
-              <span className="rc-badge">Extracted: <b>{dashboard?.counts?.meta_studies_current ?? '—'}</b></span>
-            </div>
-
-            <div style={{ height: 10 }} />
-
-            <div className="rc-row">
-              <button className="rc-btn" onClick={startExportZip}>Export ZIP</button>
-              {exportJobId ? <div className="rc-help">{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
-              {exportJobId && exportJobStatus?.status === 'completed' ? (
-                <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Download ZIP</button>
-              ) : null}
-            </div>
-            {exportJobStatus?.error ? <div className="rc-error" style={{ fontSize: 12, marginTop: 8 }}>{String(exportJobStatus.error)}</div> : null}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Papers', value: dashboard?.counts?.papers ?? '—', icon: '📄', color: 'var(--rc-info)' },
+              { label: 'Notes', value: dashboard?.counts?.notes ?? '—', icon: '📝', color: 'var(--rc-success)' },
+              { label: 'References', value: dashboard?.counts?.references ?? '—', icon: '🔗', color: 'var(--rc-warning)' },
+              { label: 'Extracted', value: dashboard?.counts?.meta_studies_current ?? '—', icon: '🔬', color: 'var(--rc-primary)' },
+            ].map(s => (
+              <div key={s.label} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                background: 'var(--rc-surface)', border: '1px solid var(--rc-border)',
+                borderRadius: 10, padding: '8px 14px', boxShadow: 'var(--rc-shadow-xs)',
+              }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, lineHeight: 1, color: 'var(--rc-text)' }}>{s.value}</span>
+                <span style={{ fontSize: 10, color: 'var(--rc-muted)', fontWeight: 600 }}>{s.label}</span>
+              </div>
+            ))}
+            <button className="rc-btn rc-btn--sm" onClick={startExportZip} style={{ gap: 5 }}>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/></svg>
+              Export ZIP
+            </button>
+            {exportJobId ? <div className="rc-help">{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
+            {exportJobId && exportJobStatus?.status === 'completed' ? (
+              <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={downloadZip}>⬇ Download</button>
+            ) : null}
+            {exportJobStatus?.error ? <div className="rc-error" style={{ fontSize: 12 }}>{String(exportJobStatus.error)}</div> : null}
           </div>
         </div>
       </div>
 
-      <div className="rc-card" style={{ padding: 10 }}>
-        <div className="rc-row" style={{ gap: 6 }}>
+      <div className="rc-card rc-tab-scroll" style={{ padding: 10 }}>
+        <div className="rc-row" style={{ gap: 6, overflowX: 'auto', flexWrap: 'nowrap' }}>
           <Tab to={`/projects/${projectId}/research`} label="Research" />
           <Tab to={`/projects/${projectId}/reader`} label="Reader" />
           <Tab to={`/projects/${projectId}/library`} label="Library" />

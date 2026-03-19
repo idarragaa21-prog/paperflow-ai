@@ -12,7 +12,7 @@ from app.models.note import Note
 from app.models.paper import Paper
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.notes import NoteResponse, SummarizeNoteRequest
+from app.schemas.notes import NoteCreate, NotePatch, NoteResponse, SummarizeNoteRequest
 from app.services.jobs import get_job_queue
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -122,3 +122,73 @@ async def list_notes(
         }
         for n in items
     ]
+
+
+@router.post("", response_model=NoteResponse)
+async def create_note(
+    payload: NoteCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project = await db.get(Project, payload.project_id)
+    if not project or project.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    note = Note(
+        project_id=payload.project_id,
+        paper_id=payload.paper_id,
+        title=payload.title,
+        content=payload.content,
+        note_type=payload.note_type or "general",
+        updated_at=datetime.utcnow(),
+    )
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+    return NoteResponse(id=note.id, project_id=note.project_id, paper_id=note.paper_id,
+                        title=note.title, content=note.content, note_type=note.note_type,
+                        llm_model=note.llm_model, llm_usage=note.llm_usage)
+
+
+@router.patch("/{note_id}", response_model=NoteResponse)
+async def patch_note(
+    note_id: UUID,
+    payload: NotePatch,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    note = await db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    project = await db.get(Project, note.project_id)
+    if not project or project.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    if payload.title is not None:
+        note.title = payload.title
+    if payload.content is not None:
+        note.content = payload.content
+    if payload.note_type is not None:
+        note.note_type = payload.note_type
+    note.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(note)
+    return NoteResponse(id=note.id, project_id=note.project_id, paper_id=note.paper_id,
+                        title=note.title, content=note.content, note_type=note.note_type,
+                        llm_model=note.llm_model, llm_usage=note.llm_usage)
+
+
+@router.delete("/{note_id}", status_code=204)
+async def delete_note(
+    note_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    note = await db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    project = await db.get(Project, note.project_id)
+    if not project or project.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Note not found")
+    await db.delete(note)
+    await db.commit()

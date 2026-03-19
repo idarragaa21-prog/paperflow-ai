@@ -94,6 +94,16 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
 
     @property
+    def async_database_url(self) -> str:
+        url = self.DATABASE_URL
+        # Render provides postgres:// but asyncpg needs postgresql+asyncpg://
+        if url.startswith('postgres://'):
+            url = 'postgresql+asyncpg://' + url[len('postgres://'):]
+        elif url.startswith('postgresql://') and '+asyncpg' not in url:
+            url = 'postgresql+asyncpg://' + url[len('postgresql://'):]
+        return url
+
+    @property
     def cookie_secure(self) -> bool:
         return self.ENV == "production"
 

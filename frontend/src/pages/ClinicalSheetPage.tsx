@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ClinicalProViewer from '../components/clinical/ClinicalProViewer';
@@ -172,6 +172,12 @@ export default function ClinicalSheetPage() {
   }
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {vm.sheet?.project_id && (
+        <Link to={`/projects/${vm.sheet.project_id}/research`} style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          &larr; Back to project
+        </Link>
+      )}
     <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 360px', gap: 12, alignItems: 'start' }}>
       <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
         <div className="rc-card-title">Outline</div>
@@ -280,6 +286,7 @@ export default function ClinicalSheetPage() {
 
         <EvidenceDrawer summary={vm.evidenceSummary} />
       </aside>
+    </div>
     </div>
   );
 }

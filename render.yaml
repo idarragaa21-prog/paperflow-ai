@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: paperflow-backend
+    env: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    envVars:
+      - key: ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: paperflow-db
+          property: connectionString
+      - key: REDIS_URL
+        value: redis://red-placeholder:6379
+      - key: STORAGE_BASE_PATH
+        value: /tmp/paperflow_data
+      - key: STORAGE_BACKEND
+        value: filesystem
+      - key: GROBID_ENABLED
+        value: "false"
+      - key: RATE_LIMIT_ENABLED
+        value: "false"
+      - key: LLM_PROVIDER
+        value: openclaw
+      - key: BACKEND_CORS_ORIGINS
+        value: '["https://idarragaa21-prog.github.io","http://localhost:5173","http://localhost:3000"]'
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: OCR_ENABLED
+        value: "false"
+
+databases:
+  - name: paperflow-db
+    databaseName: paperflow_ai
+    user: paperflow
+    plan: free
+    region: oregon

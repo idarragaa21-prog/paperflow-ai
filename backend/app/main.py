@@ -90,3 +90,44 @@ async def health() -> dict:
         "grobid": not settings.GROBID_ENABLED,
     }
     return details
+
+
+@app.get("/health/services")
+async def health_services() -> dict:
+    """Timed health check per service with latency in ms."""
+    import time
+    import httpx
+    from app.config import settings as cfg
+
+    results: dict[str, dict] = {}
+
+    # Redis
+    t0 = time.monotonic()
+    results["redis"] = {"status": "ok" if redis_available() else "down", "latency_ms": round((time.monotonic() - t0) * 1000)}
+
+    # Qdrant
+    t0 = time.monotonic()
+    try:
+        from qdrant_client import QdrantClient
+        qc = QdrantClient(url=cfg.QDRANT_URL, timeout=2.0)
+        qc.get_collections()
+        results["qdrant"] = {"status": "ok", "latency_ms": round((time.monotonic() - t0) * 1000)}
+    except Exception as exc:
+        results["qdrant"] = {"status": "down", "latency_ms": round((time.monotonic() - t0) * 1000), "detail": str(exc)[:120]}
+
+    # HTTP services
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        for label, url in {
+            "grobid": f"{cfg.GROBID_URL.rstrip('/')}/api/isalive",
+            "ollama": f"{getattr(cfg, 'OLLAMA_BASE_URL', 'http://localhost:11434')}/api/tags",
+            "openclaw": f"{getattr(cfg, 'OPENCLAW_BASE_URL', 'http://localhost:8080')}/health",
+        }.items():
+            t0 = time.monotonic()
+            try:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                results[label] = {"status": "ok", "latency_ms": round((time.monotonic() - t0) * 1000)}
+            except Exception as exc:
+                results[label] = {"status": "down", "latency_ms": round((time.monotonic() - t0) * 1000), "detail": str(exc)[:120]}
+
+    return {"services": results}

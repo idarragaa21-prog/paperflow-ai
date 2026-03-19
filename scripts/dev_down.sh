@@ -53,7 +53,7 @@ stop_by_pidfile backend
 
 # Fallback: clean up orphaned processes from previous runs (best-effort)
 # Keep patterns narrow to this project.
-pkill -f "ResearchConsole/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000" 2>/dev/null || true
+pkill -f "paperflow-ai/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000" 2>/dev/null || true
 pkill -f "Python -m app.workers.worker" 2>/dev/null || true
 pkill -f "frontend/node_modules/.bin/vite --host 127.0.0.1 --port 5173" 2>/dev/null || true
 
