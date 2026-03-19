@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useI18n } from '../i18n';
 import type { Locale } from '../i18n';
+import { useTheme } from '../components/ThemeProvider';
 
 type ServiceRow = {
   name: string;
@@ -23,6 +24,7 @@ export default function SettingsPage() {
   const user = useAuthStore(s => s.user);
   const checkAuth = useAuthStore(s => s.checkAuth);
   const { t, locale, setLocale, localeNames } = useI18n();
+  const { theme, setTheme } = useTheme();
 
   // Profile
   const [fullName, setFullName] = useState(user?.full_name || '');
@@ -109,6 +111,21 @@ export default function SettingsPage() {
               style={{ padding: '7px 16px', fontSize: 13 }}
               onClick={() => setLocale(l)}>
               {localeNames[l]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Theme */}
+      <div className="rc-card" style={{ padding: 20 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 750, fontSize: 15, marginBottom: 4 }}>Theme</div>
+        <div className="rc-help" style={{ marginBottom: 14 }}>Choose your preferred appearance</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {(['light', 'dark', 'system'] as const).map(t => (
+            <button key={t} className={`rc-btn${theme === t ? ' rc-btn--primary' : ''}`}
+              style={{ padding: '7px 16px', fontSize: 13, textTransform: 'capitalize' }}
+              onClick={() => setTheme(t)}>
+              {t === 'light' ? '☀️ Light' : t === 'dark' ? '🌙 Dark' : '💻 System'}
             </button>
           ))}
         </div>

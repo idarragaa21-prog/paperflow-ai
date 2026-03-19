@@ -5,15 +5,18 @@ import App from './App.tsx'
 import { ToastProvider } from './ui/Toast/ToastProvider'
 import { ConfirmProvider } from './ui/Dialog/useConfirm'
 import { I18nProvider } from './i18n'
+import { ThemeProvider } from './components/ThemeProvider'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <I18nProvider>
-      <ToastProvider>
-        <ConfirmProvider>
-          <App />
-        </ConfirmProvider>
-      </ToastProvider>
-    </I18nProvider>
+    <ThemeProvider>
+      <I18nProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            <App />
+          </ConfirmProvider>
+        </ToastProvider>
+      </I18nProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

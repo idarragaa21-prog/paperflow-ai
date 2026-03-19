@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useI18n } from '../i18n';
+import OnboardingTour, { useOnboarding } from './OnboardingTour';
 
 const Icons = {
   Dashboard: () => <svg className="rc-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="5" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="9" width="7" height="9" rx="1.5"/></svg>,
@@ -84,12 +85,14 @@ export default function AuthedLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { showOnboarding, dismissOnboarding } = useOnboarding();
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
   async function onLogout() { await logout(); navigate('/login'); }
   const initials = (user?.full_name || user?.email || '?').slice(0, 2).toUpperCase();
 
   return (
     <div className="rc-shell">
+      {showOnboarding && <OnboardingTour onDone={dismissOnboarding} />}
       <aside className="rc-sidebar rc-sidebar--desktop"><SidebarContent /></aside>
 
       <div className="rc-mobile-topbar">
