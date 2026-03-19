@@ -33,7 +33,17 @@ command -v node     >/dev/null 2>&1 || die "Node.js no encontrado."
 command -v npm      >/dev/null 2>&1 || die "npm no encontrado."
 log "Docker, Python, Node OK"
 
-# ── 2. Levantar infraestructura Docker ────────────────
+# ── 2. Limpiar contenedores huérfanos ─────────────────
+info "Limpiando contenedores huérfanos de arranques anteriores..."
+KNOWN_CONTAINERS="paperflow-postgres paperflow-redis paperflow-qdrant paperflow-minio paperflow-minio-init paperflow-grobid paperflow-r-engine"
+for c in $KNOWN_CONTAINERS; do
+  if docker ps -a --format '{{.Names}}' | grep -q "^${c}$"; then
+    docker rm -f "$c" >/dev/null 2>&1 && warn "Removed orphan container: $c" || true
+  fi
+done
+log "Contenedores anteriores limpiados"
+
+# ── 3. Levantar infraestructura Docker ────────────────
 info "Levantando servicios Docker (postgres, redis, qdrant, minio, grobid, r-engine)..."
 docker compose up -d postgres redis qdrant minio minio-init grobid r-engine
 
@@ -57,7 +67,7 @@ for i in $(seq 1 15); do
   if [ $i -eq 15 ]; then warn "Redis tardando — continuando de todas formas"; fi
 done
 
-# ── 3. Backend Python ──────────────────────────────────
+# ── 4. Backend Python ──────────────────────────────────
 info "Configurando entorno Python..."
 cd "$REPO_DIR/backend"
 
@@ -133,7 +143,7 @@ done
 deactivate
 cd "$REPO_DIR"
 
-# ── 4. Frontend ────────────────────────────────────────
+# ── 5. Frontend ────────────────────────────────────────
 info "Instalando dependencias del frontend..."
 cd "$REPO_DIR/frontend"
 npm install -q

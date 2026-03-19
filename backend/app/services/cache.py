@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import json
 from typing import Any
 
@@ -49,7 +50,7 @@ class CacheManager:
         source: str = "pubmed",
     ) -> str:
         normalized = {
-            "q": query.strip().lower(),
+            "q": re.sub(r"\s+", " ", query.strip().lower()),
             "filters": filters or {},
             "max_results": max_results,
             "source": source,

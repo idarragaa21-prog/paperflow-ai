@@ -1,6 +1,6 @@
 # (no future annotations - avoids forward-ref issues)
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -81,8 +81,8 @@ async def query_clinical(
         is_current=True,
         llm_model=None,
         llm_usage=None,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     # Store root_id in input_params until we add dedicated column (safe for now)
     sheet.input_params = {**(sheet.input_params or {}), "root_id": str(root_id)}
@@ -229,7 +229,7 @@ async def update_sheet(
 
     # mark current false
     s.is_current = False
-    s.updated_at = datetime.utcnow()
+    s.updated_at = datetime.now(timezone.utc)
 
     # create new version
     import uuid as _uuid
@@ -249,8 +249,8 @@ async def update_sheet(
         is_current=True,
         llm_model=None,
         llm_usage=None,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
     db.add(new_sheet)

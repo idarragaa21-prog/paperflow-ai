@@ -1,6 +1,6 @@
 # (no future annotations - avoids forward-ref issues)
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -46,7 +46,7 @@ async def index_book(
         total_pages=None,
         chapters=None,
         indexed_at=None,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(book)
     await db.commit()

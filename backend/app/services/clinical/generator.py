@@ -194,9 +194,9 @@ def _study_type_rank(pub_types: list[str] | None, title: str | None) -> int:
 
 
 def _score_pubmed_item(*, topic: str, it: dict[str, Any]) -> int:
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    now_year = datetime.utcnow().year
+    now_year = datetime.now(timezone.utc).year
     keys = _keywords(topic)
 
     title = it.get("title")

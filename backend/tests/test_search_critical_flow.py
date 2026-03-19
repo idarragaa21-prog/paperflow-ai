@@ -297,3 +297,154 @@ class TestTitleNormalization:
 
     def test_none_input(self):
         assert _normalize_title(None) == ""
+
+
+# ─────────────────────────────────────────────
+# 8. CACHE KEY — internal whitespace normalization (Bug #4 fix)
+# ─────────────────────────────────────────────
+
+class TestCacheKeyWhitespace:
+    def setup_method(self):
+        from app.services.cache import CacheManager
+        self.cm = CacheManager()
+
+    def test_internal_double_space_normalized(self):
+        """'hip  fracture' and 'hip fracture' must produce the same key."""
+        k1 = self.cm.generate_search_key("hip  fracture", None, max_results=20, source="pubmed")
+        k2 = self.cm.generate_search_key("hip fracture", None, max_results=20, source="pubmed")
+        assert k1 == k2, "Internal multiple spaces should be normalized to single space"
+
+    def test_leading_trailing_and_internal_spaces(self):
+        k1 = self.cm.generate_search_key("  ACL   reconstruction  ", None, max_results=20, source="federated")
+        k2 = self.cm.generate_search_key("ACL reconstruction", None, max_results=20, source="federated")
+        assert k1 == k2
+
+
+# ─────────────────────────────────────────────
+# 9. PUBMED POST-PROCESSING (Bug #6 fix)
+# ─────────────────────────────────────────────
+
+class TestPubmedPostProcessing:
+    """Verify /search/pubmed applies same filters and ranking as /search/federated."""
+
+    def _make_item(self, **kwargs):
+        base = {
+            "pmid": "99999", "pmcid": None, "doi": "10.1/x",
+            "title": "Test Study", "authors": ["A"],
+            "journal": "Test J", "pub_year": 2023,
+            "abstract": "Abstract text", "source": "pubmed",
+            "language": "eng", "is_open_access": True, "oa_url": None,
+        }
+        return {**base, **kwargs}
+
+    def test_year_filter_applied(self):
+        from app.services.federated_search import _passes_filters
+        from app.schemas.search import SearchFilters
+        item = self._make_item(pub_year=2018)
+        f = SearchFilters(year_from=2020)
+        assert _passes_filters(item, f) is False
+
+    def test_pmcid_promotes_oa_url(self):
+        """When pmcid present and oa_url is None, should generate PMC URL."""
+        from app.api.search import _postprocess_pubmed
+        item = self._make_item(pmcid="PMC1234567", oa_url=None, is_open_access=False)
+        results = _postprocess_pubmed([item], "Test", None)
+        assert results[0]["oa_url"] is not None
+        assert "PMC1234567" in results[0]["oa_url"]
+        assert results[0]["is_open_access"] is True
+
+    def test_ranking_attached(self):
+        from app.api.search import _postprocess_pubmed
+        item = self._make_item()
+        results = _postprocess_pubmed([item], "Test Study", None)
+        assert "relevance_score" in results[0]
+        assert results[0]["relevance_score"] is not None
+
+    def test_dedup_within_search(self):
+        """Same doi appearing twice should only appear once (record_key uses doi first)."""
+        from app.api.search import _postprocess_pubmed
+        item_a = self._make_item(pmid="11111", doi="10.1/same", title="First version")
+        item_b = self._make_item(pmid="22222", doi="10.1/same", title="Duplicate version")
+        results = _postprocess_pubmed([item_a, item_b], "test", None)
+        assert len(results) == 1
+
+    def test_results_sorted_by_relevance(self):
+        """Results must be sorted descending by relevance_score."""
+        from app.api.search import _postprocess_pubmed
+        items = [
+            self._make_item(pmid="1", title="Hip surgery biomechanics 2024", pub_year=2024, doi="10.1/a", abstract="full"),
+            self._make_item(pmid="2", title="Something unrelated", pub_year=2001, doi=None, abstract=None, oa_url=None, is_open_access=False),
+            self._make_item(pmid="3", title="Hip fracture review", pub_year=2020, doi="10.1/c", abstract="text"),
+        ]
+        results = _postprocess_pubmed(items, "Hip surgery", None)
+        scores = [r["relevance_score"] for r in results]
+        assert scores == sorted(scores, reverse=True), "Results must be sorted descending by relevance"
+
+
+# ─────────────────────────────────────────────
+# 10. DOWNLOAD — oa_url-only papers (Bug #1 fix)
+# ─────────────────────────────────────────────
+
+class TestDownloadOAUrlOnly:
+    """Verify download works with oa_url alone (no DOI, no PMID) — covers DOAJ papers."""
+
+    @pytest.mark.asyncio
+    async def test_oa_url_only_download_succeeds(self):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from app.services.paper_service import PaperDownloadService, DownloadResult
+
+        service = PaperDownloadService()
+
+        fake_pdf = b"%PDF-1.4 content %%EOF"
+        fake_resp = MagicMock()
+        fake_resp.content = fake_pdf
+        fake_resp.status_code = 200
+        fake_resp.headers = {"content-type": "application/pdf"}
+        fake_resp.raise_for_status = MagicMock()
+
+        fake_client = AsyncMock()
+        fake_client.get = AsyncMock(return_value=fake_resp)
+
+        with patch("app.services.paper_service.storage_manager") as mock_storage:
+            mock_storage.validate_pdf.return_value = True
+            result = await service.download_open_access_pdf(
+                doi=None,
+                pmid=None,
+                oa_url="https://doaj-paper.org/fulltext.pdf",
+                client=fake_client,
+            )
+
+        assert result.source == "user_provided_oa"
+        assert result.resolved_url == "https://doaj-paper.org/fulltext.pdf"
+        fake_client.get.assert_called_once_with(
+            "https://doaj-paper.org/fulltext.pdf",
+            timeout=60,
+            follow_redirects=True,
+        )
+
+    @pytest.mark.asyncio
+    async def test_no_identifier_no_oa_url_raises(self):
+        from unittest.mock import AsyncMock
+        from app.services.paper_service import PaperDownloadService, PaperServiceError
+
+        service = PaperDownloadService()
+        fake_client = AsyncMock()
+
+        with pytest.raises(PaperServiceError):
+            await service.download_open_access_pdf(
+                doi=None, pmid=None, oa_url=None, client=fake_client,
+            )
+
+    def test_schema_allows_oa_url_without_doi_pmid(self):
+        """PaperDownloadRequest must be constructable with only oa_url."""
+        from app.schemas.papers import PaperDownloadRequest
+        import uuid
+        # Should not raise — oa_url alone is now valid
+        req = PaperDownloadRequest(
+            project_id=uuid.uuid4(),
+            title="DOAJ paper with only OA URL",
+            oa_url="https://doaj.org/fulltext.pdf",
+        )
+        assert req.doi is None
+        assert req.pmid is None
+        assert req.oa_url == "https://doaj.org/fulltext.pdf"
