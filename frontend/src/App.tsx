@@ -30,6 +30,7 @@ const ScreeningPage = lazy(() => import('./pages/ScreeningPage'));
 const ClinicalPage = lazy(() => import('./pages/ClinicalPage'));
 const ClinicalSheetPage = lazy(() => import('./pages/ClinicalSheetPage'));
 const BooksPage = lazy(() => import('./pages/BooksPage'));
+const DeepResearchPage = lazy(() => import('./pages/DeepResearchPage'));
 
 function PageLoader() {
   return (
@@ -85,6 +86,7 @@ export default function App() {
               <Route path="/clinical" element={<ClinicalPage />} />
               <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />
               <Route path="/books" element={<BooksPage />} />
+              <Route path="/deep-research" element={<DeepResearchPage />} />
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

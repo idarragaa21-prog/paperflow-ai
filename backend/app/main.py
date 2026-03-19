@@ -22,6 +22,7 @@ from app.api.extraction import router as extraction_router
 from app.api.screening import router as screening_router
 from app.api.clinical import router as clinical_router
 from app.api.books import router as books_router
+from app.api.research import router as research_router
 # (private sources removed by scope change)
 from app.config import settings
 from app.core.telemetry import instrument_fastapi, setup_telemetry
@@ -73,6 +74,7 @@ app.include_router(projects_router)
 app.include_router(meta_router)
 app.include_router(clinical_router)
 app.include_router(books_router)
+app.include_router(research_router)
 # private_sources_router disabled
 
 
