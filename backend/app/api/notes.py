@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -140,7 +140,7 @@ async def create_note(
         title=payload.title,
         content=payload.content,
         note_type=payload.note_type or "general",
-        updated_at=datetime.utcnow(),
+        updated_at=datetime.now(timezone.utc),
     )
     db.add(note)
     await db.commit()
@@ -170,7 +170,7 @@ async def patch_note(
         note.content = payload.content
     if payload.note_type is not None:
         note.note_type = payload.note_type
-    note.updated_at = datetime.utcnow()
+    note.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(note)
     return NoteResponse(id=note.id, project_id=note.project_id, paper_id=note.paper_id,

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -79,7 +79,7 @@ async def create_batch(
                 file_path=saved["file_path"],
                 file_size_kb=saved["size_kb"],
                 content_hash=saved["content_hash"],
-                downloaded_at=datetime.utcnow(),
+                downloaded_at=datetime.now(timezone.utc),
             )
             db.add(paper)
             await db.commit()
@@ -384,7 +384,7 @@ async def add_effect(
         arm_control=str(payload.get("arm_control")),
         effect_measure=str(payload.get("effect_measure") or "OR"),
         manually_edited=True,
-        edited_at=datetime.utcnow(),
+        edited_at=datetime.now(timezone.utc),
         comments=payload.get("comments"),
     )
     db.add(eff)
@@ -456,7 +456,7 @@ async def add_rob(
         judgement=str(payload.get("judgement") or "unclear"),
         support_text=payload.get("support_text"),
         manually_edited=True,
-        edited_at=datetime.utcnow(),
+        edited_at=datetime.now(timezone.utc),
     )
     db.add(rob)
     await db.commit()
@@ -635,7 +635,7 @@ async def patch_study(
     for k, v in payload.items():
         sj[k] = v
     study.study_json = sj
-    study.updated_at = datetime.utcnow()
+    study.updated_at = datetime.now(timezone.utc)
     await db.commit()
 
     return {"ok": True}
@@ -665,7 +665,7 @@ async def patch_effect(
             setattr(eff, k, v)
 
     eff.manually_edited = True
-    eff.edited_at = datetime.utcnow()
+    eff.edited_at = datetime.now(timezone.utc)
     await db.commit()
 
     return {"ok": True}
@@ -712,7 +712,7 @@ async def patch_effects_batch(
                 setattr(eff, k, v)
 
         eff.manually_edited = True
-        eff.edited_at = datetime.utcnow()
+        eff.edited_at = datetime.now(timezone.utc)
         updated += 1
 
     await db.commit()
@@ -843,7 +843,7 @@ async def patch_rob(
             setattr(rob, k, v)
 
     rob.manually_edited = True
-    rob.edited_at = datetime.utcnow()
+    rob.edited_at = datetime.now(timezone.utc)
     await db.commit()
 
     return {"ok": True}

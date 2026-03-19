@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -82,7 +82,7 @@ async def login(
     _set_auth_cookies(response, access_token, refresh_token)
     _set_csrf_cookie(response, csrf_token)
 
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     await db.commit()
 
     return {"email": user.email, "full_name": user.full_name}
@@ -131,10 +131,10 @@ async def refresh(
         payload = jwt.get_unverified_claims(token)
         exp = payload.get("exp")
         if exp:
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             exp_dt = datetime.utcfromtimestamp(exp)
-            if exp_dt - datetime.utcnow() < timedelta(hours=24):
+            if exp_dt - datetime.now(timezone.utc) < timedelta(hours=24):
                 new_refresh = create_refresh_token(user_id)
                 response.set_cookie(
                     key="refresh_token",

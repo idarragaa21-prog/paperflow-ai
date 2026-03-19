@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.core.logger import logger
@@ -175,7 +175,7 @@ def index_book_pdf(pdf_path: Path) -> dict:
             "title": title,
             "total_pages": total_pages,
             "chapters": chapters,
-            "indexed_at": datetime.utcnow().isoformat(),
+            "indexed_at": datetime.now(timezone.utc).isoformat(),
         }
     finally:
         doc.close()

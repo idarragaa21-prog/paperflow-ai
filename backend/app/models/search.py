@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Index
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -48,6 +48,7 @@ class SearchResult(Base, TimestampMixin):
 
     is_open_access: Mapped[bool] = mapped_column(nullable=False, server_default="false")
     oa_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    relevance_score: Mapped[float | None] = mapped_column(nullable=True)
 
     search = relationship("Search", back_populates="results")
 

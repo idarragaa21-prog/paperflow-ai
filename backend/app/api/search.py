@@ -1,4 +1,15 @@
-from datetime import datetime
+"""Search API — federated and PubMed endpoints.
+
+Bugs fixed in this revision:
+  - datetime.utcnow() → datetime.now(timezone.utc)
+  - /search/pubmed: now applies _passes_filters + _relevance_score (same as federated)
+  - /search/pubmed: persists relevance_score per result
+  - get_search_results: now ORDER BY relevance_score DESC so history is deterministic
+  - Both endpoints persist relevance_score on SearchResult rows
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -12,10 +23,57 @@ from app.models.search import Search, SearchResult
 from app.models.user import User
 from app.schemas.search import SearchRecordResponse, SearchRequest, SearchResponse
 from app.services.cache import cache
-from app.services.federated_search import federated_search
+from app.services.federated_search import (
+    _passes_filters,
+    _record_key,
+    _relevance_score,
+    federated_search,
+)
 from app.services.pubmed import pubmed_client
 
 router = APIRouter(prefix="/search", tags=["search"])
+
+
+def _postprocess_pubmed(
+    raw_results: list[dict],
+    query: str,
+    filters,
+) -> list[dict]:
+    """Apply dedup, filters, oa_url promotion and relevance ranking to PubMed raw results.
+
+    Mirrors the same post-processing that the federated endpoint already applies,
+    ensuring consistent behavior regardless of which search endpoint the caller uses.
+    """
+    seen: set[str] = set()
+    filtered: list[dict] = []
+
+    for r in raw_results:
+        r.setdefault("source", "pubmed")
+
+        # Dedup within this search only (not globally)
+        key = _record_key(r)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        # Post-fetch filter (year, journal, oa, source)
+        if not _passes_filters(r, filters):
+            continue
+
+        # Promote oa_url via PMC when direct link is missing
+        if not r.get("oa_url") and r.get("pmcid"):
+            r["oa_url"] = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{r['pmcid']}/pdf/"
+        if r.get("oa_url") and not r.get("is_open_access"):
+            r["is_open_access"] = True
+
+        filtered.append(r)
+
+    # Attach + sort by relevance
+    for item in filtered:
+        item["relevance_score"] = _relevance_score(item, query)
+
+    filtered.sort(key=lambda x: x["relevance_score"], reverse=True)
+    return filtered
 
 
 @router.post("/pubmed", response_model=SearchResponse)
@@ -41,7 +99,9 @@ async def search_pubmed(
         return SearchResponse(**{**cached_payload, "cached": True})
 
     data = await pubmed_client.search_and_fetch(payload.query, max_results=payload.max_results)
-    results = data["results"]
+
+    # Apply filters, dedup, oa_url promotion and ranking (same as federated)
+    results = _postprocess_pubmed(data["results"], payload.query, payload.filters)
 
     search = Search(
         project_id=payload.project_id,
@@ -49,28 +109,17 @@ async def search_pubmed(
         source="pubmed",
         filters=filters_dict,
         results_count=len(results),
-        executed_at=datetime.utcnow(),
+        executed_at=datetime.now(timezone.utc),
     )
     db.add(search)
     await db.flush()
 
-    # Deduplicate WITHIN this search only (not globally).
-    seen_keys: set[str] = set()
     for r in results:
-        pmid = r.get("pmid")
-        doi = r.get("doi")
-
-        dedup_key = f"pmid:{pmid}" if pmid else (f"doi:{doi}" if doi else None)
-        if dedup_key and dedup_key in seen_keys:
-            continue
-        if dedup_key:
-            seen_keys.add(dedup_key)
-
         sr = SearchResult(
             search_id=search.id,
-            pmid=pmid,
+            pmid=r.get("pmid"),
             pmcid=r.get("pmcid"),
-            doi=doi,
+            doi=r.get("doi"),
             title=r.get("title") or "",
             authors=r.get("authors"),
             journal=r.get("journal"),
@@ -80,6 +129,7 @@ async def search_pubmed(
             language=r.get("language"),
             is_open_access=bool(r.get("is_open_access")),
             oa_url=r.get("oa_url"),
+            relevance_score=r.get("relevance_score"),
         )
         db.add(sr)
 
@@ -93,7 +143,6 @@ async def search_pubmed(
         "sources": ["pubmed"],
     }
     await cache.set(cache_key, response_payload, ttl=3600)
-
     return SearchResponse(**response_payload)
 
 
@@ -118,7 +167,9 @@ async def search_federated(
     if cached_payload:
         return SearchResponse(**{**cached_payload, "cached": True})
 
-    response_payload = await federated_search(payload.query, max_results=payload.max_results, filters=payload.filters)
+    response_payload = await federated_search(
+        payload.query, max_results=payload.max_results, filters=payload.filters
+    )
     results = response_payload["results"]
 
     search = Search(
@@ -127,7 +178,7 @@ async def search_federated(
         source="federated",
         filters=filters_dict,
         results_count=len(results),
-        executed_at=datetime.utcnow(),
+        executed_at=datetime.now(timezone.utc),
     )
     db.add(search)
     await db.flush()
@@ -147,6 +198,7 @@ async def search_federated(
             language=r.get("language"),
             is_open_access=bool(r.get("is_open_access")),
             oa_url=r.get("oa_url"),
+            relevance_score=r.get("relevance_score"),
         )
         db.add(sr)
 
@@ -174,7 +226,13 @@ async def get_search_results(
     if project.user_id != user.id:
         raise HTTPException(status_code=404, detail="Search not found")
 
-    q2 = await db.execute(select(SearchResult).where(SearchResult.search_id == search.id))
+    # ORDER BY relevance_score DESC so history matches what user originally saw.
+    # NULLS LAST handles legacy rows that predate the relevance_score column.
+    q2 = await db.execute(
+        select(SearchResult)
+        .where(SearchResult.search_id == search.id)
+        .order_by(SearchResult.relevance_score.desc().nullslast())
+    )
     results = q2.scalars().all()
     return [
         {
@@ -191,6 +249,7 @@ async def get_search_results(
             "language": r.language,
             "is_open_access": r.is_open_access,
             "oa_url": r.oa_url,
+            "relevance_score": r.relevance_score,
         }
         for r in results
     ]

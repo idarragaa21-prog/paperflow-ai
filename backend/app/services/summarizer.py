@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -114,7 +114,7 @@ async def generate_summary_async(
         llm_model=r.get("model"),
         llm_usage=r.get("usage"),
         generation_prompt=None,
-        updated_at=datetime.utcnow(),
+        updated_at=datetime.now(timezone.utc),
     )
     db.add(note)
     await db.commit()

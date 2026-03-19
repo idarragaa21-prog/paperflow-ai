@@ -6,7 +6,7 @@ Designed to run as a background job via RQ.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -130,7 +130,7 @@ async def generate_deep_research_report(
     Returns a structured report dict with sections, papers, and metadata.
     """
     report_id = str(uuid.uuid4())
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
 
     def update_progress(step: str, pct: int):
         if progress_callback:
@@ -152,7 +152,7 @@ async def generate_deep_research_report(
             "error": "No papers found for this query. Try different keywords.",
             "sections": [],
             "papers": [],
-            "metadata": {"started_at": started_at.isoformat(), "completed_at": datetime.utcnow().isoformat()},
+            "metadata": {"started_at": started_at.isoformat(), "completed_at": datetime.now(timezone.utc).isoformat()},
         }
 
     update_progress(f"Found {len(papers)} papers. Analyzing...", 25)
@@ -180,7 +180,7 @@ async def generate_deep_research_report(
 
     update_progress("Finalizing report...", 95)
 
-    completed_at = datetime.utcnow()
+    completed_at = datetime.now(timezone.utc)
 
     report = {
         "id": report_id,

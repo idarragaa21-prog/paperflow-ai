@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 class PaperDownloadRequest(BaseModel):
     project_id: UUID
 
-    # at least one of these must be present
+    # At least one of doi, pmid, or oa_url must be provided.
+    # oa_url alone is valid for DOAJ papers that lack DOI/PMID.
     doi: str | None = Field(default=None, max_length=255)
     pmid: str | None = Field(default=None, max_length=64)
 

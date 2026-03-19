@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -99,7 +99,7 @@ def books_scan_folder_job(job_db_id: str) -> dict[str, Any]:
                             total_pages=None,
                             chapters=None,
                             indexed_at=None,
-                            created_at=datetime.utcnow(),
+                            created_at=datetime.now(timezone.utc),
                         )
                         db.add(b)
                         await db.flush()
@@ -113,7 +113,7 @@ def books_scan_folder_job(job_db_id: str) -> dict[str, Any]:
                             b.title = idx.get("title")
                             b.total_pages = idx.get("total_pages")
                             b.chapters = idx.get("chapters")
-                            b.indexed_at = datetime.utcnow()
+                            b.indexed_at = datetime.now(timezone.utc)
                             indexed += 1
                         except Exception as e:
                             errors.append(f"Index failed for {src_path.name}: {e}")

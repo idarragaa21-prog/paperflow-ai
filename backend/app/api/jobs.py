@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -90,7 +90,7 @@ async def cancel_job(
     # Mark as failed/cancelled (stable semantics)
     job.status = "failed"
     job.error_message = "Cancelled by user"
-    job.completed_at = job.completed_at or datetime.utcnow()
+    job.completed_at = job.completed_at or datetime.now(timezone.utc)
     await db.commit()
 
     return {"ok": True, "id": str(job.id), "status": job.status}
@@ -142,7 +142,7 @@ async def get_job(
         except Exception:
             job.status = "failed"
             job.error_message = "RQ job no encontrado en Redis"
-            job.completed_at = job.completed_at or datetime.utcnow()
+            job.completed_at = job.completed_at or datetime.now(timezone.utc)
             await db.commit()
             return {
                 "id": str(job.id),
@@ -158,9 +158,9 @@ async def get_job(
         if meta_progress is not None:
             job.progress_percent = int(meta_progress)
         if status in ("started", "progress") and job.started_at is None:
-            job.started_at = datetime.utcnow()
+            job.started_at = datetime.now(timezone.utc)
         if status in ("completed", "failed") and job.completed_at is None:
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
 
         job.status = status
 

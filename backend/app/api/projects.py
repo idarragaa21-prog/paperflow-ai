@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from pathlib import Path
@@ -55,7 +55,7 @@ async def create_project(
         clinical_area=payload.clinical_area,
         runtime_mode=payload.runtime_mode,
         archived=False,
-        updated_at=datetime.utcnow(),
+        updated_at=datetime.now(timezone.utc),
     )
     db.add(project)
     await db.commit()
@@ -107,7 +107,7 @@ async def update_project(
     if payload.runtime_mode is not None:
         project.runtime_mode = payload.runtime_mode
 
-    project.updated_at = datetime.utcnow()
+    project.updated_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(project)
 
@@ -127,7 +127,7 @@ async def archive_project(
         raise HTTPException(status_code=404, detail="Project not found")
 
     project.archived = True
-    project.updated_at = datetime.utcnow()
+    project.updated_at = datetime.now(timezone.utc)
     await db.commit()
 
     return {"ok": True}

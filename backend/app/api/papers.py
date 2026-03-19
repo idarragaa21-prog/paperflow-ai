@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -94,8 +94,12 @@ async def download_paper(
 ):
     await _require_owned_project(repo, project_id=payload.project_id, user=user)
 
-    if not payload.doi and not payload.pmid:
-        raise HTTPException(status_code=400, detail="Debe indicar doi o pmid")
+    # Require at least one identifier OR a direct OA URL (DOAJ papers may have oa_url only)
+    if not payload.doi and not payload.pmid and not payload.oa_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Debe indicar doi, pmid o oa_url para descargar el paper",
+        )
 
     # Dedup 1: by (project_id, pmid/doi) BEFORE downloading.
     dup = await repo.find_duplicate_by_identifiers(project_id=payload.project_id, pmid=payload.pmid, doi=payload.doi)
@@ -146,7 +150,7 @@ async def download_paper(
         file_path=saved["file_path"],
         file_size_kb=saved["size_kb"],
         content_hash=saved["content_hash"],
-        downloaded_at=datetime.utcnow(),
+        downloaded_at=datetime.now(timezone.utc),
     )
 
     paper = await repo.create_paper(paper)
@@ -284,7 +288,7 @@ async def upload_paper(
         file_path=saved["file_path"],
         file_size_kb=saved["size_kb"],
         content_hash=saved["content_hash"],
-        downloaded_at=datetime.utcnow(),
+        downloaded_at=datetime.now(timezone.utc),
     )
     paper = await repo.create_paper(paper)
     repo.db.add(

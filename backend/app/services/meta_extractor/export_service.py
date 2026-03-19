@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -234,7 +234,7 @@ async def create_meta_export(
     xlsx_bytes = build_meta_xlsx(payload)
 
     # save under slides/?? We'll store under notes-like directory: meta_exports
-    safe_filename = f"meta_export_{project_id}_{datetime.utcnow():%Y%m%d_%H%M%S}.xlsx"
+    safe_filename = f"meta_export_{project_id}_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.xlsx"
     # Use StorageManager base_dir directly
     rel_dir = Path("meta_exports") / str(project_id)
     abs_dir = (storage_manager.base_dir / rel_dir).resolve()

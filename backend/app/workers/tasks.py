@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import threading
 from collections.abc import Coroutine
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypeVar
 from uuid import UUID
@@ -70,9 +70,20 @@ def process_pdf_job(job_db_id: str, paper_id: str) -> dict[str, Any]:
             await job_set_progress(job_uuid, 10, status="started")  # load
 
             async with async_session_maker() as db:
-                await job_set_progress(job_uuid, 60, status="progress")  # extract
+                await job_set_progress(job_uuid, 50, status="progress")  # extract + chunk
                 result = await process_paper(paper_uuid, db)
-                await job_set_progress(job_uuid, 90, status="progress")  # save
+                await job_set_progress(job_uuid, 75, status="progress")  # index
+
+                # Critical: push chunks to Qdrant so Reader chat can retrieve them
+                from app.services.vector_index import vector_index
+                try:
+                    await vector_index.index_paper(db, paper_id=paper_uuid)
+                except Exception as idx_err:
+                    # Non-fatal: log but don't fail the job (chunks in DB, Qdrant can be rebuilt)
+                    from app.core.logger import logger
+                    logger.warning(f"vector_index.index_paper failed (non-fatal): {idx_err}")
+
+                await job_set_progress(job_uuid, 95, status="progress")  # done
 
             await job_mark_completed(job_uuid, result={"paper_id": str(paper_uuid)})
             return result
@@ -621,7 +632,7 @@ def books_index_job(job_db_id: str, book_id: str) -> dict[str, Any]:
                 b.title = idx.get("title")
                 b.total_pages = idx.get("total_pages")
                 b.chapters = idx.get("chapters")
-                b.indexed_at = datetime.utcnow()
+                b.indexed_at = datetime.now(timezone.utc)
                 await db.commit()
 
             await job_mark_completed(job_uuid, result={"output": {"book_id": book_id}, "warnings": [], "errors": []})
@@ -666,7 +677,7 @@ def clinical_query_job(job_db_id: str, sheet_id: str) -> dict[str, Any]:
                 sheet.sources_used = out.get("sources_used")
                 sheet.llm_model = out.get("llm_model")
                 sheet.llm_usage = out.get("llm_usage")
-                sheet.updated_at = datetime.utcnow()
+                sheet.updated_at = datetime.now(timezone.utc)
                 # keep input_params, but set status completed
                 sheet.input_params = {**(sheet.input_params or {}), "status": "completed"}
 
@@ -712,7 +723,7 @@ def clinical_query_job(job_db_id: str, sheet_id: str) -> dict[str, Any]:
                     s2 = await db2.get(ClinicalSheet, sheet_uuid)
                     if s2:
                         s2.input_params = {**(s2.input_params or {}), "status": "failed", "error": str(e)}
-                        s2.updated_at = datetime.utcnow()
+                        s2.updated_at = datetime.now(timezone.utc)
                         await db2.commit()
             except Exception:
                 pass
@@ -905,7 +916,7 @@ def export_project_zip_job(job_db_id: str, project_id: str) -> dict[str, Any]:
                 import json
                 import re
                 import zipfile
-                from datetime import datetime
+                from datetime import datetime, timezone
                 from pathlib import Path
 
                 def _safe_name(s: str) -> str:
@@ -913,7 +924,7 @@ def export_project_zip_job(job_db_id: str, project_id: str) -> dict[str, Any]:
                     s = s.replace("..", ".")
                     return s or "item"
 
-                ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+                ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
                 filename = f"project_export_{project_uuid}_{ts}.zip"
 
                 # Keep exports under storage/searches/<project_id>/exports
@@ -925,7 +936,7 @@ def export_project_zip_job(job_db_id: str, project_id: str) -> dict[str, Any]:
                 root = "project_export"
 
                 manifest = {
-                    "generated_at": datetime.utcnow().isoformat(),
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
                     "project": {
                         "id": str(proj.id),
                         "title": proj.title,

@@ -135,7 +135,7 @@ export default function SearchPage() {
       .map((r, idx) => ({ r, idx }))
       .filter(({ r, idx }) => {
         const key = r.doi || r.pmid || String(idx);
-        const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
+        const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid || r.oa_url);
         return Boolean(selected[key]) && canDownload;
       })
       .map(({ r }) => ({
@@ -156,7 +156,7 @@ export default function SearchPage() {
     const next: Record<string, boolean> = {};
     data.results.forEach((r, idx) => {
       const key = r.doi || r.pmid || String(idx);
-      const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
+      const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid || r.oa_url);
       if (canDownload) next[key] = true;
     });
     setSelected(next);
@@ -309,7 +309,7 @@ export default function SearchPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {data.results.map((r, idx) => {
               const key = r.doi || r.pmid || String(idx);
-              const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid);
+              const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid || r.oa_url);
               const isSelected = Boolean(selected[key]);
               const srcLabel = SOURCE_LABELS[r.source || ''] || r.source || '—';
               const srcColor = SOURCE_COLORS[r.source || ''] || '#6b7280';
@@ -343,7 +343,7 @@ export default function SearchPage() {
                       <a href={r.oa_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, wordBreak: 'break-all' }}>OA link ↗</a>
                     ) : null}
                     {!r.is_open_access ? <span className="rc-help">Not marked OA by provider metadata.</span> : null}
-                    {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID to resolve PDF.</span> : null}
+                    {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID/URL to download PDF.</span> : null}
                   </div>
                 </div>
               );
