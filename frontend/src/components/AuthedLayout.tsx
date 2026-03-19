@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useI18n } from '../i18n';
 
 const Icons = {
   Dashboard: () => <svg className="rc-nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="5" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="9" width="7" height="9" rx="1.5"/></svg>,
@@ -24,6 +25,7 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   async function onLogout() { await logout(); navigate('/login'); onNav?.(); }
 
@@ -42,32 +44,32 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
         </div>
         <div>
           <div className="rc-brand-title">PaperFlow</div>
-          <div className="rc-brand-sub">AI Research Workspace</div>
+          <div className="rc-brand-sub">{t.nav.brandSub}</div>
         </div>
       </div>
 
       <nav className="rc-nav">
-        <div className="rc-nav-section">Overview</div>
-        <NavItem to="/dashboard" label="Dashboard" Icon={Icons.Dashboard} onClick={onNav} />
-        <NavItem to="/projects" label="Projects" Icon={Icons.Projects} onClick={onNav} />
+        <div className="rc-nav-section">{t.nav.overview}</div>
+        <NavItem to="/dashboard" label={t.nav.dashboard} Icon={Icons.Dashboard} onClick={onNav} />
+        <NavItem to="/projects" label={t.nav.projects} Icon={Icons.Projects} onClick={onNav} />
 
-        <div className="rc-nav-section">Tools</div>
-        <NavItem to="/clinical" label="Clinical" Icon={Icons.Clinical} onClick={onNav} />
-        <NavItem to="/books" label="Books" Icon={Icons.Books} onClick={onNav} />
+        <div className="rc-nav-section">{t.nav.tools}</div>
+        <NavItem to="/clinical" label={t.nav.clinical} Icon={Icons.Clinical} onClick={onNav} />
+        <NavItem to="/books" label={t.nav.books} Icon={Icons.Books} onClick={onNav} />
 
-        <div className="rc-nav-section">System</div>
-        <NavItem to="/jobs" label="Jobs" Icon={Icons.Jobs} onClick={onNav} />
-        <NavItem to="/settings" label="Settings" Icon={Icons.Settings} onClick={onNav} />
+        <div className="rc-nav-section">{t.nav.system}</div>
+        <NavItem to="/jobs" label={t.nav.jobs} Icon={Icons.Jobs} onClick={onNav} />
+        <NavItem to="/settings" label={t.nav.settings} Icon={Icons.Settings} onClick={onNav} />
       </nav>
 
       <div className="rc-sidebar-footer">
         <div className="rc-user-row">
           <div className="rc-avatar">{initials}</div>
           <span className="rc-user-email">{user?.email || ''}</span>
-          <button className="rc-logout-btn" onClick={onLogout} title="Sign out"><Icons.LogOut /></button>
+          <button className="rc-logout-btn" onClick={onLogout} title={t.auth.signOut}><Icons.LogOut /></button>
         </div>
         <div style={{ padding:'2px 10px 4px',fontSize:10,color:'rgba(255,255,255,0.2)',letterSpacing:'0.03em' }}>
-          local-first · private by design
+          {t.nav.localFirst}
         </div>
       </div>
     </>

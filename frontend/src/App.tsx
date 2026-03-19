@@ -4,6 +4,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import AuthedLayout from './components/AuthedLayout';
 import ProjectLayout from './components/ProjectLayout';
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
 
@@ -55,6 +57,8 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route element={<RequireAuth><AuthedLayout /></RequireAuth>}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/projects" element={<ProjectsPage />} />

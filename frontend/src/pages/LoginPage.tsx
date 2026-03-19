@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useI18n } from '../i18n';
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const error = useAuthStore((s) => s.error);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -143,14 +145,23 @@ export default function LoginPage() {
               style={{ width:'100%',padding:'11px 16px',fontSize:14,marginTop:4,borderRadius:12 }}>
               {loading
                 ? <span style={{ display:'flex',alignItems:'center',gap:8,justifyContent:'center' }}>
-                    <span className="rc-spinner" style={{ borderTopColor:'white',width:14,height:14 }}/>Signing in…
+                    <span className="rc-spinner" style={{ borderTopColor:'white',width:14,height:14 }}/>{t.auth.signingIn}
                   </span>
-                : 'Sign in →'}
+                : `${t.auth.signIn} →`}
             </button>
+
+            <div style={{ display:'flex',justifyContent:'center',marginTop:10 }}>
+              <Link to="/forgot-password" style={{ fontSize:12,color:'var(--rc-primary)' }}>{t.auth.forgotPassword}</Link>
+            </div>
           </form>
 
-          <div style={{ marginTop:32,paddingTop:24,borderTop:'1px solid rgba(26,25,41,0.1)',textAlign:'center',fontSize:12,color:'rgba(26,25,41,0.3)' }}>
-            local-first · private by design · no cloud sync
+          <div style={{ marginTop:20,textAlign:'center',fontSize:13,color:'rgba(26,25,41,0.5)' }}>
+            {t.auth.noAccount}{' '}
+            <Link to="/signup" style={{ fontWeight:700 }}>{t.auth.signUp}</Link>
+          </div>
+
+          <div style={{ marginTop:20,paddingTop:20,borderTop:'1px solid rgba(26,25,41,0.1)',textAlign:'center',fontSize:12,color:'rgba(26,25,41,0.3)' }}>
+            {t.auth.tagline}
           </div>
         </div>
       </div>

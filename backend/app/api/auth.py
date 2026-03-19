@@ -13,13 +13,17 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     generate_csrf_token,
+    hash_password,
     verify_password,
     verify_token,
 )
 from app.models.user import User
-from app.schemas.auth import UserLogin
+from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# In-memory password reset codes (development). In production use Redis or DB table.
+_reset_codes: dict[str, str] = {}
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -182,8 +186,6 @@ async def change_password(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    from app.core.security import hash_password
-
     body = await request.json()
     current = body.get("current_password", "")
     new_pw = body.get("new_password", "")
@@ -195,4 +197,77 @@ async def change_password(
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     user.password_hash = hash_password(new_pw)
     await db.commit()
+    return {"ok": True}
+
+
+@router.post("/register")
+async def register(
+    payload: UserRegister,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    q = await db.execute(select(User).where(User.email == payload.email).limit(1))
+    if q.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        full_name=payload.full_name,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return {"id": str(user.id), "email": user.email, "full_name": user.full_name}
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    import secrets
+
+    q = await db.execute(select(User).where(User.email == payload.email).limit(1))
+    user = q.scalar_one_or_none()
+
+    # Always return success to prevent email enumeration
+    if not user:
+        return {"ok": True}
+
+    code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    _reset_codes[payload.email] = code
+
+    # In development: print to console. In production: send email.
+    from app.core.logger import logger
+    logger.info(f"[RESET CODE] {payload.email} → {code}")
+    print(f"\n{'='*50}")
+    print(f"  PASSWORD RESET CODE for {payload.email}")
+    print(f"  CODE: {code}")
+    print(f"{'='*50}\n")
+
+    return {"ok": True}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    stored_code = _reset_codes.get(payload.email)
+    if not stored_code or stored_code != payload.code:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code")
+
+    q = await db.execute(select(User).where(User.email == payload.email).limit(1))
+    user = q.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password_hash = hash_password(payload.new_password)
+    await db.commit()
+
+    # Invalidate the code
+    _reset_codes.pop(payload.email, None)
+
     return {"ok": True}

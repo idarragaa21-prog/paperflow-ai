@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '../ui/Toast/ToastProvider';
+import { useI18n } from '../i18n';
+import type { Locale } from '../i18n';
 
 type ServiceRow = {
   name: string;
@@ -20,6 +22,7 @@ export default function SettingsPage() {
   const toast = useToast();
   const user = useAuthStore(s => s.user);
   const checkAuth = useAuthStore(s => s.checkAuth);
+  const { t, locale, setLocale, localeNames } = useI18n();
 
   // Profile
   const [fullName, setFullName] = useState(user?.full_name || '');
@@ -90,11 +93,26 @@ export default function SettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 680 }}>
       <div>
-        <h1 className="rc-page-title">Settings</h1>
+        <h1 className="rc-page-title">{t.settings.title}</h1>
         <div className="rc-subtitle">Manage your profile, security and service configuration.</div>
       </div>
 
       {error && <div className="rc-error">{error}</div>}
+
+      {/* Language */}
+      <div className="rc-card" style={{ padding: 20 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 750, fontSize: 15, marginBottom: 4 }}>{t.settings.language}</div>
+        <div className="rc-help" style={{ marginBottom: 14 }}>{t.settings.languageDesc}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {(Object.keys(localeNames) as Locale[]).map(l => (
+            <button key={l} className={`rc-btn${locale === l ? ' rc-btn--primary' : ''}`}
+              style={{ padding: '7px 16px', fontSize: 13 }}
+              onClick={() => setLocale(l)}>
+              {localeNames[l]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Profile */}
       <div className="rc-card">
