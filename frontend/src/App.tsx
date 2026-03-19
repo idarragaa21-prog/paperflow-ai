@@ -6,6 +6,7 @@ import ProjectLayout from './components/ProjectLayout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import LandingPage from './pages/LandingPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
 
@@ -56,9 +57,13 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+            {/* Authenticated routes */}
             <Route element={<RequireAuth><AuthedLayout /></RequireAuth>}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
@@ -82,7 +87,6 @@ export default function App() {
               <Route path="/books" element={<BooksPage />} />
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
