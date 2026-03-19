@@ -30,11 +30,14 @@ jobs:
       - name: Install
         working-directory: ./frontend
         run: npm ci
+      - name: Write env for demo build
+        working-directory: ./frontend
+        run: |
+          echo "VITE_DEMO_MODE=true" > .env.local
+          echo "VITE_API_BASE_URL=" >> .env.local
       - name: Build (demo mode)
         working-directory: ./frontend
         env:
-          VITE_DEMO_MODE: "true"
-          VITE_API_BASE_URL: "http://localhost:8000"
           VITE_BASE_PATH: "/paperflow-ai/"
         run: npm run build
       - uses: actions/configure-pages@v5

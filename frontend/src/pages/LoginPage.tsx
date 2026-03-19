@@ -92,10 +92,10 @@ export default function LoginPage() {
 
         {/* Features */}
         <div style={{ position:'relative',zIndex:1,display:'flex',flexDirection:'column',gap:8 }}>
-          {['AI-powered paper search & reader','Meta-analysis & data extraction','Literature drafts & references'].map(t=>(
-            <div key={t} style={{ display:'flex',alignItems:'center',gap:10 }}>
+          {['AI-powered paper search & reader','Meta-analysis & data extraction','Literature drafts & references'].map(feat=>(
+            <div key={feat} style={{ display:'flex',alignItems:'center',gap:10 }}>
               <span style={{ color:'rgba(139,92,246,0.7)',fontSize:8 }}>✦</span>
-              <span style={{ fontSize:12,color:'rgba(255,255,255,0.38)',letterSpacing:'0.01em' }}>{t}</span>
+              <span style={{ fontSize:12,color:'rgba(255,255,255,0.38)',letterSpacing:'0.01em' }}>{feat}</span>
             </div>
           ))}
         </div>
