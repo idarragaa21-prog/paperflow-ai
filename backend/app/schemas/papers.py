@@ -14,6 +14,10 @@ class PaperDownloadRequest(BaseModel):
 
     title: str | None = None
 
+    # If the search result already resolved an OA URL, pass it here
+    # so the backend uses it as first priority instead of re-resolving.
+    oa_url: str | None = None
+
 
 class PaperRecordResponse(BaseModel):
     id: UUID
@@ -50,6 +54,7 @@ class BatchDownloadPaperRef(BaseModel):
     pmcid: str | None = None
     doi: str | None = None
     title: str | None = None
+    oa_url: str | None = None
 
 
 class PapersBatchDownloadRequest(BaseModel):

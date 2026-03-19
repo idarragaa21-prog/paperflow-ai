@@ -104,7 +104,10 @@ async def download_paper(
 
     async with httpx.AsyncClient() as client:
         try:
-            dl = await downloader.download_open_access_pdf(doi=payload.doi, pmid=payload.pmid, client=client)
+            dl = await downloader.download_open_access_pdf(
+                doi=payload.doi, pmid=payload.pmid,
+                oa_url=payload.oa_url, client=client,
+            )
         except PaperServiceError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except httpx.HTTPError:
@@ -138,6 +141,7 @@ async def download_paper(
         source_provider=dl.source,
         source_type="download",
         is_open_access=True,
+        oa_url=dl.resolved_url,
         filename=saved["filename"],
         file_path=saved["file_path"],
         file_size_kb=saved["size_kb"],

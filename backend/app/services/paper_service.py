@@ -34,18 +34,28 @@ class PaperDownloadService:
         *,
         doi: str | None,
         pmid: str | None,
+        oa_url: str | None = None,
         client: httpx.AsyncClient,
     ) -> DownloadResult:
-        """Resolve OA PDF URL via Unpaywall (DOI) or EuropePMC (PMID), then download bytes."""
+        """Resolve OA PDF URL via caller-provided URL, Unpaywall (DOI), or EuropePMC (PMID), then download bytes.
+
+        Priority order:
+        1. oa_url provided by caller (from search result the user actually saw)
+        2. Unpaywall via DOI
+        3. EuropePMC via PMID
+        """
 
         resolved_url: str | None = None
         source: str | None = None
-
-        # Prefer DOI via Unpaywall, but when both DOI+PMID are available
-        # fall back to Europe PMC if Unpaywall fails (rate limits / missing PDF).
         last_err: str | None = None
 
-        if doi:
+        # Priority 1: Use the exact OA URL the user saw in search results.
+        if oa_url:
+            resolved_url = oa_url
+            source = "user_provided_oa"
+
+        # Priority 2: Unpaywall via DOI.
+        if (not resolved_url) and doi:
             try:
                 resolved = await self.unpaywall.resolve(doi, client)
                 resolved_url, source = resolved.url_for_pdf, resolved.source
@@ -54,6 +64,7 @@ class PaperDownloadService:
                 resolved_url = None
                 source = None
 
+        # Priority 3: EuropePMC via PMID.
         if (not resolved_url) and pmid:
             try:
                 resolved = await self.europepmc.resolve_by_pmid(pmid, client)
@@ -73,10 +84,14 @@ class PaperDownloadService:
 
         # Hard validation: magic bytes + %%EOF.
         if not storage_manager.validate_pdf(data):
-            # Common failure mode: HTML error pages.
+            # If caller-provided URL failed validation, retry with resolvers.
+            if oa_url and source == "user_provided_oa":
+                return await self.download_open_access_pdf(
+                    doi=doi, pmid=pmid, oa_url=None, client=client,
+                )
             ct = r.headers.get("content-type")
             raise PaperServiceError(
-                f"La URL resuelta no devolvió un PDF válido (content-type={ct})."  # no secrets
+                f"La URL resuelta no devolvió un PDF válido (content-type={ct})."
             )
 
         return DownloadResult(pdf_bytes=data, source=source, resolved_url=resolved_url)

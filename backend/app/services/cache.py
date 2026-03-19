@@ -40,14 +40,23 @@ class CacheManager:
         except Exception:
             return None
 
-    def generate_search_key(self, query: str, filters: dict | None = None) -> str:
+    def generate_search_key(
+        self,
+        query: str,
+        filters: dict | None = None,
+        *,
+        max_results: int = 20,
+        source: str = "pubmed",
+    ) -> str:
         normalized = {
-            "q": query.strip(),
+            "q": query.strip().lower(),
             "filters": filters or {},
+            "max_results": max_results,
+            "source": source,
         }
         raw = json.dumps(normalized, sort_keys=True, ensure_ascii=False)
         digest = hashlib.md5(raw.encode("utf-8")).hexdigest()
-        return f"search:pubmed:{digest}"
+        return f"search:{source}:{digest}"
 
 
 cache = CacheManager()
