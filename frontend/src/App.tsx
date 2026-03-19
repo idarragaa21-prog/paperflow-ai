@@ -1,31 +1,46 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import AuthedLayout from './components/AuthedLayout';
 import ProjectLayout from './components/ProjectLayout';
-import BooksPage from './pages/BooksPage';
-import ClinicalPage from './pages/ClinicalPage';
-import ClinicalSheetPage from './pages/ClinicalSheetPage';
-import AnalysisPage from './pages/AnalysisPage';
-import DashboardPage from './pages/DashboardPage';
-import DraftsPage from './pages/DraftsPage';
-import JobsPage from './pages/JobsPage';
 import LoginPage from './pages/LoginPage';
-import MetaPage from './pages/MetaPage';
-import NotesPage from './pages/NotesPage';
-import PapersPage from './pages/PapersPage';
-import PresentationsPage from './pages/PresentationsPage';
-import ProjectsPage from './pages/ProjectsPage';
-import ReaderPage from './pages/ReaderPage';
-import ReferencesPage from './pages/ReferencesPage';
-import ScreeningPage from './pages/ScreeningPage';
-import SearchPage from './pages/SearchPage';
-import SettingsPage from './pages/SettingsPage';
+import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
+
+// Eager: lightweight pages
+import DashboardPage from './pages/DashboardPage';
+import ProjectsPage from './pages/ProjectsPage';
+import JobsPage from './pages/JobsPage';
+import SettingsPage from './pages/SettingsPage';
+
+// Lazy: heavy pages (code-split)
+const SearchPage = lazy(() => import('./pages/SearchPage'));
+const PapersPage = lazy(() => import('./pages/PapersPage'));
+const ReaderPage = lazy(() => import('./pages/ReaderPage'));
+const NotesPage = lazy(() => import('./pages/NotesPage'));
+const MetaPage = lazy(() => import('./pages/MetaPage'));
+const ReferencesPage = lazy(() => import('./pages/ReferencesPage'));
+const DraftsPage = lazy(() => import('./pages/DraftsPage'));
+const PresentationsPage = lazy(() => import('./pages/PresentationsPage'));
+const AnalysisPage = lazy(() => import('./pages/AnalysisPage'));
+const ScreeningPage = lazy(() => import('./pages/ScreeningPage'));
+const ClinicalPage = lazy(() => import('./pages/ClinicalPage'));
+const ClinicalSheetPage = lazy(() => import('./pages/ClinicalSheetPage'));
+const BooksPage = lazy(() => import('./pages/BooksPage'));
+
+function PageLoader() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, gap: 10, color: 'var(--rc-muted)' }}>
+      <span className="rc-spinner" style={{ width: 18, height: 18 }} />
+      Loading…
+    </div>
+  );
+}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
-  if (loading && !user) return <div style={{ padding: 16 }}>Loading…</div>;
+  if (loading && !user) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -35,36 +50,40 @@ export default function App() {
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route element={<RequireAuth><AuthedLayout /></RequireAuth>}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:projectId" element={<ProjectLayout />}>
-            <Route index element={<Navigate to="research" replace />} />
-            <Route path="search" element={<SearchPage />} />
-            <Route path="research" element={<SearchPage />} />
-            <Route path="reader" element={<ReaderPage />} />
-            <Route path="papers" element={<PapersPage />} />
-            <Route path="library" element={<PapersPage />} />
-            <Route path="notes" element={<NotesPage />} />
-            <Route path="presentations" element={<PresentationsPage />} />
-            <Route path="meta" element={<MetaPage />} />
-            <Route path="references" element={<ReferencesPage />} />
-            <Route path="drafts" element={<DraftsPage />} />
-            <Route path="analysis" element={<AnalysisPage />} />
-            <Route path="screening" element={<ScreeningPage />} />
-          </Route>
-          <Route path="/clinical" element={<ClinicalPage />} />
-          <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />
-          <Route path="/books" element={<BooksPage />} />
-          <Route path="/jobs" element={<JobsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<RequireAuth><AuthedLayout /></RequireAuth>}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/:projectId" element={<ProjectLayout />}>
+                <Route index element={<Navigate to="research" replace />} />
+                <Route path="search" element={<SearchPage />} />
+                <Route path="research" element={<SearchPage />} />
+                <Route path="reader" element={<ReaderPage />} />
+                <Route path="papers" element={<PapersPage />} />
+                <Route path="library" element={<PapersPage />} />
+                <Route path="notes" element={<NotesPage />} />
+                <Route path="presentations" element={<PresentationsPage />} />
+                <Route path="meta" element={<MetaPage />} />
+                <Route path="references" element={<ReferencesPage />} />
+                <Route path="drafts" element={<DraftsPage />} />
+                <Route path="analysis" element={<AnalysisPage />} />
+                <Route path="screening" element={<ScreeningPage />} />
+              </Route>
+              <Route path="/clinical" element={<ClinicalPage />} />
+              <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />
+              <Route path="/books" element={<BooksPage />} />
+              <Route path="/jobs" element={<JobsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Route>
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
