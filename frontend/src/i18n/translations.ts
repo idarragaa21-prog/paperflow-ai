@@ -1,6 +1,11 @@
 export type Locale = 'en' | 'es' | 'pt';
 
-export type Translations = typeof en;
+// Recursive type: converts literal strings to `string` so translations can have different values
+type Stringify<T> = T extends string ? string
+  : T extends (...args: infer A) => infer R ? (...args: A) => R
+  : { [K in keyof T]: Stringify<T[K]> };
+
+export type Translations = Stringify<typeof en>;
 
 const en = {
   // ── Common ──
@@ -234,7 +239,7 @@ const en = {
     somethingWrong: 'Something went wrong',
     reload: 'Reload page',
   },
-} as const;
+};
 
 const es: Translations = {
   loading: 'Cargando…',
