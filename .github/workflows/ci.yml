@@ -41,7 +41,7 @@ jobs:
           OCR_ENABLED: "false"
 
   frontend:
-    name: Frontend Build
+    name: Frontend Build & Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,6 +62,9 @@ jobs:
 
       - name: Type check
         run: npx tsc --noEmit
+
+      - name: Unit & integration tests
+        run: npm run test
 
       - name: Build
         run: npm run build
