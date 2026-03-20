@@ -268,3 +268,211 @@ describe('SearchPage — error handling', () => {
     });
   });
 });
+
+// ── CRITICAL FLOW: search → download → traceability ─────────────────────────
+
+describe('SearchPage — download traceability', () => {
+  beforeEach(() => {
+    vi.mocked(api.get).mockResolvedValue({ data: [] }); // history
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: MOCK_RESPONSE }) // search
+      .mockResolvedValueOnce({
+        data: {
+          id: 'paper-uuid-001',
+          project_id: PROJECT_ID,
+          title: 'ACL reconstruction hamstring vs BPTB meta-analysis',
+          doi: '10.1000/test.001',
+          source_provider: 'unpaywall',
+          oa_url: 'https://unpaywall.org/resolved.pdf',
+          duplicate: false,
+          filename: 'paper.pdf',
+          file_path: 'papers/paper.pdf',
+          content_hash: 'abc123',
+        },
+      });
+  });
+
+  it('shows "Downloaded" with source provider after successful download', async () => {
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL hamstring');
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+
+    await waitFor(() => screen.getByText('ACL reconstruction hamstring vs BPTB meta-analysis'));
+
+    const downloadBtns = screen.getAllByRole('button', { name: /Download OA PDF/i });
+    fireEvent.click(downloadBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('✓ Downloaded')).toBeInTheDocument();
+    });
+  });
+
+  it('shows resolved URL in traceability panel', async () => {
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL hamstring');
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+
+    await waitFor(() => screen.getByText('ACL reconstruction hamstring vs BPTB meta-analysis'));
+
+    const downloadBtns = screen.getAllByRole('button', { name: /Download OA PDF/i });
+    fireEvent.click(downloadBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/https:\/\/unpaywall\.org\/resolved\.pdf/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Already in project" for duplicate downloads', async () => {
+    vi.mocked(api.post)
+      .mockReset()
+      .mockResolvedValueOnce({ data: MOCK_RESPONSE })
+      .mockResolvedValueOnce({
+        data: {
+          id: 'paper-uuid-001',
+          project_id: PROJECT_ID,
+          title: 'ACL reconstruction hamstring vs BPTB meta-analysis',
+          duplicate: true,
+          filename: 'paper.pdf',
+          file_path: 'papers/paper.pdf',
+          content_hash: 'abc123',
+        },
+      });
+
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL hamstring');
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+
+    await waitFor(() => screen.getByText('ACL reconstruction hamstring vs BPTB meta-analysis'));
+
+    const downloadBtns = screen.getAllByRole('button', { name: /Download OA PDF/i });
+    fireEvent.click(downloadBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('↻ Already in project')).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Failed" with error message on download failure', async () => {
+    vi.mocked(api.post)
+      .mockReset()
+      .mockResolvedValueOnce({ data: MOCK_RESPONSE })
+      .mockRejectedValueOnce({
+        response: { data: { detail: 'No se pudo resolver un PDF open-access' } },
+      });
+
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL hamstring');
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+
+    await waitFor(() => screen.getByText('ACL reconstruction hamstring vs BPTB meta-analysis'));
+
+    const downloadBtns = screen.getAllByRole('button', { name: /Download OA PDF/i });
+    fireEvent.click(downloadBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('✗ Failed')).toBeInTheDocument();
+    });
+  });
+});
+
+describe('SearchPage — select and batch download flow', () => {
+  beforeEach(() => {
+    vi.mocked(api.get).mockResolvedValue({ data: [] });
+    vi.mocked(api.post).mockResolvedValue({ data: MOCK_RESPONSE });
+  });
+
+  it('Select all OA selects only downloadable papers', async () => {
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL test');
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+
+    await waitFor(() => screen.getByText('ACL reconstruction hamstring vs BPTB meta-analysis'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Select all OA/i }));
+
+    // The first result is OA+doi → selectable. The second is closed → not selectable.
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes[0]).toBeChecked();
+    // The second checkbox should be disabled (closed access) and not checked
+    expect(checkboxes[1]).toBeDisabled();
+  });
+
+  it('Download Selected triggers /papers/batch-download with oa_url', async () => {
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: MOCK_RESPONSE }) // search
+      .mockResolvedValueOnce({ data: { job_id: 'batch-job-001' } }); // batch
+
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL test');
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+
+    await waitFor(() => screen.getByText('ACL reconstruction hamstring vs BPTB meta-analysis'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Select all OA/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Download Selected/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith(
+        '/papers/batch-download',
+        expect.objectContaining({
+          project_id: PROJECT_ID,
+          papers: expect.arrayContaining([
+            expect.objectContaining({
+              doi: '10.1000/test.001',
+              pmid: '12345678',
+              oa_url: 'https://ncbi.nlm.nih.gov/pmc/articles/PMC1234/pdf/',
+            }),
+          ]),
+        }),
+      );
+    });
+  });
+});
+
+describe('SearchPage — search history', () => {
+  it('loads and displays search history on mount', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: [
+        {
+          id: 'search-001',
+          project_id: PROJECT_ID,
+          query: 'hip fracture outcomes',
+          source: 'federated',
+          results_count: 15,
+          executed_at: '2025-03-18T10:30:00Z',
+        },
+      ],
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Search History/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows history entries when expanded', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: [
+        {
+          id: 'search-001',
+          project_id: PROJECT_ID,
+          query: 'hip fracture outcomes',
+          source: 'federated',
+          results_count: 15,
+          executed_at: '2025-03-18T10:30:00Z',
+        },
+      ],
+    });
+
+    renderPage();
+
+    await waitFor(() => screen.getByText(/Search History/i));
+    fireEvent.click(screen.getByText(/Search History/i));
+
+    await waitFor(() => {
+      expect(screen.getByText('hip fracture outcomes')).toBeInTheDocument();
+      expect(screen.getByText(/15 results/)).toBeInTheDocument();
+    });
+  });
+});

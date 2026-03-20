@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
@@ -27,6 +27,15 @@ type SearchResponse = {
   sources?: string[];
 };
 
+type SearchRecord = {
+  id: string;
+  project_id: string;
+  query: string;
+  source: string;
+  results_count: number | null;
+  executed_at: string | null;
+};
+
 const SOURCE_LABELS: Record<string, string> = {
   pubmed: 'PubMed',
   europepmc: 'Europe PMC',
@@ -50,6 +59,15 @@ export default function SearchPage() {
   const [data, setData] = useState<SearchResponse | null>(null);
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
+  // Per-result download traceability
+  type DownloadInfo = {
+    status: 'saved' | 'duplicate' | 'error';
+    source_provider?: string | null;
+    oa_url?: string | null;
+    error?: string | null;
+  };
+  const [downloadResults, setDownloadResults] = useState<Record<string, DownloadInfo>>({});
+
   // Filters
   const [yearFrom, setYearFrom] = useState<string>('');
   const [yearTo, setYearTo] = useState<string>('');
@@ -62,6 +80,53 @@ export default function SearchPage() {
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
   const [batchJob, setBatchJob] = useState<{ status: string; progress: number; error?: string | null; output?: any } | null>(null);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
+
+  // Search history
+  const [searchHistory, setSearchHistory] = useState<SearchRecord[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    if (!projectId) return;
+    setHistoryLoading(true);
+    try {
+      const r = await api.get(`/search/projects/${projectId}/searches`);
+      setSearchHistory(r.data as SearchRecord[]);
+    } catch {
+      // non-blocking
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [projectId]);
+
+  // Load history on mount and after each search
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  async function reloadPastSearch(searchId: string, pastQuery: string) {
+    if (!projectId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await api.get(`/search/${searchId}/results`);
+      const results = r.data as PaperMetadata[];
+      setData({
+        count: results.length,
+        results,
+        query_translation: null,
+        cached: false,
+        sources: [],
+      });
+      setQuery(pastQuery);
+      setSelected({});
+      setBatchJobId(null);
+      setBatchJob(null);
+      setBatchModalOpen(false);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Failed to load search results');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const canSearch = useMemo(() => Boolean(projectId && query.trim().length >= 3), [projectId, query]);
 
@@ -96,6 +161,7 @@ export default function SearchPage() {
       setBatchJobId(null);
       setBatchJob(null);
       setBatchModalOpen(false);
+      loadHistory(); // refresh history panel
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Search failed');
     } finally {
@@ -119,9 +185,42 @@ export default function SearchPage() {
 
       const resp = await api.post('/papers/download', payload);
       const duplicate = Boolean(resp.data?.duplicate);
-      toast.info(duplicate ? 'Duplicate' : 'Saved', duplicate ? 'Paper already exists in this project.' : 'Downloaded and saved.');
+      const srcProvider = resp.data?.source_provider || null;
+      const usedUrl = resp.data?.oa_url || null;
+
+      setDownloadResults((prev) => ({
+        ...prev,
+        [key]: {
+          status: duplicate ? 'duplicate' : 'saved',
+          source_provider: srcProvider,
+          oa_url: usedUrl,
+        },
+      }));
+
+      const providerLabel = srcProvider
+        ? srcProvider === 'user_provided_oa' ? 'direct OA link'
+        : srcProvider === 'unpaywall' ? 'Unpaywall'
+        : srcProvider === 'europepmc' ? 'Europe PMC'
+        : srcProvider
+        : null;
+
+      if (duplicate) {
+        toast.info('Duplicate', 'Paper already exists in this project.');
+      } else {
+        toast.info(
+          'Downloaded',
+          providerLabel
+            ? `Saved via ${providerLabel}${usedUrl ? ` — ${usedUrl.slice(0, 60)}…` : ''}`
+            : 'Downloaded and saved.',
+        );
+      }
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Download failed');
+      const errMsg = e?.response?.data?.detail || 'Download failed';
+      setDownloadResults((prev) => ({
+        ...prev,
+        [key]: { status: 'error', error: errMsg },
+      }));
+      setError(errMsg);
     } finally {
       setDownloadingKey(null);
     }
@@ -279,6 +378,70 @@ export default function SearchPage() {
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
 
+      {/* ── Search History Panel ── */}
+      {searchHistory.length > 0 && (
+        <div className="rc-card" style={{ padding: showHistory ? 14 : 10 }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            onClick={() => setShowHistory((p) => !p)}
+          >
+            <div style={{ fontWeight: 800, fontSize: 13 }}>
+              Search History ({searchHistory.length})
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--rc-muted)' }}>
+              {showHistory ? '▲ Hide' : '▼ Show'}
+            </span>
+          </div>
+          {showHistory && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {historyLoading ? (
+                <Skeleton height={12} width="50%" />
+              ) : (
+                searchHistory.slice(0, 20).map((h) => {
+                  const dt = h.executed_at ? new Date(h.executed_at) : null;
+                  const dateStr = dt
+                    ? dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+                      ' ' +
+                      dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                    : '—';
+                  return (
+                    <div
+                      key={h.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '6px 8px',
+                        borderRadius: 6,
+                        background: 'var(--rc-bg-secondary, rgba(0,0,0,0.03))',
+                        fontSize: 13,
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 700 }}>{h.query}</span>
+                        <span className="rc-help" style={{ marginLeft: 8 }}>
+                          {h.source} · {h.results_count ?? 0} results · {dateStr}
+                        </span>
+                      </div>
+                      <button
+                        className="rc-btn"
+                        style={{ padding: '2px 10px', fontSize: 12, flexShrink: 0 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          reloadPastSearch(h.id, h.query);
+                        }}
+                      >
+                        Reload
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {data ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="rc-help">
@@ -345,6 +508,37 @@ export default function SearchPage() {
                     {!r.is_open_access ? <span className="rc-help">Not marked OA by provider metadata.</span> : null}
                     {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID/URL to download PDF.</span> : null}
                   </div>
+
+                  {/* Download traceability */}
+                  {(() => {
+                    const dlInfo = downloadResults[key];
+                    if (!dlInfo) return null;
+                    const providerLabel =
+                      dlInfo.source_provider === 'user_provided_oa' ? 'Direct OA link (from search result)'
+                      : dlInfo.source_provider === 'unpaywall' ? 'Unpaywall (resolved via DOI)'
+                      : dlInfo.source_provider === 'europepmc' ? 'Europe PMC (resolved via PMID)'
+                      : dlInfo.source_provider || null;
+
+                    if (dlInfo.status === 'saved') return (
+                      <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontWeight: 700, color: '#059669' }}>✓ Downloaded</span>
+                        {providerLabel && <span style={{ color: 'var(--rc-muted)' }}>Source: {providerLabel}</span>}
+                        {dlInfo.oa_url && <span style={{ color: 'var(--rc-muted)', wordBreak: 'break-all' }}>URL: {dlInfo.oa_url}</span>}
+                      </div>
+                    );
+                    if (dlInfo.status === 'duplicate') return (
+                      <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                        <span style={{ fontWeight: 700, color: '#6366f1' }}>↻ Already in project</span>
+                      </div>
+                    );
+                    if (dlInfo.status === 'error') return (
+                      <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                        <span style={{ fontWeight: 700, color: '#ef4444' }}>✗ Failed</span>
+                        {dlInfo.error && <span style={{ color: 'var(--rc-muted)', marginLeft: 6 }}>{dlInfo.error}</span>}
+                      </div>
+                    );
+                    return null;
+                  })()}
                 </div>
               );
             })}

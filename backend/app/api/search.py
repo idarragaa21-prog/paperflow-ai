@@ -1,14 +1,4 @@
-"""Search API — federated and PubMed endpoints.
-
-Bugs fixed in this revision:
-  - datetime.utcnow() → datetime.now(timezone.utc)
-  - /search/pubmed: now applies _passes_filters + _relevance_score (same as federated)
-  - /search/pubmed: persists relevance_score per result
-  - get_search_results: now ORDER BY relevance_score DESC so history is deterministic
-  - Both endpoints persist relevance_score on SearchResult rows
-"""
-from __future__ import annotations
-
+"""Search API — federated and PubMed endpoints."""
 from datetime import datetime, timezone
 from uuid import UUID
 

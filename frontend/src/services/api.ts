@@ -2,7 +2,31 @@ import axios, { AxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { getCookie } from './cookies';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+/**
+ * API base URL resolution strategy:
+ *   1. Explicit VITE_API_BASE_URL env var (always wins)
+ *   2. In production: same-origin (assumes reverse proxy or co-located backend)
+ *   3. In development: http://127.0.0.1:8000 (local FastAPI)
+ */
+function resolveBaseUrl(): string {
+  const explicit = import.meta.env.VITE_API_BASE_URL;
+  if (explicit) return explicit;
+
+  if (import.meta.env.PROD) {
+    // Production without explicit URL → assume same-origin reverse proxy.
+    // This works with Vercel rewrites, nginx proxy_pass, etc.
+    console.warn(
+      '[PaperFlow] VITE_API_BASE_URL not set in production build. ' +
+      'Using same-origin (/). Set VITE_API_BASE_URL if backend is on a different host.',
+    );
+    return '';
+  }
+
+  // Development fallback
+  return 'http://127.0.0.1:8000';
+}
+
+const API_BASE_URL = resolveBaseUrl();
 
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
