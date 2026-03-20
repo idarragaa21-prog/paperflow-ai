@@ -68,6 +68,13 @@ export default function SearchPage() {
   };
   const [downloadResults, setDownloadResults] = useState<Record<string, DownloadInfo>>({});
 
+  // Pagination
+  const SEARCH_PAGE_SIZE = 10;
+  const [searchPage, setSearchPage] = useState(0);
+
+  // Expandable abstracts
+  const [expandedAbstracts, setExpandedAbstracts] = useState<Record<string, boolean>>({});
+
   // Filters
   const [yearFrom, setYearFrom] = useState<string>('');
   const [yearTo, setYearTo] = useState<string>('');
@@ -118,6 +125,7 @@ export default function SearchPage() {
       });
       setQuery(pastQuery);
       setSelected({});
+      setSearchPage(0);
       setBatchJobId(null);
       setBatchJob(null);
       setBatchModalOpen(false);
@@ -158,6 +166,7 @@ export default function SearchPage() {
       const r = await api.post('/search/federated', payload);
       setData(r.data as SearchResponse);
       setSelected({});
+      setSearchPage(0);
       setBatchJobId(null);
       setBatchJob(null);
       setBatchModalOpen(false);
@@ -470,44 +479,75 @@ export default function SearchPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {data.results.map((r, idx) => {
-              const key = r.doi || r.pmid || String(idx);
-              const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid || r.oa_url);
-              const isSelected = Boolean(selected[key]);
-              const srcLabel = SOURCE_LABELS[r.source || ''] || r.source || '—';
-              const srcColor = SOURCE_COLORS[r.source || ''] || '#6b7280';
-              return (
-                <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <input type="checkbox" disabled={!canDownload} checked={isSelected} onChange={() => toggleSelect(key)} title={canDownload ? 'Select for batch download' : 'Not eligible'} style={{ marginTop: 3 }} />
-                    <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
-                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: srcColor + '18', color: srcColor, border: `1px solid ${srcColor}40`, whiteSpace: 'nowrap' }}>
-                        {srcLabel}
-                      </span>
-                      {r.is_open_access ? <span className="rc-badge rc-badge--success">OA</span> : <span className="rc-badge">Closed</span>}
-                    </div>
-                  </div>
+            {(() => {
+              const totalPages = Math.ceil((data.results.length || 1) / SEARCH_PAGE_SIZE);
+              const start = searchPage * SEARCH_PAGE_SIZE;
+              const pageResults = data.results.slice(start, start + SEARCH_PAGE_SIZE);
 
-                  <div className="rc-help">
-                    {(r.journal || '—')}{r.pub_year ? ` · ${r.pub_year}` : ''}
-                    {r.doi ? ` · DOI: ${r.doi}` : ''}
-                    {r.pmid ? ` · PMID: ${r.pmid}` : ''}
-                    {r.relevance_score != null ? ` · Score: ${(r.relevance_score * 100).toFixed(0)}%` : ''}
-                  </div>
+              return (<>
+                {pageResults.map((r, localIdx) => {
+                  const idx = start + localIdx;
+                  const key = r.doi || r.pmid || String(idx);
+                  const canDownload = Boolean(r.is_open_access) && Boolean(r.doi || r.pmid || r.oa_url);
+                  const isSelected = Boolean(selected[key]);
+                  const srcLabel = SOURCE_LABELS[r.source || ''] || r.source || '—';
+                  const srcColor = SOURCE_COLORS[r.source || ''] || '#6b7280';
+                  const isExpanded = Boolean(expandedAbstracts[key]);
+                  return (
+                    <div key={key} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <input type="checkbox" disabled={!canDownload} checked={isSelected} onChange={() => toggleSelect(key)} title={canDownload ? 'Select for batch download' : 'Not eligible'} style={{ marginTop: 3 }} />
+                        <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
+                        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: srcColor + '18', color: srcColor, border: `1px solid ${srcColor}40`, whiteSpace: 'nowrap' }}>
+                            {srcLabel}
+                          </span>
+                          {r.is_open_access ? <span className="rc-badge rc-badge--success">OA</span> : <span className="rc-badge">Closed</span>}
+                        </div>
+                      </div>
 
-                  {r.abstract ? <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'hidden', maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)' }}>{r.abstract}</div> : null}
+                      <div className="rc-help">
+                        {(r.journal || '—')}{r.pub_year ? ` · ${r.pub_year}` : ''}
+                        {r.doi ? ` · DOI: ${r.doi}` : ''}
+                        {r.pmid ? ` · PMID: ${r.pmid}` : ''}
+                        {r.relevance_score != null ? ` · Score: ${(r.relevance_score * 100).toFixed(0)}%` : ''}
+                      </div>
 
-                  <div className="rc-row" style={{ flexWrap: 'wrap', gap: 6 }}>
-                    <button className="rc-btn" disabled={!canDownload || downloadingKey === (r.doi || r.pmid || r.title)} onClick={() => downloadOA(r)}>
-                      {downloadingKey === (r.doi || r.pmid || r.title) ? 'Downloading…' : 'Download OA PDF'}
-                    </button>
-                    {r.oa_url ? (
-                      <a href={r.oa_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, wordBreak: 'break-all' }}>OA link ↗</a>
-                    ) : null}
-                    {!r.is_open_access ? <span className="rc-help">Not marked OA by provider metadata.</span> : null}
-                    {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID/URL to download PDF.</span> : null}
-                  </div>
+                      {r.abstract ? (
+                        <div>
+                          <div style={{
+                            fontSize: 13,
+                            whiteSpace: 'pre-wrap',
+                            ...(isExpanded ? {} : {
+                              maxHeight: 80,
+                              overflow: 'hidden',
+                              maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+                              WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+                            }),
+                          }}>
+                            {r.abstract}
+                          </div>
+                          {r.abstract.length > 200 && (
+                            <button
+                              onClick={() => setExpandedAbstracts((p) => ({ ...p, [key]: !p[key] }))}
+                              style={{ background: 'none', border: 'none', color: 'var(--rc-accent, #6366f1)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '2px 0', marginTop: 2 }}
+                            >
+                              {isExpanded ? 'Show less ▲' : 'Show more ▼'}
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+
+                      <div className="rc-row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                        <button className="rc-btn" disabled={!canDownload || downloadingKey === (r.doi || r.pmid || r.title)} onClick={() => downloadOA(r)}>
+                          {downloadingKey === (r.doi || r.pmid || r.title) ? 'Downloading…' : 'Download OA PDF'}
+                        </button>
+                        {r.oa_url ? (
+                          <a href={r.oa_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, wordBreak: 'break-all' }}>OA link ↗</a>
+                        ) : null}
+                        {!r.is_open_access ? <span className="rc-help">Not marked OA by provider metadata.</span> : null}
+                        {r.is_open_access && !canDownload ? <span className="rc-help">OA, but missing DOI/PMID/URL to download PDF.</span> : null}
+                      </div>
 
                   {/* Download traceability */}
                   {(() => {
@@ -542,6 +582,23 @@ export default function SearchPage() {
                 </div>
               );
             })}
+
+                {/* Pagination controls */}
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '10px 0' }}>
+                    <button className="rc-btn" disabled={searchPage === 0} onClick={() => setSearchPage((p) => Math.max(0, p - 1))} style={{ padding: '4px 12px', fontSize: 12 }}>
+                      ← Prev
+                    </button>
+                    <span style={{ fontSize: 13, color: 'var(--rc-muted)' }}>
+                      Page {searchPage + 1} of {totalPages} ({data.results.length} results)
+                    </span>
+                    <button className="rc-btn" disabled={searchPage >= totalPages - 1} onClick={() => setSearchPage((p) => Math.min(totalPages - 1, p + 1))} style={{ padding: '4px 12px', fontSize: 12 }}>
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </>);
+            })()}
           </div>
         </div>
       ) : (
