@@ -63,7 +63,9 @@ export default function SearchPage() {
   type DownloadInfo = {
     status: 'saved' | 'duplicate' | 'error';
     source_provider?: string | null;
-    oa_url?: string | null;
+    oa_url?: string | null;          // resolved URL actually used
+    original_oa_url?: string | null; // URL from search result (what user saw)
+    used_fallback?: boolean;
     error?: string | null;
   };
   const [downloadResults, setDownloadResults] = useState<Record<string, DownloadInfo>>({});
@@ -194,15 +196,24 @@ export default function SearchPage() {
 
       const resp = await api.post('/papers/download', payload);
       const duplicate = Boolean(resp.data?.duplicate);
-      const srcProvider = resp.data?.source_provider || null;
-      const usedUrl = resp.data?.oa_url || null;
+      const srcProvider: string | null = resp.data?.source_provider || null;
+      const resolvedUrl: string | null = resp.data?.oa_url || null;
+      const originalUrl: string | null = r.oa_url || null;
+
+      // Fallback = we sent an oa_url but backend resolved a different one
+      const usedFallback = Boolean(
+        originalUrl && resolvedUrl && srcProvider !== 'user_provided_oa' &&
+        originalUrl !== resolvedUrl
+      );
 
       setDownloadResults((prev) => ({
         ...prev,
         [key]: {
           status: duplicate ? 'duplicate' : 'saved',
           source_provider: srcProvider,
-          oa_url: usedUrl,
+          oa_url: resolvedUrl,
+          original_oa_url: originalUrl,
+          used_fallback: usedFallback,
         },
       }));
 
@@ -215,11 +226,16 @@ export default function SearchPage() {
 
       if (duplicate) {
         toast.info('Duplicate', 'Paper already exists in this project.');
+      } else if (usedFallback) {
+        toast.info(
+          'Downloaded (fallback)',
+          `OA link failed. Resolved via ${providerLabel || 'resolver'}.`,
+        );
       } else {
         toast.info(
           'Downloaded',
           providerLabel
-            ? `Saved via ${providerLabel}${usedUrl ? ` — ${usedUrl.slice(0, 60)}…` : ''}`
+            ? `Saved via ${providerLabel}${resolvedUrl ? ` — ${resolvedUrl.slice(0, 60)}…` : ''}`
             : 'Downloaded and saved.',
         );
       }
@@ -560,19 +576,24 @@ export default function SearchPage() {
                       : dlInfo.source_provider || null;
 
                     if (dlInfo.status === 'saved') return (
-                      <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontWeight: 700, color: '#059669' }}>✓ Downloaded</span>
+                      <div data-testid="trace-saved" style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: dlInfo.used_fallback ? 'rgba(234,179,8,0.08)' : 'rgba(16,185,129,0.08)', border: `1px solid ${dlInfo.used_fallback ? 'rgba(234,179,8,0.25)' : 'rgba(16,185,129,0.2)'}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontWeight: 700, color: dlInfo.used_fallback ? '#b45309' : '#059669' }}>
+                          {dlInfo.used_fallback ? '⚠ Downloaded (fallback)' : '✓ Downloaded'}
+                        </span>
+                        {dlInfo.used_fallback && dlInfo.original_oa_url && (
+                          <span style={{ color: 'var(--rc-muted)', wordBreak: 'break-all' }}>Original OA link failed: {dlInfo.original_oa_url}</span>
+                        )}
                         {providerLabel && <span style={{ color: 'var(--rc-muted)' }}>Source: {providerLabel}</span>}
-                        {dlInfo.oa_url && <span style={{ color: 'var(--rc-muted)', wordBreak: 'break-all' }}>URL: {dlInfo.oa_url}</span>}
+                        {dlInfo.oa_url && <span style={{ color: 'var(--rc-muted)', wordBreak: 'break-all' }}>Resolved URL: {dlInfo.oa_url}</span>}
                       </div>
                     );
                     if (dlInfo.status === 'duplicate') return (
-                      <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                      <div data-testid="trace-duplicate" style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
                         <span style={{ fontWeight: 700, color: '#6366f1' }}>↻ Already in project</span>
                       </div>
                     );
                     if (dlInfo.status === 'error') return (
-                      <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                      <div data-testid="trace-error" style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
                         <span style={{ fontWeight: 700, color: '#ef4444' }}>✗ Failed</span>
                         {dlInfo.error && <span style={{ color: 'var(--rc-muted)', marginLeft: 6 }}>{dlInfo.error}</span>}
                       </div>

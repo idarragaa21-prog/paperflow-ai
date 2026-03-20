@@ -3,26 +3,28 @@ import type { AxiosInstance } from 'axios';
 import { getCookie } from './cookies';
 
 /**
- * API base URL resolution strategy:
+ * API base URL resolution:
  *   1. Explicit VITE_API_BASE_URL env var (always wins)
- *   2. In production: same-origin (assumes reverse proxy or co-located backend)
- *   3. In development: http://127.0.0.1:8000 (local FastAPI)
+ *   2. In production without demo mode: same-origin (reverse proxy)
+ *   3. In development: http://127.0.0.1:8000
+ *   4. In demo mode: empty string (calls are intercepted by demo layer anyway)
  */
 function resolveBaseUrl(): string {
   const explicit = import.meta.env.VITE_API_BASE_URL;
   if (explicit) return explicit;
 
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
   if (import.meta.env.PROD) {
-    // Production without explicit URL → assume same-origin reverse proxy.
-    // This works with Vercel rewrites, nginx proxy_pass, etc.
-    console.warn(
-      '[PaperFlow] VITE_API_BASE_URL not set in production build. ' +
-      'Using same-origin (/). Set VITE_API_BASE_URL if backend is on a different host.',
-    );
+    if (!isDemoMode) {
+      console.warn(
+        '[PaperFlow] VITE_API_BASE_URL not set in production. ' +
+        'Using same-origin. Set VITE_API_BASE_URL if backend is on a different host.',
+      );
+    }
     return '';
   }
 
-  // Development fallback
   return 'http://127.0.0.1:8000';
 }
 
