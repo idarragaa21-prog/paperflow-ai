@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master, feat/*]
+    branches: [master, feat/*, fix/*]
   pull_request:
     branches: [master]
 
@@ -13,6 +13,30 @@ jobs:
     defaults:
       run:
         working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: paperflow_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d paperflow_test"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
 
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +54,7 @@ jobs:
       - name: Run tests
         run: pytest -q --tb=short -x
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///./test.db"
+          DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/paperflow_test"
           SECRET_KEY: "ci-test-secret"
           REDIS_URL: "redis://localhost:6379/0"
           STORAGE_BACKEND: "filesystem"

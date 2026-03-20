@@ -87,8 +87,13 @@ class Settings(BaseSettings):
     CLAUDE_TEMPERATURE: float = 0.3
 
     # CORS
-    # Vite dev server typically runs on localhost:5173 or 127.0.0.1:5173
+    # Default: localhost dev servers. Override via env for production.
+    # Example: BACKEND_CORS_ORIGINS=["https://app.paperflow.ai","https://paperflow.ai"]
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    # Cookie domain — set via env for production.
+    # None = browser default (current domain only). Set to ".yourdomain.com" for subdomains.
+    COOKIE_DOMAIN: str | None = None
 
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = True
@@ -109,7 +114,7 @@ class Settings(BaseSettings):
 
     @property
     def cookie_domain(self) -> str | None:
-        return None if self.ENV == "development" else "yourdomain.com"
+        return self.COOKIE_DOMAIN
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -85,6 +85,10 @@ export default function PapersPage() {
   const [dismissBanner, setDismissBanner] = useState(false);
   const pollRef = useRef<number | null>(null);
 
+  // Pagination
+  const LIB_PAGE_SIZE = 25;
+  const [libPage, setLibPage] = useState(0);
+
   const load = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
@@ -127,6 +131,9 @@ export default function PapersPage() {
       return true;
     });
   }, [papers, search, statusFilter]);
+
+  // Reset page when filter/search changes
+  useEffect(() => { setLibPage(0); }, [search, statusFilter]);
 
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
   function toggleAll() {
@@ -317,7 +324,7 @@ export default function PapersPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => {
+              {filtered.slice(libPage * LIB_PAGE_SIZE, (libPage + 1) * LIB_PAGE_SIZE).map(p => {
                 const st = statusTag(p.processing_status);
                 const isReady = ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase());
                 return (
@@ -354,6 +361,24 @@ export default function PapersPage() {
               })}
             </tbody>
           </table>
+          {/* Library pagination */}
+          {(() => {
+            const totalPages = Math.ceil(filtered.length / LIB_PAGE_SIZE);
+            if (totalPages <= 1) return null;
+            return (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '12px 0' }}>
+                <button className="rc-btn" disabled={libPage === 0} onClick={() => setLibPage((p) => Math.max(0, p - 1))} style={{ padding: '4px 12px', fontSize: 12 }}>
+                  ← Prev
+                </button>
+                <span style={{ fontSize: 13, color: 'var(--rc-muted)' }}>
+                  Page {libPage + 1} of {totalPages} ({filtered.length} papers)
+                </span>
+                <button className="rc-btn" disabled={libPage >= totalPages - 1} onClick={() => setLibPage((p) => Math.min(totalPages - 1, p + 1))} style={{ padding: '4px 12px', fontSize: 12 }}>
+                  Next →
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
 
