@@ -108,7 +108,15 @@ async def batch_download_papers(
                 items.append(dict(trace))
                 continue
 
-            resolution = await downloader.resolve_open_access_target(doi=doi, pmid=pmid, pmcid=pmcid, client=client)
+            try:
+                resolution = await downloader.resolve_open_access_target(
+                    doi=doi,
+                    pmid=pmid,
+                    pmcid=pmcid,
+                    client=client,
+                )
+            except Exception as exc:
+                raise PaperServiceError(str(exc)) from exc
             trace.update(
                 source_provider=resolution.source,
                 oa_url=resolution.oa_url,
