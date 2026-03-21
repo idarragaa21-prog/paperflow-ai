@@ -31,80 +31,98 @@ async def collect_runtime_health() -> dict:
     }
     optional_services: dict[str, dict] = {}
 
-    try:
-        from qdrant_client import QdrantClient
+    async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0)) as client:
+        async def check_s3() -> tuple[str, dict]:
+            if settings.STORAGE_BACKEND != "s3":
+                return "s3", {"status": "disabled", "bucket": settings.S3_BUCKET}
+            try:
+                response = await client.get(settings.S3_ENDPOINT_URL.rstrip("/"), follow_redirects=True)
+                status = "ok" if response.status_code < 500 else "down"
+                return "s3", {
+                    "status": status,
+                    "bucket": settings.S3_BUCKET,
+                    "endpoint": settings.S3_ENDPOINT_URL,
+                    "detail": f"HTTP {response.status_code}",
+                }
+            except Exception as exc:
+                return "s3", {
+                    "status": "down",
+                    "detail": str(exc),
+                    "bucket": settings.S3_BUCKET,
+                    "endpoint": settings.S3_ENDPOINT_URL,
+                }
 
-        client = await asyncio.to_thread(QdrantClient, url=settings.QDRANT_URL, timeout=2.0)
-        await asyncio.to_thread(client.get_collections)
-        required_services["qdrant"] = {"status": "ok"}
-    except Exception as exc:
-        required_services["qdrant"] = {"status": "down", "detail": str(exc)}
+        async def check_qdrant() -> tuple[str, dict]:
+            try:
+                response = await client.get(f"{settings.QDRANT_URL.rstrip('/')}/collections")
+                response.raise_for_status()
+                payload = response.json() or {}
+                collections = (payload.get("result") or {}).get("collections") or []
+                return "qdrant", {"status": "ok", "collections": len(collections)}
+            except Exception as exc:
+                return "qdrant", {"status": "down", "detail": str(exc)}
 
-    if settings.STORAGE_BACKEND == "s3":
-        try:
-            await asyncio.to_thread(storage_manager.ensure_bucket)
-            required_services["s3"] = {"status": "ok", "bucket": settings.S3_BUCKET}
-        except Exception as exc:
-            required_services["s3"] = {"status": "down", "detail": str(exc), "bucket": settings.S3_BUCKET}
-
-    async with httpx.AsyncClient(timeout=3.0) as client:
-        for label, url in {
-            "r_engine": f"{settings.R_ENGINE_URL.rstrip('/')}/health",
-            "grobid": f"{settings.GROBID_URL.rstrip('/')}/api/isalive",
-        }.items():
+        async def check_service(label: str, url: str, *, ok_bodies: set[str] | None = None) -> tuple[str, dict]:
             try:
                 response = await client.get(url)
                 response.raise_for_status()
                 body = response.text.strip()
-                healthy = body.lower() in {"ok", "true"} or label == "r_engine"
-                required_services[label] = {"status": "ok" if healthy else "down", "detail": body[:200]}
+                healthy = ok_bodies is None or body.lower() in ok_bodies
+                return label, {"status": "ok" if healthy else "down", "detail": body[:200]}
             except Exception as exc:
-                required_services[label] = {"status": "down", "detail": str(exc)}
+                return label, {"status": "down", "detail": str(exc)}
 
-        try:
-            response = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
-            response.raise_for_status()
-            payload = response.json() or {}
-            available_models = {
-                model_name
-                for item in payload.get("models") or []
-                for model_name in (item.get("name") or item.get("model"),)
-                if model_name
-            }
-            configured_models = {
-                "chat": _configured_model_payload(name=settings.PAPERFLOW_CHAT_MODEL, available_models=available_models),
-                "embedding": _configured_model_payload(
-                    name=settings.PAPERFLOW_EMBEDDING_MODEL,
-                    available_models=available_models,
-                ),
-                "extraction": _configured_model_payload(
-                    name=settings.PAPERFLOW_EXTRACTION_MODEL,
-                    available_models=available_models,
-                ),
-            }
-            missing_models = [item["name"] for item in configured_models.values() if not item["available"]]
-            required_services["ollama"] = {
-                "status": "degraded" if missing_models else "ok",
-                "base_url": settings.OLLAMA_BASE_URL,
-                "models": len(available_models),
-                "available_models": sorted(available_models),
-                "configured_models": configured_models,
-            }
-            if missing_models:
-                required_services["ollama"]["detail"] = "Missing configured models: " + ", ".join(missing_models)
-        except Exception as exc:
-            required_services["ollama"] = {"status": "down", "detail": str(exc), "base_url": settings.OLLAMA_BASE_URL}
-
-        for label, url in {
-            "prometheus": "http://127.0.0.1:9090/-/ready",
-            "grafana": "http://127.0.0.1:3001/api/health",
-        }.items():
+        async def check_ollama() -> tuple[str, dict]:
             try:
-                response = await client.get(url)
+                response = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
                 response.raise_for_status()
-                optional_services[label] = {"status": "ok", "detail": response.text.strip()[:200]}
+                payload = response.json() or {}
+                available_models = {
+                    model_name
+                    for item in payload.get("models") or []
+                    for model_name in (item.get("name") or item.get("model"),)
+                    if model_name
+                }
+                configured_models = {
+                    "chat": _configured_model_payload(name=settings.PAPERFLOW_CHAT_MODEL, available_models=available_models),
+                    "embedding": _configured_model_payload(
+                        name=settings.PAPERFLOW_EMBEDDING_MODEL,
+                        available_models=available_models,
+                    ),
+                    "extraction": _configured_model_payload(
+                        name=settings.PAPERFLOW_EXTRACTION_MODEL,
+                        available_models=available_models,
+                    ),
+                }
+                missing_models = [item["name"] for item in configured_models.values() if not item["available"]]
+                payload_out = {
+                    "status": "degraded" if missing_models else "ok",
+                    "base_url": settings.OLLAMA_BASE_URL,
+                    "models": len(available_models),
+                    "available_models": sorted(available_models),
+                    "configured_models": configured_models,
+                }
+                if missing_models:
+                    payload_out["detail"] = "Missing configured models: " + ", ".join(missing_models)
+                return "ollama", payload_out
             except Exception as exc:
-                optional_services[label] = {"status": "down", "detail": str(exc)}
+                return "ollama", {"status": "down", "detail": str(exc), "base_url": settings.OLLAMA_BASE_URL}
+
+        results = await asyncio.gather(
+            check_s3(),
+            check_qdrant(),
+            check_service("r_engine", f"{settings.R_ENGINE_URL.rstrip('/')}/health"),
+            check_service("grobid", f"{settings.GROBID_URL.rstrip('/')}/api/isalive", ok_bodies={"ok", "true"}),
+            check_ollama(),
+            check_service("prometheus", "http://127.0.0.1:9090/-/ready"),
+            check_service("grafana", "http://127.0.0.1:3001/api/health"),
+        )
+
+        for label, payload in results:
+            if label in {"prometheus", "grafana"}:
+                optional_services[label] = payload
+            else:
+                required_services[label] = payload
 
     overall = "ok"
     if any(item["status"] == "down" for item in required_services.values()):
