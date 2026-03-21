@@ -31,17 +31,6 @@ from app.services.vector_index import vector_index
 router = APIRouter(prefix="/papers", tags=["papers"])
 
 
-def _safe_abs_path(relative_path: str) -> Path:
-    if storage_manager.is_s3:
-        raise HTTPException(status_code=400, detail="S3-backed files do not have a local path")
-    full_path = (storage_manager.base_dir / relative_path).resolve()
-    try:
-        full_path.relative_to(storage_manager.base_dir)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid file path")
-    return full_path
-
-
 def get_repo(db: AsyncSession = Depends(get_db)) -> SQLPaperRepository:
     return SQLPaperRepository(db)
 
@@ -429,7 +418,7 @@ async def download_paper_file(
             headers={"Content-Disposition": f'attachment; filename="{paper.filename}"'},
         )
 
-    abs_path = _safe_abs_path(paper.file_path)
+    abs_path = storage_manager.safe_abs_path(paper.file_path)
     if not abs_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(abs_path, filename=paper.filename, media_type="application/pdf")

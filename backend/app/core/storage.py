@@ -231,6 +231,26 @@ class StorageManager:
             "exists": True,
         }
 
+    def safe_abs_path(self, relative_path: str) -> Path:
+        """Resolve *relative_path* to an absolute path inside base_dir.
+
+        Raises HTTPException 400 on path traversal or S3 backend (callers that
+        need a local filesystem path must guard against S3 themselves).
+
+        This is the single canonical implementation — routers should call this
+        instead of defining their own ``_safe_abs_path`` helpers.
+        """
+        from fastapi import HTTPException  # local import to avoid circular
+
+        if self.is_s3:
+            raise HTTPException(status_code=400, detail="S3-backed files do not have a local path")
+        full_path = (self.base_dir / relative_path).resolve()
+        try:
+            full_path.relative_to(self.base_dir)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid file path")
+        return full_path
+
     @contextmanager
     def local_path(self, file_path: str, *, suffix: str | None = None) -> Iterator[Path]:
         if self.is_s3:

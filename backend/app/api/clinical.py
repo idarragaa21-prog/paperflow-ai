@@ -20,17 +20,6 @@ from app.services.jobs import get_job_queue
 router = APIRouter(prefix="/clinical", tags=["clinical"])
 
 
-def _safe_abs_path(relative_path: str):
-    from pathlib import Path
-
-    full_path = (storage_manager.base_dir / relative_path).resolve()
-    try:
-        full_path.relative_to(storage_manager.base_dir)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid file path")
-    return full_path
-
-
 @router.post("/generate")
 @limiter.limit("3/minute")
 async def generate_sheet(
@@ -323,7 +312,7 @@ async def export_docx(
     exp = (s.sources_used or {}).get("exports") if isinstance(s.sources_used, dict) else None
     rel = exp.get("docx") if isinstance(exp, dict) else None
     if rel:
-        abs_path = _safe_abs_path(str(rel))
+        abs_path = storage_manager.safe_abs_path(str(rel))
         if abs_path.exists():
             return FileResponse(
                 abs_path,
@@ -340,7 +329,7 @@ async def export_docx(
     s.sources_used = su
     await db.commit()
 
-    abs_path = _safe_abs_path(rel_path)
+    abs_path = storage_manager.safe_abs_path(rel_path)
     return FileResponse(
         abs_path,
         filename=f"clinical_{sheet_id}_v{s.version}.docx",
@@ -393,7 +382,7 @@ async def download_sheet(
         s.sources_used = su
         await db.commit()
 
-    abs_path = _safe_abs_path(str(rel))
+    abs_path = storage_manager.safe_abs_path(str(rel))
     if not abs_path.exists():
         raise HTTPException(status_code=404, detail="Export file not found")
 
@@ -421,7 +410,7 @@ async def export_pdf(
     exp = (s.sources_used or {}).get("exports") if isinstance(s.sources_used, dict) else None
     rel = exp.get("pdf") if isinstance(exp, dict) else None
     if rel:
-        abs_path = _safe_abs_path(str(rel))
+        abs_path = storage_manager.safe_abs_path(str(rel))
         if abs_path.exists():
             return FileResponse(abs_path, filename=f"clinical_{sheet_id}_v{s.version}.pdf", media_type="application/pdf")
 
@@ -433,5 +422,5 @@ async def export_pdf(
     s.sources_used = su
     await db.commit()
 
-    abs_path = _safe_abs_path(rel_path)
+    abs_path = storage_manager.safe_abs_path(rel_path)
     return FileResponse(abs_path, filename=f"clinical_{sheet_id}_v{s.version}.pdf", media_type="application/pdf")
