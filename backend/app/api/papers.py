@@ -17,6 +17,7 @@ from app.models.paper import Paper
 from app.models.user import User
 from app.schemas.papers import (
     BatchDownloadPaperRef,
+    PapersBatchDownloadQueuedResponse,
     PaperDeleteResponse,
     PaperDownloadRequest,
     PaperRecordResponse,
@@ -133,6 +134,7 @@ async def download_paper(
         source_provider=dl.source,
         source_type="download",
         is_open_access=True,
+        oa_url=dl.oa_url or dl.resolved_url,
         filename=saved["filename"],
         file_path=saved["file_path"],
         file_size_kb=saved["size_kb"],
@@ -174,7 +176,7 @@ async def download_paper(
     return _paper_to_response(paper)
 
 
-@router.post("/batch-download")
+@router.post("/batch-download", response_model=PapersBatchDownloadQueuedResponse)
 @limiter.limit("5/minute")
 async def batch_download(
     request: Request,
@@ -232,7 +234,7 @@ async def batch_download(
         request=request,
     )
 
-    return {"job_id": str(job_record.id)}
+    return {"job_id": job_record.id}
 
 
 @router.post("/upload", response_model=PaperRecordResponse)

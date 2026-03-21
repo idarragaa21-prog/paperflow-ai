@@ -1,5 +1,14 @@
 # React + TypeScript + Vite
 
+## Production API configuration
+
+PaperFlow production does not rely on an empty or implicit `VITE_API_BASE_URL`.
+
+- Local development defaults to `http://127.0.0.1:8000`
+- Production requires an explicit `VITE_API_BASE_URL` pointing to the deployed backend origin
+- Same-origin `/api` mode is opt-in via `VITE_USE_SAME_ORIGIN_API=true` and should only be used when the host really proxies `/api/*`
+- The root `vercel.json` is configured to keep `/api/*` out of the SPA rewrite, so Vercel will not silently serve `index.html` for missing API routes
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

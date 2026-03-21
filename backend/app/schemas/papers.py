@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -55,3 +56,30 @@ class BatchDownloadPaperRef(BaseModel):
 class PapersBatchDownloadRequest(BaseModel):
     project_id: UUID
     papers: list[BatchDownloadPaperRef] = Field(default_factory=list)
+
+
+class BatchDownloadTraceItemResponse(BaseModel):
+    title: str
+    pmid: str | None = None
+    pmcid: str | None = None
+    doi: str | None = None
+    paper_id: str | None = None
+    source_provider: str | None = None
+    oa_url: str | None = None
+    landing_url: str | None = None
+    resolved_url: str | None = None
+    used_fallback: bool = False
+    final_status: Literal["downloaded", "existing", "unavailable", "failed"]
+    failure_reason: str | None = None
+
+
+class BatchDownloadOutputResponse(BaseModel):
+    items: list[BatchDownloadTraceItemResponse] = Field(default_factory=list)
+    downloaded: list[BatchDownloadTraceItemResponse] = Field(default_factory=list)
+    already_exists: list[BatchDownloadTraceItemResponse] = Field(default_factory=list)
+    not_available: list[BatchDownloadTraceItemResponse] = Field(default_factory=list)
+    failed: list[BatchDownloadTraceItemResponse] = Field(default_factory=list)
+
+
+class PapersBatchDownloadQueuedResponse(BaseModel):
+    job_id: UUID

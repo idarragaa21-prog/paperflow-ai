@@ -526,7 +526,7 @@ def batch_download_papers_job(job_db_id: str, project_id: str, papers: list[dict
                 5,
                 status="started",
                 result_patch={
-                    "output": {"downloaded": [], "already_exists": [], "not_available": [], "failed": []},
+                    "output": {"items": [], "downloaded": [], "already_exists": [], "not_available": [], "failed": []},
                     "warnings": [],
                     "errors": [],
                 },
@@ -557,9 +557,10 @@ def batch_download_papers_job(job_db_id: str, project_id: str, papers: list[dict
 
                 import httpx
 
-                async def _progress(done: int, total: int) -> None:
+                async def _progress(done: int, total: int, snapshot: dict[str, Any] | None = None) -> None:
                     pct = 5 + int((done / max(total, 1)) * 90)
-                    await job_set_progress(job_uuid, pct, status="progress")
+                    result_patch = {"output": snapshot} if snapshot is not None else None
+                    await job_set_progress(job_uuid, pct, status="progress", result_patch=result_patch)
 
                 async with httpx.AsyncClient() as client:
                     res = await batch_download_papers(
@@ -572,12 +573,7 @@ def batch_download_papers_job(job_db_id: str, project_id: str, papers: list[dict
                         progress_cb=_progress,
                     )
 
-            out = {
-                "downloaded": res.downloaded,
-                "already_exists": res.already_exists,
-                "not_available": res.not_available,
-                "failed": res.failed,
-            }
+            out = res.to_output()
 
             await job_mark_completed(job_uuid, result={"output": out, "warnings": [], "errors": []})
             return out

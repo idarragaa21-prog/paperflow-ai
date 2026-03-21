@@ -2,7 +2,42 @@ import axios, { AxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { getCookie } from './cookies';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const PRODUCTION_API_SENTINEL = '__SET_PRODUCTION_API_BASE_URL__';
+
+function normalizeBaseUrl(value: string) {
+  if (value === '/api') return value;
+  return value.replace(/\/+$/, '');
+}
+
+function resolveApiBaseUrl() {
+  const explicitBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  const sameOriginOptIn = String(import.meta.env.VITE_USE_SAME_ORIGIN_API || '')
+    .trim()
+    .toLowerCase() === 'true';
+
+  if (explicitBaseUrl && explicitBaseUrl !== PRODUCTION_API_SENTINEL) {
+    if (!import.meta.env.DEV && explicitBaseUrl.startsWith('/') && !sameOriginOptIn) {
+      throw new Error(
+        'Relative production API base URLs require VITE_USE_SAME_ORIGIN_API=true and a real /api proxy configuration.',
+      );
+    }
+    return normalizeBaseUrl(explicitBaseUrl);
+  }
+
+  if (import.meta.env.DEV) {
+    return 'http://127.0.0.1:8000';
+  }
+
+  if (sameOriginOptIn) {
+    return '/api';
+  }
+
+  throw new Error(
+    'PaperFlow frontend is missing a production API base URL. Set VITE_API_BASE_URL to the deployed backend origin, or opt into a real same-origin proxy with VITE_USE_SAME_ORIGIN_API=true.',
+  );
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export const requestTimeouts = {
   default: 15_000,

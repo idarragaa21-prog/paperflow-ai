@@ -64,6 +64,49 @@ class FakeDownloader:
     def __init__(self, *, ok_url: str):
         self.europepmc = FakeResolver(ok_url, "europepmc")
         self.unpaywall = FakeResolver(ok_url, "unpaywall")
+        self.ok_url = ok_url
+
+    async def resolve_open_access_target(self, *, doi, pmid, pmcid=None, client):
+        if pmcid and pmid:
+            resolved = await self.europepmc.resolve_by_pmid(pmid, client)
+            return type(
+                "Resolution",
+                (),
+                {
+                    "source": resolved.source,
+                    "resolved_url": resolved.url_for_pdf,
+                    "oa_url": resolved.url_for_pdf,
+                    "landing_url": f"https://europepmc.org/article/MED/{pmid}",
+                    "used_fallback": False,
+                },
+            )
+        if doi:
+            resolved = await self.unpaywall.resolve(doi, client)
+            return type(
+                "Resolution",
+                (),
+                {
+                    "source": resolved.source,
+                    "resolved_url": resolved.url_for_pdf,
+                    "oa_url": resolved.url_for_pdf,
+                    "landing_url": f"https://doi.org/{doi}",
+                    "used_fallback": False,
+                },
+            )
+        if pmid:
+            resolved = await self.europepmc.resolve_by_pmid(pmid, client)
+            return type(
+                "Resolution",
+                (),
+                {
+                    "source": resolved.source,
+                    "resolved_url": resolved.url_for_pdf,
+                    "oa_url": resolved.url_for_pdf,
+                    "landing_url": f"https://europepmc.org/article/MED/{pmid}",
+                    "used_fallback": True,
+                },
+            )
+        raise RuntimeError("No OA source found")
 
 
 def _pdf_bytes() -> bytes:
@@ -102,6 +145,8 @@ async def test_batch_download_dedup(monkeypatch):
 
     assert len(res.downloaded) == 0
     assert len(res.already_exists) == 1
+    assert res.already_exists[0]["final_status"] == "existing"
+    assert res.items[0]["paper_id"] == str(existing.id)
 
 
 @pytest.mark.asyncio
@@ -131,6 +176,8 @@ async def test_batch_download_not_oa(monkeypatch):
         )
 
     assert len(res.not_available) == 1
+    assert res.not_available[0]["final_status"] == "unavailable"
+    assert res.not_available[0]["failure_reason"]
 
 
 @pytest.mark.asyncio
@@ -159,7 +206,12 @@ async def test_batch_download_job_result_structure(monkeypatch):
             papers=[{"pmid": "999", "title": "T"}],
         )
 
+    assert hasattr(res, "items")
     assert hasattr(res, "downloaded")
     assert hasattr(res, "already_exists")
     assert hasattr(res, "not_available")
     assert hasattr(res, "failed")
+    assert res.items[0]["final_status"] == "downloaded"
+    assert res.items[0]["source_provider"] == "europepmc"
+    assert res.items[0]["oa_url"] == "https://example.com/x.pdf"
+    assert res.items[0]["resolved_url"] == "https://example.com/x.pdf"

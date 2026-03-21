@@ -16,6 +16,8 @@ class OAResolverError(Exception):
 class OAResolved:
     url_for_pdf: str
     source: str
+    oa_url: str | None = None
+    landing_url: str | None = None
 
 
 def normalize_doi(value: str | None) -> str | None:
@@ -57,14 +59,16 @@ class UnpaywallResolver:
 
         best = data.get("best_oa_location") or {}
         pdf = best.get("url_for_pdf")
+        landing_url = best.get("url")
         if not pdf:
             for loc in data.get("oa_locations") or []:
                 pdf = (loc or {}).get("url_for_pdf")
                 if pdf:
+                    landing_url = (loc or {}).get("url") or landing_url
                     break
         if not pdf:
             raise OAResolverError("Unpaywall no devolvió URL PDF open-access")
-        return OAResolved(url_for_pdf=pdf, source="unpaywall")
+        return OAResolved(url_for_pdf=pdf, source="unpaywall", oa_url=pdf, landing_url=landing_url)
 
 
 class EuropePMCResolver:
@@ -103,7 +107,12 @@ class EuropePMCResolver:
                 break
         if not pdf_url:
             raise OAResolverError("Europe PMC no devolvió URL PDF open-access")
-        return OAResolved(url_for_pdf=pdf_url, source="europepmc")
+        return OAResolved(
+            url_for_pdf=pdf_url,
+            source="europepmc",
+            oa_url=pdf_url,
+            landing_url=f"https://europepmc.org/article/MED/{pmid}",
+        )
 
 
 class DOIContentNegotiationResolver:
@@ -122,7 +131,13 @@ class DOIContentNegotiationResolver:
         content_type = str(response.headers.get("content-type") or "").lower()
         if "pdf" not in content_type and not str(response.url).lower().endswith(".pdf"):
             raise OAResolverError("DOI resolution did not return a PDF")
-        return OAResolved(url_for_pdf=str(response.url), source="doi_content_negotiation")
+        landing_url = f"https://doi.org/{normalized_doi}"
+        return OAResolved(
+            url_for_pdf=str(response.url),
+            source="doi_content_negotiation",
+            oa_url=str(response.url),
+            landing_url=landing_url,
+        )
 
 
 async def resolve_open_access_pdf(

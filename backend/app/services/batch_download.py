@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -14,11 +15,41 @@ from app.services.paper_service import PaperServiceError, PaperDownloadService, 
 
 
 @dataclass
+class BatchDownloadTraceItem:
+    title: str
+    pmid: str | None
+    pmcid: str | None
+    doi: str | None
+    paper_id: str | None
+    source_provider: str | None
+    oa_url: str | None
+    landing_url: str | None
+    resolved_url: str | None
+    used_fallback: bool
+    final_status: str
+    failure_reason: str | None = None
+
+
+@dataclass
 class BatchDownloadResult:
+    items: list[dict[str, Any]]
     downloaded: list[dict[str, Any]]
     already_exists: list[dict[str, Any]]
     not_available: list[dict[str, Any]]
     failed: list[dict[str, Any]]
+
+    def to_output(self) -> dict[str, Any]:
+        return {
+            "items": self.items,
+            "downloaded": self.downloaded,
+            "already_exists": self.already_exists,
+            "not_available": self.not_available,
+            "failed": self.failed,
+        }
+
+
+def _trace_item(**kwargs: Any) -> dict[str, Any]:
+    return asdict(BatchDownloadTraceItem(**kwargs))
 
 
 async def batch_download_papers(
@@ -36,6 +67,7 @@ async def batch_download_papers(
     The returned structure is designed to be stored into Job.result.output.
     """
 
+    items: list[dict[str, Any]] = []
     downloaded: list[dict[str, Any]] = []
     already_exists: list[dict[str, Any]] = []
     not_available: list[dict[str, Any]] = []
@@ -47,52 +79,48 @@ async def batch_download_papers(
         pmcid = (it.get("pmcid") or None)
         doi = (it.get("doi") or None)
         title = (it.get("title") or None) or doi or pmid or "Paper"
+        trace: dict[str, Any] = _trace_item(
+            title=title,
+            pmid=pmid,
+            pmcid=pmcid,
+            doi=doi,
+            paper_id=None,
+            source_provider=None,
+            oa_url=None,
+            landing_url=None,
+            resolved_url=None,
+            used_fallback=False,
+            final_status="failed",
+            failure_reason=None,
+        )
 
         try:
             # Dedup 1: identifiers
             dup = await repo.find_duplicate_by_identifiers(project_id=project_id, pmid=pmid, doi=doi)
             if dup:
-                already_exists.append({"pmid": pmid, "title": title, "paper_id": str(dup.id)})
+                trace.update(
+                    paper_id=str(dup.id),
+                    source_provider=getattr(dup, "source_provider", None),
+                    oa_url=getattr(dup, "oa_url", None),
+                    final_status="existing",
+                )
+                already_exists.append(dict(trace))
+                items.append(dict(trace))
                 continue
 
-            # Resolve OA URL with required priority:
-            # 1) Europe PMC if PMCID exists (uses PMID query)
-            # 2) Unpaywall if DOI exists
-            # 3) otherwise not_available
-            resolved_url = None
-            source = None
-            last_err = None
+            resolution = await downloader.resolve_open_access_target(doi=doi, pmid=pmid, pmcid=pmcid, client=client)
+            trace.update(
+                source_provider=resolution.source,
+                oa_url=resolution.oa_url,
+                landing_url=resolution.landing_url,
+                resolved_url=resolution.resolved_url,
+                used_fallback=resolution.used_fallback,
+            )
 
-            if pmcid and pmid:
-                try:
-                    r = await downloader.europepmc.resolve_by_pmid(pmid, client)
-                    resolved_url, source = r.url_for_pdf, r.source
-                except Exception as e:
-                    last_err = str(e)
-
-            if (not resolved_url) and doi:
-                try:
-                    r = await downloader.unpaywall.resolve(doi, client)
-                    resolved_url, source = r.url_for_pdf, r.source
-                except Exception as e:
-                    last_err = str(e)
-
-            if (not resolved_url) and (not pmcid) and pmid:
-                # If no PMCID provided, still try EuropePMC as a fallback
-                try:
-                    r = await downloader.europepmc.resolve_by_pmid(pmid, client)
-                    resolved_url, source = r.url_for_pdf, r.source
-                except Exception as e:
-                    last_err = str(e)
-
-            if not resolved_url or not source:
-                not_available.append({"pmid": pmid, "title": title, "reason": last_err or "No OA source found"})
-                continue
-
-            # Download
-            resp = await client.get(resolved_url, timeout=60, follow_redirects=True)
+            resp = await client.get(resolution.resolved_url, timeout=60, follow_redirects=True)
             resp.raise_for_status()
             pdf_bytes = resp.content
+            trace["resolved_url"] = str(resp.url)
 
             if not storage_manager.validate_pdf(pdf_bytes):
                 ct = resp.headers.get("content-type")
@@ -103,7 +131,14 @@ async def batch_download_papers(
             # Dedup 2: content hash
             dup2 = await repo.find_duplicate_by_hash(project_id=project_id, content_hash=content_hash)
             if dup2:
-                already_exists.append({"pmid": pmid, "title": title, "paper_id": str(dup2.id)})
+                trace.update(
+                    paper_id=str(dup2.id),
+                    source_provider=getattr(dup2, "source_provider", None) or trace["source_provider"],
+                    oa_url=getattr(dup2, "oa_url", None) or trace["oa_url"],
+                    final_status="existing",
+                )
+                already_exists.append(dict(trace))
+                items.append(dict(trace))
                 continue
 
             saved = await storage_manager.save_paper_bytes(
@@ -119,10 +154,15 @@ async def batch_download_papers(
                 doi=doi,
                 pmid=pmid,
                 pmcid=pmcid,
+                source_provider=trace["source_provider"],
+                source_type="download",
+                is_open_access=True,
+                oa_url=trace["oa_url"] or trace["resolved_url"],
                 filename=saved["filename"],
                 file_path=saved["file_path"],
                 file_size_kb=saved["size_kb"],
                 content_hash=saved["content_hash"],
+                downloaded_at=datetime.utcnow(),
             )
 
             paper = await repo.create_paper(paper)
@@ -138,8 +178,9 @@ async def batch_download_papers(
                         entity_id=paper.id,
                         details={
                             "project_id": str(project_id),
-                            "source": source,
-                            "resolved_url": resolved_url,
+                            "source": trace["source_provider"],
+                            "resolved_url": trace["resolved_url"],
+                            "landing_url": trace["landing_url"],
                             "doi": doi,
                             "pmid": pmid,
                             "pmcid": pmcid,
@@ -152,24 +193,38 @@ async def batch_download_papers(
                 except Exception:
                     pass
 
-            downloaded.append({"pmid": pmid, "title": title, "paper_id": str(paper.id), "source": source})
+            trace.update(paper_id=str(paper.id), final_status="downloaded")
+            downloaded.append(dict(trace))
+            items.append(dict(trace))
         except PaperServiceError as e:
-            not_available.append({"pmid": pmid, "title": title, "reason": str(e)})
+            trace.update(final_status="unavailable", failure_reason=str(e))
+            not_available.append(dict(trace))
+            items.append(dict(trace))
         except Exception as e:
             logger.warning(f"batch download failed pmid={pmid} doi={doi}: {e}")
-            failed.append({"pmid": pmid, "title": title, "error": str(e)})
+            trace.update(final_status="failed", failure_reason=str(e))
+            failed.append(dict(trace))
+            items.append(dict(trace))
         finally:
             if progress_cb:
                 try:
                     import inspect
 
-                    r = progress_cb(idx + 1, total)
+                    snapshot = {
+                        "items": items,
+                        "downloaded": downloaded,
+                        "already_exists": already_exists,
+                        "not_available": not_available,
+                        "failed": failed,
+                    }
+                    r = progress_cb(idx + 1, total, snapshot)
                     if inspect.isawaitable(r):
                         await r
                 except Exception:
                     pass
 
     return BatchDownloadResult(
+        items=items,
         downloaded=downloaded,
         already_exists=already_exists,
         not_available=not_available,

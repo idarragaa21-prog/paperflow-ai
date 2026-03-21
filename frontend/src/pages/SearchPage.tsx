@@ -42,6 +42,29 @@ type SearchResponse = {
   warnings?: string[];
 };
 
+type BatchDownloadTraceItem = {
+  title: string;
+  pmid?: string | null;
+  pmcid?: string | null;
+  doi?: string | null;
+  paper_id?: string | null;
+  source_provider?: string | null;
+  oa_url?: string | null;
+  landing_url?: string | null;
+  resolved_url?: string | null;
+  used_fallback?: boolean;
+  final_status: 'downloaded' | 'existing' | 'unavailable' | 'failed';
+  failure_reason?: string | null;
+};
+
+type BatchJobOutput = {
+  items: BatchDownloadTraceItem[];
+  downloaded: BatchDownloadTraceItem[];
+  already_exists: BatchDownloadTraceItem[];
+  not_available: BatchDownloadTraceItem[];
+  failed: BatchDownloadTraceItem[];
+};
+
 type ResultUiState = {
   openStatus?: 'idle' | 'opening' | 'opened' | 'error';
   saveStatus?: 'idle' | 'saving' | 'saved' | 'duplicate' | 'error';
@@ -210,6 +233,61 @@ function providerMessages(providerStatus?: Record<string, string>) {
   });
 }
 
+function normalizeBatchItems(raw: unknown): BatchDownloadTraceItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => ({
+    title: String(item?.title || 'Paper'),
+    pmid: item?.pmid ? String(item.pmid) : null,
+    pmcid: item?.pmcid ? String(item.pmcid) : null,
+    doi: item?.doi ? String(item.doi) : null,
+    paper_id: item?.paper_id ? String(item.paper_id) : null,
+    source_provider: item?.source_provider ? String(item.source_provider) : null,
+    oa_url: item?.oa_url ? String(item.oa_url) : null,
+    landing_url: item?.landing_url ? String(item.landing_url) : null,
+    resolved_url: item?.resolved_url ? String(item.resolved_url) : null,
+    used_fallback: Boolean(item?.used_fallback),
+    final_status:
+      item?.final_status === 'downloaded' ||
+      item?.final_status === 'existing' ||
+      item?.final_status === 'unavailable' ||
+      item?.final_status === 'failed'
+        ? item.final_status
+        : 'failed',
+    failure_reason: item?.failure_reason ? String(item.failure_reason) : null,
+  }));
+}
+
+function normalizeBatchOutput(raw: unknown): BatchJobOutput | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const downloaded = normalizeBatchItems((raw as Record<string, unknown>).downloaded);
+  const alreadyExists = normalizeBatchItems((raw as Record<string, unknown>).already_exists);
+  const notAvailable = normalizeBatchItems((raw as Record<string, unknown>).not_available);
+  const failed = normalizeBatchItems((raw as Record<string, unknown>).failed);
+  const items = normalizeBatchItems((raw as Record<string, unknown>).items);
+
+  return {
+    items: items.length ? items : [...downloaded, ...alreadyExists, ...notAvailable, ...failed],
+    downloaded,
+    already_exists: alreadyExists,
+    not_available: notAvailable,
+    failed,
+  };
+}
+
+function batchStatusLabel(status: BatchDownloadTraceItem['final_status']) {
+  if (status === 'downloaded') return 'Descargado';
+  if (status === 'existing') return 'Ya existía';
+  if (status === 'unavailable') return 'No disponible';
+  return 'Falló';
+}
+
+function batchStatusClass(status: BatchDownloadTraceItem['final_status']) {
+  if (status === 'downloaded') return 'rc-discover-badge rc-discover-badge--strong';
+  if (status === 'existing') return 'rc-discover-badge';
+  if (status === 'unavailable') return 'rc-discover-badge rc-discover-badge--warning';
+  return 'rc-discover-badge rc-discover-badge--danger';
+}
+
 export default function SearchPage() {
   const { projectId } = useParams();
   const toast = useToast();
@@ -227,7 +305,7 @@ export default function SearchPage() {
   const [resultStates, setResultStates] = useState<Record<string, ResultUiState>>({});
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
-  const [batchJob, setBatchJob] = useState<{ status: string; progress: number; error?: string | null; output?: any } | null>(null);
+  const [batchJob, setBatchJob] = useState<{ status: string; progress: number; error?: string | null; output?: BatchJobOutput | null } | null>(null);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   const canSearch = useMemo(() => Boolean(projectId && query.trim().length >= 3), [projectId, query]);
@@ -373,7 +451,7 @@ export default function SearchPage() {
       });
       const jobId = String(response.data?.job_id || '');
       setBatchJobId(jobId);
-      setBatchJob({ status: 'queued', progress: 0, error: null });
+      setBatchJob({ status: 'queued', progress: 0, error: null, output: null });
       setBatchModalOpen(true);
     } catch (e: any) {
       setPageError(e?.response?.data?.detail || 'La descarga por lote falló');
@@ -405,7 +483,7 @@ export default function SearchPage() {
         const progress = Number(response.data?.progress_percent || 0);
         const error = response.data?.error || null;
         const result = response.data?.result || {};
-        const output = result?.output || result?.rq_result?.output;
+        const output = normalizeBatchOutput(result?.output || result?.rq_result?.output);
         if (alive) setBatchJob({ status, progress, error, output });
         if (status === 'completed' || status === 'failed' || status === 'cancelled') return;
       } catch (e: any) {
@@ -852,13 +930,91 @@ export default function SearchPage() {
             </div>
             <div style={{ height: 12 }} />
             {batchJob?.output ? (
-              <div className="rc-discover-badges">
-                <span className="rc-discover-badge rc-discover-badge--strong">
-                  Descargados: {batchJob.output?.downloaded?.length ?? 0}
-                </span>
-                <span className="rc-discover-badge">Ya existen: {batchJob.output?.already_exists?.length ?? 0}</span>
-                <span className="rc-discover-badge">No disponibles: {batchJob.output?.not_available?.length ?? 0}</span>
-                <span className="rc-discover-badge">Fallidos: {batchJob.output?.failed?.length ?? 0}</span>
+              <div className="rc-batch-trace">
+                <div className="rc-discover-badges">
+                  <span className="rc-discover-badge rc-discover-badge--strong">
+                    Descargados: {batchJob.output?.downloaded?.length ?? 0}
+                  </span>
+                  <span className="rc-discover-badge">Ya existen: {batchJob.output?.already_exists?.length ?? 0}</span>
+                  <span className="rc-discover-badge">No disponibles: {batchJob.output?.not_available?.length ?? 0}</span>
+                  <span className="rc-discover-badge">Fallidos: {batchJob.output?.failed?.length ?? 0}</span>
+                </div>
+
+                {batchJob.output.items.length ? (
+                  <div className="rc-batch-trace__list">
+                    {batchJob.output.items.map((item, index) => (
+                      <article key={`${item.title}-${index}`} data-testid={`batch-trace-row-${index}`} className="rc-batch-trace__card">
+                        <div className="rc-batch-trace__header">
+                          <div>
+                            <div className="rc-card-title" style={{ marginBottom: 4 }}>
+                              {item.title}
+                            </div>
+                            <div className="rc-help">
+                              {item.source_provider ? `Proveedor: ${providerLabel(item.source_provider)}` : 'Proveedor no resuelto'}
+                              {item.paper_id ? ` · Paper ID ${item.paper_id}` : ''}
+                            </div>
+                          </div>
+                          <div className="rc-discover-badges">
+                            <span className={batchStatusClass(item.final_status)}>{batchStatusLabel(item.final_status)}</span>
+                            {item.used_fallback ? <span className="rc-discover-badge">Usó fallback</span> : null}
+                          </div>
+                        </div>
+
+                        <div className="rc-batch-trace__meta">
+                          {item.doi ? <span>DOI: {item.doi}</span> : null}
+                          {item.pmid ? <span>PMID: {item.pmid}</span> : null}
+                          {item.pmcid ? <span>PMCID: {item.pmcid}</span> : null}
+                        </div>
+
+                        <div className="rc-batch-trace__grid">
+                          <div>
+                            <div className="rc-kicker">OA URL</div>
+                            {item.oa_url ? (
+                              <a href={item.oa_url} target="_blank" rel="noopener noreferrer">
+                                {item.oa_url}
+                              </a>
+                            ) : (
+                              <div className="rc-help">No disponible</div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="rc-kicker">Landing URL</div>
+                            {item.landing_url ? (
+                              <a href={item.landing_url} target="_blank" rel="noopener noreferrer">
+                                {item.landing_url}
+                              </a>
+                            ) : (
+                              <div className="rc-help">No disponible</div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="rc-kicker">URL final usada</div>
+                            {item.resolved_url ? (
+                              <a href={item.resolved_url} target="_blank" rel="noopener noreferrer">
+                                {item.resolved_url}
+                              </a>
+                            ) : (
+                              <div className="rc-help">No se llegó a resolver</div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="rc-kicker">Motivo final</div>
+                            <div className="rc-help">
+                              {item.failure_reason ||
+                                (item.final_status === 'downloaded'
+                                  ? 'PDF guardado en la biblioteca.'
+                                  : item.final_status === 'existing'
+                                    ? 'El paper ya existía en el proyecto.'
+                                    : 'No hubo un PDF OA descargable para este paper.')}
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rc-help">Todavía no hay papers procesados en este batch.</div>
+                )}
               </div>
             ) : (
               <div className="rc-help">El resumen aparecerá cuando el job termine o avance lo suficiente.</div>
