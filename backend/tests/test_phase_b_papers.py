@@ -136,6 +136,10 @@ async def test_dedup_by_hash(monkeypatch):
     async def fake_user(request=None, db=None):
         return U()
 
+    async def fake_access(db, project_id, user, required_role="viewer"):
+        return FakeProject(str(project_id), str(user.id)), type("Membership", (), {"role": required_role})()
+
+    monkeypatch.setattr("app.api.papers.require_project_access", fake_access)
     app.dependency_overrides[deps.get_current_user] = fake_user
 
     transport = ASGITransport(app=app)
@@ -200,6 +204,10 @@ async def test_download_returns_duplicate_when_exists(monkeypatch):
     async def fake_user(request=None, db=None):
         return U()
 
+    async def fake_access(db, project_id, user, required_role="viewer"):
+        return FakeProject(str(project_id), str(user.id)), type("Membership", (), {"role": required_role})()
+
+    monkeypatch.setattr("app.api.papers.require_project_access", fake_access)
     app.dependency_overrides[deps.get_current_user] = fake_user
 
     transport = ASGITransport(app=app)
@@ -262,6 +270,10 @@ async def test_upload_duplicate_by_hash(monkeypatch):
     async def fake_user(request=None, db=None):
         return U()
 
+    async def fake_access(db, project_id, user, required_role="viewer"):
+        return FakeProject(str(project_id), str(user.id)), type("Membership", (), {"role": required_role})()
+
+    monkeypatch.setattr("app.api.papers.require_project_access", fake_access)
     app.dependency_overrides[deps.get_current_user] = fake_user
 
     transport = ASGITransport(app=app)

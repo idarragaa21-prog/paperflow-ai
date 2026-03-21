@@ -9,7 +9,6 @@ from pathlib import Path
 from uuid import UUID
 
 import fitz  # PyMuPDF
-import pdfplumber
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -183,6 +182,8 @@ def _extract_sections_from_text(text: str) -> list[dict]:
 def _extract_tables(pdf_path: Path) -> list[dict]:
     tables: list[dict] = []
     try:
+        import pdfplumber
+
         with pdfplumber.open(str(pdf_path)) as pdf:
             for page_index, page in enumerate(pdf.pages, start=1):
                 page_tables = page.find_tables() or []

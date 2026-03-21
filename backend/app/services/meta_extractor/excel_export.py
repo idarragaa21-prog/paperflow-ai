@@ -6,8 +6,6 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from openpyxl import Workbook
-
 from app.core.logger import logger
 
 
@@ -194,7 +192,7 @@ class ExcelExportInput:
     logs: list[dict[str, Any]]
 
 
-def _add_sheet(wb: Workbook, name: str, cols: list[str]) -> None:
+def _add_sheet(wb: Any, name: str, cols: list[str]) -> None:
     ws = wb.create_sheet(title=name)
     ws.append(cols)
 
@@ -205,6 +203,8 @@ def _append_rows(ws, cols: list[str], rows: list[dict[str, Any]]) -> None:
 
 
 def build_meta_xlsx(data: ExcelExportInput) -> bytes:
+    from openpyxl import Workbook
+
     wb = Workbook()
     # remove default
     default = wb.active
