@@ -1,5 +1,5 @@
-import axios, { AxiosError } from 'axios';
-import type { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosHeaders } from 'axios';
+import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { getCookie } from './cookies';
 
 const PRODUCTION_API_SENTINEL = '__SET_PRODUCTION_API_BASE_URL__';
@@ -52,6 +52,10 @@ export const api: AxiosInstance = axios.create({
   timeout: requestTimeouts.default,
 });
 
+type RetriableAxiosConfig = InternalAxiosRequestConfig & {
+  __isRetry?: boolean;
+};
+
 // CSRF: send header on mutating requests
 api.interceptors.request.use((config) => {
   const method = (config.method || 'get').toLowerCase();
@@ -59,8 +63,13 @@ api.interceptors.request.use((config) => {
   if (isMutating) {
     const csrf = getCookie('csrf_token');
     if (csrf) {
-      config.headers = config.headers ?? {};
-      (config.headers as any)['X-CSRF-Token'] = csrf;
+      if (config.headers instanceof AxiosHeaders) {
+        config.headers.set('X-CSRF-Token', csrf);
+      } else {
+        const nextHeaders = AxiosHeaders.from(config.headers);
+        nextHeaders.set('X-CSRF-Token', csrf);
+        config.headers = nextHeaders;
+      }
     }
   }
   return config;
@@ -83,7 +92,7 @@ api.interceptors.response.use(
   (resp) => resp,
   async (error: AxiosError) => {
     const status = error.response?.status;
-    const original = error.config as any;
+    const original = error.config as RetriableAxiosConfig | undefined;
 
     const url = String(original?.url || '');
     const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/logout');

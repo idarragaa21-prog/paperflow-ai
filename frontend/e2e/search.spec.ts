@@ -46,3 +46,31 @@ test('search can return openable results and save at least one paper with honest
     await expect(firstSaveButton).toHaveText(/Guardado en biblioteca|Ya est[aá] en la biblioteca|Reintentar guardado/, { timeout: 120000 });
   }
 });
+
+test('batch download shows per-paper traceability in the modal', async ({ page }) => {
+  const fixture = loadFixture();
+  await page.goto(`/projects/${fixture.project.id}`);
+  await expect(page).toHaveURL(new RegExp(`/projects/${fixture.project.id}/research$`));
+
+  await page.getByRole('button', { name: 'Filtros' }).click();
+  await page.getByTestId('search-query-input').fill('rotator cuff repair augmentation review');
+  await page.getByTestId('search-recency-select').selectOption('2y');
+  await page.getByTestId('search-submit-button').click();
+
+  const selectableRows = page.locator('.rc-discover-selectable input[type="checkbox"]');
+  await expect(selectableRows.first()).toBeVisible({ timeout: 120000 });
+  await selectableRows.first().check();
+
+  const batchButton = page.getByRole('button', { name: /Guardar seleccionados/ });
+  await expect(batchButton).toContainText('(1)');
+  await batchButton.click();
+
+  const batchModal = page.getByTestId('batch-trace-modal');
+  await expect(batchModal).toBeVisible({ timeout: 120000 });
+  await expect(batchModal.getByTestId('batch-trace-title')).toHaveText('Guardado por lote');
+
+  const firstTraceRow = batchModal.getByTestId('batch-trace-row-0');
+  await expect(firstTraceRow).toBeVisible({ timeout: 120000 });
+  await expect(firstTraceRow).toContainText(/Proveedor:|Proveedor no resuelto/);
+  await expect(firstTraceRow).toContainText(/OA URL|Landing URL|URL final usada|Motivo final/);
+});

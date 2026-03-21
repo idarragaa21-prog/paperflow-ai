@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, requestTimeouts } from '../services/api';
+import { api, isApiError, requestTimeouts } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
@@ -288,6 +288,15 @@ function batchStatusClass(status: BatchDownloadTraceItem['final_status']) {
   return 'rc-discover-badge rc-discover-badge--danger';
 }
 
+function apiErrorDetail(error: unknown, fallback: string) {
+  if (!isApiError(error)) return fallback;
+  const detail = error.response?.data;
+  if (detail && typeof detail === 'object' && 'detail' in detail && typeof detail.detail === 'string') {
+    return detail.detail;
+  }
+  return error.message || fallback;
+}
+
 export default function SearchPage() {
   const { projectId } = useParams();
   const toast = useToast();
@@ -365,8 +374,8 @@ export default function SearchPage() {
       setBatchJobId(null);
       setBatchJob(null);
       setBatchModalOpen(false);
-    } catch (e: any) {
-      setPageError(e?.response?.data?.detail || 'La búsqueda falló');
+    } catch (error: unknown) {
+      setPageError(apiErrorDetail(error, 'La búsqueda falló'));
     } finally {
       setLoading(false);
     }
@@ -407,8 +416,8 @@ export default function SearchPage() {
         duplicate ? 'Duplicado' : 'Guardado',
         duplicate ? 'El paper ya existe en este proyecto.' : 'PDF guardado en la biblioteca del proyecto.',
       );
-    } catch (e: any) {
-      patchResultState(key, { saveStatus: 'error', error: e?.response?.data?.detail || 'La descarga falló' });
+    } catch (error: unknown) {
+      patchResultState(key, { saveStatus: 'error', error: apiErrorDetail(error, 'La descarga falló') });
     } finally {
       setSelected((prev) => ({ ...prev, [key]: false }));
     }
@@ -453,8 +462,8 @@ export default function SearchPage() {
       setBatchJobId(jobId);
       setBatchJob({ status: 'queued', progress: 0, error: null, output: null });
       setBatchModalOpen(true);
-    } catch (e: any) {
-      setPageError(e?.response?.data?.detail || 'La descarga por lote falló');
+    } catch (error: unknown) {
+      setPageError(apiErrorDetail(error, 'La descarga por lote falló'));
     }
   }
 
@@ -486,9 +495,9 @@ export default function SearchPage() {
         const output = normalizeBatchOutput(result?.output || result?.rq_result?.output);
         if (alive) setBatchJob({ status, progress, error, output });
         if (status === 'completed' || status === 'failed' || status === 'cancelled') return;
-      } catch (e: any) {
+      } catch (error: unknown) {
         if (alive) {
-          setBatchJob((prev) => prev || { status: 'queued', progress: 0, error: e?.message || 'La consulta del job falló' });
+          setBatchJob((prev) => prev || { status: 'queued', progress: 0, error: apiErrorDetail(error, 'La consulta del job falló') });
         }
       }
       timer = window.setTimeout(poll, 1000);
@@ -912,9 +921,18 @@ export default function SearchPage() {
 
       {batchModalOpen ? (
         <div className="rc-modal-backdrop" onClick={() => setBatchModalOpen(false)}>
-          <div className="rc-card rc-modal-card" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="rc-card rc-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Guardado por lote"
+            data-testid="batch-trace-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="rc-toolbar">
-              <div className="rc-card-title">Guardado por lote</div>
+              <div className="rc-card-title" data-testid="batch-trace-title">
+                Guardado por lote
+              </div>
               <button className="rc-btn rc-btn--subtle" onClick={() => setBatchModalOpen(false)}>
                 Cerrar
               </button>
