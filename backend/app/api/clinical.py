@@ -334,7 +334,7 @@ async def export_docx(
     # Generate and persist
     from app.services.clinical.exporters import export_docx
 
-    rel_path = export_docx(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown)
+    rel_path = export_docx(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown, references_json=list(s.references_json or []), created_at=s.created_at.isoformat() if s.created_at else None, llm_model=s.llm_model)
     su = dict(s.sources_used or {})
     su["exports"] = {**(su.get("exports") or {}), "docx": rel_path}
     s.sources_used = su
@@ -384,9 +384,9 @@ async def download_sheet(
         from app.services.clinical.exporters import export_docx as _docx, export_pdf as _pdf
 
         if fmt == "docx":
-            rel = _docx(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown)
+            rel = _docx(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown, references_json=list(s.references_json or []), created_at=s.created_at.isoformat() if s.created_at else None, llm_model=s.llm_model)
         else:
-            rel = _pdf(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown)
+            rel = _pdf(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown, references_json=list(s.references_json or []), created_at=s.created_at.isoformat() if s.created_at else None, llm_model=s.llm_model)
 
         su = dict(s.sources_used or {})
         su["exports"] = {**(su.get("exports") or {}), fmt: rel}
@@ -427,7 +427,7 @@ async def export_pdf(
 
     from app.services.clinical.exporters import export_pdf
 
-    rel_path = export_pdf(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown)
+    rel_path = export_pdf(user_id=user.id, sheet_id=s.id, version=s.version, topic=s.topic, content_markdown=s.content_markdown, references_json=list(s.references_json or []), created_at=s.created_at.isoformat() if s.created_at else None, llm_model=s.llm_model)
     su = dict(s.sources_used or {})
     su["exports"] = {**(su.get("exports") or {}), "pdf": rel_path}
     s.sources_used = su
