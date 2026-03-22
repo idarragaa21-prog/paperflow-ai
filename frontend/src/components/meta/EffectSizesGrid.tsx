@@ -210,7 +210,7 @@ export default function EffectSizesGrid({
         </div>
       </div>
 
-      {error ? <div style={{ color: 'crimson' }}>{String(error)}</div> : null}
+      {error ? <div className="rc-error">{String(error)}</div> : null}
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1900 }}>

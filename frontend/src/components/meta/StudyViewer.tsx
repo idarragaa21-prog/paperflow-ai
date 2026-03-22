@@ -136,7 +136,7 @@ export default function StudyViewer({
   }, [reextractJobId]);
 
   if (loading && !study) return <div>Loading study…</div>;
-  if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
+  if (error) return <div className="rc-error">{String(error)}</div>;
   if (!study) return <div>Select a study.</div>;
 
   const sj = (study.study_json || {}) as any;
@@ -245,7 +245,7 @@ export default function StudyViewer({
         {reextractStatus ? (
           <div style={{ fontSize: 12, opacity: 0.75 }}>
             re-extract: {reextractStatus.status} · {reextractStatus.progress}%
-            {reextractStatus.error ? <span style={{ color: 'crimson' }}> · {String(reextractStatus.error)}</span> : null}
+            {reextractStatus.error ? <span className="rc-error"> · {String(reextractStatus.error)}</span> : null}
           </div>
         ) : null}
       </div>

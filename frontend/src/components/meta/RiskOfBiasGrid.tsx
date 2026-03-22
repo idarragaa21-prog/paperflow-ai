@@ -84,7 +84,7 @@ export default function RiskOfBiasGrid({
           Add domain
         </button>
       </div>
-      {error ? <div style={{ color: 'crimson' }}>{String(error)}</div> : null}
+      {error ? <div className="rc-error">{String(error)}</div> : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.length === 0 ? <div style={{ opacity: 0.75 }}>No ROB rows yet. Click “Add domain”.</div> : null}
         {merged.map((r) => {

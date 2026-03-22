@@ -135,7 +135,7 @@ export default function MermaidBlock({ code }: Props) {
     <div>
       {usedFallback ? <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 6 }}>Mermaid: rendered fallback diagram (source had syntax errors).</div> : null}
       {error ? (
-        <div style={{ color: 'crimson', fontSize: 12 }}>
+        <div className="rc-error" style={{ fontSize: 12 }}>
           Mermaid render failed: {error}
           <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11, opacity: 0.85 }}>{normalized}</pre>
         </div>
