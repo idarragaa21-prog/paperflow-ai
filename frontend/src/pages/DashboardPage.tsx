@@ -17,6 +17,64 @@ function StatCard({ label, value, color, icon }: { label: string; value: number;
   );
 }
 
+// Quick access icon definitions with real SVGs
+const quickLinks = [
+  {
+    label: 'Books & Scans',
+    sub: 'Manage book library',
+    to: '/books',
+    color: 'rgba(59,130,246,0.1)',
+    stroke: 'rgba(59,130,246,0.85)',
+    icon: (stroke: string) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 3h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
+        <path d="M8 3v14M12 7h2M12 10h2"/>
+      </svg>
+    ),
+  },
+  {
+    label: 'Clinical Sheets',
+    sub: 'AI-powered clinical summaries',
+    to: '/clinical',
+    color: 'rgba(16,185,129,0.1)',
+    stroke: 'rgba(16,185,129,0.85)',
+    icon: (stroke: string) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2v4M10 4h4"/>
+        <rect x="3" y="6" width="18" height="16" rx="2"/>
+        <path d="M8 12h8M8 16h6"/>
+      </svg>
+    ),
+  },
+  {
+    label: 'Background Jobs',
+    sub: 'Processing & downloads',
+    to: '/jobs',
+    color: 'rgba(245,158,11,0.1)',
+    stroke: 'rgba(245,158,11,0.85)',
+    icon: (stroke: string) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 7v5l3 3"/>
+      </svg>
+    ),
+  },
+  {
+    label: 'Deep Research',
+    sub: 'Automated literature review',
+    to: '/deep-research',
+    color: 'rgba(139,92,246,0.1)',
+    stroke: 'rgba(139,92,246,0.85)',
+    icon: (stroke: string) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="10" r="6"/>
+        <path d="M20 20l-4-4"/>
+        <path d="M8 10h6M11 7v6"/>
+      </svg>
+    ),
+  },
+];
+
 export default function DashboardPage() {
   const user = useAuthStore(s => s.user);
   const navigate = useNavigate();
@@ -60,7 +118,8 @@ export default function DashboardPage() {
 
   return (
     <div className="rc-page-enter" style={{ display:'flex',flexDirection:'column',gap:24 }}>
-      {/* Hero */}
+
+      {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <div style={{ borderRadius:20,padding:'28px 32px',background:'linear-gradient(135deg,#1a1040 0%,#13122a 100%)',position:'relative',overflow:'hidden' }}>
         <div style={{ position:'absolute',inset:0,opacity:0.5,backgroundImage:'radial-gradient(circle at 80% 50%,rgba(139,92,246,0.18) 0%,transparent 50%)',pointerEvents:'none' }}/>
         <div style={{ position:'relative',zIndex:1 }}>
@@ -68,22 +127,35 @@ export default function DashboardPage() {
             {greeting}, {firstName} 👋
           </div>
           <div style={{ fontSize:13,color:'rgba(255,255,255,0.45)',marginTop:6 }}>
-            {active.length === 0 ? 'Create your first project to get started.'
-              : `You have ${active.length} active project${active.length !== 1 ? 's' : ''} and ${totalPapers} papers across your workspace.`}
+            {active.length === 0
+              ? 'Create your first research project to get started.'
+              : `${active.length} active project${active.length !== 1 ? 's' : ''} · ${totalPapers} paper${totalPapers !== 1 ? 's' : ''} · ${totalRefs} reference${totalRefs !== 1 ? 's' : ''}`}
           </div>
           {DEMO_MODE && (
             <div style={{ marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:'rgba(245,158,11,0.15)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:8,padding:'4px 10px',fontSize:12,color:'rgba(245,158,11,0.9)' }}>
-              <span>⚡</span> Demo mode — UI preview with mock data
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><path d="M10 6v4M10 14h.01"/></svg>
+              Demo mode — UI preview with mock data
             </div>
           )}
           <div style={{ marginTop:18,display:'flex',gap:10,flexWrap:'wrap' }}>
-            <Link to="/projects" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:'white' }}>View Projects</Link>
-            <Link to="/clinical" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.7)' }}>Clinical Sheets</Link>
+            <Link to="/projects" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.18)',color:'white' }}>
+              View Projects
+            </Link>
+            {active.length > 0 && (
+              <Link to="/clinical" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.7)' }}>
+                Clinical Sheets
+              </Link>
+            )}
+            {active.length === 0 && (
+              <Link to="/projects" className="rc-btn rc-btn--primary" style={{ textDecoration:'none' }}>
+                Create First Project
+              </Link>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* ── Stats ──────────────────────────────────────────────────────────── */}
       {!isLoading && active.length > 0 && (
         <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:12 }}>
           <StatCard label="Active projects" value={active.length} color="rgba(99,102,241,0.12)"
@@ -97,7 +169,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Projects grid */}
+      {/* ── Recent projects ────────────────────────────────────────────────── */}
       <div>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
           <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em' }}>Recent projects</div>
@@ -106,6 +178,16 @@ export default function DashboardPage() {
         {isLoading ? (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12 }}>
             {[1,2,3].map(i=><div key={i} className="rc-card rc-skeleton" style={{ height:110 }}/>)}
+          </div>
+        ) : active.length === 0 ? (
+          <div className="rc-card" style={{ textAlign:'center',padding:'48px 24px',color:'var(--rc-muted)' }}>
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ margin:'0 auto 14px',display:'block' }}>
+              <rect x="6" y="10" width="36" height="28" rx="4" stroke="rgba(26,25,41,0.18)" strokeWidth="1.5" fill="none"/>
+              <path d="M24 20v8M20 24h8" stroke="rgba(99,102,241,0.5)" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            <div style={{ fontWeight:700,fontSize:14,marginBottom:6 }}>No projects yet</div>
+            <div style={{ fontSize:13,marginBottom:16 }}>Create a project to organize your research papers, notes, and analyses.</div>
+            <Link to="/projects" className="rc-btn rc-btn--primary" style={{ textDecoration:'none' }}>Create first project</Link>
           </div>
         ) : (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12 }}>
@@ -118,14 +200,18 @@ export default function DashboardPage() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rc-muted)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0,marginTop:2 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </div>
                   {p.clinical_area && <div className="rc-help">{p.clinical_area}</div>}
-                  {c && (
+                  {c ? (
                     <div style={{ display:'flex',gap:14,marginTop:'auto',paddingTop:8,borderTop:'1px solid var(--rc-border)' }}>
-                      {[['Papers',c.papers,'#4f46e5'],['Refs',c.references,'#d97706'],['Notes',c.notes,'#7c3aed']].map(([l,v,col])=>(
-                        <div key={l as string} style={{ fontSize:12 }}>
-                          <span style={{ fontWeight:750,color:col as string }}>{v}</span>
+                      {([['Papers',c.papers,'#4f46e5'],['Refs',c.references,'#d97706'],['Notes',c.notes,'#7c3aed']] as [string,number,string][]).map(([l,v,col])=>(
+                        <div key={l} style={{ fontSize:12 }}>
+                          <span style={{ fontWeight:750,color:col }}>{v}</span>
                           <span style={{ color:'var(--rc-muted)',marginLeft:3 }}>{l}</span>
                         </div>
                       ))}
+                    </div>
+                  ) : (
+                    <div style={{ marginTop:'auto',paddingTop:8,borderTop:'1px solid var(--rc-border)',height:24,display:'flex',alignItems:'center' }}>
+                      <div className="rc-skeleton" style={{ height:10,width:'60%',borderRadius:6 }}/>
                     </div>
                   )}
                 </div>
@@ -135,20 +221,15 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Quick links */}
+      {/* ── Quick access ───────────────────────────────────────────────────── */}
       <div>
         <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em',marginBottom:12 }}>Quick access</div>
         <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:10 }}>
-          {[
-            { label:'Books & Scans', sub:'Manage book library', to:'/books', color:'rgba(59,130,246,0.1)', stroke:'rgba(59,130,246,0.8)' },
-            { label:'Clinical Sheets', sub:'AI clinical summaries', to:'/clinical', color:'rgba(16,185,129,0.1)', stroke:'rgba(16,185,129,0.8)' },
-            { label:'Background Jobs', sub:'Processing & downloads', to:'/jobs', color:'rgba(245,158,11,0.1)', stroke:'rgba(245,158,11,0.8)' },
-            { label:'Settings', sub:'Profile & services', to:'/settings', color:'rgba(139,92,246,0.1)', stroke:'rgba(139,92,246,0.8)' },
-          ].map(item=>(
+          {quickLinks.map(item=>(
             <Link key={item.to} to={item.to} style={{ textDecoration:'none' }}>
               <div className="rc-card rc-card--hover" style={{ display:'flex',alignItems:'center',gap:12 }}>
-                <div style={{ width:36,height:36,borderRadius:10,background:item.color,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center' }}>
-                  <div style={{ width:14,height:14,borderRadius:3,border:`2px solid ${item.stroke}` }}/>
+                <div style={{ width:38,height:38,borderRadius:10,background:item.color,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center' }}>
+                  {item.icon(item.stroke)}
                 </div>
                 <div>
                   <div style={{ fontWeight:700,fontSize:13 }}>{item.label}</div>
