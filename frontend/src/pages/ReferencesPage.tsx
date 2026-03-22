@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReferenceRow } from '../types/api';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 
@@ -41,34 +42,57 @@ function truncate(s: string, max: number) {
 export default function ReferencesPage() {
   const { projectId } = useParams();
   const toast = useToast();
+  const qc = useQueryClient();
 
-  const [items, setItems] = useState<ReferenceRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-
-  // Import section
   const [format, setFormat] = useState<'bibtex' | 'ris'>('bibtex');
   const [content, setContent] = useState('');
-  const [importing, setImporting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  // DOI import
   const [doiInput, setDoiInput] = useState('');
-  const [doiLoading, setDoiLoading] = useState(false);
 
-  async function load() {
-    if (!projectId) return;
-    setLoading(true); setError(null);
-    try {
+  const { data: items = [], isLoading, error: loadError } = useQuery<ReferenceRow[]>({
+    queryKey: ['references', projectId],
+    queryFn: async () => {
       const r = await api.get('/references', { params: { project_id: projectId } });
-      setItems(r.data as ReferenceRow[]);
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Error cargando referencias'); }
-    finally { setLoading(false); }
-  }
+      return r.data as ReferenceRow[];
+    },
+    enabled: !!projectId,
+  });
 
-  useEffect(() => { load(); }, [projectId]);
+  function invalidate() { qc.invalidateQueries({ queryKey: ['references', projectId] }); }
+
+  const syncMut = useMutation({
+    mutationFn: () => api.post('/references/sync-from-library', null, { params: { project_id: projectId } }),
+    onSuccess: (r) => {
+      toast.success('Synced', `${(r.data as any)?.created || 0} references created from library.`);
+      invalidate();
+    },
+    onError: (e: any) => toast.error('Sync failed', e?.response?.data?.detail || 'Sync failed'),
+  });
+
+  const importMut = useMutation({
+    mutationFn: () => api.post('/references/import', { project_id: projectId, format, content }),
+    onSuccess: (r) => {
+      toast.success('Imported', `${(r.data as any)?.imported || 0} imported, ${(r.data as any)?.skipped || 0} duplicates.`);
+      setContent('');
+      setImportOpen(false);
+      invalidate();
+    },
+    onError: (e: any) => toast.error('Import failed', e?.response?.data?.detail || 'Import failed'),
+  });
+
+  const doiMut = useMutation({
+    mutationFn: async () => {
+      await api.post('/papers/download', { project_id: projectId, doi: doiInput.trim() });
+      await api.post('/references/sync-from-library', null, { params: { project_id: projectId } });
+    },
+    onSuccess: () => {
+      toast.success('DOI imported', 'Paper downloaded and added to references.');
+      setDoiInput('');
+      invalidate();
+    },
+    onError: (e: any) => toast.error('DOI import failed', e?.response?.data?.detail || 'Paper may not be open access.'),
+  });
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -98,47 +122,8 @@ export default function ReferencesPage() {
     toast.success('Exported', `${items.length} references as BibTeX.`);
   }
 
-  async function syncFromLibrary() {
-    if (!projectId) return;
-    setError(null); setNotice(null);
-    try {
-      const r = await api.post('/references/sync-from-library', null, { params: { project_id: projectId } });
-      setNotice(`Referencias creadas desde library: ${String((r.data as any)?.created || 0)}`);
-      await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Sync fallido'); }
-  }
-
-  async function importReferences() {
-    if (!projectId || !content.trim()) return;
-    setImporting(true); setError(null); setNotice(null);
-    try {
-      const r = await api.post('/references/import', { project_id: projectId, format, content });
-      setNotice(`Importados: ${(r.data as any)?.imported || 0}, duplicados: ${(r.data as any)?.skipped || 0}.`);
-      setContent('');
-      await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Import fallido'); }
-    finally { setImporting(false); }
-  }
-
-  async function importByDOI() {
-    if (!projectId || !doiInput.trim()) return;
-    setDoiLoading(true); setError(null);
-    try {
-      // Try to download the paper, which resolves metadata
-      await api.post('/papers/download', { project_id: projectId, doi: doiInput.trim() });
-      // Then sync references from library to pick it up
-      await api.post('/references/sync-from-library', null, { params: { project_id: projectId } });
-      toast.success('DOI imported', `Paper downloaded and added to references.`);
-      setDoiInput('');
-      await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'DOI import failed. Paper may not be open access.');
-    } finally { setDoiLoading(false); }
-  }
-
   async function exportServer(fmt: 'bibtex' | 'ris') {
     if (!projectId) return;
-    setError(null);
     try {
       const r = await api.get('/references/export', { params: { project_id: projectId, format: fmt }, responseType: 'blob' });
       const blob = r.data as Blob;
@@ -147,7 +132,7 @@ export default function ReferencesPage() {
       a.href = url; a.download = `references.${fmt === 'bibtex' ? 'bib' : 'ris'}`;
       document.body.appendChild(a); a.click(); a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Export failed'); }
+    } catch (e: any) { toast.error('Export failed', e?.response?.data?.detail || 'Export failed'); }
   }
 
   return (
@@ -158,14 +143,15 @@ export default function ReferencesPage() {
       </div>
 
       <div className="rc-row" style={{ flexWrap: 'wrap' }}>
-        <button className="rc-btn" onClick={load} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</button>
-        <button className="rc-btn" onClick={syncFromLibrary}>Sync from Library</button>
+        <button className="rc-btn" onClick={invalidate} disabled={isLoading}>{isLoading ? 'Loading...' : 'Refresh'}</button>
+        <button className="rc-btn" onClick={() => syncMut.mutate()} disabled={syncMut.isPending}>
+          {syncMut.isPending ? 'Syncing...' : 'Sync from Library'}
+        </button>
         <button className="rc-btn rc-btn--primary" onClick={exportAllBibTeX}>Export all as BibTeX</button>
         <button className="rc-btn" onClick={() => exportServer('ris')}>Export RIS</button>
       </div>
 
-      {error && <div className="rc-error">{error}</div>}
-      {notice && <div className="rc-help" style={{ background: 'rgba(22,163,74,0.08)', padding: '8px 12px', borderRadius: 10 }}>{notice}</div>}
+      {loadError && <div className="rc-error-card">{(loadError as any)?.response?.data?.detail || 'Error loading references'}</div>}
 
       {/* DOI import */}
       <div className="rc-card" style={{ padding: '10px 14px' }}>
@@ -174,8 +160,8 @@ export default function ReferencesPage() {
             <div className="rc-kicker">Import by DOI</div>
             <input className="rc-input" value={doiInput} onChange={e => setDoiInput(e.target.value)} placeholder="10.1000/xyz123" style={{ fontSize: 13 }} />
           </div>
-          <button className="rc-btn rc-btn--primary" disabled={!doiInput.trim() || doiLoading} onClick={importByDOI} style={{ padding: '8px 14px', fontSize: 13 }}>
-            {doiLoading ? 'Importing...' : 'Import DOI'}
+          <button className="rc-btn rc-btn--primary" disabled={!doiInput.trim() || doiMut.isPending} onClick={() => doiMut.mutate()} style={{ padding: '8px 14px', fontSize: 13 }}>
+            {doiMut.isPending ? 'Importing...' : 'Import DOI'}
           </button>
         </div>
       </div>
@@ -196,8 +182,8 @@ export default function ReferencesPage() {
                   <option value="ris">RIS</option>
                 </select>
               </div>
-              <button className="rc-btn rc-btn--primary" disabled={!content.trim() || importing} onClick={importReferences}>
-                {importing ? 'Importing...' : 'Import'}
+              <button className="rc-btn rc-btn--primary" disabled={!content.trim() || importMut.isPending} onClick={() => importMut.mutate()}>
+                {importMut.isPending ? 'Importing...' : 'Import'}
               </button>
             </div>
             <textarea className="rc-input" style={{ minHeight: 140, width: '100%' }} value={content} onChange={e => setContent(e.target.value)} placeholder={format === 'bibtex' ? '@article{...}' : 'TY  - JOUR'} />
@@ -206,10 +192,10 @@ export default function ReferencesPage() {
       </div>
 
       {/* Search */}
-      <input className="rc-input" style={{ maxWidth: 320, padding: '8px 12px', fontSize: 13 }} placeholder="Buscar titulo, autores o journal..." value={search} onChange={e => setSearch(e.target.value)} />
+      <input className="rc-input" style={{ maxWidth: 320, padding: '8px 12px', fontSize: 13 }} placeholder="Search title, authors or journal..." value={search} onChange={e => setSearch(e.target.value)} />
 
-      {/* Tabla */}
-      {items.length === 0 && !loading ? (
+      {/* Empty state */}
+      {items.length === 0 && !isLoading ? (
         <div className="rc-card" style={{ textAlign: 'center', padding: '56px 24px' }}>
           <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ margin: '0 auto 16px', display: 'block' }}>
             <rect x="12" y="8" width="40" height="52" rx="5" fill="rgba(245,158,11,0.07)" stroke="rgba(245,158,11,0.2)" strokeWidth="1.5"/>

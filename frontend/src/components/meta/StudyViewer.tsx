@@ -184,7 +184,7 @@ export default function StudyViewer({
               <div key={idx} style={{ padding: '6px 0', borderTop: idx ? '1px solid rgba(0,0,0,0.08)' : 'none' }}>
                 <div style={{ fontWeight: 700 }}>{String(a.arm_name || `Arm ${idx + 1}`)}</div>
                 {a.intervention_description ? <div style={{ fontSize: 12, opacity: 0.78 }}>{String(a.intervention_description)}</div> : null}
-                <div style={{ fontSize: 12, opacity: 0.7, color: impossible ? 'crimson' : 'inherit' }}>
+                <div style={{ fontSize: 12, opacity: 0.7, color: impossible ? 'var(--rc-danger)' : 'inherit' }}>
                   n_randomized: {nRand ?? '—'} · n_analyzed: {nAna ?? '—'}
                   {impossible ? <span style={{ marginLeft: 8, fontWeight: 700 }}>(impossible: analyzed &gt; randomized)</span> : null}
                 </div>

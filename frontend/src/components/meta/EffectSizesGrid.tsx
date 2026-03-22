@@ -338,7 +338,7 @@ export default function EffectSizesGrid({
                     <input
                       value={row.a_events ?? ''}
                       onChange={(e) => setField(row.id, 'a_events', intOrNull(e.target.value))}
-                      style={{ width: 70, borderColor: row.a_events === 0 ? 'crimson' : undefined }}
+                      style={{ width: 70, borderColor: row.a_events === 0 ? 'var(--rc-danger)' : undefined }}
                       inputMode="numeric"
                     />
                   </td>
@@ -346,7 +346,7 @@ export default function EffectSizesGrid({
                     <input
                       value={row.b_non_events ?? ''}
                       onChange={(e) => setField(row.id, 'b_non_events', intOrNull(e.target.value))}
-                      style={{ width: 70, borderColor: row.b_non_events === 0 ? 'crimson' : undefined }}
+                      style={{ width: 70, borderColor: row.b_non_events === 0 ? 'var(--rc-danger)' : undefined }}
                       inputMode="numeric"
                     />
                   </td>
@@ -354,7 +354,7 @@ export default function EffectSizesGrid({
                     <input
                       value={row.c_events ?? ''}
                       onChange={(e) => setField(row.id, 'c_events', intOrNull(e.target.value))}
-                      style={{ width: 70, borderColor: row.c_events === 0 ? 'crimson' : undefined }}
+                      style={{ width: 70, borderColor: row.c_events === 0 ? 'var(--rc-danger)' : undefined }}
                       inputMode="numeric"
                     />
                   </td>
@@ -362,7 +362,7 @@ export default function EffectSizesGrid({
                     <input
                       value={row.d_non_events ?? ''}
                       onChange={(e) => setField(row.id, 'd_non_events', intOrNull(e.target.value))}
-                      style={{ width: 70, borderColor: row.d_non_events === 0 ? 'crimson' : undefined }}
+                      style={{ width: 70, borderColor: row.d_non_events === 0 ? 'var(--rc-danger)' : undefined }}
                       inputMode="numeric"
                     />
                   </td>

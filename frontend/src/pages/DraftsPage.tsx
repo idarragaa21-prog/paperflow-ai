@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
-import type { Draft, DraftSection, DraftCitation } from '../types/api';
+import { useState } from 'react';
+import type { Draft, DraftSection } from '../types/api';
 import { useParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
-
-
 
 
 type EvidenceTable = {
@@ -26,86 +25,78 @@ function downloadText(content: string, filename: string) {
 export default function DraftsPage() {
   const { projectId } = useParams();
   const toast = useToast();
+  const qc = useQueryClient();
 
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [tables, setTables] = useState<EvidenceTable[]>([]);
   const [title, setTitle] = useState('Narrative synthesis');
   const [heading, setHeading] = useState('Introduction');
   const [selectedDraft, setSelectedDraft] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  // Inline editing state
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  async function load() {
-    if (!projectId) return;
-    const [draftResponse, evidenceResponse] = await Promise.all([
-      api.get('/drafts', { params: { project_id: projectId } }),
-      api.get('/evidence/tables', { params: { project_id: projectId } }),
-    ]);
-    const nextDrafts = draftResponse.data as Draft[];
-    setDrafts(nextDrafts);
-    setTables(evidenceResponse.data as EvidenceTable[]);
-    if (!selectedDraft && nextDrafts[0]) {
-      setSelectedDraft(nextDrafts[0].id);
-    }
+  const { data: drafts = [], isError: draftsError } = useQuery<Draft[]>({
+    queryKey: ['drafts', projectId],
+    queryFn: async () => {
+      const r = await api.get('/drafts', { params: { project_id: projectId } });
+      const data = r.data as Draft[];
+      if (!selectedDraft && data[0]) setSelectedDraft(data[0].id);
+      return data;
+    },
+    enabled: !!projectId,
+  });
+
+  const { data: tables = [] } = useQuery<EvidenceTable[]>({
+    queryKey: ['evidence-tables', projectId],
+    queryFn: async () => {
+      const r = await api.get('/evidence/tables', { params: { project_id: projectId } });
+      return r.data as EvidenceTable[];
+    },
+    enabled: !!projectId,
+  });
+
+  function invalidate() {
+    qc.invalidateQueries({ queryKey: ['drafts', projectId] });
+    qc.invalidateQueries({ queryKey: ['evidence-tables', projectId] });
   }
 
-  useEffect(() => {
-    load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load drafts'));
-  }, [projectId]);
+  const createMut = useMutation({
+    mutationFn: () => api.post('/drafts', { project_id: projectId, title }),
+    onSuccess: (r) => {
+      setSelectedDraft((r.data as Draft).id);
+      invalidate();
+    },
+    onError: (e: any) => toast.error('Error', e?.response?.data?.detail || 'Failed to create draft'),
+  });
 
-  async function createDraft() {
-    if (!projectId || !title.trim()) return;
-    setBusy(true); setError(null);
-    try {
-      const response = await api.post('/drafts', { project_id: projectId, title });
-      const draft = response.data as Draft;
-      setSelectedDraft(draft.id);
-      await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to create draft'); }
-    finally { setBusy(false); }
-  }
+  const generateMut = useMutation({
+    mutationFn: () => api.post(`/drafts/${selectedDraft}/generate-section`, { heading, paper_ids: [], extraction_record_ids: [] }),
+    onSuccess: () => invalidate(),
+    onError: (e: any) => toast.error('Error', e?.response?.data?.detail || 'Failed to generate section'),
+  });
 
-  async function generateSection() {
-    if (!selectedDraft || !heading.trim()) return;
-    setBusy(true); setError(null);
-    try {
-      await api.post(`/drafts/${selectedDraft}/generate-section`, { heading, paper_ids: [], extraction_record_ids: [] });
-      await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to generate section'); }
-    finally { setBusy(false); }
-  }
+  const buildEvidenceMut = useMutation({
+    mutationFn: () => api.get('/evidence/tables', { params: { project_id: projectId, build: true } }),
+    onSuccess: () => invalidate(),
+    onError: (e: any) => toast.error('Error', e?.response?.data?.detail || 'Failed to build evidence table'),
+  });
 
-  async function buildEvidence() {
-    if (!projectId) return;
-    setBusy(true); setError(null);
-    try {
-      await api.get('/evidence/tables', { params: { project_id: projectId, build: true } });
-      await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to build evidence table'); }
-    finally { setBusy(false); }
-  }
+  const saveSectionMut = useMutation({
+    mutationFn: ({ draftId, sectionId }: { draftId: string; sectionId: string }) =>
+      api.patch(`/drafts/${draftId}/sections/${sectionId}`, { content: editContent }),
+    onSuccess: () => {
+      setEditingSection(null);
+      toast.success('Saved', 'Section content updated.');
+      invalidate();
+    },
+    onError: (e: any) => toast.error('Error', e?.response?.data?.detail || 'Failed to save section'),
+  });
 
-  // Inline edit
+  const busy = createMut.isPending || generateMut.isPending || buildEvidenceMut.isPending;
+
   function startEdit(section: DraftSection) {
     setEditingSection(section.id);
     setEditContent(section.content);
   }
 
-  async function saveEdit(draftId: string, sectionId: string) {
-    setError(null);
-    try {
-      await api.patch(`/drafts/${draftId}/sections/${sectionId}`, { content: editContent });
-      setEditingSection(null);
-      toast.success('Saved', 'Section content updated.');
-      await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to save section'); }
-  }
-
-  // Copy full draft
   function copyFullDraft(draft: Draft) {
     const text = draft.sections
       .sort((a, b) => a.position - b.position)
@@ -118,7 +109,6 @@ export default function DraftsPage() {
     toast.success('\u2713 Copied', 'Full draft copied to clipboard.');
   }
 
-  // Export HTML
   function exportHTML(draft: Draft) {
     const sections = draft.sections
       .sort((a, b) => a.position - b.position)
@@ -152,7 +142,7 @@ ${sections}
         <div className="rc-subtitle">Create drafts, generate grounded sections and keep citations attached to the prose.</div>
       </div>
 
-      {error && <div className="rc-error">{error}</div>}
+      {draftsError && <div className="rc-error-card">Failed to load drafts</div>}
 
       <div className="rc-card">
         <div className="rc-card-title">Drafts</div>
@@ -161,8 +151,10 @@ ${sections}
             <div className="rc-kicker">New draft title</div>
             <input className="rc-input" value={title} onChange={e => setTitle(e.target.value)} />
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={createDraft} disabled={busy}>Create draft</button>
-          <button className="rc-btn" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
+          <button className="rc-btn rc-btn--primary" onClick={() => createMut.mutate()} disabled={busy}>Create draft</button>
+          <button className="rc-btn" onClick={() => buildEvidenceMut.mutate()} disabled={busy}>
+            {buildEvidenceMut.isPending ? 'Building...' : 'Build evidence table'}
+          </button>
         </div>
       </div>
 
@@ -180,7 +172,9 @@ ${sections}
             <div className="rc-kicker">Heading</div>
             <input className="rc-input" value={heading} onChange={e => setHeading(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
+          <button className="rc-btn" onClick={() => generateMut.mutate()} disabled={busy || !selectedDraft}>
+            {generateMut.isPending ? 'Generating...' : 'Generate'}
+          </button>
         </div>
       </div>
 
@@ -190,11 +184,18 @@ ${sections}
           <div className="rc-card-title">Draft contents</div>
 
           {drafts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 28 }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{'\u270D\uFE0F'}</div>
-              <div style={{ fontWeight: 800, marginBottom: 4 }}>No drafts yet</div>
-              <div className="rc-help" style={{ maxWidth: 320, margin: '0 auto' }}>
-                Drafts are generated with AI from references extracted from your papers.
+            <div style={{ textAlign: 'center', padding: '36px 16px' }}>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ margin: '0 auto 12px', display: 'block' }}>
+                <rect x="6" y="8" width="28" height="34" rx="4" fill="rgba(139,92,246,0.07)" stroke="rgba(139,92,246,0.2)" strokeWidth="1.5"/>
+                <line x1="14" y1="17" x2="26" y2="17" stroke="rgba(139,92,246,0.35)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="14" y1="23" x2="26" y2="23" stroke="rgba(139,92,246,0.35)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="14" y1="29" x2="22" y2="29" stroke="rgba(139,92,246,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="36" cy="36" r="10" fill="var(--rc-surface)" stroke="rgba(139,92,246,0.3)" strokeWidth="1.5"/>
+                <line x1="36" y1="31" x2="36" y2="41" stroke="rgba(139,92,246,0.6)" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="31" y1="36" x2="41" y2="36" stroke="rgba(139,92,246,0.6)" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              <div style={{ fontWeight: 700, fontSize: 14, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', marginBottom: 4 }}>No drafts yet</div>
+              <div className="rc-help" style={{ maxWidth: 280, margin: '0 auto' }}>
                 Create a draft above and generate sections to get started.
               </div>
             </div>
@@ -229,7 +230,7 @@ ${sections}
                         onChange={e => setEditContent(e.target.value)}
                       />
                       <div className="rc-row" style={{ gap: 6 }}>
-                        <button className="rc-btn rc-btn--primary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => saveEdit(draft.id, section.id)}>Save</button>
+                        <button className="rc-btn rc-btn--primary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => saveSectionMut.mutate({ draftId: draft.id, sectionId: section.id })} disabled={saveSectionMut.isPending}>Save</button>
                         <button className="rc-btn" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setEditingSection(null)}>Cancel</button>
                       </div>
                     </div>
