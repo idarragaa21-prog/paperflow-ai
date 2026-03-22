@@ -123,6 +123,9 @@ export default function ClinicalPage() {
             {' · '}
             <button className="rc-btn" style={{ padding: '2px 8px', fontSize: 12 }} onClick={() => setProjectId('')}>Quitar proyecto</button>
           </div>
+          <button className="rc-btn" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => setProjectId('')}>
+            Quitar proyecto
+          </button>
         </div>
       )}
 
@@ -204,6 +207,11 @@ export default function ClinicalPage() {
         <button className="rc-btn rc-btn--primary" disabled={!canGenerate || generateMut.isPending || Boolean(jobId)} onClick={() => generateMut.mutate()}>
           {jobId ? 'Running…' : generateMut.isPending ? 'Submitting…' : 'Consultar (tipo UpToDate)'}
         </button>
+        {projectId && projectPaperCount && projectPaperCount > 0 && !jobId && !generateMut.isPending && (
+          <div className="rc-help" style={{ marginTop: 6 }}>
+            El pipeline usará {projectPaperCount} paper{projectPaperCount !== 1 ? 's' : ''} de tu proyecto + búsqueda online como evidencia.
+          </div>
+        )}
 
         {jobStatus && (
           <div style={{ marginTop: 12 }}>
