@@ -125,7 +125,7 @@ export default function SettingsPage() {
             <button key={t} className={`rc-btn${theme === t ? ' rc-btn--primary' : ''}`}
               style={{ padding: '7px 16px', fontSize: 13, textTransform: 'capitalize' }}
               onClick={() => setTheme(t)}>
-              {t === 'light' ? '☀️ Light' : t === 'dark' ? '🌙 Dark' : '💻 System'}
+              {t === 'light' ? 'Light' : t === 'dark' ? 'Dark' : 'System'}
             </button>
           ))}
         </div>

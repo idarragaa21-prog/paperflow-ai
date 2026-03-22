@@ -261,9 +261,15 @@ export default function PapersPage() {
       )}
 
       {!isLoading && papers.length === 0 && (
-        <div className="rc-card" style={{ textAlign: 'center', padding: 32 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
-          <div style={{ fontWeight: 800, marginBottom: 4 }}>No papers yet</div>
+        <div className="rc-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+          <svg width="56" height="56" viewBox="0 0 56 56" fill="none" style={{ margin: '0 auto 16px', display: 'block' }}>
+            <rect x="8" y="10" width="32" height="40" rx="4" fill="rgba(16,185,129,0.07)" stroke="rgba(16,185,129,0.2)" strokeWidth="1.5"/>
+            <rect x="16" y="4" width="32" height="40" rx="4" fill="var(--rc-surface)" stroke="rgba(16,185,129,0.22)" strokeWidth="1.5"/>
+            <line x1="24" y1="16" x2="38" y2="16" stroke="rgba(16,185,129,0.35)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="24" y1="22" x2="38" y2="22" stroke="rgba(16,185,129,0.35)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="24" y1="28" x2="33" y2="28" stroke="rgba(16,185,129,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <div style={{ fontWeight: 750, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', marginBottom: 6 }}>No papers yet</div>
           <div className="rc-help">Upload a PDF or download by DOI/PMID to get started.</div>
         </div>
       )}

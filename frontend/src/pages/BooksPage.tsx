@@ -98,7 +98,7 @@ export default function BooksPage() {
         </button>
       </div>
 
-      {errorMsg ? <div style={{ color: 'crimson' }}>{errorMsg}</div> : null}
+      {errorMsg ? <div className="rc-error-card">{errorMsg}</div> : null}
 
       <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Index books from the server BOOKS folder (recommended)</div>
@@ -109,7 +109,7 @@ export default function BooksPage() {
           {scanStatus ? (
             <span style={{ fontSize: 12, opacity: 0.8 }}>
               {scanStatus.status} · {scanStatus.progress}%
-              {scanStatus.error ? <span style={{ color: 'crimson' }}> · {String(scanStatus.error)}</span> : null}
+              {scanStatus.error ? <span className="rc-error"> · {String(scanStatus.error)}</span> : null}
             </span>
           ) : null}
         </div>

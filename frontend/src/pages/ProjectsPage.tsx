@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { DEMO_MODE, demoProjects, demoCounts } from '../services/demo';
+import { useConfirm } from '../ui/Dialog/useConfirm';
 import type { Project, ProjectCounts } from '../types/api';
 
 function EmptyState({ archived }: { archived: boolean }) {
@@ -32,6 +33,7 @@ function EmptyState({ archived }: { archived: boolean }) {
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newArea, setNewArea] = useState('');
@@ -156,7 +158,7 @@ export default function ProjectsPage() {
                     {p.clinical_area && <div className="rc-help" style={{ marginTop:3 }}>{p.clinical_area}</div>}
                   </div>
                   {!p.archived && !DEMO_MODE && (
-                    <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={()=>{ if(window.confirm(`Archive "${p.title}"?`)) archiveMut.mutate(p.id); }}
+                    <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={async ()=>{ if(await confirm({ title:`Archive "${p.title}"?`, body:'Archived projects are hidden from the active list but not deleted.', confirmText:'Archive' })) archiveMut.mutate(p.id); }}
                       style={{ flexShrink:0,padding:'4px 6px',color:'var(--rc-muted)' }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                     </button>
