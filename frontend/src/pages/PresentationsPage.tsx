@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { PaperRow } from '../types/api';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
-
-type PaperRow = {
-  id: string;
-  title: string;
-};
 
 type PresentationRow = {
   id: string;

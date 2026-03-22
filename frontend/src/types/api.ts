@@ -103,7 +103,10 @@ export type JobRow = {
   job_type: string;
   status: JobStatus;
   progress_percent: number;
+  /** Backend field name — maps to error_message on the Job model */
   error_message?: string | null;
+  /** Alias used in some older API responses */
+  error?: string | null;
   result?: Record<string, unknown> | null;
   created_at?: string | null;
   started_at?: string | null;

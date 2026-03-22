@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { DEMO_MODE, demoProjects, demoCounts } from '../services/demo';
-
-type Project = { id: string; title: string; description?: string|null; clinical_area?: string|null; archived: boolean; };
-type Counts = { papers: number; notes: number; presentations: number; references: number; meta_studies_current: number; };
+import type { Project, ProjectCounts } from '../types/api';
 
 function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
   return (
@@ -22,44 +20,47 @@ function StatCard({ label, value, color, icon }: { label: string; value: number;
 export default function DashboardPage() {
   const user = useAuthStore(s => s.user);
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [countsMap, setCountsMap] = useState<Record<string, Counts>>({});
-  const [loading, setLoading] = useState(true);
   const firstName = (user?.full_name || user?.email || 'Researcher').split(/[\s@]/)[0];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  useEffect(() => {
-    (async () => {
-      try {
-        if (DEMO_MODE) {
-          setProjects(demoProjects);
-          setCountsMap(demoCounts);
-          setLoading(false);
-          return;
-        }
-        const r = await api.get('/projects');
-        const list = r.data as Project[];
-        setProjects(list);
-        const active = list.filter(p => !p.archived).slice(0, 6);
-        const entries = await Promise.allSettled(
-          active.map(p => api.get(`/projects/${p.id}/dashboard`).then(res => [p.id, res.data.counts] as [string, Counts]))
-        );
-        const map: Record<string, Counts> = {};
-        entries.forEach(e => { if (e.status === 'fulfilled') map[e.value[0]] = e.value[1]; });
-        setCountsMap(map);
-      } catch (_) {} finally { setLoading(false); }
-    })();
-  }, []);
+  // ── Projects query ────────────────────────────────────────────────────────
+  const { data: projects = [], isLoading } = useQuery<Project[]>({
+    queryKey: ['dashboard-projects'],
+    queryFn: async () => {
+      if (DEMO_MODE) return demoProjects as Project[];
+      const r = await api.get('/projects');
+      return r.data as Project[];
+    },
+    staleTime: 60_000,
+  });
 
+  // ── Per-project counts (parallel) ────────────────────────────────────────
   const active = projects.filter(p => !p.archived);
-  const totalPapers = Object.values(countsMap).reduce((s,c)=>s+c.papers,0);
-  const totalRefs = Object.values(countsMap).reduce((s,c)=>s+c.references,0);
-  const totalNotes = Object.values(countsMap).reduce((s,c)=>s+c.notes,0);
+  const { data: countsMap = {} } = useQuery<Record<string, ProjectCounts>>({
+    queryKey: ['dashboard-counts', active.map(p => p.id).join(',')],
+    queryFn: async () => {
+      if (DEMO_MODE) return demoCounts as Record<string, ProjectCounts>;
+      const entries = await Promise.allSettled(
+        active.slice(0, 6).map(p =>
+          api.get(`/projects/${p.id}/dashboard`).then(r => [p.id, r.data.counts] as [string, ProjectCounts])
+        )
+      );
+      const map: Record<string, ProjectCounts> = {};
+      entries.forEach(e => { if (e.status === 'fulfilled') map[e.value[0]] = e.value[1]; });
+      return map;
+    },
+    enabled: active.length > 0,
+    staleTime: 60_000,
+  });
+
+  const totalPapers = Object.values(countsMap).reduce((s, c) => s + c.papers, 0);
+  const totalRefs   = Object.values(countsMap).reduce((s, c) => s + c.references, 0);
+  const totalNotes  = Object.values(countsMap).reduce((s, c) => s + c.notes, 0);
 
   return (
     <div className="rc-page-enter" style={{ display:'flex',flexDirection:'column',gap:24 }}>
-      {/* Hero banner */}
+      {/* Hero */}
       <div style={{ borderRadius:20,padding:'28px 32px',background:'linear-gradient(135deg,#1a1040 0%,#13122a 100%)',position:'relative',overflow:'hidden' }}>
         <div style={{ position:'absolute',inset:0,opacity:0.5,backgroundImage:'radial-gradient(circle at 80% 50%,rgba(139,92,246,0.18) 0%,transparent 50%)',pointerEvents:'none' }}/>
         <div style={{ position:'relative',zIndex:1 }}>
@@ -68,7 +69,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ fontSize:13,color:'rgba(255,255,255,0.45)',marginTop:6 }}>
             {active.length === 0 ? 'Create your first project to get started.'
-              : `You have ${active.length} active project${active.length!==1?'s':''} and ${totalPapers} papers across your workspace.`}
+              : `You have ${active.length} active project${active.length !== 1 ? 's' : ''} and ${totalPapers} papers across your workspace.`}
           </div>
           {DEMO_MODE && (
             <div style={{ marginTop:10,display:'inline-flex',alignItems:'center',gap:6,background:'rgba(245,158,11,0.15)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:8,padding:'4px 10px',fontSize:12,color:'rgba(245,158,11,0.9)' }}>
@@ -76,18 +77,14 @@ export default function DashboardPage() {
             </div>
           )}
           <div style={{ marginTop:18,display:'flex',gap:10,flexWrap:'wrap' }}>
-            <Link to="/projects" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:'white' }}>
-              View Projects
-            </Link>
-            <Link to="/clinical" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.7)' }}>
-              Clinical Sheets
-            </Link>
+            <Link to="/projects" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:'white' }}>View Projects</Link>
+            <Link to="/clinical" className="rc-btn" style={{ textDecoration:'none',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'rgba(255,255,255,0.7)' }}>Clinical Sheets</Link>
           </div>
         </div>
       </div>
 
       {/* Stats */}
-      {!loading && active.length > 0 && (
+      {!isLoading && active.length > 0 && (
         <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))',gap:12 }}>
           <StatCard label="Active projects" value={active.length} color="rgba(99,102,241,0.12)"
             icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.9)" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="8" height="8" rx="1.5"/><rect x="14" y="3" width="8" height="8" rx="1.5"/><rect x="2" y="13" width="8" height="8" rx="1.5"/><rect x="14" y="13" width="8" height="8" rx="1.5"/></svg>}/>
@@ -106,13 +103,13 @@ export default function DashboardPage() {
           <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em' }}>Recent projects</div>
           <Link to="/projects" style={{ fontSize:12,color:'var(--rc-primary)',textDecoration:'none' }}>View all →</Link>
         </div>
-        {loading ? (
+        {isLoading ? (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12 }}>
             {[1,2,3].map(i=><div key={i} className="rc-card rc-skeleton" style={{ height:110 }}/>)}
           </div>
         ) : (
           <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:12 }}>
-            {active.slice(0,6).map(p=>{
+            {active.slice(0,6).map(p => {
               const c = countsMap[p.id];
               return (
                 <div key={p.id} className="rc-card rc-card--hover" onClick={()=>navigate(`/projects/${p.id}/research`)} style={{ display:'flex',flexDirection:'column',gap:10,cursor:'pointer' }}>
@@ -143,10 +140,10 @@ export default function DashboardPage() {
         <div style={{ fontFamily:'var(--font-display)',fontWeight:700,fontSize:16,letterSpacing:'-0.02em',marginBottom:12 }}>Quick access</div>
         <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:10 }}>
           {[
-            { label:'Books & Scans',sub:'Manage book library',to:'/books',color:'rgba(59,130,246,0.1)',stroke:'rgba(59,130,246,0.8)'},
-            { label:'Clinical Sheets',sub:'AI clinical summaries',to:'/clinical',color:'rgba(16,185,129,0.1)',stroke:'rgba(16,185,129,0.8)'},
-            { label:'Background Jobs',sub:'Processing & downloads',to:'/jobs',color:'rgba(245,158,11,0.1)',stroke:'rgba(245,158,11,0.8)'},
-            { label:'Settings',sub:'Profile & services',to:'/settings',color:'rgba(139,92,246,0.1)',stroke:'rgba(139,92,246,0.8)'},
+            { label:'Books & Scans', sub:'Manage book library', to:'/books', color:'rgba(59,130,246,0.1)', stroke:'rgba(59,130,246,0.8)' },
+            { label:'Clinical Sheets', sub:'AI clinical summaries', to:'/clinical', color:'rgba(16,185,129,0.1)', stroke:'rgba(16,185,129,0.8)' },
+            { label:'Background Jobs', sub:'Processing & downloads', to:'/jobs', color:'rgba(245,158,11,0.1)', stroke:'rgba(245,158,11,0.8)' },
+            { label:'Settings', sub:'Profile & services', to:'/settings', color:'rgba(139,92,246,0.1)', stroke:'rgba(139,92,246,0.8)' },
           ].map(item=>(
             <Link key={item.to} to={item.to} style={{ textDecoration:'none' }}>
               <div className="rc-card rc-card--hover" style={{ display:'flex',alignItems:'center',gap:12 }}>

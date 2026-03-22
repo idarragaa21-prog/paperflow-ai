@@ -1,19 +1,10 @@
 import { useEffect, useState } from 'react';
+import type { BookRow } from '../types/api';
 import { api } from '../services/api';
 import { useConfirm } from '../ui/Dialog/useConfirm';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
 
-type BookRow = {
-  id: string;
-  filename: string;
-  file_path: string;
-  title?: string | null;
-  total_pages?: number | null;
-  chapters_count: number;
-  indexed_at?: string | null;
-  created_at?: string | null;
-};
 
 export default function BooksPage() {
   const confirm = useConfirm();

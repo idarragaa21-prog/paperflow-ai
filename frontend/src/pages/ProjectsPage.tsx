@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { DEMO_MODE, demoProjects, demoCounts } from '../services/demo';
-
-type Project = { id: string; title: string; description?: string|null; clinical_area?: string|null; archived: boolean; };
-type Counts = { papers: number; notes: number; references: number; meta_studies_current: number; presentations: number; };
+import type { Project, ProjectCounts } from '../types/api';
 
 function EmptyState({ archived }: { archived: boolean }) {
   return (
@@ -21,10 +20,10 @@ function EmptyState({ archived }: { archived: boolean }) {
         <line x1="68" y1="76" x2="84" y2="76" stroke="rgba(99,102,241,0.6)" strokeWidth="2.5" strokeLinecap="round"/></>}
       </svg>
       <div style={{ fontWeight:700,fontSize:16,fontFamily:'var(--font-display)',letterSpacing:'-0.02em' }}>
-        {archived?'No archived projects':'No projects yet'}
+        {archived ? 'No archived projects' : 'No projects yet'}
       </div>
       <div style={{ fontSize:13,color:'var(--rc-muted)',marginTop:5 }}>
-        {archived?'Archived projects will appear here.':'Create your first project to get started.'}
+        {archived ? 'Archived projects will appear here.' : 'Create your first project to get started.'}
       </div>
     </div>
   );
@@ -32,57 +31,66 @@ function EmptyState({ archived }: { archived: boolean }) {
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [countsMap, setCountsMap] = useState<Record<string,Counts>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string|null>(null);
-  const [creating, setCreating] = useState(false);
+  const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newArea, setNewArea] = useState('');
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'active'|'archived'>('active');
+  const [mutError, setMutError] = useState<string|null>(null);
 
-  async function load() {
-    setLoading(true); setError(null);
-    try {
-      if (DEMO_MODE) {
-        setProjects(demoProjects); setCountsMap(demoCounts); setLoading(false); return;
-      }
+  const projectsKey = ['projects'];
+
+  // ── Projects query ────────────────────────────────────────────────────────
+  const { data: projects = [], isLoading } = useQuery<Project[]>({
+    queryKey: projectsKey,
+    queryFn: async () => {
+      if (DEMO_MODE) return demoProjects as Project[];
       const r = await api.get('/projects');
-      const list = r.data as Project[];
-      setProjects(list);
+      return r.data as Project[];
+    },
+    staleTime: 30_000,
+  });
+
+  // ── Per-project counts (parallel) ────────────────────────────────────────
+  const active = projects.filter(p => !p.archived);
+  const { data: countsMap = {} } = useQuery<Record<string, ProjectCounts>>({
+    queryKey: ['projects-counts', active.map(p => p.id).join(',')],
+    queryFn: async () => {
+      if (DEMO_MODE) return demoCounts as Record<string, ProjectCounts>;
       const entries = await Promise.allSettled(
-        list.filter(p=>!p.archived).map(p=>api.get(`/projects/${p.id}/dashboard`).then(res=>[p.id,res.data.counts] as [string,Counts]))
+        active.map(p => api.get(`/projects/${p.id}/dashboard`).then(r => [p.id, r.data.counts] as [string, ProjectCounts]))
       );
-      const map: Record<string,Counts> = {};
-      entries.forEach(e=>{ if(e.status==='fulfilled') map[e.value[0]]=e.value[1]; });
-      setCountsMap(map);
-    } catch(e:any) { setError(e?.response?.data?.detail||'Failed to load'); }
-    finally { setLoading(false); }
-  }
+      const map: Record<string, ProjectCounts> = {};
+      entries.forEach(e => { if (e.status === 'fulfilled') map[e.value[0]] = e.value[1]; });
+      return map;
+    },
+    enabled: active.length > 0,
+    staleTime: 30_000,
+  });
 
-  async function create() {
-    if (!newTitle.trim()||DEMO_MODE) { if(DEMO_MODE){setShowCreate(false);return;} return; }
-    setCreating(true); setError(null);
-    try {
-      await api.post('/projects',{ title:newTitle.trim(),clinical_area:newArea.trim()||null });
-      setNewTitle(''); setNewArea(''); setShowCreate(false); await load();
-    } catch(e:any) { setError(e?.response?.data?.detail||'Failed to create'); }
-    finally { setCreating(false); }
-  }
+  // ── Create mutation ───────────────────────────────────────────────────────
+  const createMut = useMutation({
+    mutationFn: () => api.post('/projects', { title: newTitle.trim(), clinical_area: newArea.trim() || null }),
+    onSuccess: () => {
+      setNewTitle(''); setNewArea(''); setShowCreate(false);
+      qc.invalidateQueries({ queryKey: projectsKey });
+    },
+    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Failed to create'),
+  });
 
-  async function archive(id: string) {
-    if (DEMO_MODE) return;
-    try { await api.post(`/projects/${id}/archive`); await load(); }
-    catch(e:any) { setError(e?.response?.data?.detail||'Failed to archive'); }
-  }
+  const archiveMut = useMutation({
+    mutationFn: (id: string) => api.post(`/projects/${id}/archive`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: projectsKey }),
+    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Failed to archive'),
+  });
 
-  useEffect(()=>{ load(); },[]);
-
-  const filtered = projects
-    .filter(p=>tab==='active'?!p.archived:p.archived)
-    .filter(p=>!search||p.title.toLowerCase().includes(search.toLowerCase())||(p.clinical_area||'').toLowerCase().includes(search.toLowerCase()));
+  const filtered = useMemo(() =>
+    projects
+      .filter(p => tab === 'active' ? !p.archived : p.archived)
+      .filter(p => !search || p.title.toLowerCase().includes(search.toLowerCase()) || (p.clinical_area || '').toLowerCase().includes(search.toLowerCase())),
+    [projects, tab, search]
+  );
 
   return (
     <div className="rc-page-enter" style={{ display:'flex',flexDirection:'column',gap:20 }}>
@@ -91,8 +99,8 @@ export default function ProjectsPage() {
           <h1 className="rc-page-title">Projects</h1>
           <div className="rc-subtitle">Organize your research, libraries, extraction and writing by project.</div>
         </div>
-        <button className="rc-btn rc-btn--primary" onClick={()=>setShowCreate(!showCreate)}>
-          {showCreate?'Cancel':'+ New project'}
+        <button className="rc-btn rc-btn--primary" onClick={() => setShowCreate(!showCreate)}>
+          {showCreate ? 'Cancel' : '+ New project'}
         </button>
       </div>
 
@@ -101,20 +109,20 @@ export default function ProjectsPage() {
           <div className="rc-card-title">New project</div>
           <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
             <div><div className="rc-kicker">Title *</div>
-              <input className="rc-input" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" autoFocus onKeyDown={e=>e.key==='Enter'&&create()}/></div>
+              <input className="rc-input" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" autoFocus onKeyDown={e=>e.key==='Enter'&&createMut.mutate()}/></div>
             <div><div className="rc-kicker">Clinical area</div>
               <input className="rc-input" value={newArea} onChange={e=>setNewArea(e.target.value)} placeholder="e.g. Orthopedics"/></div>
             <div style={{ display:'flex',gap:10 }}>
-              <button className="rc-btn rc-btn--primary" onClick={create} disabled={creating||!newTitle.trim()}>
-                {creating?<><span className="rc-spinner" style={{ borderTopColor:'white' }}/> Creating…</>:'Create project'}
+              <button className="rc-btn rc-btn--primary" onClick={() => createMut.mutate()} disabled={createMut.isPending || !newTitle.trim()}>
+                {createMut.isPending ? <><span className="rc-spinner" style={{ borderTopColor:'white' }}/> Creating…</> : 'Create project'}
               </button>
-              <button className="rc-btn" onClick={()=>setShowCreate(false)}>Cancel</button>
+              <button className="rc-btn" onClick={() => setShowCreate(false)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      {error && <div className="rc-error">{error}</div>}
+      {mutError && <div className="rc-error">{mutError}</div>}
 
       <div style={{ display:'flex',gap:10,alignItems:'center',flexWrap:'wrap' }}>
         <div style={{ flex:'1 1 220px',position:'relative' }}>
@@ -130,31 +138,31 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12 }}>
           {[1,2,3,4].map(i=><div key={i} className="rc-card rc-skeleton" style={{ height:140 }}/>)}
         </div>
-      ) : filtered.length===0 ? (
+      ) : filtered.length === 0 ? (
         <div className="rc-card"><EmptyState archived={tab==='archived'}/></div>
       ) : (
         <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12 }}>
-          {filtered.map(p=>{
+          {filtered.map(p => {
             const counts = countsMap[p.id];
             return (
               <div key={p.id} className="rc-card rc-card--hover" style={{ display:'flex',flexDirection:'column',gap:10 }}>
                 <div style={{ display:'flex',gap:8,alignItems:'flex-start',justifyContent:'space-between' }}>
                   <div style={{ flex:1,cursor:'pointer' }} onClick={()=>navigate(`/projects/${p.id}/research`)}>
                     <div style={{ fontWeight:750,fontSize:14,letterSpacing:'-0.02em',fontFamily:'var(--font-display)',lineHeight:1.35 }}>{p.title}</div>
-                    {p.clinical_area&&<div className="rc-help" style={{ marginTop:3 }}>{p.clinical_area}</div>}
+                    {p.clinical_area && <div className="rc-help" style={{ marginTop:3 }}>{p.clinical_area}</div>}
                   </div>
-                  {!p.archived&&!DEMO_MODE&&(
-                    <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={()=>{ if(confirm(`Archive "${p.title}"?`)) archive(p.id); }}
+                  {!p.archived && !DEMO_MODE && (
+                    <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={()=>{ if(window.confirm(`Archive "${p.title}"?`)) archiveMut.mutate(p.id); }}
                       style={{ flexShrink:0,padding:'4px 6px',color:'var(--rc-muted)' }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                     </button>
                   )}
                 </div>
-                {counts&&!p.archived&&(
+                {counts && !p.archived && (
                   <div style={{ display:'flex',gap:12,paddingTop:10,borderTop:'1px solid var(--rc-border)',flexWrap:'wrap' }}>
                     {[['Papers',counts.papers,'#4f46e5'],['Refs',counts.references,'#d97706'],['Notes',counts.notes,'#7c3aed'],['Meta',counts.meta_studies_current,'#059669']].map(([l,v,c])=>(
                       <div key={l as string} style={{ fontSize:12,display:'flex',alignItems:'center',gap:4 }}>
@@ -164,12 +172,12 @@ export default function ProjectsPage() {
                     ))}
                   </div>
                 )}
-                {!p.archived&&(
+                {!p.archived && (
                   <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={()=>navigate(`/projects/${p.id}/research`)} style={{ alignSelf:'flex-start',marginTop:2 }}>
                     Open →
                   </button>
                 )}
-                {p.archived&&<span className="rc-tag rc-tag--slate" style={{ alignSelf:'flex-start' }}>Archived</span>}
+                {p.archived && <span className="rc-tag rc-tag--slate" style={{ alignSelf:'flex-start' }}>Archived</span>}
               </div>
             );
           })}

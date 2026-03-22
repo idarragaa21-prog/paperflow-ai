@@ -1,31 +1,11 @@
 import { useEffect, useState } from 'react';
+import type { Draft, DraftSection, DraftCitation } from '../types/api';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 
-type DraftCitation = {
-  id: string;
-  marker: string;
-  quoted_text?: string | null;
-};
 
-type DraftSection = {
-  id: string;
-  heading: string;
-  content: string;
-  position: number;
-  generated_with_model?: string | null;
-  confidence?: number;
-  citations: DraftCitation[];
-};
 
-type Draft = {
-  id: string;
-  title: string;
-  status: string;
-  version: number;
-  sections: DraftSection[];
-};
 
 type EvidenceTable = {
   id: string;
