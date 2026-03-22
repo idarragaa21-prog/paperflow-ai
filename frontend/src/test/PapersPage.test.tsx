@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import PapersPage from '../pages/PapersPage';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
@@ -31,12 +32,15 @@ import { api } from '../services/api';
 const PROJECT_ID = 'test-project-uuid-002';
 
 function renderPage() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/papers`]}>
-      <Routes>
-        <Route path="/projects/:projectId/papers" element={<PapersPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/papers`]}>
+        <Routes>
+          <Route path="/projects/:projectId/papers" element={<PapersPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -224,7 +228,7 @@ describe('PapersPage — search', () => {
     renderPage();
     await waitFor(() => screen.getByText('Total knee arthroplasty outcomes'));
 
-    const searchInput = screen.getByPlaceholderText(/Buscar titulo/i);
+    const searchInput = screen.getByPlaceholderText(/Buscar t[ií]tulo/i);
     fireEvent.change(searchInput, { target: { value: 'ACL' } });
 
     await waitFor(() => {

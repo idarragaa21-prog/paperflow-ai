@@ -4,7 +4,8 @@ from datetime import datetime
 import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Index
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import JSON
+from sqlalchemy import Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -14,9 +15,9 @@ from app.models._mixins import TimestampMixin
 class Paper(Base, TimestampMixin):
     __tablename__ = "papers"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    search_result_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("search_results.id", ondelete="SET NULL"), nullable=True)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True, native_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True, native_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    search_result_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True, native_uuid=True), ForeignKey("search_results.id", ondelete="SET NULL"), nullable=True)
 
     title: Mapped[str] = mapped_column(Text, nullable=False)
     authors: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -39,13 +40,13 @@ class Paper(Base, TimestampMixin):
     is_open_access: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     oa_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     favorite: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
-    tags: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     is_processed: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
     full_text_extracted: Mapped[str | None] = mapped_column(Text, nullable=True)
     processing_status: Mapped[str] = mapped_column(String(32), server_default="uploaded", nullable=False)
     processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    processing_warnings: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    processing_warnings: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     downloaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     project = relationship("Project", back_populates="papers")

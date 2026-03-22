@@ -11,6 +11,9 @@ Strategy:
 """
 from __future__ import annotations
 
+import asyncio
+import os
+import tempfile
 import uuid
 from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, patch
@@ -26,19 +29,29 @@ from app.database import Base
 from app.models.user import User
 from app.core.security import hash_password
 
-# ── In-memory SQLite engine for tests ────────────────────────────────────────
+# ── File-based SQLite for tests (survives across connections/event loops) ─────
+# We use a temp file so that tables created in setup_db persist for all tests.
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+_db_file = tempfile.mktemp(suffix=".db")
+TEST_DATABASE_URL = f"sqlite+aiosqlite:///{_db_file}"
 
 _engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 _session_maker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def _init_db() -> None:
-    async with _engine.begin() as conn:
-        # Import all models so Base has them registered
-        import app.models  # noqa: F401
-        await conn.run_sync(Base.metadata.create_all)
+def _sync_init_db() -> None:
+    """Create all tables synchronously using a dedicated event loop."""
+    import app.models  # noqa: F401 — registers all models
+
+    async def _create():
+        async with _engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_create())
+    finally:
+        loop.close()
 
 
 async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -49,9 +62,15 @@ async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module", autouse=True)
-async def setup_db():
-    await _init_db()
+def setup_db():
+    """Create tables once per module, clean up the DB file afterward."""
+    _sync_init_db()
     yield
+    # Cleanup
+    try:
+        os.unlink(_db_file)
+    except OSError:
+        pass
 
 
 @pytest_asyncio.fixture
@@ -65,7 +84,7 @@ async def test_user(db_session: AsyncSession) -> User:
     """Create a fresh user for each test."""
     user = User(
         id=uuid.uuid4(),
-        email=f"test-{uuid.uuid4().hex[:8]}@paperflow.test",
+        email=f"test-{uuid.uuid4().hex[:8]}@example.com",
         full_name="Test User",
         password_hash=hash_password("testpass123"),
         is_active=True,
@@ -78,19 +97,37 @@ async def test_user(db_session: AsyncSession) -> User:
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    """TestClient with DB override and no external service calls."""
+    """TestClient with DB override and no external service calls.
+
+    Includes a CSRF token so POST/PUT/DELETE requests reach the auth layer
+    (returning 401) rather than being blocked by CSRF middleware (returning 403).
+    """
+    _csrf_token = "test-csrf-token-for-integration-tests"
     app.dependency_overrides[get_db] = _override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        cookies={"csrf_token": _csrf_token},
+        headers={"X-CSRF-Token": _csrf_token},
+    ) as c:
         yield c
     app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
 async def authed_client(test_user: User) -> AsyncGenerator[AsyncClient, None]:
-    """TestClient pre-authenticated as test_user (bypasses cookie/JWT)."""
+    """TestClient pre-authenticated as test_user (bypasses cookie/JWT and CSRF)."""
+    from app.middleware.csrf import CSRFMiddleware
+
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_current_user] = lambda: test_user
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+    _csrf_token = "test-csrf-token-for-integration-tests"
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        cookies={"csrf_token": _csrf_token},
+        headers={"X-CSRF-Token": _csrf_token},
+    ) as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -126,7 +163,7 @@ class TestAuthLogin:
         assert r.status_code == 401
 
     async def test_login_unknown_email_returns_401(self, client: AsyncClient):
-        r = await client.post("/auth/login", json={"email": "nobody@test.com", "password": "any"})
+        r = await client.post("/auth/login", json={"email": "nobody@example.com", "password": "anypassword"})
         assert r.status_code == 401
 
     async def test_login_missing_fields_returns_422(self, client: AsyncClient):

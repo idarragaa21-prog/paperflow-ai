@@ -18,6 +18,11 @@ export function DownloadTrace({ info }: { info: DownloadInfo }) {
       </span>
       {providerLabel && <span style={{ color: 'var(--rc-muted)', marginLeft: 8 }}>via {providerLabel}</span>}
       {info.oa_url && <span style={{ color: 'var(--rc-muted)', marginLeft: 8, wordBreak: 'break-all' }}>{info.oa_url}</span>}
+      {info.used_fallback && info.original_oa_url && (
+        <span style={{ color: 'var(--rc-muted)', marginLeft: 8, wordBreak: 'break-all' }}>
+          Original: {info.original_oa_url}
+        </span>
+      )}
     </div>
   );
   if (info.status === 'duplicate') return (

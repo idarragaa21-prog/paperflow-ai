@@ -59,8 +59,8 @@ export default function SearchPage() {
 
         {filters.showFilters && (
           <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
-            <div style={{ width: 100 }}><div className="rc-kicker">Year from</div><input className="rc-input" type="number" value={filters.yearFrom} min={1900} max={2026} placeholder="2018" onChange={(e) => filters.setYearFrom(e.target.value)} /></div>
-            <div style={{ width: 100 }}><div className="rc-kicker">Year to</div><input className="rc-input" type="number" value={filters.yearTo} min={1900} max={2026} placeholder="2025" onChange={(e) => filters.setYearTo(e.target.value)} /></div>
+            <div style={{ width: 100 }}><div className="rc-kicker">Year from</div><input className="rc-input" type="number" value={filters.yearFrom} min={1900} max={2026} placeholder="e.g. 2018" onChange={(e) => filters.setYearFrom(e.target.value)} /></div>
+            <div style={{ width: 100 }}><div className="rc-kicker">Year to</div><input className="rc-input" type="number" value={filters.yearTo} min={1900} max={2026} placeholder="e.g. 2025" onChange={(e) => filters.setYearTo(e.target.value)} /></div>
             <div style={{ width: 180 }}><div className="rc-kicker">Journal</div><input className="rc-input" value={filters.journalFilter} placeholder="e.g. Lancet" onChange={(e) => filters.setJournalFilter(e.target.value)} /></div>
             <div style={{ width: 140 }}>
               <div className="rc-kicker">Source</div>
