@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
+import { Skeleton } from '../ui/Skeleton/Skeleton';
 
 type Project = {
   id: string;
   title: string;
   description?: string | null;
   clinical_area?: string | null;
-  runtime_mode: string;
   archived: boolean;
 };
 
@@ -28,172 +29,186 @@ function Tab({ to, label }: { to: string; label: string }) {
     <NavLink
       to={to}
       end
-      className={({ isActive }) => `rc-nav-item ${isActive ? 'rc-nav-item--active' : ''}`}
-      style={{ padding: '8px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}
+      className={({ isActive }) => `rc-tab${isActive ? ' rc-tab--active' : ''}`}
     >
       {label}
     </NavLink>
   );
 }
 
+function StatChip({ label, value }: { label: string; value: number | '—' }) {
+  return (
+    <div className="rc-stat-chip">
+      <span className="rc-stat-chip-value">{value}</span>
+      <span className="rc-stat-chip-label">{label}</span>
+    </div>
+  );
+}
+
+// Clinical sheet icon SVG
+function ClinicalIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 2v4M8 4h4"/>
+      <rect x="3" y="6" width="14" height="12" rx="2"/>
+      <path d="M7 11h6M7 14h4"/>
+    </svg>
+  );
+}
+
 export default function ProjectLayout() {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const [project, setProject] = useState<Project | null>(null);
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-
+  const qc = useQueryClient();
   const [exportJobId, setExportJobId] = useState<string | null>(null);
-  const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null; output?: any } | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
+  // ── Project + dashboard data ──────────────────────────────────────────────
+  const { data: project, isLoading: projLoading, error: projError } = useQuery<Project>({
+    queryKey: ['project', projectId],
+    queryFn: async () => (await api.get(`/projects/${projectId}`)).data as Project,
+    enabled: !!projectId,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      if (!projectId) return;
-      setError(null);
-      try {
-        const [rp, rd] = await Promise.all([api.get(`/projects/${projectId}`), api.get(`/projects/${projectId}/dashboard`)]);
-        if (mounted) setProject(rp.data as Project);
-        if (mounted) setDashboard(rd.data as Dashboard);
-      } catch (e: any) {
-        if (mounted) setError(e?.response?.data?.detail || 'Failed to load project');
-      }
-    }
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [projectId]);
+  const { data: dashboard } = useQuery<Dashboard>({
+    queryKey: ['project-dashboard', projectId],
+    queryFn: async () => (await api.get(`/projects/${projectId}/dashboard`)).data as Dashboard,
+    enabled: !!projectId,
+    staleTime: 30_000,
+  });
 
-  async function startExportZip() {
-    if (!projectId) return;
-    setError(null);
-    try {
-      const r = await api.post(`/projects/${projectId}/export-zip`, {});
-      const jid = String((r.data as any)?.job_id || '');
-      setExportJobId(jid);
-      setExportJobStatus({ status: 'queued', progress: 0, error: null });
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Export ZIP failed');
-    }
-  }
+  // ── Export job polling ────────────────────────────────────────────────────
+  const { data: exportJob } = useQuery({
+    queryKey: ['job', exportJobId],
+    queryFn: async () => {
+      const r = await api.get(`/jobs/${exportJobId}`);
+      return r.data as { status: string; progress_percent: number; error?: string | null; result?: any };
+    },
+    enabled: !!exportJobId,
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      return s === 'completed' || s === 'failed' ? false : 2000;
+    },
+  });
+
+  // ── Export mutation ───────────────────────────────────────────────────────
+  const exportMut = useMutation({
+    mutationFn: async () => (await api.post(`/projects/${projectId}/export-zip`, {})).data,
+    onSuccess: (data: any) => {
+      setExportJobId(String(data?.job_id || ''));
+    },
+  });
 
   async function downloadZip() {
     if (!projectId || !exportJobId) return;
-    setError(null);
-    try {
-      const filename = String(exportJobStatus?.output?.filename || `project_export_${projectId}.zip`);
-      const r = await api.get(`/projects/${projectId}/export-zip/${exportJobId}/download`, { responseType: 'blob' });
-      downloadBlob(r.data as Blob, filename);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Download ZIP failed');
-    }
+    const filename = String(exportJob?.result?.output?.filename || `project_export_${projectId}.zip`);
+    const r = await api.get(`/projects/${projectId}/export-zip/${exportJobId}/download`, { responseType: 'blob' });
+    downloadBlob(r.data as Blob, filename);
   }
 
-  useEffect(() => {
-    if (!exportJobId) return;
+  if (!projectId) return <div className="rc-error-card">Missing project ID.</div>;
 
-    let stopped = false;
+  if (projError) {
+    const msg = (projError as any)?.response?.data?.detail || 'Failed to load project';
+    return (
+      <div className="rc-error-card">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="10" cy="10" r="8"/><path d="M10 6v4M10 14h.01"/></svg>
+        {msg}
+      </div>
+    );
+  }
 
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${exportJobId}`);
-        const status = String((r.data as any)?.status || 'unknown');
-        const progress = Number((r.data as any)?.progress_percent || 0);
-        const err = (r.data as any)?.error || null;
-        const result = (r.data as any)?.result || {};
-        const output = result?.output || result?.rq_result?.output;
-
-        setExportJobStatus({ status, progress, error: err, output });
-
-        if (status === 'completed' || status === 'failed') {
-          return;
-        }
-      } catch (e: any) {
-        setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
-      }
-    }
-
-    poll();
-    const t = window.setInterval(poll, 2000);
-    return () => {
-      stopped = true;
-      window.clearInterval(t);
-    };
-  }, [exportJobId]);
-
-  if (!projectId) return <div>Missing project id</div>;
-  if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
+  const counts = dashboard?.counts;
+  const exportStatus = exportJob?.status;
+  const exportRunning = !!exportJobId && exportStatus !== 'completed' && exportStatus !== 'failed';
 
   return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div>
-            <h1 className="rc-page-title" style={{ marginBottom: 0 }}>{project?.title || 'Project'}</h1>
-            {project?.clinical_area ? <div className="rc-subtitle">{project.clinical_area}</div> : <div className="rc-subtitle">Research project workspace</div>}
-            {project?.runtime_mode ? <div className="rc-help">Runtime: {project.runtime_mode}</div> : null}
-            <button
-              className="rc-btn rc-btn--primary"
-              style={{ marginTop: 8, padding: '7px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              onClick={() => navigate(`/clinical?from_project=${projectId}`)}
-            >
-              🩺 Generate Clinical Sheet
-              {dashboard?.counts?.papers ? (
-                <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 8, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
-                  {dashboard.counts.papers} paper{dashboard.counts.papers !== 1 ? 's' : ''}
-                </span>
-              ) : null}
-            </button>
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {[
-              { label: 'Papers', value: dashboard?.counts?.papers ?? '—', icon: '📄', color: 'var(--rc-info)' },
-              { label: 'Notes', value: dashboard?.counts?.notes ?? '—', icon: '📝', color: 'var(--rc-success)' },
-              { label: 'References', value: dashboard?.counts?.references ?? '—', icon: '🔗', color: 'var(--rc-warning)' },
-              { label: 'Extracted', value: dashboard?.counts?.meta_studies_current ?? '—', icon: '🔬', color: 'var(--rc-primary)' },
-            ].map(s => (
-              <div key={s.label} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                background: 'var(--rc-surface)', border: '1px solid var(--rc-border)',
-                borderRadius: 10, padding: '8px 14px', boxShadow: 'var(--rc-shadow-xs)',
-              }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, lineHeight: 1, color: 'var(--rc-text)' }}>{s.value}</span>
-                <span style={{ fontSize: 10, color: 'var(--rc-muted)', fontWeight: 600 }}>{s.label}</span>
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {projLoading ? (
+            <>
+              <Skeleton height={26} width="52%" radius={8} />
+              <div style={{ height: 8 }} />
+              <Skeleton height={14} width="32%" radius={6} />
+            </>
+          ) : (
+            <>
+              <h1 className="rc-page-title" style={{ marginBottom: 0 }}>{project?.title || 'Project'}</h1>
+              <div className="rc-subtitle">
+                {project?.clinical_area || 'Research project workspace'}
               </div>
-            ))}
-            <button className="rc-btn rc-btn--sm" onClick={startExportZip} style={{ gap: 5 }}>
-              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/></svg>
-              Export ZIP
-            </button>
-            {exportJobId ? <div className="rc-help">{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
-            {exportJobId && exportJobStatus?.status === 'completed' ? (
-              <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={downloadZip}>⬇ Download</button>
+            </>
+          )}
+          <button
+            className="rc-btn rc-btn--primary"
+            style={{ marginTop: 10, padding: '7px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            onClick={() => navigate(`/clinical?from_project=${projectId}`)}
+          >
+            <ClinicalIcon />
+            Generate Clinical Sheet
+            {counts?.papers ? (
+              <span style={{ background: 'rgba(255,255,255,0.22)', borderRadius: 6, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+                {counts.papers} paper{counts.papers !== 1 ? 's' : ''}
+              </span>
             ) : null}
-            {exportJobStatus?.error ? <div className="rc-error" style={{ fontSize: 12 }}>{String(exportJobStatus.error)}</div> : null}
+          </button>
+        </div>
+
+        {/* Stats + Export */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <StatChip label="Papers" value={counts?.papers ?? '—'} />
+          <StatChip label="Notes" value={counts?.notes ?? '—'} />
+          <StatChip label="Refs" value={counts?.references ?? '—'} />
+          <StatChip label="Extracted" value={counts?.meta_studies_current ?? '—'} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+            <button
+              className="rc-btn rc-btn--sm"
+              onClick={() => exportMut.mutate()}
+              disabled={exportRunning || exportMut.isPending}
+              style={{ gap: 5 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/>
+              </svg>
+              {exportRunning ? `Exporting… ${exportJob?.progress_percent ?? 0}%` : 'Export ZIP'}
+            </button>
+            {exportStatus === 'completed' && (
+              <button className="rc-btn rc-btn--sm rc-btn--primary" onClick={downloadZip} style={{ gap: 5 }}>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/>
+                </svg>
+                Download ZIP
+              </button>
+            )}
+            {exportJob?.error && (
+              <div className="rc-error" style={{ fontSize: 12 }}>{String(exportJob.error)}</div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="rc-card rc-tab-scroll" style={{ padding: 10 }}>
-        <div className="rc-row" style={{ gap: 6, overflowX: 'auto', flexWrap: 'nowrap' }}>
+      {/* ── Tab navigation ───────────────────────────────────────────────── */}
+      <div className="rc-card" style={{ padding: '8px 10px' }}>
+        <nav className="rc-tab-nav">
           <Tab to={`/projects/${projectId}/research`} label="Research" />
           <Tab to={`/projects/${projectId}/reader`} label="Reader" />
           <Tab to={`/projects/${projectId}/library`} label="Library" />
           <Tab to={`/projects/${projectId}/meta`} label="Extraction" />
           <Tab to={`/projects/${projectId}/references`} label="References" />
           <Tab to={`/projects/${projectId}/drafts`} label="Drafts" />
+          <Tab to={`/projects/${projectId}/presentations`} label="Presentations" />
           <Tab to={`/projects/${projectId}/analysis`} label="Analysis" />
           <Tab to={`/projects/${projectId}/screening`} label="Screening" />
           <Tab to={`/projects/${projectId}/notes`} label="Notes" />
-        </div>
+        </nav>
       </div>
 
+      {/* ── Page content ─────────────────────────────────────────────────── */}
       <div className="rc-card">
-        <Outlet />
+        <Outlet context={{ project, dashboard, projectId }} />
       </div>
     </div>
   );
