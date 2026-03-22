@@ -188,18 +188,12 @@ export type ClinicalSheetRow = {
   project_id?: string | null;
   topic: string;
   version: number;
+  is_current?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
 };
 
-export type ClinicalSheetDetail = ClinicalSheetRow & {
-  content_markdown: string;
-  content_json?: Record<string, unknown> | null;
-  references_json?: unknown[] | null;
-  sources_used?: Record<string, unknown> | null;
-  llm_model?: string | null;
-  llm_usage?: Record<string, unknown> | null;
-};
+// Full detail type lives in domain/clinical/types.ts — import from there.
 
 // ─── Meta-analysis ────────────────────────────────────────────────────────────
 
@@ -218,6 +212,8 @@ export type BookRow = {
   id: string;
   title: string;
   filename: string;
-  chapter_count?: number;
+  total_pages?: number | null;
+  chapters?: Array<{ title: string; page_start?: number; page_end?: number }> | null;
+  indexed_at?: string | null;
   created_at?: string | null;
 };

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { BookRow } from '../types/api';
 import { api } from '../services/api';
 import { useConfirm } from '../ui/Dialog/useConfirm';
@@ -9,150 +10,100 @@ import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
 export default function BooksPage() {
   const confirm = useConfirm();
   const toast = useToast();
-  const [books, setBooks] = useState<BookRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-
   const [scanJobId, setScanJobId] = useState<string | null>(null);
-  const [scanStatus, setScanStatus] = useState<{ status: string; progress: number; error?: string | null } | null>(null);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await api.get('/books');
-      setBooks(r.data as BookRow[]);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to load books');
-    } finally {
-      setLoading(false);
-    }
-  }
+  // ── Books list ────────────────────────────────────────────────────────────
+  const { data: books = [], isLoading, error, refetch } = useQuery<BookRow[]>({
+    queryKey: ['books'],
+    queryFn: async () => (await api.get('/books')).data as BookRow[],
+  });
 
-  useEffect(() => {
-    load();
-  }, []);
+  // ── Scan job polling ──────────────────────────────────────────────────────
+  const { data: scanJob } = useQuery({
+    queryKey: ['job', scanJobId],
+    queryFn: async () => {
+      const r = await api.get(`/jobs/${scanJobId}`);
+      return r.data as { status: string; progress_percent: number; error?: string | null };
+    },
+    enabled: !!scanJobId,
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      if (s === 'completed') { setScanJobId(null); qc.invalidateQueries({ queryKey: ['books'] }); return false; }
+      if (s === 'failed') { setScanJobId(null); return false; }
+      return 4000;
+    },
+  });
 
-  useEffect(() => {
-    if (!scanJobId) return;
-    let stopped = false;
+  const scanStatus = scanJob
+    ? { status: scanJob.status, progress: scanJob.progress_percent, error: scanJob.error ?? null }
+    : null;
 
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${scanJobId}`);
-        const status = String((r.data as any)?.status || 'unknown');
-        const progress = Number((r.data as any)?.progress_percent || 0);
-        const err = (r.data as any)?.error || null;
-        setScanStatus({ status, progress, error: err });
-        if (status === 'completed') {
-          setScanJobId(null);
-          await load();
-        }
-        if (status === 'failed') {
-          setScanJobId(null);
-        }
-      } catch (e: any) {
-        setScanStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
-      }
-    }
-
-    poll();
-    const t = window.setInterval(poll, 4000);
-    return () => {
-      stopped = true;
-      window.clearInterval(t);
-    };
-  }, [scanJobId]);
-
-  async function scanFolder() {
-    setError(null);
-    setNotice(null);
-    try {
-      const r = await api.post('/books/scan-folder', {});
-      const jid = String((r.data as any)?.job_id || '');
+  // ── Mutations ─────────────────────────────────────────────────────────────
+  const scanMut = useMutation({
+    mutationFn: async () => (await api.post('/books/scan-folder', {})).data,
+    onSuccess: (data: any) => {
+      const jid = String(data?.job_id || '');
       setScanJobId(jid);
-      setScanStatus({ status: 'queued', progress: 0, error: null });
-      setNotice(`Scan job enqueued: ${jid}`);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Scan failed');
-    }
-  }
+      toast.success('Scan enqueued', `Job: ${jid}`);
+    },
+    onError: (e: any) => toast.error('Scan failed', e?.response?.data?.detail || 'Unknown error'),
+  });
 
-  async function upload() {
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    setNotice(null);
-    try {
+  const uploadMut = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error('No file selected');
       const form = new FormData();
       form.append('file', file);
-      const r = await api.post('/books/index', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setNotice(`Index job enqueued: ${r.data?.job_id}`);
+      return (await api.post('/books/index', form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+    },
+    onSuccess: (data: any) => {
       setFile(null);
-      await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Upload/index failed');
-    } finally {
-      setUploading(false);
-    }
-  }
+      toast.success('Upload enqueued', `Job: ${data?.job_id}`);
+      qc.invalidateQueries({ queryKey: ['books'] });
+    },
+    onError: (e: any) => toast.error('Upload failed', e?.response?.data?.detail || 'Unknown error'),
+  });
 
-  async function reindex(b: BookRow) {
-    setError(null);
-    setNotice(null);
-    try {
-      const r = await api.post(`/books/${b.id}/reindex`);
-      setNotice(`Re-index job enqueued: ${r.data?.job_id}`);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Re-index failed');
-    }
-  }
+  const reindexMut = useMutation({
+    mutationFn: async (b: BookRow) => (await api.post(`/books/${b.id}/reindex`)).data,
+    onSuccess: (data: any) => toast.success('Re-index enqueued', `Job: ${data?.job_id}`),
+    onError: (e: any) => toast.error('Re-index failed', e?.response?.data?.detail || 'Unknown error'),
+  });
 
-  async function del(b: BookRow) {
-    const ok = await confirm({
-      title: 'Delete book?',
-      body: String(b.title || b.filename),
-      confirmText: 'Delete',
-      danger: true,
-    });
-    if (!ok) return;
-
-    setError(null);
-    setNotice(null);
-    try {
+  const deleteMut = useMutation({
+    mutationFn: async (b: BookRow) => {
+      const ok = await confirm({ title: 'Delete book?', body: String(b.title || b.filename), confirmText: 'Delete', danger: true });
+      if (!ok) throw new Error('cancelled');
       await api.delete(`/books/${b.id}`);
+      return b;
+    },
+    onSuccess: (b: BookRow) => {
       toast.success('Deleted', String(b.title || b.filename));
-      await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Delete failed');
-    }
-  }
+      qc.invalidateQueries({ queryKey: ['books'] });
+    },
+    onError: (e: any) => { if (e?.message !== 'cancelled') toast.error('Delete failed', e?.response?.data?.detail || 'Unknown error'); },
+  });
+
+  const errorMsg = error ? String((error as any)?.response?.data?.detail || 'Failed to load books') : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 980 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>Books</h2>
-        <button onClick={load} disabled={loading}>
-          {loading ? 'Loading…' : 'Refresh'}
+        <button onClick={() => refetch()} disabled={isLoading}>
+          {isLoading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
 
-      {notice ? (
-        <div style={{ fontSize: 12, background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)', padding: 8, borderRadius: 10 }}>
-          {notice}
-        </div>
-      ) : null}
-      {error ? <div style={{ color: 'crimson' }}>{String(error)}</div> : null}
+      {errorMsg ? <div style={{ color: 'crimson' }}>{errorMsg}</div> : null}
 
       <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Index books from the server BOOKS folder (recommended)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button onClick={scanFolder} disabled={Boolean(scanJobId)}>
+          <button onClick={() => scanMut.mutate()} disabled={!!scanJobId || scanMut.isPending}>
             {scanJobId ? 'Scanning…' : 'Scan BOOKS folder + index'}
           </button>
           {scanStatus ? (
@@ -171,21 +122,21 @@ export default function BooksPage() {
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Upload a book (optional)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <button onClick={upload} disabled={!file || uploading}>
-            {uploading ? 'Uploading…' : 'Upload + index'}
+          <button onClick={() => uploadMut.mutate()} disabled={!file || uploadMut.isPending}>
+            {uploadMut.isPending ? 'Uploading…' : 'Upload + index'}
           </button>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {loading && books.length === 0 ? (
+        {isLoading && books.length === 0 ? (
           <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
             <Skeleton height={14} width="52%" radius={10} />
             <div style={{ height: 10 }} />
             <SkeletonLines lines={3} lineHeight={12} lastLineWidth="45%" />
           </div>
         ) : null}
-        {!loading && books.length === 0 ? (
+        {!isLoading && books.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <svg width="88" height="88" viewBox="0 0 88 88" fill="none" style={{ margin: '0 auto 16px', display: 'block' }}>
               <rect x="10" y="14" width="44" height="58" rx="5" fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.2)" strokeWidth="1.5"/>
@@ -210,11 +161,11 @@ export default function BooksPage() {
             <div style={{ fontWeight: 800 }}>{b.title || b.filename}</div>
             <div style={{ fontSize: 12, opacity: 0.75 }}>
               {b.total_pages ? `${b.total_pages} pages · ` : ''}
-              chapters: {b.chapters_count} · indexed_at: {b.indexed_at || '—'}
+              chapters: {b.chapters?.length ?? 0} · indexed_at: {b.indexed_at || '—'}
             </div>
             <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={() => reindex(b)}>Re-index</button>
-              <button onClick={() => del(b)} style={{ background: 'rgba(220,38,38,0.15)' }}>
+              <button onClick={() => reindexMut.mutate(b)}>Re-index</button>
+              <button onClick={() => deleteMut.mutate(b)} style={{ background: 'rgba(220,38,38,0.15)' }}>
                 Delete
               </button>
             </div>

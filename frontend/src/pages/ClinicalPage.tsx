@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
@@ -76,33 +76,35 @@ export default function ClinicalPage() {
     onError: (e: any) => setGenError(e?.response?.data?.detail || 'Generate failed'),
   });
 
-  // ── Job polling ───────────────────────────────────────────────────────────
+  // ── Job polling (React Query) ─────────────────────────────────────────────
+  const navigatedRef = useRef(false);
+  const { data: jobData } = useQuery({
+    queryKey: ['job', jobId],
+    queryFn: async () => {
+      const r = await api.get(`/jobs/${jobId}`);
+      return r.data as { status: string; progress_percent: number; error?: string | null; result?: { sheet_id?: string } };
+    },
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      return s === 'completed' || s === 'failed' ? false : 4000;
+    },
+  });
+
   useEffect(() => {
-    if (!jobId) return;
-    let stopped = false;
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${jobId}`);
-        const status = String((r.data as any)?.status || 'unknown');
-        const progress = Number((r.data as any)?.progress_percent || 0);
-        const err = (r.data as any)?.error || null;
-        const sheet_id = (r.data as any)?.result?.sheet_id || null;
-        setJobStatus({ status, progress, error: err, sheet_id });
-        if (status === 'completed') {
-          qc.invalidateQueries({ queryKey: sheetsKey });
-          setJobId(null);
-          if (sheet_id) navigate(`/clinical/sheets/${sheet_id}`);
-        }
-        if (status === 'failed') setJobId(null);
-      } catch (e: any) {
-        setJobStatus({ status: 'polling_error', progress: 0, error: e?.message || 'Polling failed' });
+    if (!jobData) return;
+    const { status, progress_percent, error, result } = jobData;
+    setJobStatus({ status, progress: progress_percent, error: error ?? null, sheet_id: result?.sheet_id ?? null });
+    if (status === 'completed') {
+      qc.invalidateQueries({ queryKey: sheetsKey });
+      setJobId(null);
+      if (result?.sheet_id && !navigatedRef.current) {
+        navigatedRef.current = true;
+        navigate(`/clinical/sheets/${result.sheet_id}`);
       }
     }
-    poll();
-    const t = window.setInterval(poll, 4000);
-    return () => { stopped = true; window.clearInterval(t); };
-  }, [jobId]);
+    if (status === 'failed') setJobId(null);
+  }, [jobData]);
 
   const errorMsg = genError || (sheetsError as any)?.message;
 
