@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import dataclass
-from datetime import datetime
-from pathlib import Path
+from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from app.config import settings
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.billing import BillingUsageEvent
 from app.services.llm.presets import USER_TIERS
 
 
-def _norm_user_id(user_id: UUID | str) -> str:
-    return str(user_id)
+def _norm_user_id(user_id: UUID | str) -> UUID:
+    return UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
 
 
 @dataclass
@@ -23,42 +24,21 @@ class CanGenerateResult:
 
 
 class UsageTracker:
-    """Lightweight usage tracking with monthly limits.
+    """PostgreSQL-backed usage tracking with monthly limits.
 
-    Storage:
-      - JSON file under STORAGE_BASE_PATH/data/usage.json by default.
-
-    Notes:
-      - This is scaffolding for billing hooks; it is intentionally file-backed
-        to avoid schema changes.
-      - user_id is normalized to string (UUID-safe).
+    All writes are fully atomic — no JSON file, no race conditions.
+    Pass an open AsyncSession from the request context or create one for
+    background tasks.
     """
 
-    def __init__(self, *, path: str | Path | None = None):
-        if path is None:
-            base = Path(settings.STORAGE_BASE_PATH).expanduser().resolve()
-            path = base / "data" / "usage.json"
-        self.path = Path(path)
-        self.usage: dict[str, Any] = self._load()
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
 
-    def _load(self) -> dict[str, Any]:
-        if self.path.exists():
-            with self.path.open("r", encoding="utf-8") as f:
-                return json.load(f)
-        return {}
-
-    def _save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        with tmp.open("w", encoding="utf-8") as f:
-            json.dump(self.usage, f, indent=2, ensure_ascii=False, default=str)
-        os.replace(tmp, self.path)
-
-    def record_generation(
+    async def record_generation(
         self,
         *,
         user_id: UUID | str,
-        sheet_id: UUID | str,
+        sheet_id: UUID | str | None = None,
         preset: str,
         models_used: list[str],
         tokens_total: int,
@@ -66,52 +46,78 @@ class UsageTracker:
         duration_sec: float,
     ) -> None:
         uid = _norm_user_id(user_id)
-        month = datetime.now().strftime("%Y-%m")
+        sid = UUID(str(sheet_id)) if sheet_id else None
 
-        self.usage.setdefault(uid, {})
-        self.usage[uid].setdefault(month, {"sheets": 0, "tokens": 0, "cost": 0.0, "log": []})
-
-        entry = self.usage[uid][month]
-        entry["sheets"] += 1
-        entry["tokens"] += int(tokens_total)
-        entry["cost"] += float(cost_usd)
-        entry["log"].append(
-            {
-                "sheet_id": str(sheet_id),
-                "preset": preset,
-                "models": list(models_used),
-                "tokens": int(tokens_total),
-                "cost": float(cost_usd),
-                "duration": float(duration_sec),
-                "at": datetime.now().isoformat(),
-            }
+        event = BillingUsageEvent(
+            user_id=uid,
+            sheet_id=sid,
+            preset=preset,
+            models_used=models_used,
+            tokens_total=int(tokens_total),
+            cost_usd=Decimal(str(cost_usd)),
+            duration_sec=float(duration_sec),
         )
+        self.db.add(event)
+        await self.db.flush()
 
-        self._save()
-
-    def can_generate(self, *, user_id: UUID | str, tier: str) -> CanGenerateResult:
-        uid = _norm_user_id(user_id)
+    async def can_generate(self, *, user_id: UUID | str, tier: str) -> CanGenerateResult:
         tier_cfg = USER_TIERS.get(tier, {})
         limit = int(tier_cfg.get("sheets_per_month", 0))
 
         if limit == -1:
             return CanGenerateResult(ok=True, message="unlimited")
 
-        month = datetime.now().strftime("%Y-%m")
-        used = int(self.usage.get(uid, {}).get(month, {}).get("sheets", 0) or 0)
+        uid = _norm_user_id(user_id)
+        now = datetime.now(tz=timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        result = await self.db.execute(
+            select(func.count(BillingUsageEvent.id)).where(
+                BillingUsageEvent.user_id == uid,
+                BillingUsageEvent.created_at >= month_start,
+            )
+        )
+        used = result.scalar_one() or 0
+
         if used >= limit:
             return CanGenerateResult(ok=False, message=f"Limit reached ({used}/{limit})")
         return CanGenerateResult(ok=True, message=f"{used}/{limit}")
 
-    def get_stats(self, *, user_id: UUID | str) -> dict[str, Any]:
+    async def get_stats(self, *, user_id: UUID | str) -> dict[str, Any]:
         uid = _norm_user_id(user_id)
-        month = datetime.now().strftime("%Y-%m")
-        data = self.usage.get(uid, {}).get(month, {})
-        log = data.get("log", [])
+        now = datetime.now(tz=timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        result = await self.db.execute(
+            select(BillingUsageEvent)
+            .where(
+                BillingUsageEvent.user_id == uid,
+                BillingUsageEvent.created_at >= month_start,
+            )
+            .order_by(BillingUsageEvent.created_at.desc())
+        )
+        events = result.scalars().all()
+
+        total_tokens = sum(e.tokens_total for e in events)
+        total_cost = float(sum(e.cost_usd for e in events))
+
+        recent = [
+            {
+                "sheet_id": str(e.sheet_id) if e.sheet_id else None,
+                "preset": e.preset,
+                "models": e.models_used or [],
+                "tokens": e.tokens_total,
+                "cost": float(e.cost_usd),
+                "duration": e.duration_sec,
+                "at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events[:10]
+        ]
+
         return {
-            "month": month,
-            "sheets_this_month": int(data.get("sheets", 0) or 0),
-            "tokens_this_month": int(data.get("tokens", 0) or 0),
-            "cost_this_month": float(data.get("cost", 0.0) or 0.0),
-            "recent": log[-10:],
+            "month": now.strftime("%Y-%m"),
+            "sheets_this_month": len(events),
+            "tokens_this_month": total_tokens,
+            "cost_this_month": total_cost,
+            "recent": recent,
         }

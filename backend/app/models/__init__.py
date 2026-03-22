@@ -30,6 +30,7 @@ from app.models.meta_extractor import (
 )
 from app.models.clinical import ClinicalSheet
 from app.models.book_index import BookIndex
+from app.models.billing import BillingUsageEvent
 
 __all__ = [
     "User",
@@ -78,4 +79,5 @@ __all__ = [
     "ExtractedRiskOfBias",
     "ClinicalSheet",
     "BookIndex",
+    "BillingUsageEvent",
 ]
