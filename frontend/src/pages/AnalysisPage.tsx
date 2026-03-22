@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 
 type Dataset = {
@@ -19,73 +20,56 @@ type AnalysisRun = {
 
 export default function AnalysisPage() {
   const { projectId } = useParams();
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [runs, setRuns] = useState<AnalysisRun[]>([]);
+  const qc = useQueryClient();
+
   const [datasetTitle, setDatasetTitle] = useState('demo_dataset');
   const [rowsText, setRowsText] = useState('[{"group":"A","value":12},{"group":"A","value":10},{"group":"B","value":18}]');
   const [selectedDataset, setSelectedDataset] = useState('');
   const [analysisTitle, setAnalysisTitle] = useState('Group comparison');
   const [analysisType, setAnalysisType] = useState('group_comparison');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [runs, setRuns] = useState<AnalysisRun[]>([]);
 
-  async function load() {
-    if (!projectId) return;
-    const [datasetResponse] = await Promise.all([
-      api.get('/datasets', { params: { project_id: projectId } }),
-    ]);
-    const nextDatasets = datasetResponse.data as Dataset[];
-    setDatasets(nextDatasets);
-    if (!selectedDataset && nextDatasets[0]) {
-      setSelectedDataset(nextDatasets[0].id);
-    }
-  }
+  const { data: datasets = [], isError } = useQuery<Dataset[]>({
+    queryKey: ['datasets', projectId],
+    queryFn: async () => {
+      const r = await api.get('/datasets', { params: { project_id: projectId } });
+      const data = r.data as Dataset[];
+      if (!selectedDataset && data[0]) setSelectedDataset(data[0].id);
+      return data;
+    },
+    enabled: !!projectId,
+  });
 
-  useEffect(() => {
-    load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load analysis workspace'));
-  }, [projectId]);
+  function invalidate() { qc.invalidateQueries({ queryKey: ['datasets', projectId] }); }
 
-  async function createDataset() {
-    if (!projectId) return;
-    setBusy(true);
-    setError(null);
-    try {
+  const datasetMut = useMutation({
+    mutationFn: () => {
       const rows = JSON.parse(rowsText) as Array<Record<string, unknown>>;
-      const response = await api.post('/datasets', { project_id: projectId, title: datasetTitle, rows });
-      const dataset = response.data as Dataset;
-      setSelectedDataset(dataset.id);
-      await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create dataset');
-    } finally {
-      setBusy(false);
-    }
-  }
+      return api.post('/datasets', { project_id: projectId, title: datasetTitle, rows });
+    },
+    onSuccess: (r) => {
+      setSelectedDataset((r.data as Dataset).id);
+      invalidate();
+    },
+    onError: () => {},
+  });
 
-  async function createRun() {
-    if (!projectId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await api.post('/analysis-runs', {
-        project_id: projectId,
-        dataset_id: selectedDataset || null,
-        title: analysisTitle,
-        analysis_type: analysisType,
-        input_params:
-          analysisType === 'group_comparison'
-            ? { group_column: 'group', value_column: 'value' }
-            : analysisType === 'linear_regression'
-              ? { target_column: 'value', feature_columns: ['group'] }
-              : {},
-      });
-      setRuns((prev) => [response.data as AnalysisRun, ...prev]);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to run analysis');
-    } finally {
-      setBusy(false);
-    }
-  }
+  const runMut = useMutation({
+    mutationFn: () => api.post('/analysis-runs', {
+      project_id: projectId,
+      dataset_id: selectedDataset || null,
+      title: analysisTitle,
+      analysis_type: analysisType,
+      input_params:
+        analysisType === 'group_comparison'
+          ? { group_column: 'group', value_column: 'value' }
+          : analysisType === 'linear_regression'
+            ? { target_column: 'value', feature_columns: ['group'] }
+            : {},
+    }),
+    onSuccess: (r) => setRuns((prev) => [r.data as AnalysisRun, ...prev]),
+    onError: () => {},
+  });
 
   async function exportRun(runId: string, format: 'html' | 'pdf' | 'docx') {
     try {
@@ -99,10 +83,10 @@ export default function AnalysisPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to export analysis');
-    }
+    } catch { /* download errors are not critical */ }
   }
+
+  const busy = datasetMut.isPending || runMut.isPending;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -111,7 +95,7 @@ export default function AnalysisPage() {
         <div className="rc-subtitle">Create datasets from JSON rows and launch reproducible runs through the FastAPI orchestration layer.</div>
       </div>
 
-      {error ? <div className="rc-error">{error}</div> : null}
+      {isError && <div className="rc-error-card">Failed to load analysis workspace</div>}
 
       <div className="rc-card">
         <div className="rc-card-title">Dataset builder</div>
@@ -120,7 +104,7 @@ export default function AnalysisPage() {
             <div className="rc-kicker">Dataset title</div>
             <input className="rc-input" value={datasetTitle} onChange={(e) => setDatasetTitle(e.target.value)} />
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={createDataset} disabled={busy}>Create dataset</button>
+          <button className="rc-btn rc-btn--primary" onClick={() => datasetMut.mutate()} disabled={busy}>Create dataset</button>
         </div>
         <div style={{ height: 10 }} />
         <textarea className="rc-input" style={{ minHeight: 140, width: '100%' }} value={rowsText} onChange={(e) => setRowsText(e.target.value)} />
@@ -154,7 +138,9 @@ export default function AnalysisPage() {
               <option value="meta_analysis">Meta-analysis</option>
             </select>
           </div>
-          <button className="rc-btn" onClick={createRun} disabled={busy}>Run</button>
+          <button className="rc-btn" onClick={() => runMut.mutate()} disabled={busy}>
+            {runMut.isPending ? 'Running...' : 'Run'}
+          </button>
         </div>
       </div>
 

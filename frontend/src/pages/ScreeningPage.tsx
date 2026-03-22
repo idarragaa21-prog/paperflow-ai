@@ -1,81 +1,82 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 
 type Batch = { id: string; title: string; stage: string; status: string };
 type Reason = { id: string; code: string; label: string };
 type Paper = { id: string; title: string };
 
+type ScreeningData = {
+  batches: Batch[];
+  reasons: Reason[];
+  papers: Paper[];
+  prisma: Record<string, number>;
+};
+
 export default function ScreeningPage() {
   const { projectId } = useParams();
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [reasons, setReasons] = useState<Reason[]>([]);
-  const [papers, setPapers] = useState<Paper[]>([]);
-  const [prisma, setPrisma] = useState<Record<string, number>>({});
+  const qc = useQueryClient();
+
   const [title, setTitle] = useState('Main screening batch');
   const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedPaper, setSelectedPaper] = useState('');
   const [decision, setDecision] = useState('include');
   const [reasonLabel, setReasonLabel] = useState('Wrong population');
-  const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    if (!projectId) return;
-    const [batchResponse, reasonResponse, paperResponse, prismaResponse] = await Promise.all([
-      api.get('/screening/batches', { params: { project_id: projectId } }),
-      api.get('/screening/reasons', { params: { project_id: projectId } }),
-      api.get(`/projects/${projectId}/library`),
-      api.get('/screening/prisma', { params: { project_id: projectId } }).catch(() => ({ data: { counts: {} } })),
-    ]);
-    const nextBatches = batchResponse.data as Batch[];
-    setBatches(nextBatches);
-    setReasons(reasonResponse.data as Reason[]);
-    setPapers(paperResponse.data as Paper[]);
-    setPrisma((prismaResponse.data?.counts || {}) as Record<string, number>);
-    if (!selectedBatch && nextBatches[0]) setSelectedBatch(nextBatches[0].id);
-    if (!selectedPaper && (paperResponse.data as Paper[])[0]) setSelectedPaper((paperResponse.data as Paper[])[0].id);
-  }
+  const { data, isError } = useQuery<ScreeningData>({
+    queryKey: ['screening', projectId],
+    queryFn: async () => {
+      const [batchRes, reasonRes, paperRes, prismaRes] = await Promise.all([
+        api.get('/screening/batches', { params: { project_id: projectId } }),
+        api.get('/screening/reasons', { params: { project_id: projectId } }),
+        api.get(`/projects/${projectId}/library`),
+        api.get('/screening/prisma', { params: { project_id: projectId } }).catch(() => ({ data: { counts: {} } })),
+      ]);
+      const batches = batchRes.data as Batch[];
+      const papers = paperRes.data as Paper[];
+      if (!selectedBatch && batches[0]) setSelectedBatch(batches[0].id);
+      if (!selectedPaper && papers[0]) setSelectedPaper(papers[0].id);
+      return {
+        batches,
+        reasons: reasonRes.data as Reason[],
+        papers,
+        prisma: (prismaRes.data?.counts || {}) as Record<string, number>,
+      };
+    },
+    enabled: !!projectId,
+  });
 
-  useEffect(() => {
-    load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load screening workspace'));
-  }, [projectId]);
+  function invalidate() { qc.invalidateQueries({ queryKey: ['screening', projectId] }); }
 
-  async function createBatch() {
-    if (!projectId) return;
-    try {
-      await api.post('/screening/batches', { project_id: projectId, title, stage: 'title_abstract' });
-      await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create screening batch');
-    }
-  }
+  const batchMut = useMutation({
+    mutationFn: () => api.post('/screening/batches', { project_id: projectId, title, stage: 'title_abstract' }),
+    onSuccess: () => invalidate(),
+    onError: () => {},
+  });
 
-  async function createReason() {
-    if (!projectId) return;
-    try {
-      await api.post('/screening/reasons', { project_id: projectId, code: reasonLabel.toLowerCase().replace(/\s+/g, '_'), label: reasonLabel });
-      setReasonLabel('');
-      await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to create reason');
-    }
-  }
+  const reasonMut = useMutation({
+    mutationFn: () => api.post('/screening/reasons', { project_id: projectId, code: reasonLabel.toLowerCase().replace(/\s+/g, '_'), label: reasonLabel }),
+    onSuccess: () => { setReasonLabel(''); invalidate(); },
+    onError: () => {},
+  });
 
-  async function saveDecision() {
-    if (!selectedBatch || !selectedPaper) return;
-    try {
-      await api.post('/screening/decisions', {
-        batch_id: selectedBatch,
-        paper_id: selectedPaper,
-        decision,
-        stage: 'title_abstract',
-        reason_id: decision === 'exclude' ? reasons[0]?.id || null : null,
-      });
-      await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to save screening decision');
-    }
-  }
+  const decisionMut = useMutation({
+    mutationFn: () => api.post('/screening/decisions', {
+      batch_id: selectedBatch,
+      paper_id: selectedPaper,
+      decision,
+      stage: 'title_abstract',
+      reason_id: decision === 'exclude' ? data?.reasons[0]?.id || null : null,
+    }),
+    onSuccess: () => invalidate(),
+    onError: () => {},
+  });
+
+  const batches = data?.batches ?? [];
+  const reasons = data?.reasons ?? [];
+  const papers = data?.papers ?? [];
+  const prisma = data?.prisma ?? {};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -84,7 +85,7 @@ export default function ScreeningPage() {
         <div className="rc-subtitle">Title/abstract and full-text screening with auditable reasons and lightweight PRISMA counts.</div>
       </div>
 
-      {error ? <div className="rc-error">{error}</div> : null}
+      {isError && <div className="rc-error-card">Failed to load screening workspace</div>}
 
       <div className="rc-card">
         <div className="rc-card-title">Setup</div>
@@ -93,12 +94,12 @@ export default function ScreeningPage() {
             <div className="rc-kicker">Batch title</div>
             <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={createBatch}>Create batch</button>
+          <button className="rc-btn" onClick={() => batchMut.mutate()} disabled={batchMut.isPending}>Create batch</button>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Exclusion reason</div>
             <input className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={createReason}>Add reason</button>
+          <button className="rc-btn" onClick={() => reasonMut.mutate()} disabled={reasonMut.isPending}>Add reason</button>
         </div>
       </div>
 
@@ -133,7 +134,9 @@ export default function ScreeningPage() {
               <option value="maybe">Maybe</option>
             </select>
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={saveDecision}>Save decision</button>
+          <button className="rc-btn rc-btn--primary" onClick={() => decisionMut.mutate()} disabled={decisionMut.isPending || !selectedBatch || !selectedPaper}>
+            {decisionMut.isPending ? 'Saving...' : 'Save decision'}
+          </button>
         </div>
       </div>
 
@@ -149,8 +152,8 @@ export default function ScreeningPage() {
                 <circle cx="42" cy="42" r="12" fill="var(--rc-surface)" stroke="rgba(16,185,129,0.3)" strokeWidth="1.5"/>
                 <path d="M38 42h8M42 38v8" stroke="rgba(16,185,129,0.65)" strokeWidth="2" strokeLinecap="round"/>
               </svg>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--rc-text)' }}>No screening batches yet</div>
-              <div style={{ fontSize: 12, color: 'var(--rc-muted)', marginTop: 3 }}>Create a batch to start screening papers</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>No screening batches yet</div>
+              <div className="rc-help" style={{ marginTop: 3 }}>Create a batch to start screening papers</div>
             </div>
           ) : null}
           {batches.map((batch) => (
