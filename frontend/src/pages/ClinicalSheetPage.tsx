@@ -285,6 +285,54 @@ export default function ClinicalSheetPage() {
         </div>
 
         <EvidenceDrawer summary={vm.evidenceSummary} />
+
+        {/* ── Papers used from project ── */}
+        {(() => {
+          const projectPapers: Array<{ paper_id?: string; doi?: string; pmid?: string }> =
+            (vm.sheet?.sources_used as any)?.papers || [];
+          if (!projectPapers.length) return null;
+          return (
+            <div className="rc-card">
+              <div className="rc-card-title" style={{ marginBottom: 8 }}>
+                📄 Project papers used
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--rc-muted)', marginBottom: 8 }}>
+                {projectPapers.length} paper{projectPapers.length !== 1 ? 's' : ''} from this project contributed evidence to this sheet.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {projectPapers.map((p, i) => (
+                  <div key={p.paper_id || i} style={{ fontSize: 12, padding: '6px 8px', borderRadius: 6, background: 'var(--rc-bg-secondary, rgba(0,0,0,0.03))', border: '1px solid var(--rc-border)' }}>
+                    {p.doi && (
+                      <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noreferrer" style={{ color: 'var(--rc-accent, #6366f1)', fontWeight: 600 }}>
+                        DOI: {p.doi}
+                      </a>
+                    )}
+                    {!p.doi && p.pmid && (
+                      <a href={`https://pubmed.ncbi.nlm.nih.gov/${p.pmid}`} target="_blank" rel="noreferrer" style={{ color: 'var(--rc-accent, #6366f1)', fontWeight: 600 }}>
+                        PMID: {p.pmid}
+                      </a>
+                    )}
+                    {!p.doi && !p.pmid && (
+                      <span style={{ color: 'var(--rc-muted)', fontFamily: 'monospace' }}>
+                        {p.paper_id?.slice(0, 8)}…
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {vm.sheet?.project_id && (
+                <div style={{ marginTop: 10 }}>
+                  <a
+                    href={`/projects/${vm.sheet.project_id}/library`}
+                    style={{ fontSize: 12, color: 'var(--rc-accent, #6366f1)', fontWeight: 600 }}
+                  >
+                    → View project library
+                  </a>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </aside>
     </div>
     </div>

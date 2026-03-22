@@ -136,11 +136,16 @@ export default function ProjectLayout() {
             {project?.clinical_area ? <div className="rc-subtitle">{project.clinical_area}</div> : <div className="rc-subtitle">Research project workspace</div>}
             {project?.runtime_mode ? <div className="rc-help">Runtime: {project.runtime_mode}</div> : null}
             <button
-              className="rc-btn"
-              style={{ marginTop: 8, padding: '6px 12px', fontSize: 12 }}
+              className="rc-btn rc-btn--primary"
+              style={{ marginTop: 8, padding: '7px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               onClick={() => navigate(`/clinical?from_project=${projectId}`)}
             >
-              {'\uD83E\uDE7A'} Generate Clinical Sheet &rarr;
+              🩺 Generate Clinical Sheet
+              {dashboard?.counts?.papers ? (
+                <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 8, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+                  {dashboard.counts.papers} paper{dashboard.counts.papers !== 1 ? 's' : ''}
+                </span>
+              ) : null}
             </button>
           </div>
 
