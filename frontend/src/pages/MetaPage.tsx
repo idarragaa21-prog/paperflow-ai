@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { StudyRow } from '../types/api';
 import { useParams } from 'react-router-dom';
 import StudyViewer from '../components/meta/StudyViewer';
 import { downloadBlob } from '../components/meta/exportUtils';
@@ -23,17 +24,6 @@ type ItemRow = {
   updated_at?: string | null;
 };
 
-type StudyRow = {
-  id: string;
-  paper_id: string;
-  paper_title?: string;
-  paper_filename?: string;
-  batch_id?: string | null;
-  version: number;
-  extraction_confidence: number;
-  rob_auto_generated?: boolean;
-  created_at: string;
-};
 
 type ExportRow = {
   id: string;

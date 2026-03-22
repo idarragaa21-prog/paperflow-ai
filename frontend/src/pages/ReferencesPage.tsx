@@ -1,22 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReferenceRow } from '../types/api';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 
-type ReferenceRow = {
-  id: string;
-  paper_id?: string | null;
-  title: string;
-  authors: string[];
-  journal?: string | null;
-  publication_year?: number | null;
-  doi?: string | null;
-  pmid?: string | null;
-  pmcid?: string | null;
-  source_format: string;
-  citation_key?: string | null;
-  language?: string | null;
-};
 
 function buildAPA(r: ReferenceRow): string {
   const authorsStr = r.authors.length > 0 ? r.authors.join(', ') : 'Unknown';
