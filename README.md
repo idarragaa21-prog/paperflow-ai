@@ -246,11 +246,28 @@ Full API docs available at **http://localhost:8000/docs** when backend is runnin
 ### Running Tests
 
 ```bash
-cd backend
-source .venv/bin/activate
-pytest -q                    # Run all tests
-pytest tests/test_clinical_pro.py -v  # Specific test file
+# All tests (backend + frontend) — no external services needed
+make test
+
+# Backend only (146 tests; SQLite in-memory, no Postgres required)
+make test-backend
+
+# Frontend only (43 tests; jsdom, no browser required)
+make test-frontend
 ```
+
+Or run manually:
+
+```bash
+# Backend
+cd backend && python -m pytest tests/ -q
+
+# Frontend
+cd frontend && npx vitest run
+```
+
+> **Note:** `tests/test_clinical_pro.py` is skipped by default — it requires a live
+> PostgreSQL instance with seeded `ClinicalSheet` fixture data.
 
 ### Building Frontend
 
@@ -258,6 +275,7 @@ pytest tests/test_clinical_pro.py -v  # Specific test file
 cd frontend
 npm run build    # Production build → dist/
 npm run lint     # ESLint check
+npx tsc --noEmit # Type-check without emitting files
 ```
 
 ### Database Migrations

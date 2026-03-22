@@ -6,6 +6,7 @@ import time
 from typing import Any
 
 from app.config import settings
+from app.core.logger import logger
 from app.schemas.presentation_outline import PresentationOutline, outline_warnings
 from app.services.llm.base import LLMProvider
 from app.services.llm.openclaw import OpenClawProvider
@@ -97,7 +98,7 @@ class EnsembleLLMProvider(LLMProvider):
         passes: list[dict[str, Any]] = []
 
         def log(msg: str) -> None:
-            print(msg, flush=True)
+            logger.debug(msg)
 
         # PASS 1: DRAFT (Claude)
         system_draft = (

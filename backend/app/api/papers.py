@@ -21,6 +21,7 @@ from app.schemas.papers import (
     PaperRecordResponse,
     PapersBatchDownloadRequest,
 )
+from app.core.logger import logger
 from app.services.audit import log_audit
 from app.services.jobs import enqueue_process_pdf, get_job_queue
 from app.services.paper_repo import SQLPaperRepository
@@ -210,7 +211,8 @@ async def batch_download(
 
         q = get_job_queue()
         rq_job = q.enqueue(batch_download_papers_job, args=(str(job_record.id), str(payload.project_id), papers), job_timeout="60m")
-    except Exception:
+    except Exception as exc:
+        logger.error(f"Failed to enqueue batch download job: {exc}")
         job_record.status = "failed"
         job_record.error_message = "No se pudo encolar job (Redis no disponible?)"
         await repo.db.commit()
@@ -604,8 +606,8 @@ async def delete_paper(
     if paper.file_path:
         try:
             storage_manager.delete_file(paper.file_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(f"Could not delete file {paper.file_path} for paper {paper_id}: {exc}")
 
     await repo.delete_paper(paper)
 

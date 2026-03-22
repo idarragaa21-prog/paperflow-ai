@@ -239,13 +239,9 @@ async def forgot_password(
     code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
     _reset_codes[payload.email] = code
 
-    # In development: print to console. In production: send email.
+    # In development: log to console. In production: send email.
     from app.core.logger import logger
     logger.info(f"[RESET CODE] {payload.email} → {code}")
-    print(f"\n{'='*50}")
-    print(f"  PASSWORD RESET CODE for {payload.email}")
-    print(f"  CODE: {code}")
-    print(f"{'='*50}\n")
 
     return {"ok": True}
 
