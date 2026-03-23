@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import StudyViewer from '../components/meta/StudyViewer';
 import { downloadBlob } from '../components/meta/exportUtils';
 import { api } from '../services/api';
+import { useJobPolling } from '../hooks/useJobPolling';
 
 type BatchRow = {
   id: string;
@@ -45,7 +46,6 @@ export default function MetaPage() {
 
   const [exportsList, setExportsList] = useState<ExportRow[]>([]);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
-  const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null } | null>(null);
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [title, setTitle] = useState('');
@@ -56,6 +56,16 @@ export default function MetaPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const runningItems = useMemo(() => items.filter((it) => ['queued', 'started'].includes(it.status)), [items]);
+
+  const exportJob = useJobPolling(exportJobId, {
+    onCompleted: async () => {
+      await loadExports();
+      setExportJobId(null);
+    },
+    onFailed: () => {
+      setExportJobId(null);
+    },
+  });
 
   async function loadBatches() {
     if (!projectId) return;
@@ -205,40 +215,7 @@ export default function MetaPage() {
     return () => window.clearInterval(t);
   }, [selectedBatchId, runningItems.map((i) => i.id).join('|')]);
 
-  useEffect(() => {
-    if (!exportJobId) return;
-
-    let stopped = false;
-
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${exportJobId}`);
-        const status = String((r.data as any)?.status || 'unknown');
-        const progress = Number((r.data as any)?.progress_percent || 0);
-        const err = (r.data as any)?.error || null;
-        setExportJobStatus({ status, progress, error: err });
-
-        if (status === 'completed') {
-          await loadExports();
-          setExportJobId(null);
-        }
-        if (status === 'failed') {
-          setExportJobId(null);
-        }
-      } catch (e: any) {
-        // common in dev if Redis is off
-        setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
-      }
-    }
-
-    poll();
-    const t = window.setInterval(poll, 4000);
-    return () => {
-      stopped = true;
-      window.clearInterval(t);
-    };
-  }, [exportJobId]);
+  // Export job polling handled by useJobPolling hook above
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -309,10 +286,10 @@ export default function MetaPage() {
           <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
             {exportJobId ? 'Exporting…' : 'Export Excel'}
           </button>
-          {exportJobStatus ? (
+          {exportJob.status ? (
             <div className="rc-help" style={{ marginTop: 8 }}>
-              export status: {exportJobStatus.status} · {exportJobStatus.progress}%
-              {exportJobStatus.error ? <span className="rc-error"> · {String(exportJobStatus.error)}</span> : null}
+              Export: {exportJob.status.status} · {exportJob.status.progress}%
+              {exportJob.status.error ? <span className="rc-error"> · {String(exportJob.status.error)}</span> : null}
             </div>
           ) : null}
           <div style={{ height: 10 }} />

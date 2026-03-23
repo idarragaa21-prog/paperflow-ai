@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { useConfirm } from '../ui/Dialog/useConfirm';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
+import { useJobPolling } from '../hooks/useJobPolling';
 
 
 export default function BooksPage() {
@@ -18,7 +19,6 @@ export default function BooksPage() {
   const [uploading, setUploading] = useState(false);
 
   const [scanJobId, setScanJobId] = useState<string | null>(null);
-  const [scanStatus, setScanStatus] = useState<{ status: string; progress: number; error?: string | null } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -37,37 +37,13 @@ export default function BooksPage() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (!scanJobId) return;
-    let stopped = false;
-
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${scanJobId}`);
-        const status = String((r.data as any)?.status || 'unknown');
-        const progress = Number((r.data as any)?.progress_percent || 0);
-        const err = (r.data as any)?.error || null;
-        setScanStatus({ status, progress, error: err });
-        if (status === 'completed') {
-          setScanJobId(null);
-          await load();
-        }
-        if (status === 'failed') {
-          setScanJobId(null);
-        }
-      } catch (e: any) {
-        setScanStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
-      }
-    }
-
-    poll();
-    const t = window.setInterval(poll, 4000);
-    return () => {
-      stopped = true;
-      window.clearInterval(t);
-    };
-  }, [scanJobId]);
+  const scanJob = useJobPolling(scanJobId, {
+    onCompleted: async () => {
+      setScanJobId(null);
+      await load();
+    },
+    onFailed: () => setScanJobId(null),
+  });
 
   async function scanFolder() {
     setError(null);
@@ -76,7 +52,6 @@ export default function BooksPage() {
       const r = await api.post('/books/scan-folder', {});
       const jid = String((r.data as any)?.job_id || '');
       setScanJobId(jid);
-      setScanStatus({ status: 'queued', progress: 0, error: null });
       setNotice(`Scan job enqueued: ${jid}`);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Scan failed');
@@ -155,10 +130,10 @@ export default function BooksPage() {
           <button onClick={scanFolder} disabled={Boolean(scanJobId)}>
             {scanJobId ? 'Scanning…' : 'Scan BOOKS folder + index'}
           </button>
-          {scanStatus ? (
+          {scanJob.status ? (
             <span style={{ fontSize: 12, opacity: 0.8 }}>
-              {scanStatus.status} · {scanStatus.progress}%
-              {scanStatus.error ? <span style={{ color: 'crimson' }}> · {String(scanStatus.error)}</span> : null}
+              {scanJob.status.status} · {scanJob.status.progress}%
+              {scanJob.status.error ? <span className="rc-error"> · {String(scanJob.status.error)}</span> : null}
             </span>
           ) : null}
         </div>
