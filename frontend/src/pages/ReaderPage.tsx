@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 
 type PaperOption = {
@@ -55,7 +56,7 @@ function BouncingDots() {
 export default function ReaderPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const [papers, setPapers] = useState<PaperOption[]>([]);
+  const qc = useQueryClient();
   const [paperId, setPaperId] = useState<string>('project');
   const [question, setQuestion] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -63,27 +64,31 @@ export default function ReaderPage() {
   const [error, setError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const { data: papers = [] } = useQuery<PaperOption[]>({
+    queryKey: ['library', projectId],
+    queryFn: async () => {
+      const r = await api.get(`/projects/${projectId}/library`);
+      return r.data as PaperOption[];
+    },
+    enabled: !!projectId,
+    refetchOnWindowFocus: false,
+  });
+
+  function invalidatePapers() { qc.invalidateQueries({ queryKey: ['library', projectId] }); }
+
   const selectedPaper = papers.find(p => p.id === paperId);
   const selectedStatus = selectedPaper?.processing_status || '';
   const isProject = paperId === 'project';
   const hasReadyPapers = papers.some(p => ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase()));
 
-  async function loadPapers() {
-    if (!projectId) return;
-    try {
-      const response = await api.get(`/projects/${projectId}/library`);
-      setPapers(response.data as PaperOption[]);
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Error cargando library'); }
-  }
-
-  useEffect(() => { loadPapers(); }, [projectId]);
+  // Scroll to end on new messages
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history, loading]);
 
   async function processNow(id: string) {
     setError(null);
     try {
       await api.post(`/papers/${id}/process`);
-      await loadPapers();
+      invalidatePapers();
     } catch (e: any) { setError(e?.response?.data?.detail || 'Error al procesar'); }
   }
 
@@ -132,7 +137,7 @@ export default function ReaderPage() {
               ))}
             </select>
           </div>
-          <button className="rc-btn" onClick={loadPapers} style={{ padding: '8px 12px', fontSize: 12 }}>Refresh</button>
+          <button className="rc-btn" onClick={invalidatePapers} style={{ padding: '8px 12px', fontSize: 12 }}>Refresh</button>
         </div>
 
         {/* Status indicator */}
