@@ -4,6 +4,7 @@ import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 import { useJobPolling } from '../hooks/useJobPolling';
 import { Breadcrumb } from './Breadcrumb';
+import { useToast } from '../ui/Toast/ToastProvider';
 
 type Project = {
   id: string;
@@ -41,14 +42,19 @@ function Tab({ to, label }: { to: string; label: string }) {
 export default function ProjectLayout() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const exportJob = useJobPolling(exportJobId, {
-    onCompleted: () => {/* download button appears in UI */},
-    onFailed: (s) => setError(s.error || 'Export ZIP failed'),
+    onCompleted: () => toast.success('Export ready', 'ZIP is ready to download.'),
+    onFailed: (s) => {
+      const msg = s.error || 'Export ZIP failed';
+      setError(msg);
+      toast.error('Export failed', msg);
+    },
   });
 
   useEffect(() => {
