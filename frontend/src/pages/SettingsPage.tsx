@@ -179,27 +179,31 @@ export default function SettingsPage() {
             {loadingServices ? '\u2026' : 'Refresh'}
           </button>
         </div>
-        {services.length === 0 && !loadingServices && <div className="rc-muted">No services data.</div>}
+        {services.length === 0 && !loadingServices && (
+          <div className="rc-muted">No service data. Click Refresh to check.</div>
+        )}
         {services.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table className="rc-table">
             <thead>
-              <tr style={{ borderBottom: '2px solid var(--rc-border)', textAlign: 'left' }}>
-                <th style={{ padding: '6px 8px' }}>Service</th>
-                <th style={{ padding: '6px 8px', width: 90 }}>Status</th>
-                <th style={{ padding: '6px 8px', width: 90 }}>Latency</th>
+              <tr>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Detail</th>
               </tr>
             </thead>
             <tbody>
               {services.map(s => (
-                <tr key={s.name} style={{ borderBottom: '1px solid var(--rc-border)' }}>
-                  <td style={{ padding: '6px 8px', fontWeight: 700, textTransform: 'capitalize' }}>{s.name}</td>
-                  <td style={{ padding: '6px 8px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.status === 'ok' ? '#16a34a' : '#b91c1c' }} />
+                <tr key={s.name}>
+                  <td style={{ fontWeight: 700, textTransform: 'capitalize' }}>{s.name.replace(/_/g, ' ')}</td>
+                  <td>
+                    <span className={`rc-status-dot rc-status-dot--${s.status === 'ok' ? 'ready' : 'failed'}`}>
+                      <span className="rc-status-dot__dot" />
                       {s.status}
                     </span>
                   </td>
-                  <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: 12 }}>{s.latency_ms} ms</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{s.latency_ms > 0 ? `${s.latency_ms} ms` : '—'}</td>
+                  <td className="rc-help">{s.detail || '—'}</td>
                 </tr>
               ))}
             </tbody>
