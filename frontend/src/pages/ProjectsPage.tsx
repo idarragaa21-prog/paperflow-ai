@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { DEMO_MODE, demoProjects, demoCounts } from '../services/demo';
+import { useConfirm } from '../ui/Dialog/useConfirm';
 import type { Project, ProjectCounts } from '../types/api';
 
 function EmptyState({ archived }: { archived: boolean }) {
@@ -85,6 +86,8 @@ export default function ProjectsPage() {
     onError: (e: any) => setMutError(e?.response?.data?.detail || 'Failed to archive'),
   });
 
+  const confirm = useConfirm();
+
   const filtered = useMemo(() =>
     projects
       .filter(p => tab === 'active' ? !p.archived : p.archived)
@@ -156,8 +159,19 @@ export default function ProjectsPage() {
                     {p.clinical_area && <div className="rc-help" style={{ marginTop:3 }}>{p.clinical_area}</div>}
                   </div>
                   {!p.archived && !DEMO_MODE && (
-                    <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={()=>{ if(window.confirm(`Archive "${p.title}"?`)) archiveMut.mutate(p.id); }}
-                      style={{ flexShrink:0,padding:'4px 6px',color:'var(--rc-muted)' }}>
+                    <button
+                      className="rc-btn rc-btn--ghost rc-btn--sm"
+                      title="Archive project"
+                      style={{ flexShrink: 0, padding: '4px 6px', color: 'var(--rc-muted)' }}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Archive "${p.title}"?`,
+                          body: 'The project and all its content will be archived. You can restore it later from the Archived tab.',
+                          confirmText: 'Archive',
+                        });
+                        if (ok) archiveMut.mutate(p.id);
+                      }}
+                    >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                     </button>
                   )}
