@@ -45,6 +45,10 @@ class PaperRecordResponse(BaseModel):
 
     duplicate: bool = False
 
+    # Download traceability fields — populated on fresh downloads only, None on duplicates.
+    used_fallback: bool | None = None
+    oa_url_provided: str | None = None
+
 
 class PaperDeleteResponse(BaseModel):
     ok: bool

@@ -48,7 +48,13 @@ async def _require_owned_project(repo: SQLPaperRepository, *, project_id: UUID, 
         raise HTTPException(status_code=403, detail="Proyecto no pertenece al usuario")
 
 
-def _paper_to_response(p: Paper, *, duplicate: bool = False) -> PaperRecordResponse:
+def _paper_to_response(
+    p: Paper,
+    *,
+    duplicate: bool = False,
+    used_fallback: bool | None = None,
+    oa_url_provided: str | None = None,
+) -> PaperRecordResponse:
     return PaperRecordResponse(
         id=p.id,
         project_id=p.project_id,
@@ -70,6 +76,8 @@ def _paper_to_response(p: Paper, *, duplicate: bool = False) -> PaperRecordRespo
         content_hash=p.content_hash,
         processing_status=getattr(p, "processing_status", "uploaded") or "uploaded",
         duplicate=duplicate,
+        used_fallback=used_fallback,
+        oa_url_provided=oa_url_provided,
     )
 
 
@@ -177,7 +185,11 @@ async def download_paper(
         request=request,
     )
 
-    return _paper_to_response(paper)
+    return _paper_to_response(
+        paper,
+        used_fallback=dl.used_fallback,
+        oa_url_provided=dl.oa_url_provided,
+    )
 
 
 @router.post("/batch-download")

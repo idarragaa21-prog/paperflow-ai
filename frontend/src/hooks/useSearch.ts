@@ -130,10 +130,11 @@ export function useSearch(projectId: string | undefined): UseSearchReturn {
       const duplicate = Boolean(resp.data?.duplicate);
       const srcProvider: string | null = resp.data?.source_provider || null;
       const resolvedUrl: string | null = resp.data?.oa_url || null;
-      const originalUrl: string | null = r.oa_url || null;
-      const usedFallback = Boolean(
-        originalUrl && resolvedUrl && srcProvider !== 'user_provided_oa' && originalUrl !== resolvedUrl,
-      );
+      const originalUrl: string | null = resp.data?.oa_url_provided ?? r.oa_url ?? null;
+      // Trust the server's authoritative used_fallback flag; fall back to client-side heuristic
+      // for duplicates (where the server returns null).
+      const usedFallback: boolean = resp.data?.used_fallback ??
+        Boolean(originalUrl && resolvedUrl && srcProvider !== 'user_provided_oa' && originalUrl !== resolvedUrl);
 
       setDownloadResults((prev) => ({
         ...prev,
