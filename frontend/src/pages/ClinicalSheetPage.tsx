@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ClinicalProViewer from '../components/clinical/ClinicalProViewer';
@@ -9,6 +9,7 @@ import { useClinicalSheet } from '../domain/clinical/hooks/useClinicalSheet';
 import { enqueueClinicalUpdate } from '../services/clinical';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useConfirm } from '../ui/Dialog/useConfirm';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
@@ -32,6 +33,8 @@ function slugify(s: string) {
 
 export default function ClinicalSheetPage() {
   const { sheetId } = useParams();
+  const [searchParams] = useSearchParams();
+  const fromProject = searchParams.get('from_project');
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -171,13 +174,22 @@ export default function ClinicalSheetPage() {
     );
   }
 
+  // Breadcrumb: prioritise project context, fall back to clinical list
+  const projectId = fromProject || vm.sheet?.project_id;
+  const breadcrumbItems = projectId
+    ? [
+        { label: 'Projects', to: '/projects' },
+        { label: 'Project', to: `/projects/${projectId}/research` },
+        { label: 'Clinical Sheet' },
+      ]
+    : [
+        { label: 'Clinical', to: '/clinical' },
+        { label: vm.sheet?.topic || 'Sheet' },
+      ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {vm.sheet?.project_id && (
-        <Link to={`/projects/${vm.sheet.project_id}/research`} style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          &larr; Back to project
-        </Link>
-      )}
+      <Breadcrumb items={breadcrumbItems} />
     <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 360px', gap: 12, alignItems: 'start' }}>
       <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
         <div className="rc-card-title">Outline</div>

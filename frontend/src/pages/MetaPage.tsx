@@ -4,6 +4,8 @@ import { useParams } from 'react-router-dom';
 import StudyViewer from '../components/meta/StudyViewer';
 import { downloadBlob } from '../components/meta/exportUtils';
 import { api } from '../services/api';
+import { useJobPolling } from '../hooks/useJobPolling';
+import { useToast } from '../ui/Toast/ToastProvider';
 
 type BatchRow = {
   id: string;
@@ -35,6 +37,7 @@ type ExportRow = {
 
 export default function MetaPage() {
   const { projectId } = useParams();
+  const toast = useToast();
 
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -45,7 +48,6 @@ export default function MetaPage() {
 
   const [exportsList, setExportsList] = useState<ExportRow[]>([]);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
-  const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null } | null>(null);
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [title, setTitle] = useState('');
@@ -56,6 +58,18 @@ export default function MetaPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const runningItems = useMemo(() => items.filter((it) => ['queued', 'started'].includes(it.status)), [items]);
+
+  const exportJob = useJobPolling(exportJobId, {
+    onCompleted: async () => {
+      await loadExports();
+      setExportJobId(null);
+      toast.success('Export ready', 'Excel export is ready to download.');
+    },
+    onFailed: (s) => {
+      setExportJobId(null);
+      toast.error('Export failed', s.error || 'Excel export failed.');
+    },
+  });
 
   async function loadBatches() {
     if (!projectId) return;
@@ -205,40 +219,7 @@ export default function MetaPage() {
     return () => window.clearInterval(t);
   }, [selectedBatchId, runningItems.map((i) => i.id).join('|')]);
 
-  useEffect(() => {
-    if (!exportJobId) return;
-
-    let stopped = false;
-
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${exportJobId}`);
-        const status = String((r.data as any)?.status || 'unknown');
-        const progress = Number((r.data as any)?.progress_percent || 0);
-        const err = (r.data as any)?.error || null;
-        setExportJobStatus({ status, progress, error: err });
-
-        if (status === 'completed') {
-          await loadExports();
-          setExportJobId(null);
-        }
-        if (status === 'failed') {
-          setExportJobId(null);
-        }
-      } catch (e: any) {
-        // common in dev if Redis is off
-        setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
-      }
-    }
-
-    poll();
-    const t = window.setInterval(poll, 4000);
-    return () => {
-      stopped = true;
-      window.clearInterval(t);
-    };
-  }, [exportJobId]);
+  // Export job polling handled by useJobPolling hook above
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -250,25 +231,28 @@ export default function MetaPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="rc-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <div style={{ fontWeight: 900 }}>Batches</div>
-              <button className="rc-btn" onClick={loadBatches} disabled={loading}>Refresh</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div className="rc-card-title" style={{ marginBottom: 0 }}>Batches</div>
+              <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={loadBatches} disabled={loading}>↻ Refresh</button>
             </div>
           {notice ? (
-            <div className="rc-badge rc-badge--success" style={{ justifyContent: 'flex-start', borderRadius: 12, padding: 10 }}>
+            <div className="rc-banner rc-banner--success" style={{ marginBottom: 10 }}>
               {String(notice)}
             </div>
           ) : null}
-          {error ? <div className="rc-error" style={{ marginTop: 8 }}>{String(error)}</div> : null}
-          <div style={{ height: 10 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {batches.length === 0 ? <div className="rc-muted">No batches yet.</div> : null}
+          {error ? <div className="rc-error" style={{ marginBottom: 8 }}>{String(error)}</div> : null}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {batches.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--rc-muted)', fontSize: 13 }}>
+                No batches yet. Create one below.
+              </div>
+            ) : null}
             {batches.map((b) => (
               <button
                 key={b.id}
                 onClick={() => loadItems(b.id)}
                 className="rc-btn"
-                style={{ textAlign: 'left', padding: 12, borderColor: b.id === selectedBatchId ? 'rgba(79,70,229,0.35)' : 'rgba(15,23,42,0.16)', background: b.id === selectedBatchId ? 'rgba(79,70,229,0.08)' : 'white' }}
+                style={{ textAlign: 'left', padding: 10, borderColor: b.id === selectedBatchId ? 'rgba(79,70,229,0.35)' : undefined, background: b.id === selectedBatchId ? 'var(--rc-primary-weak)' : undefined }}
               >
                 <div style={{ fontWeight: 850 }}>{b.title || '(untitled batch)'}</div>
                 <div className="rc-help">{b.status}</div>
@@ -309,10 +293,10 @@ export default function MetaPage() {
           <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
             {exportJobId ? 'Exporting…' : 'Export Excel'}
           </button>
-          {exportJobStatus ? (
+          {exportJob.status ? (
             <div className="rc-help" style={{ marginTop: 8 }}>
-              export status: {exportJobStatus.status} · {exportJobStatus.progress}%
-              {exportJobStatus.error ? <span className="rc-error"> · {String(exportJobStatus.error)}</span> : null}
+              Export: {exportJob.status.status} · {exportJob.status.progress}%
+              {exportJob.status.error ? <span className="rc-error"> · {String(exportJob.status.error)}</span> : null}
             </div>
           ) : null}
           <div style={{ height: 10 }} />
@@ -338,27 +322,43 @@ export default function MetaPage() {
               </div>
               {items.length === 0 ? <div className="rc-muted">No items.</div> : null}
               {items.map((it) => (
-                <div key={it.id} className="rc-card" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                    <div style={{ fontWeight: 850 }}>Item</div>
-                    <span className={it.status === 'completed' ? 'rc-badge rc-badge--success' : it.status === 'failed' ? 'rc-badge rc-badge--danger' : 'rc-badge rc-badge--info'}>{it.status}</span>
+                <div key={it.id} className="rc-card" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, flex: 1, lineHeight: 1.35 }}>
+                      {it.paper_title || it.paper_filename || `Paper ${it.paper_id.slice(0, 8)}`}
+                    </div>
+                    <span className={
+                      it.status === 'completed' ? 'rc-badge rc-badge--success' :
+                      it.status === 'failed' ? 'rc-badge rc-badge--danger' :
+                      it.status === 'started' ? 'rc-badge rc-badge--info' :
+                      'rc-badge'
+                    } style={{ flexShrink: 0 }}>{it.status}</span>
                   </div>
-                  <div className="rc-help">
-                    {it.paper_title ? <span style={{ fontWeight: 800 }}>{it.paper_title}</span> : null}
-                    {it.paper_filename ? <span style={{ marginLeft: 8 }}>{it.paper_filename}</span> : null}
-                  </div>
-                  <div className="rc-help" style={{ opacity: 0.6 }}>paper_id: {it.paper_id}</div>
-                  {it.error_message ? <div className="rc-error" style={{ fontSize: 12 }}>{it.error_message}</div> : null}
-                  <div className="rc-row">
-                    <button className="rc-btn" onClick={() => retryItem(it.id)} disabled={['queued', 'started'].includes(it.status)}>
-                      Retry
-                    </button>
-                  </div>
+                  {it.paper_filename && it.paper_title && (
+                    <div className="rc-help">{it.paper_filename}</div>
+                  )}
+                  {it.error_message ? (
+                    <div className="rc-error" style={{ fontSize: 12, marginTop: 2 }}>{it.error_message}</div>
+                  ) : null}
+                  {(it.status === 'failed' || it.status === 'queued') && (
+                    <div>
+                      <button
+                        className="rc-btn rc-btn--sm"
+                        onClick={() => retryItem(it.id)}
+                        disabled={it.status === 'queued' || it.status === 'started'}
+                        style={{ marginTop: 4 }}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="rc-muted">Select a batch to view items (optional).</div>
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--rc-muted)', fontSize: 13 }}>
+              Select a batch from the left panel to view its extraction items.
+            </div>
           )}
         </div>
 
@@ -379,15 +379,14 @@ export default function MetaPage() {
                     className="rc-btn"
                     style={{ textAlign: 'left', padding: 12, borderColor: s.id === selectedStudyId ? 'rgba(79,70,229,0.35)' : 'rgba(15,23,42,0.16)', background: s.id === selectedStudyId ? 'rgba(79,70,229,0.08)' : 'white' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                      <div style={{ fontWeight: 850, fontSize: 12, flex: 1 }}>{s.paper_title || `Study ${s.id}`}</div>
-                      {s.rob_auto_generated ? <span className="rc-badge">ROB auto</span> : null}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, flex: 1, lineHeight: 1.35 }}>{s.paper_title || s.paper_filename || `Study ${s.id.slice(0, 8)}`}</div>
+                      {s.rob_auto_generated ? <span className="rc-badge" style={{ flexShrink: 0, fontSize: 9 }}>RoB auto</span> : null}
                     </div>
-                    {s.paper_filename ? <div className="rc-help">{s.paper_filename}</div> : null}
+                    {s.paper_filename && s.paper_title ? <div className="rc-help">{s.paper_filename}</div> : null}
                     <div className="rc-help">
-                      v{s.version} · conf {s.extraction_confidence} {s.batch_id ? '· batch' : ''}
+                      v{s.version} · conf {typeof s.extraction_confidence === 'number' ? s.extraction_confidence.toFixed(2) : s.extraction_confidence}
                     </div>
-                    <div className="rc-help" style={{ opacity: 0.6 }}>study_id: {s.id}</div>
                   </button>
                 ))}
               </div>
@@ -397,7 +396,9 @@ export default function MetaPage() {
               {selectedStudyId ? (
                 <StudyViewer studyId={selectedStudyId} onSelectStudyId={setSelectedStudyId} />
               ) : (
-                <div className="rc-muted">Select a study to edit effect sizes (inline grid).</div>
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--rc-muted)', fontSize: 13 }}>
+                Select a study from the left to view extracted data, effect sizes and risk of bias.
+              </div>
               )}
             </div>
           </div>

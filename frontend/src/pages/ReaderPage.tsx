@@ -164,7 +164,13 @@ export default function ReaderPage() {
       {/* Chat history */}
       <div className="rc-card" style={{ minHeight: 300, maxHeight: 500, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
         {history.length === 0 && !loading && (
-          <div className="rc-muted" style={{ textAlign: 'center', padding: 40 }}>No conversation yet. Ask a question below.</div>
+          <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--rc-muted)' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 10, display: 'block', margin: '0 auto 12px' }}>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>No conversation yet</div>
+            <div style={{ fontSize: 12 }}>Ask a question about the {isProject ? 'project papers' : 'selected paper'} below.</div>
+          </div>
         )}
         {history.map((item, i) => (
           <ChatBubble key={i} item={item} />

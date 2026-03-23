@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useParams, useNavigate, Link } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
+import { useJobPolling } from '../hooks/useJobPolling';
+import { Breadcrumb } from './Breadcrumb';
+import { useToast } from '../ui/Toast/ToastProvider';
 
 type Project = {
   id: string;
@@ -39,13 +42,20 @@ function Tab({ to, label }: { to: string; label: string }) {
 export default function ProjectLayout() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-
   const [exportJobId, setExportJobId] = useState<string | null>(null);
-  const [exportJobStatus, setExportJobStatus] = useState<{ status: string; progress: number; error?: string | null; output?: any } | null>(null);
-
   const [error, setError] = useState<string | null>(null);
+
+  const exportJob = useJobPolling(exportJobId, {
+    onCompleted: () => toast.success('Export ready', 'ZIP is ready to download.'),
+    onFailed: (s) => {
+      const msg = s.error || 'Export ZIP failed';
+      setError(msg);
+      toast.error('Export failed', msg);
+    },
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -53,17 +63,19 @@ export default function ProjectLayout() {
       if (!projectId) return;
       setError(null);
       try {
-        const [rp, rd] = await Promise.all([api.get(`/projects/${projectId}`), api.get(`/projects/${projectId}/dashboard`)]);
+        const [rp, rd] = await Promise.all([
+          api.get(`/projects/${projectId}`),
+          api.get(`/projects/${projectId}/dashboard`),
+        ]);
         if (mounted) setProject(rp.data as Project);
         if (mounted) setDashboard(rd.data as Dashboard);
-      } catch (e: any) {
-        if (mounted) setError(e?.response?.data?.detail || 'Failed to load project');
+      } catch (e: unknown) {
+        const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load project';
+        if (mounted) setError(msg);
       }
     }
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [projectId]);
 
   async function startExportZip() {
@@ -71,11 +83,9 @@ export default function ProjectLayout() {
     setError(null);
     try {
       const r = await api.post(`/projects/${projectId}/export-zip`, {});
-      const jid = String((r.data as any)?.job_id || '');
-      setExportJobId(jid);
-      setExportJobStatus({ status: 'queued', progress: 0, error: null });
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Export ZIP failed');
+      setExportJobId(String((r.data as { job_id?: string })?.job_id || ''));
+    } catch (e: unknown) {
+      setError((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Export ZIP failed');
     }
   }
 
@@ -83,99 +93,94 @@ export default function ProjectLayout() {
     if (!projectId || !exportJobId) return;
     setError(null);
     try {
-      const filename = String(exportJobStatus?.output?.filename || `project_export_${projectId}.zip`);
+      const filename = String((exportJob.status?.output as { filename?: string })?.filename || `project_export_${projectId}.zip`);
       const r = await api.get(`/projects/${projectId}/export-zip/${exportJobId}/download`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, filename);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Download ZIP failed');
+    } catch (e: unknown) {
+      setError((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Download ZIP failed');
     }
   }
 
-  useEffect(() => {
-    if (!exportJobId) return;
+  if (!projectId) return <div className="rc-error">Missing project id</div>;
 
-    let stopped = false;
-
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${exportJobId}`);
-        const status = String((r.data as any)?.status || 'unknown');
-        const progress = Number((r.data as any)?.progress_percent || 0);
-        const err = (r.data as any)?.error || null;
-        const result = (r.data as any)?.result || {};
-        const output = result?.output || result?.rq_result?.output;
-
-        setExportJobStatus({ status, progress, error: err, output });
-
-        if (status === 'completed' || status === 'failed') {
-          return;
-        }
-      } catch (e: any) {
-        setExportJobStatus({ status: 'polling_error', progress: 0, error: e?.response?.data?.detail || 'Polling failed' });
-      }
-    }
-
-    poll();
-    const t = window.setInterval(poll, 2000);
-    return () => {
-      stopped = true;
-      window.clearInterval(t);
-    };
-  }, [exportJobId]);
-
-  if (!projectId) return <div>Missing project id</div>;
-  if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;
+  if (error && !project) {
+    return (
+      <div className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 24 }}>
+        <div className="rc-error" style={{ fontSize: 14 }}>{String(error)}</div>
+        <div>
+          <Link to="/projects" className="rc-btn" style={{ textDecoration: 'none' }}>← Back to Projects</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Projects', to: '/projects' },
+        { label: project?.title || 'Project' },
+      ]} />
+
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div>
             <h1 className="rc-page-title" style={{ marginBottom: 0 }}>{project?.title || 'Project'}</h1>
-            {project?.clinical_area ? <div className="rc-subtitle">{project.clinical_area}</div> : <div className="rc-subtitle">Research project workspace</div>}
-            {project?.runtime_mode ? <div className="rc-help">Runtime: {project.runtime_mode}</div> : null}
-            <button
-              className="rc-btn rc-btn--primary"
-              style={{ marginTop: 8, padding: '7px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              onClick={() => navigate(`/clinical?from_project=${projectId}`)}
-            >
-              🩺 Generate Clinical Sheet
-              {dashboard?.counts?.papers ? (
-                <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 8, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
-                  {dashboard.counts.papers} paper{dashboard.counts.papers !== 1 ? 's' : ''}
-                </span>
-              ) : null}
-            </button>
+            {project?.clinical_area
+              ? <div className="rc-subtitle">{project.clinical_area}</div>
+              : <div className="rc-subtitle">Research project workspace</div>
+            }
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                className="rc-btn rc-btn--primary rc-btn--sm"
+                style={{ gap: 5 }}
+                onClick={() => navigate(`/clinical?from_project=${projectId}`)}
+              >
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 2v4M8 4h4"/><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M7 10h6M7 13h4"/></svg>
+                Generate Clinical Sheet
+                {(dashboard?.counts?.papers ?? 0) > 0 && (
+                  <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 6, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>
+                    {dashboard!.counts.papers} paper{dashboard!.counts.papers !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {[
-              { label: 'Papers', value: dashboard?.counts?.papers ?? '—', icon: '📄', color: 'var(--rc-info)' },
-              { label: 'Notes', value: dashboard?.counts?.notes ?? '—', icon: '📝', color: 'var(--rc-success)' },
-              { label: 'References', value: dashboard?.counts?.references ?? '—', icon: '🔗', color: 'var(--rc-warning)' },
-              { label: 'Extracted', value: dashboard?.counts?.meta_studies_current ?? '—', icon: '🔬', color: 'var(--rc-primary)' },
+              { label: 'Papers', value: dashboard?.counts?.papers ?? '—', color: 'var(--rc-info)' },
+              { label: 'Notes', value: dashboard?.counts?.notes ?? '—', color: 'var(--rc-success)' },
+              { label: 'Refs', value: dashboard?.counts?.references ?? '—', color: 'var(--rc-warning)' },
+              { label: 'Extracted', value: dashboard?.counts?.meta_studies_current ?? '—', color: 'var(--rc-primary)' },
             ].map(s => (
               <div key={s.label} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                 background: 'var(--rc-surface)', border: '1px solid var(--rc-border)',
-                borderRadius: 10, padding: '8px 14px', boxShadow: 'var(--rc-shadow-xs)',
+                borderRadius: 10, padding: '7px 12px', boxShadow: 'var(--rc-shadow-xs)',
+                minWidth: 52,
               }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, lineHeight: 1, color: 'var(--rc-text)' }}>{s.value}</span>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, lineHeight: 1, color: s.color }}>{s.value}</span>
                 <span style={{ fontSize: 10, color: 'var(--rc-muted)', fontWeight: 600 }}>{s.label}</span>
               </div>
             ))}
-            <button className="rc-btn rc-btn--sm" onClick={startExportZip} style={{ gap: 5 }}>
-              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/></svg>
-              Export ZIP
+
+            <button className="rc-btn rc-btn--sm" onClick={startExportZip} style={{ gap: 5 }} disabled={exportJob.isRunning}>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/>
+              </svg>
+              {exportJob.isRunning ? `${exportJob.status?.progress ?? 0}%` : 'Export ZIP'}
             </button>
-            {exportJobId ? <div className="rc-help">{exportJobStatus?.status || 'queued'} · {exportJobStatus?.progress ?? 0}%</div> : null}
-            {exportJobId && exportJobStatus?.status === 'completed' ? (
+
+            {exportJob.isDone && (
               <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={downloadZip}>⬇ Download</button>
-            ) : null}
-            {exportJobStatus?.error ? <div className="rc-error" style={{ fontSize: 12 }}>{String(exportJobStatus.error)}</div> : null}
+            )}
           </div>
         </div>
+
+        {error && project && (
+          <div className="rc-error" style={{ fontSize: 12, marginTop: 8 }}>{String(error)}</div>
+        )}
       </div>
 
       <div className="rc-card rc-tab-scroll" style={{ padding: 10 }}>
