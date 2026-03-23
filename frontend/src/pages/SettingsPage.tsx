@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '../ui/Toast/ToastProvider';
@@ -36,9 +37,7 @@ export default function SettingsPage() {
   const [confirmPw, setConfirmPw] = useState('');
   const [savingPw, setSavingPw] = useState(false);
 
-  // Services
-  const [services, setServices] = useState<ServiceRow[]>([]);
-  const [loadingServices, setLoadingServices] = useState(false);
+  const qc = useQueryClient();
 
   // Runtime
   const [runtimeMode, setRuntimeMode] = useState(() => localStorage.getItem('pf_runtime_mode') || 'local_only');
@@ -69,22 +68,21 @@ export default function SettingsPage() {
     finally { setSavingPw(false); }
   }
 
-  async function loadServices() {
-    setLoadingServices(true);
-    try {
+  const { data: services = [], isFetching: loadingServices } = useQuery<ServiceRow[]>({
+    queryKey: ['health-services'],
+    queryFn: async () => {
       const r = await api.get('/health/services');
       const svc = (r.data as any)?.services || {};
-      setServices(Object.entries(svc).map(([name, val]: [string, any]) => ({
+      return Object.entries(svc).map(([name, val]: [string, any]) => ({
         name,
         status: val.status || 'unknown',
         latency_ms: val.latency_ms || 0,
         detail: val.detail,
-      })));
-    } catch { setServices([]); }
-    finally { setLoadingServices(false); }
-  }
-
-  useEffect(() => { loadServices(); }, []);
+      }));
+    },
+    staleTime: 30_000,
+    retry: false,
+  });
 
   function handleRuntimeChange(val: string) {
     setRuntimeMode(val);
@@ -175,7 +173,7 @@ export default function SettingsPage() {
       <div className="rc-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div className="rc-card-title" style={{ margin: 0 }}>LLM Services status</div>
-          <button className="rc-btn" style={{ padding: '6px 12px', fontSize: 12 }} onClick={loadServices} disabled={loadingServices}>
+          <button className="rc-btn" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => qc.invalidateQueries({ queryKey: ['health-services'] })} disabled={loadingServices}>
             {loadingServices ? '\u2026' : 'Refresh'}
           </button>
         </div>
