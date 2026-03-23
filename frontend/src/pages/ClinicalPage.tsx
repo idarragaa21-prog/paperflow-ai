@@ -209,9 +209,9 @@ export default function ClinicalPage() {
         <button className="rc-btn rc-btn--primary" disabled={!canGenerate || generateMut.isPending || Boolean(jobId)} onClick={() => generateMut.mutate()}>
           {jobId ? 'Running…' : generateMut.isPending ? 'Submitting…' : 'Consultar (tipo UpToDate)'}
         </button>
-        {projectId && projectPaperCount && projectPaperCount > 0 && !jobId && !generateMut.isPending && (
+        {projectId && useProjectPapers && !jobId && !generateMut.isPending && (
           <div className="rc-help" style={{ marginTop: 6 }}>
-            El pipeline usará {projectPaperCount} paper{projectPaperCount !== 1 ? 's' : ''} de tu proyecto + búsqueda online como evidencia.
+            El pipeline usará los papers de tu proyecto + búsqueda online como evidencia.
           </div>
         )}
 

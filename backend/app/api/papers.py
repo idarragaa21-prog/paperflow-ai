@@ -164,7 +164,10 @@ async def download_paper(
         entity_id=paper.id,
         details={
             "project_id": str(paper.project_id),
-            "source": dl.source,
+            "source_provider": dl.source,
+            "resolved_url": dl.resolved_url,
+            "oa_url_provided": dl.oa_url_provided,
+            "used_fallback": dl.used_fallback,
             "doi": paper.doi,
             "pmid": paper.pmid,
             "filename": paper.filename,

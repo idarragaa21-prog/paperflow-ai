@@ -20,8 +20,6 @@ export type SearchResponse = {
   sources?: string[];
 };
 
-const SEARCH_PAGE_SIZE = 10;
-
 export type UseSearchReturn = {
   query: string;
   setQuery: (v: string) => void;

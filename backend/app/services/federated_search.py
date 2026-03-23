@@ -138,54 +138,126 @@ async def _search_doaj(query: str, max_results: int) -> list[dict[str, Any]]:
     return results
 
 
+_SOURCE_TRUST: dict[str, int] = {"pubmed": 3, "europepmc": 2, "doaj": 1}
+
+
+def _metadata_coverage(item: dict[str, Any]) -> float:
+    """Return a 0-1 quality score based on metadata richness."""
+    score = 0.0
+    # Abstract length (up to 300 chars = full credit)
+    abstract = item.get("abstract") or ""
+    score += 0.30 * min(1.0, len(abstract) / 300)
+    # Direct PDF URL is worth more than a landing-page URL
+    oa_url = (item.get("oa_url") or "").lower()
+    if oa_url.endswith(".pdf"):
+        score += 0.25
+    elif oa_url:
+        score += 0.10
+    # Identifier richness: doi + pmid + pmcid
+    id_count = sum(1 for k in ("doi", "pmid", "pmcid") if item.get(k))
+    score += 0.25 * (id_count / 3)
+    # Bibliographic completeness: journal + authors
+    bib_count = sum(1 for k in ("journal", "authors") if item.get(k))
+    score += 0.20 * (bib_count / 2)
+    return round(score, 4)
+
+
+def _merge_records(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+    """Field-level best-of-both merge. Higher-trust source wins for contested fields."""
+    trust_existing = _SOURCE_TRUST.get(str(existing.get("source") or ""), 0)
+    trust_incoming = _SOURCE_TRUST.get(str(incoming.get("source") or ""), 0)
+    primary, secondary = (existing, incoming) if trust_existing >= trust_incoming else (incoming, existing)
+
+    merged = dict(primary)
+
+    # Fill missing identifiers from secondary
+    for id_field in ("doi", "pmid", "pmcid"):
+        if not merged.get(id_field) and secondary.get(id_field):
+            merged[id_field] = secondary[id_field]
+
+    # Prefer longer abstract
+    abs_primary = str(primary.get("abstract") or "")
+    abs_secondary = str(secondary.get("abstract") or "")
+    if len(abs_secondary) > len(abs_primary):
+        merged["abstract"] = abs_secondary
+
+    # Prefer direct PDF URL over landing-page URL
+    oa_primary = str(primary.get("oa_url") or "").lower()
+    oa_secondary = str(secondary.get("oa_url") or "").lower()
+    if oa_secondary.endswith(".pdf") and not oa_primary.endswith(".pdf"):
+        merged["oa_url"] = secondary["oa_url"]
+    elif not merged.get("oa_url") and secondary.get("oa_url"):
+        merged["oa_url"] = secondary["oa_url"]
+
+    # OR open-access flag
+    if secondary.get("is_open_access"):
+        merged["is_open_access"] = True
+
+    # Track contributing sources for transparency
+    src_set: list[str] = list(dict.fromkeys(
+        (existing.get("_sources") or [existing.get("source")]) +
+        (incoming.get("_sources") or [incoming.get("source")])
+    ))
+    merged["_sources"] = [s for s in src_set if s]
+
+    return merged
+
+
 def _relevance_score(item: dict[str, Any], query: str) -> float:
     """Compute a relevance score for ranking federated results.
 
     Components (all 0-1, weighted):
-      - title_match   (0.30): token overlap between query and title
-      - recency       (0.20): newer papers score higher (2024=1.0, 2000=0.0)
-      - metadata_qual (0.20): completeness of abstract, DOI, journal, authors
-      - oa_available  (0.15): has OA URL
+      - title_match   (0.30): unigram + bigram token overlap between query and title
+      - metadata_qual (0.25): _metadata_coverage() — abstract length, direct PDF, ids, bib
+      - oa_available  (0.15): direct PDF URL vs landing page vs OA flag only
       - id_strength   (0.15): has DOI and/or PMID (resolvability)
+      - recency       (0.15): newer papers score higher (2026=1.0, 2000=0.0)
     """
     score = 0.0
 
-    # --- Title match (0.30) ---
-    query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
-    title_tokens = set(re.sub(r"[^a-z0-9 ]+", "", (item.get("title") or "").lower()).split())
-    if query_tokens and title_tokens:
-        overlap = len(query_tokens & title_tokens)
-        score += 0.30 * (overlap / max(len(query_tokens), 1))
+    # --- Title match with bigram bonus (0.30) ---
+    query_norm = re.sub(r"[^a-z0-9 ]+", "", query.lower())
+    title_norm = re.sub(r"[^a-z0-9 ]+", "", (item.get("title") or "").lower())
+    query_tokens = query_norm.split()
+    title_tokens = title_norm.split()
+    query_set = set(query_tokens)
+    title_set = set(title_tokens)
+    if query_set and title_set:
+        unigram_overlap = len(query_set & title_set) / max(len(query_set), 1)
+        # Bigram bonus: consecutive query token pairs present in title
+        query_bigrams = {(query_tokens[i], query_tokens[i + 1]) for i in range(len(query_tokens) - 1)}
+        title_bigrams = {(title_tokens[i], title_tokens[i + 1]) for i in range(len(title_tokens) - 1)}
+        bigram_bonus = (len(query_bigrams & title_bigrams) / max(len(query_bigrams), 1)) if query_bigrams else 0.0
+        title_score = min(1.0, unigram_overlap + 0.20 * bigram_bonus)
+        score += 0.30 * title_score
 
-    # --- Recency (0.20) ---
-    pub_year = item.get("pub_year")
-    if isinstance(pub_year, int) and 1900 < pub_year <= 2026:
-        # Linear scale: 2026 → 1.0, 2000 → 0.0, older → 0.0
-        recency = max(0.0, min(1.0, (pub_year - 2000) / 26))
-        score += 0.20 * recency
-
-    # --- Metadata quality (0.20) ---
-    meta_fields = ["abstract", "doi", "journal", "authors"]
-    filled = sum(1 for f in meta_fields if item.get(f))
-    score += 0.20 * (filled / len(meta_fields))
+    # --- Metadata quality (0.25) ---
+    score += 0.25 * _metadata_coverage(item)
 
     # --- OA availability (0.15) ---
-    if item.get("oa_url"):
+    oa_url = (item.get("oa_url") or "").lower()
+    if oa_url.endswith(".pdf"):
         score += 0.15
+    elif oa_url:
+        score += 0.08
     elif item.get("is_open_access"):
-        score += 0.07
+        score += 0.04
 
     # --- ID strength / resolvability (0.15) ---
     has_doi = bool(item.get("doi"))
     has_pmid = bool(item.get("pmid"))
-    id_score = 0.0
     if has_doi and has_pmid:
-        id_score = 1.0
+        score += 0.15
     elif has_doi:
-        id_score = 0.8
+        score += 0.12
     elif has_pmid:
-        id_score = 0.6
-    score += 0.15 * id_score
+        score += 0.09
+
+    # --- Recency (0.15) ---
+    pub_year = item.get("pub_year")
+    if isinstance(pub_year, int) and 1900 < pub_year <= 2026:
+        recency = max(0.0, min(1.0, (pub_year - 2000) / 26))
+        score += 0.15 * recency
 
     return round(score, 4)
 
@@ -210,7 +282,7 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
     else:
         doaj_results = results_or_errors[1]
 
-    # Dedup: keep the record with richer metadata per unique key.
+    # Dedup: field-level best-of-both merge per unique key.
     deduped: OrderedDict[str, dict[str, Any]] = OrderedDict()
     for item in [*pubmed_results, *europe_results, *doaj_results]:
         if not _passes_filters(item, filters):
@@ -220,12 +292,7 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
         if existing is None:
             deduped[key] = item
             continue
-
-        # Prefer richer OA / metadata coverage.
-        score_existing = int(bool(existing.get("abstract"))) + int(bool(existing.get("oa_url"))) + int(bool(existing.get("doi")))
-        score_new = int(bool(item.get("abstract"))) + int(bool(item.get("oa_url"))) + int(bool(item.get("doi")))
-        if score_new > score_existing:
-            deduped[key] = item
+        deduped[key] = _merge_records(existing, item)
 
     # Rank by relevance score instead of arbitrary source order.
     ranked = sorted(deduped.values(), key=lambda r: _relevance_score(r, query), reverse=True)

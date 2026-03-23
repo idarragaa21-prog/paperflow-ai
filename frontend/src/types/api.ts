@@ -136,9 +136,13 @@ export type NoteDetail = {
 // ─── Drafts ───────────────────────────────────────────────────────────────────
 
 export type DraftSection = {
+  id: string;
   key: string;
+  heading: string;
   title: string;
   content: string;
+  position: number;
+  citations: Array<{ marker: string; [key: string]: any }>;
 };
 
 export type DraftCitation = {
@@ -178,6 +182,7 @@ export type ReferenceRow = {
   doi?: string | null;
   pmid?: string | null;
   pmcid?: string | null;
+  citation_key?: string | null;
   source_format: string;
 };
 
@@ -204,6 +209,12 @@ export type StudyRow = {
   design?: string | null;
   n?: number | null;
   rob_score?: number | null;
+  paper_title?: string | null;
+  paper_filename?: string | null;
+  rob_auto_generated?: boolean | null;
+  version?: number | null;
+  extraction_confidence?: number | string | null;
+  batch_id?: string | null;
 };
 
 // ─── Books ────────────────────────────────────────────────────────────────────

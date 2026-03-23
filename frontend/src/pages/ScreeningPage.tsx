@@ -74,7 +74,6 @@ export default function ScreeningPage() {
   });
 
   const batches = data?.batches ?? [];
-  const reasons = data?.reasons ?? [];
   const papers = data?.papers ?? [];
   const prisma = data?.prisma ?? {};
 

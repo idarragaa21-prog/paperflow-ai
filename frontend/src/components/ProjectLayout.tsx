@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 import { Skeleton } from '../ui/Skeleton/Skeleton';
@@ -59,7 +59,6 @@ function ClinicalIcon() {
 export default function ProjectLayout() {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const [exportJobId, setExportJobId] = useState<string | null>(null);
 
   // ── Project + dashboard data ──────────────────────────────────────────────

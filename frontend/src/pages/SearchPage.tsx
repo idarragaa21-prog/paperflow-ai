@@ -152,7 +152,7 @@ export default function SearchPage() {
       {/* ── Batch modal ── */}
       {batch.batchModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }} onClick={() => batch.setBatchModalOpen(false)}>
-          <div className="rc-card" style={{ width: 'min(860px, 96vw)', maxHeight: '85vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+          <div className="rc-card" style={{ width: 'min(900px, 96vw)', maxHeight: '88vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontWeight: 900 }}>Batch OA download</div>
               <button className="rc-btn" onClick={() => batch.setBatchModalOpen(false)}>Close</button>
@@ -162,13 +162,60 @@ export default function SearchPage() {
             <div className="rc-help">Status: <b>{batch.batchJob?.status || '—'}</b> · Progress: <b>{batch.batchJob?.progress ?? 0}%</b></div>
             {batch.batchJob?.error && <div className="rc-error" style={{ marginTop: 8 }}>{String(batch.batchJob.error)}</div>}
             <div className="rc-row" style={{ marginTop: 10 }}><button className="rc-btn rc-btn--ghost" onClick={batch.cancelBatch}>Cancel job</button></div>
-            {batch.batchJob?.output && (
-              <div className="rc-row" style={{ gap: 8, marginTop: 12 }}>
-                <span className="rc-badge rc-badge--success">Downloaded: <b>{batch.batchJob.output?.downloaded?.length ?? 0}</b></span>
-                <span className="rc-badge">Already exists: <b>{batch.batchJob.output?.already_exists?.length ?? 0}</b></span>
-                <span className="rc-badge rc-badge--danger">Failed: <b>{batch.batchJob.output?.failed?.length ?? 0}</b></span>
-              </div>
-            )}
+            {batch.batchJob?.output && (() => {
+              const out = batch.batchJob.output as { downloaded?: any[]; already_exists?: any[]; not_available?: any[]; failed?: any[] };
+              const downloaded = out.downloaded ?? [];
+              const alreadyExists = out.already_exists ?? [];
+              const notAvailable = out.not_available ?? [];
+              const failed = out.failed ?? [];
+              const allPapers = [...downloaded, ...alreadyExists, ...notAvailable, ...failed];
+              return (
+                <div style={{ marginTop: 14 }}>
+                  <div className="rc-row" style={{ gap: 8, marginBottom: 14 }}>
+                    <span className="rc-badge rc-badge--success">Downloaded: <b>{downloaded.length}</b></span>
+                    <span className="rc-badge">Already exists: <b>{alreadyExists.length}</b></span>
+                    <span className="rc-badge rc-badge--info">Unavailable: <b>{notAvailable.length}</b></span>
+                    <span className="rc-badge rc-badge--danger">Failed: <b>{failed.length}</b></span>
+                  </div>
+                  {allPapers.length > 0 && (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: 'var(--rc-bg-secondary, rgba(0,0,0,0.04))', textAlign: 'left' }}>
+                            <th style={{ padding: '6px 8px', fontWeight: 700 }}>Title</th>
+                            <th style={{ padding: '6px 8px', fontWeight: 700 }}>Status</th>
+                            <th style={{ padding: '6px 8px', fontWeight: 700 }}>Source</th>
+                            <th style={{ padding: '6px 8px', fontWeight: 700 }}>Fallback</th>
+                            <th style={{ padding: '6px 8px', fontWeight: 700 }}>Reason / URL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {allPapers.map((p: any, i: number) => {
+                            const statusClass = p.final_status === 'downloaded' ? 'rc-badge--success'
+                              : p.final_status === 'existing' ? ''
+                              : p.final_status === 'unavailable' ? 'rc-badge--info'
+                              : 'rc-badge--danger';
+                            return (
+                              <tr key={p.paper_id ?? `row-${i}`} style={{ borderBottom: '1px solid var(--rc-border, rgba(0,0,0,0.08))' }}>
+                                <td style={{ padding: '6px 8px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.title ?? undefined}>{p.title || <span className="rc-muted">—</span>}</td>
+                                <td style={{ padding: '6px 8px' }}><span className={`rc-badge ${statusClass}`} style={{ fontSize: 11 }}>{p.final_status}</span></td>
+                                <td style={{ padding: '6px 8px', color: 'var(--rc-muted)' }}>{p.source_provider || '—'}</td>
+                                <td style={{ padding: '6px 8px', textAlign: 'center' }}>{p.used_fallback ? '✓' : ''}</td>
+                                <td style={{ padding: '6px 8px', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {p.reason ? <span style={{ color: 'var(--rc-danger, #dc2626)' }}>{p.reason}</span>
+                                    : p.resolved_url ? <a href={p.resolved_url} target="_blank" rel="noreferrer" style={{ color: 'var(--rc-link, #4f46e5)', fontSize: 11 }}>{p.resolved_url}</a>
+                                    : <span className="rc-muted">—</span>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

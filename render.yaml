@@ -29,7 +29,7 @@ services:
       - key: LLM_PROVIDER
         value: openclaw
       - key: BACKEND_CORS_ORIGINS
-        value: '["https://idarragaa21-prog.github.io","http://localhost:5173","http://localhost:3000"]'
+        value: '["https://idarragaa21-prog.github.io","https://paperflow-ai.vercel.app","http://localhost:5173","http://localhost:3000"]'
       - key: PYTHON_VERSION
         value: "3.11.0"
       - key: OCR_ENABLED

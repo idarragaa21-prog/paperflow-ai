@@ -22,6 +22,8 @@ class DownloadResult:
     pdf_bytes: bytes
     source: str
     resolved_url: str
+    used_fallback: bool = False
+    oa_url_provided: str | None = None
 
 
 class PaperDownloadService:
@@ -36,6 +38,7 @@ class PaperDownloadService:
         pmid: str | None,
         oa_url: str | None = None,
         client: httpx.AsyncClient,
+        _original_oa_url: str | None = None,  # internal: tracks original for fallback detection
     ) -> DownloadResult:
         """Resolve OA PDF URL via caller-provided URL, Unpaywall (DOI), or EuropePMC (PMID), then download bytes.
 
@@ -43,7 +46,12 @@ class PaperDownloadService:
         1. oa_url provided by caller (from search result the user actually saw)
         2. Unpaywall via DOI
         3. EuropePMC via PMID
+
+        Returns DownloadResult with used_fallback=True when the caller-provided oa_url
+        was unusable and the resolver chain was used instead.
         """
+        # Track original oa_url for fallback detection across recursive calls.
+        original_oa_url = _original_oa_url if _original_oa_url is not None else oa_url
 
         resolved_url: str | None = None
         source: str | None = None
@@ -88,10 +96,18 @@ class PaperDownloadService:
             if oa_url and source == "user_provided_oa":
                 return await self.download_open_access_pdf(
                     doi=doi, pmid=pmid, oa_url=None, client=client,
+                    _original_oa_url=original_oa_url,
                 )
             ct = r.headers.get("content-type")
             raise PaperServiceError(
                 f"La URL resuelta no devolvió un PDF válido (content-type={ct})."
             )
 
-        return DownloadResult(pdf_bytes=data, source=source, resolved_url=resolved_url)
+        used_fallback = bool(original_oa_url and source != "user_provided_oa")
+        return DownloadResult(
+            pdf_bytes=data,
+            source=source,
+            resolved_url=resolved_url,
+            used_fallback=used_fallback,
+            oa_url_provided=original_oa_url,
+        )
