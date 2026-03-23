@@ -94,7 +94,7 @@ export default function DeepResearchPage() {
     e.preventDefault();
     if (!query.trim()) return;
     if (sourceMode === 'project' && !projectId) {
-      setError('Selecciona un proyecto para usar su biblioteca.');
+      setError(locale === 'es' ? 'Selecciona un proyecto para usar su biblioteca.' : 'Select a project to use its library.');
       return;
     }
     setError(null);
