@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Draft, DraftSection, DraftCitation } from '../types/api';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
@@ -39,7 +39,7 @@ export default function DraftsPage() {
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!projectId) return;
     const [draftResponse, evidenceResponse] = await Promise.all([
       api.get('/drafts', { params: { project_id: projectId } }),
@@ -51,11 +51,11 @@ export default function DraftsPage() {
     if (!selectedDraft && nextDrafts[0]) {
       setSelectedDraft(nextDrafts[0].id);
     }
-  }
+  }, [projectId, selectedDraft]);
 
   useEffect(() => {
     load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load drafts'));
-  }, [projectId]);
+  }, [load]);
 
   async function createDraft() {
     if (!projectId || !title.trim()) return;

@@ -297,7 +297,7 @@ export default function PapersPage() {
                     </td>
                     <td style={{ padding: '8px 6px' }}>
                       <span className={st.cls} style={{ fontSize: 11 }}>
-                        {st.label === 'Processing' && <span style={{ display: 'inline-block', width: 8, height: 8, border: '2px solid rgba(59,130,246,0.4)', borderTopColor: 'rgba(59,130,246,1)', borderRadius: '50%', animation: 'spin .8s linear infinite', marginRight: 4 }} />}
+                        {st.label === 'Processing' && <span style={{ display: 'inline-block', width: 8, height: 8, border: '2px solid rgba(59,130,246,0.4)', borderTopColor: 'rgba(59,130,246,1)', borderRadius: '50%', animation: 'rc-spin .8s linear infinite', marginRight: 4 }} />}
                         {st.label}
                       </span>
                     </td>
@@ -329,7 +329,6 @@ export default function PapersPage() {
         </div>
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

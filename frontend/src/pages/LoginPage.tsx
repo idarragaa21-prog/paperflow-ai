@@ -136,7 +136,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div style={{ padding:'10px 14px',borderRadius:10,background:'rgba(185,28,28,0.08)',border:'1px solid rgba(185,28,28,0.18)',color:'#b91c1c',fontSize:13 }}>
+              <div className="rc-error" style={{ fontSize: 13 }}>
                 {error}
               </div>
             )}

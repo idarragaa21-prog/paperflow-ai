@@ -235,7 +235,12 @@ export default function SearchPage() {
                 <div style={{ width: `${batch.batchJob?.progress ?? 0}%` }} />
               </div>
             )}
-            {batch.batchJob?.error && <div className="rc-error" style={{ marginBottom: 8 }}>{String(batch.batchJob.error)}</div>}
+            {batch.batchJob?.error && (
+              <div style={{ marginBottom: 8 }}>
+                <div className="rc-error">{String(batch.batchJob.error)}</div>
+                <button className="rc-btn rc-btn--sm" style={{ marginTop: 8 }} onClick={() => batch.setBatchModalOpen(false)}>Close</button>
+              </div>
+            )}
             {batch.batchJob?.output && (
               <div className="rc-row" style={{ gap: 8, marginBottom: 12 }}>
                 <span className="rc-badge rc-badge--success">Downloaded: <b>{(batch.batchJob.output as { downloaded?: unknown[] })?.downloaded?.length ?? 0}</b></span>

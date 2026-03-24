@@ -103,7 +103,6 @@ export default function ReaderPage() {
     } catch (e: any) {
       const msg = e?.response?.data?.detail || 'Chat failed. The LLM service may be unavailable.';
       setError(msg);
-      setHistory(prev => [...prev, { role: 'assistant', result: { session_id: '', answer: `Error: ${msg}`, claim_type: 'error', confidence: 0, grounded: false, citations: [] } }]);
     } finally { setLoading(false); }
   }
 

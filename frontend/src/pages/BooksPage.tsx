@@ -122,9 +122,9 @@ export default function BooksPage() {
           {notice}
         </div>
       ) : null}
-      {error ? <div style={{ color: 'crimson' }}>{String(error)}</div> : null}
+      {error ? <div className="rc-error">{String(error)}</div> : null}
 
-      <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
+      <div style={{ border: '1px solid var(--rc-border)', borderRadius: 10, padding: 12 }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Index books from the server BOOKS folder (recommended)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={scanFolder} disabled={Boolean(scanJobId)}>
@@ -142,7 +142,7 @@ export default function BooksPage() {
         </div>
       </div>
 
-      <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
+      <div style={{ border: '1px solid var(--rc-border)', borderRadius: 10, padding: 12 }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Upload a book (optional)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -154,7 +154,7 @@ export default function BooksPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {loading && books.length === 0 ? (
-          <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
+          <div style={{ border: '1px solid var(--rc-border)', borderRadius: 10, padding: 12 }}>
             <Skeleton height={14} width="52%" radius={10} />
             <div style={{ height: 10 }} />
             <SkeletonLines lines={3} lineHeight={12} lastLineWidth="45%" />
@@ -181,7 +181,7 @@ export default function BooksPage() {
           </div>
         ) : null}
         {books.map((b) => (
-          <div key={b.id} style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
+          <div key={b.id} style={{ border: '1px solid var(--rc-border)', borderRadius: 10, padding: 12 }}>
             <div style={{ fontWeight: 800 }}>{b.title || b.filename}</div>
             <div style={{ fontSize: 12, opacity: 0.75 }}>
               {b.total_pages ? `${b.total_pages} pages · ` : ''}

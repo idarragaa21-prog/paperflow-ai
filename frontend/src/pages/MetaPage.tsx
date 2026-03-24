@@ -180,7 +180,6 @@ export default function MetaPage() {
       const jid = r.data?.job_id as string | undefined;
       if (jid) {
         setExportJobId(jid);
-        setExportJobStatus({ status: 'queued', progress: 0, error: null });
       }
       setNotice(`Export job enqueued: ${jid || '(unknown job id)'}`);
     } catch (e: any) {

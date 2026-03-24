@@ -12,7 +12,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  background: #1a1929;
+  background: var(--rc-sidebar-bg);
   padding: 16px 12px;
   display: flex;
   flex-direction: column;
@@ -25,7 +25,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 10px 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--rc-sidebar-border);
   margin-bottom: 4px;
 }
 .rc-brand-logo {
@@ -43,13 +43,13 @@
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 15px;
-  color: #ffffff;
+  color: var(--rc-sidebar-text);
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
 .rc-brand-sub {
   font-size: 10px;
-  color: rgba(255,255,255,0.4);
+  color: var(--rc-sidebar-muted);
   letter-spacing: 0.02em;
 }
 
@@ -59,7 +59,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.3);
+  color: var(--rc-sidebar-muted);
   padding: 10px 10px 4px;
   margin-top: 4px;
 }
@@ -77,12 +77,12 @@
   transition: background 150ms, color 150ms;
 }
 .rc-nav-item:hover {
-  background: rgba(255,255,255,0.07);
+  background: var(--rc-sidebar-item-hover);
   color: rgba(255,255,255,0.9);
   text-decoration: none;
 }
 .rc-nav-item--active {
-  background: rgba(99,102,241,0.2);
+  background: var(--rc-sidebar-item-active);
   color: #a5b4fc;
   border: none;
 }
@@ -113,7 +113,7 @@
 .rc-sidebar-footer {
   margin-top: auto;
   padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--rc-sidebar-border);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -140,7 +140,7 @@
 }
 .rc-user-email {
   font-size: 12px;
-  color: rgba(255,255,255,0.45);
+  color: var(--rc-sidebar-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -149,7 +149,7 @@
 .rc-logout-btn {
   background: transparent;
   border: none;
-  color: rgba(255,255,255,0.35);
+  color: var(--rc-sidebar-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
@@ -177,7 +177,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: #1a1929;
+    background: var(--rc-sidebar-bg);
     position: sticky;
     top: 0;
     z-index: 30;
@@ -186,7 +186,7 @@
     font-family: var(--font-display);
     font-weight: 800;
     font-size: 16px;
-    color: white;
+    color: var(--rc-sidebar-text);
     letter-spacing: -0.02em;
   }
   .rc-hamburger {
@@ -230,7 +230,7 @@
     bottom: 0;
     width: 260px;
     z-index: 40;
-    background: #1a1929;
+    background: var(--rc-sidebar-bg);
     padding: 16px 12px;
     flex-direction: column;
     gap: 10px;

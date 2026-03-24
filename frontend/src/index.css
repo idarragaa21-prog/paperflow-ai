@@ -41,6 +41,15 @@
   --rc-r-lg: 16px;
   --rc-r-xl: 20px;
   --rc-r-full: 999px;
+
+  /* Sidebar — intentionally always-dark in light mode too */
+  --rc-sidebar-bg: #1a1929;
+  --rc-sidebar-bg-darker: #13122a;
+  --rc-sidebar-text: #ffffff;
+  --rc-sidebar-muted: rgba(255,255,255,0.4);
+  --rc-sidebar-border: rgba(255,255,255,0.08);
+  --rc-sidebar-item-hover: rgba(255,255,255,0.06);
+  --rc-sidebar-item-active: rgba(99,102,241,0.22);
 }
 
 /* ── Dark Mode ── */

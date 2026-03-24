@@ -64,7 +64,7 @@ export default function ReferencesPage() {
     try {
       const r = await api.get('/references', { params: { project_id: projectId } });
       setItems(r.data as ReferenceRow[]);
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Error cargando referencias'); }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to load references'); }
     finally { setLoading(false); }
   }
 
@@ -103,9 +103,9 @@ export default function ReferencesPage() {
     setError(null); setNotice(null);
     try {
       const r = await api.post('/references/sync-from-library', null, { params: { project_id: projectId } });
-      setNotice(`Referencias creadas desde library: ${String((r.data as any)?.created || 0)}`);
+      setNotice(`References synced from library: ${String((r.data as any)?.created || 0)} created`);
       await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Sync fallido'); }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Sync failed'); }
   }
 
   async function importReferences() {
@@ -116,7 +116,7 @@ export default function ReferencesPage() {
       setNotice(`Importados: ${(r.data as any)?.imported || 0}, duplicados: ${(r.data as any)?.skipped || 0}.`);
       setContent('');
       await load();
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Import fallido'); }
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Import failed'); }
     finally { setImporting(false); }
   }
 
@@ -206,7 +206,7 @@ export default function ReferencesPage() {
       </div>
 
       {/* Search */}
-      <input className="rc-input" style={{ maxWidth: 320, padding: '8px 12px', fontSize: 13 }} placeholder="Buscar titulo, autores o journal..." value={search} onChange={e => setSearch(e.target.value)} />
+      <input className="rc-input" style={{ maxWidth: 320, padding: '8px 12px', fontSize: 13 }} placeholder="Search title, authors or journal…" value={search} onChange={e => setSearch(e.target.value)} />
 
       {/* Tabla */}
       {items.length === 0 && !loading ? (

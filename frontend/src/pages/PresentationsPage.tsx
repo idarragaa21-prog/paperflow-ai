@@ -119,36 +119,36 @@ export default function PresentationsPage() {
         </button>
       </div>
 
-      {error ? <div className="rc-danger">{String(error)}</div> : null}
+      {error ? <div className="rc-error">{String(error)}</div> : null}
 
       <div className="rc-card">
         <div className="rc-card-title">Generate deck</div>
 
         <div className="rc-grid2">
           <div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Topic</div>
-            <input value={topic} onChange={(e) => setTopic(e.target.value)} style={{ width: '100%' }} placeholder="e.g. ACL reconstruction: HT vs BPTB" />
+            <div className="rc-kicker">Topic</div>
+            <input className="rc-input" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. ACL reconstruction: HT vs BPTB" />
           </div>
           <div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Audience</div>
-            <select value={audience} onChange={(e) => setAudience(e.target.value as any)} style={{ width: '100%' }}>
-              <option value="universidad">universidad</option>
-              <option value="palestra">palestra</option>
+            <div className="rc-kicker">Audience</div>
+            <select className="rc-input" value={audience} onChange={(e) => setAudience(e.target.value as any)}>
+              <option value="universidad">University</option>
+              <option value="palestra">Conference</option>
             </select>
           </div>
           <div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Duration (min)</div>
-            <input type="number" value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value))} style={{ width: '100%' }} />
+            <div className="rc-kicker">Duration (min)</div>
+            <input className="rc-input" type="number" value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value))} />
           </div>
           <div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}># Slides (20–50)</div>
-            <input type="number" min={20} max={50} value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} style={{ width: '100%' }} />
+            <div className="rc-kicker"># Slides (20–50)</div>
+            <input className="rc-input" type="number" min={20} max={50} value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} />
           </div>
         </div>
 
         <div style={{ height: 12 }} />
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>Select papers (max 10)</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflow: 'auto', padding: 8, borderRadius: 12, border: '1px solid rgba(15, 23, 42, 0.10)', background: 'rgba(2, 6, 23, 0.02)' }}>
+        <div className="rc-kicker" style={{ marginBottom: 6 }}>Select papers (max 10)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflow: 'auto', padding: 8, borderRadius: 12, border: '1px solid var(--rc-border)', background: 'var(--rc-bg)' }}>
           {papers.map((p) => (
             <label key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <input

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -19,7 +19,7 @@ export default function ScreeningPage() {
   const [reasonLabel, setReasonLabel] = useState('Wrong population');
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!projectId) return;
     const [batchResponse, reasonResponse, paperResponse, prismaResponse] = await Promise.all([
       api.get('/screening/batches', { params: { project_id: projectId } }),
@@ -34,11 +34,11 @@ export default function ScreeningPage() {
     setPrisma((prismaResponse.data?.counts || {}) as Record<string, number>);
     if (!selectedBatch && nextBatches[0]) setSelectedBatch(nextBatches[0].id);
     if (!selectedPaper && (paperResponse.data as Paper[])[0]) setSelectedPaper((paperResponse.data as Paper[])[0].id);
-  }
+  }, [projectId, selectedBatch, selectedPaper]);
 
   useEffect(() => {
     load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load screening workspace'));
-  }, [projectId]);
+  }, [load]);
 
   async function createBatch() {
     if (!projectId) return;
