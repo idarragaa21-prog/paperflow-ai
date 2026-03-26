@@ -135,7 +135,9 @@ python scripts/create_user.py --email you@example.com --password 'change-me' --f
 - Redis es obligatorio.
 - Configurar `SECRET_KEY` fuerte.
 - Configurar `OPENCLAW_GATEWAY_TOKEN` si `gateway.auth.mode=token`.
-- Ajustar `BACKEND_CORS_ORIGINS` al dominio real.
+- Ajustar `BACKEND_CORS_ORIGINS` al dominio real del frontend.
+- Si frontend y backend van en dominios distintos, usar `COOKIE_SAMESITE=none` sobre HTTPS.
+- No dejar `VITE_API_BASE_URL` implícito en producción.
 
 ---
 

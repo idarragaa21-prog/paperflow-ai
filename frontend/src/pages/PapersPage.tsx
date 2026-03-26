@@ -1,9 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, isApiError } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useConfirm } from '../ui/Dialog/useConfirm';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
+
+type PaperDownloadTrace = {
+  title: string;
+  paper_id: string;
+  doi?: string | null;
+  pmid?: string | null;
+  pmcid?: string | null;
+  source_provider?: string | null;
+  oa_url?: string | null;
+  landing_url?: string | null;
+  resolved_url?: string | null;
+  used_fallback?: boolean;
+  final_status: 'downloaded' | 'existing' | 'unavailable' | 'failed';
+  failure_reason?: string | null;
+  audited_at?: string | null;
+};
 
 type PaperRow = {
   id: string;
@@ -25,12 +41,61 @@ type PaperRow = {
   created_at?: string | null;
 };
 
+type PaperDetailResponse = PaperRow & {
+  download_trace?: PaperDownloadTrace | null;
+};
+
 type PaginatedResponse<T> = {
   items: T[];
   next_cursor?: string | null;
   has_more: boolean;
   total_count?: number;
 };
+
+type PaperTraceState = {
+  expanded: boolean;
+  loading: boolean;
+  error: string | null;
+  trace?: PaperDownloadTrace | null;
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  pubmed: 'PubMed',
+  europepmc: 'Europe PMC',
+  doaj: 'DOAJ',
+  unpaywall: 'Unpaywall',
+  doi_content_negotiation: 'DOI direct',
+  manual_upload: 'Carga manual',
+};
+
+function providerLabel(source?: string | null) {
+  return SOURCE_LABELS[String(source || '').toLowerCase()] || String(source || 'Fuente externa');
+}
+
+function traceStatusLabel(status: PaperDownloadTrace['final_status']) {
+  if (status === 'downloaded') return 'Descargado';
+  if (status === 'existing') return 'Ya existía';
+  if (status === 'unavailable') return 'No disponible';
+  return 'Falló';
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return 'Sin fecha';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
+}
+
+function errorDetail(error: unknown, fallback: string) {
+  if (!isApiError(error)) {
+    return error instanceof Error ? error.message : fallback;
+  }
+  const detail = error.response?.data;
+  if (detail && typeof detail === 'object' && 'detail' in detail && typeof detail.detail === 'string') {
+    return detail.detail;
+  }
+  return error.message || fallback;
+}
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
@@ -61,10 +126,25 @@ export default function PapersPage() {
   const [doi, setDoi] = useState('');
   const [pmid, setPmid] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [traceState, setTraceState] = useState<Record<string, PaperTraceState>>({});
 
   const canDownload = useMemo(() => Boolean(projectId && (doi.trim() || pmid.trim())), [projectId, doi, pmid]);
 
-  async function load(cursor?: string | null, append = false) {
+  function patchTraceState(paperId: string, next: Partial<PaperTraceState>) {
+    setTraceState((prev) => ({
+      ...prev,
+      [paperId]: {
+        ...(prev[paperId] || {
+          expanded: false,
+          loading: false,
+          error: null,
+        }),
+        ...next,
+      },
+    }));
+  }
+
+  const load = useCallback(async (cursor?: string | null, append = false) => {
     if (!projectId) return;
     setLoading(true);
     setError(null);
@@ -74,16 +154,16 @@ export default function PapersPage() {
       setPapers((prev) => (append ? [...prev, ...page.items] : page.items));
       setNextCursor(page.next_cursor || null);
       setHasMore(Boolean(page.has_more));
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'No se pudieron cargar los papers');
+    } catch (error: unknown) {
+      setError(errorDetail(error, 'No se pudieron cargar los papers'));
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId]);
 
   useEffect(() => {
-    load();
-  }, [projectId]);
+    void load();
+  }, [load]);
 
   async function upload() {
     if (!projectId || !uploadFile) return;
@@ -96,12 +176,12 @@ export default function PapersPage() {
       const r = await api.post('/papers/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const duplicate = Boolean((r.data as any)?.duplicate);
+      const duplicate = Boolean((r.data as { duplicate?: boolean })?.duplicate);
       toast.info(duplicate ? 'Duplicado' : 'Subido', duplicate ? 'El paper ya existe en este proyecto.' : 'PDF subido correctamente.');
       setUploadFile(null);
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'La subida fallo');
+    } catch (error: unknown) {
+      setError(errorDetail(error, 'La subida fallo'));
     } finally {
       setUploading(false);
     }
@@ -112,7 +192,7 @@ export default function PapersPage() {
     setDownloading(true);
     setError(null);
     try {
-      const payload: any = {
+      const payload: Record<string, string> = {
         project_id: projectId,
       };
       if (doi.trim()) payload.doi = doi.trim();
@@ -122,8 +202,8 @@ export default function PapersPage() {
       setDoi('');
       setPmid('');
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'La descarga fallo');
+    } catch (error: unknown) {
+      setError(errorDetail(error, 'La descarga fallo'));
     } finally {
       setDownloading(false);
     }
@@ -134,8 +214,8 @@ export default function PapersPage() {
     try {
       const r = await api.get(`/papers/${p.id}/download`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, p.filename || 'paper.pdf');
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'La descarga del archivo fallo');
+    } catch (error: unknown) {
+      setError(errorDetail(error, 'La descarga del archivo fallo'));
     }
   }
 
@@ -144,8 +224,8 @@ export default function PapersPage() {
     try {
       const r = await api.post(`/papers/${p.id}/process`);
       toast.success('Job encolado', `Proceso: ${String(r.data?.job_id || '')}`);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'No se pudo encolar el job de procesamiento');
+    } catch (error: unknown) {
+      setError(errorDetail(error, 'No se pudo encolar el job de procesamiento'));
     }
   }
 
@@ -157,8 +237,8 @@ export default function PapersPage() {
         custom_instructions: null,
       });
       toast.success('Job encolado', `Resumen: ${String(r.data?.job_id || '')}`);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'No se pudo encolar el job de resumen');
+    } catch (error: unknown) {
+      setError(errorDetail(error, 'No se pudo encolar el job de resumen'));
     }
   }
 
@@ -175,8 +255,31 @@ export default function PapersPage() {
     try {
       await api.delete(`/papers/${p.id}`);
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'La eliminacion fallo');
+    } catch (error: unknown) {
+      setError(errorDetail(error, 'La eliminacion fallo'));
+    }
+  }
+
+  async function toggleTrace(p: PaperRow) {
+    const current = traceState[p.id];
+    if (current?.expanded) {
+      patchTraceState(p.id, { expanded: false });
+      return;
+    }
+
+    patchTraceState(p.id, { expanded: true });
+    if (current?.trace || current?.loading) return;
+
+    patchTraceState(p.id, { loading: true, error: null });
+    try {
+      const response = await api.get(`/papers/${p.id}`);
+      const detail = response.data as PaperDetailResponse;
+      patchTraceState(p.id, { loading: false, trace: detail.download_trace || null });
+    } catch (error: unknown) {
+      patchTraceState(p.id, {
+        loading: false,
+        error: errorDetail(error, 'No se pudo cargar la traza de descarga'),
+      });
     }
   }
 
@@ -287,10 +390,88 @@ export default function PapersPage() {
               <button className="rc-btn" onClick={() => downloadFile(p)}>Descargar PDF</button>
               <button className="rc-btn" onClick={() => processPaper(p)} disabled={p.is_processed}>Procesar</button>
               <button className="rc-btn rc-btn--primary" onClick={() => summarizePaper(p)}>Resumir</button>
+              <button className="rc-btn rc-btn--subtle" onClick={() => void toggleTrace(p)}>
+                {traceState[p.id]?.expanded ? 'Ocultar traza' : 'Ver traza'}
+              </button>
               <button className="rc-btn rc-btn--ghost" onClick={() => deletePaper(p)} style={{ borderColor: 'rgba(185,28,28,0.25)', color: 'var(--rc-danger)' }}>
                 Eliminar
               </button>
             </div>
+
+            {traceState[p.id]?.expanded ? (
+              <div style={{ marginTop: 16 }}>
+                <div className="rc-kicker">Trazabilidad de descarga</div>
+                {traceState[p.id]?.loading ? (
+                  <div className="rc-help">Cargando traza…</div>
+                ) : traceState[p.id]?.error ? (
+                  <div className="rc-error">{traceState[p.id]?.error}</div>
+                ) : traceState[p.id]?.trace ? (
+                  <>
+                    <div className="rc-product-record__meta" style={{ marginTop: 8 }}>
+                      <span className="rc-discover-badge">{traceStatusLabel(traceState[p.id]!.trace!.final_status)}</span>
+                      <span className="rc-discover-badge">
+                        {traceState[p.id]!.trace!.source_provider
+                          ? providerLabel(traceState[p.id]!.trace!.source_provider)
+                          : 'Proveedor no resuelto'}
+                      </span>
+                      {traceState[p.id]!.trace!.used_fallback ? (
+                        <span className="rc-discover-badge">Usó fallback</span>
+                      ) : null}
+                    </div>
+                    <div className="rc-help" style={{ marginTop: 8 }}>
+                      Auditado: {formatDate(traceState[p.id]!.trace!.audited_at)}
+                    </div>
+                    <div className="rc-product-job-grid" style={{ marginTop: 12 }}>
+                      <div>
+                        <div className="rc-kicker">OA URL</div>
+                        {traceState[p.id]!.trace!.oa_url ? (
+                          <a href={traceState[p.id]!.trace!.oa_url!} target="_blank" rel="noopener noreferrer">
+                            {traceState[p.id]!.trace!.oa_url}
+                          </a>
+                        ) : (
+                          <div className="rc-help">No disponible</div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="rc-kicker">Landing URL</div>
+                        {traceState[p.id]!.trace!.landing_url ? (
+                          <a href={traceState[p.id]!.trace!.landing_url!} target="_blank" rel="noopener noreferrer">
+                            {traceState[p.id]!.trace!.landing_url}
+                          </a>
+                        ) : (
+                          <div className="rc-help">No disponible</div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="rc-kicker">URL final usada</div>
+                        {traceState[p.id]!.trace!.resolved_url ? (
+                          <a href={traceState[p.id]!.trace!.resolved_url!} target="_blank" rel="noopener noreferrer">
+                            {traceState[p.id]!.trace!.resolved_url}
+                          </a>
+                        ) : (
+                          <div className="rc-help">No se registró URL final</div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="rc-kicker">Resultado</div>
+                        <div className="rc-help">
+                          {traceState[p.id]!.trace!.failure_reason ||
+                            (traceState[p.id]!.trace!.final_status === 'downloaded'
+                              ? 'PDF guardado en la biblioteca.'
+                              : traceState[p.id]!.trace!.final_status === 'existing'
+                                ? 'El intento resolvió a un paper que ya existía.'
+                                : 'No hubo una descarga OA utilizable.')}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rc-help">
+                    Este paper no tiene una auditoría de descarga OA. Suele pasar con cargas manuales o registros más antiguos.
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         ))}
         {hasMore ? (

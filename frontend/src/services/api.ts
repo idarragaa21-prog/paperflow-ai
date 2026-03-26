@@ -14,12 +14,16 @@ function resolveApiBaseUrl() {
   const sameOriginOptIn = String(import.meta.env.VITE_USE_SAME_ORIGIN_API || '')
     .trim()
     .toLowerCase() === 'true';
+  const isRelativeBaseUrl = explicitBaseUrl.startsWith('/');
 
   if (explicitBaseUrl && explicitBaseUrl !== PRODUCTION_API_SENTINEL) {
-    if (!import.meta.env.DEV && explicitBaseUrl.startsWith('/') && !sameOriginOptIn) {
+    if (!import.meta.env.DEV && isRelativeBaseUrl && !sameOriginOptIn) {
       throw new Error(
         'Relative production API base URLs require VITE_USE_SAME_ORIGIN_API=true and a real /api proxy configuration.',
       );
+    }
+    if (!import.meta.env.DEV && isRelativeBaseUrl && explicitBaseUrl !== '/api') {
+      throw new Error('PaperFlow same-origin mode only supports /api as the production API base URL.');
     }
     return normalizeBaseUrl(explicitBaseUrl);
   }

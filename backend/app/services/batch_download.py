@@ -5,11 +5,12 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
 from app.core.storage import storage_manager
 from app.models.paper import Paper
-from app.services.audit import log_audit
+from app.services.audit import get_latest_paper_download_trace, log_audit
 from app.services.paper_repo import PaperRepository
 from app.services.paper_service import PaperServiceError, PaperDownloadService, sha256_hex
 
@@ -52,6 +53,36 @@ def _trace_item(**kwargs: Any) -> dict[str, Any]:
     return asdict(BatchDownloadTraceItem(**kwargs))
 
 
+async def _enrich_trace_from_existing_audit(
+    *,
+    db: AsyncSession | None,
+    paper: Paper,
+    trace: dict[str, Any],
+) -> None:
+    if db is None:
+        return
+
+    audit_trace = await get_latest_paper_download_trace(
+        db,
+        paper_id=paper.id,
+        title=paper.title,
+        doi=paper.doi,
+        pmid=paper.pmid,
+        pmcid=paper.pmcid,
+    )
+    if not audit_trace:
+        return
+
+    trace.update(
+        source_provider=audit_trace.get("source_provider") or trace.get("source_provider"),
+        oa_url=audit_trace.get("oa_url") or trace.get("oa_url"),
+        landing_url=audit_trace.get("landing_url") or trace.get("landing_url"),
+        resolved_url=audit_trace.get("resolved_url") or trace.get("resolved_url"),
+        used_fallback=bool(audit_trace.get("used_fallback", trace.get("used_fallback", False))),
+        failure_reason=audit_trace.get("failure_reason") or trace.get("failure_reason"),
+    )
+
+
 async def batch_download_papers(
     *,
     repo: PaperRepository,
@@ -74,6 +105,7 @@ async def batch_download_papers(
     failed: list[dict[str, Any]] = []
 
     total = max(len(papers), 1)
+    repo_db = getattr(repo, "db", None)
     for idx, it in enumerate(papers):
         pmid = (it.get("pmid") or None)
         pmcid = (it.get("pmcid") or None)
@@ -104,6 +136,7 @@ async def batch_download_papers(
                     oa_url=getattr(dup, "oa_url", None),
                     final_status="existing",
                 )
+                await _enrich_trace_from_existing_audit(db=repo_db, paper=dup, trace=trace)
                 already_exists.append(dict(trace))
                 items.append(dict(trace))
                 continue
@@ -145,6 +178,7 @@ async def batch_download_papers(
                     oa_url=getattr(dup2, "oa_url", None) or trace["oa_url"],
                     final_status="existing",
                 )
+                await _enrich_trace_from_existing_audit(db=repo_db, paper=dup2, trace=trace)
                 already_exists.append(dict(trace))
                 items.append(dict(trace))
                 continue
@@ -186,9 +220,16 @@ async def batch_download_papers(
                         entity_id=paper.id,
                         details={
                             "project_id": str(project_id),
+                            "paper_id": str(paper.id),
+                            "title": paper.title,
                             "source": trace["source_provider"],
+                            "source_provider": trace["source_provider"],
+                            "oa_url": trace["oa_url"],
                             "resolved_url": trace["resolved_url"],
                             "landing_url": trace["landing_url"],
+                            "used_fallback": trace["used_fallback"],
+                            "final_status": "downloaded",
+                            "failure_reason": None,
                             "doi": doi,
                             "pmid": pmid,
                             "pmcid": pmcid,

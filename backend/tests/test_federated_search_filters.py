@@ -107,3 +107,74 @@ async def test_federated_search_filters_by_year_and_enriches_results(monkeypatch
     assert recent["has_abstract"] is True
     assert recent["can_save_pdf"] is True
     assert any(target["kind"] == "oa_pdf" for target in recent["open_targets"])
+
+
+@pytest.mark.asyncio
+async def test_federated_search_merges_duplicate_records_with_richer_metadata(monkeypatch):
+    async def fake_pubmed(query: str, max_results: int = 20, filters=None):
+        del query, max_results, filters
+        return {
+            "results": [
+                {
+                    "pmid": "777",
+                    "doi": "10.1000/dup",
+                    "title": "Merged shoulder review",
+                    "authors": ["A. Author"],
+                    "journal": None,
+                    "pub_year": 2024,
+                    "abstract": "Short abstract.",
+                    "is_open_access": False,
+                    "oa_url": None,
+                    "source": "pubmed",
+                }
+            ],
+            "query_translation": "translated",
+        }
+
+    async def fake_europe(query: str, max_results: int, filters=None):
+        del query, max_results, filters
+        return [
+            {
+                "pmid": "777",
+                "doi": "10.1000/dup",
+                "title": "Merged shoulder review",
+                "authors": ["A. Author", "B. Author"],
+                "journal": "Journal of Federated Search",
+                "pub_year": 2024,
+                "abstract": "This is a substantially richer abstract with enough detail to win the merge decision.",
+                "source": "europepmc",
+                "is_open_access": True,
+                "oa_url": "https://example.org/merged.pdf",
+            }
+        ]
+
+    async def fake_doaj(query: str, max_results: int):
+        del query, max_results
+        return [
+            {
+                "doi": "10.1000/dup",
+                "title": "Merged shoulder review",
+                "authors": ["A. Author"],
+                "journal": "Journal of Federated Search",
+                "pub_year": 2024,
+                "abstract": "DOAJ duplicate",
+                "source": "doaj",
+                "is_open_access": True,
+                "oa_url": "https://example.org/landing",
+            }
+        ]
+
+    monkeypatch.setattr("app.services.federated_search.pubmed_client.search_and_fetch", fake_pubmed)
+    monkeypatch.setattr("app.services.federated_search._search_europe_pmc", fake_europe)
+    monkeypatch.setattr("app.services.federated_search._search_doaj", fake_doaj)
+
+    payload = await federated_search("shoulder review", max_results=10, filters=None)
+
+    assert payload["count"] == 1
+    result = payload["results"][0]
+    assert result["source"] == "europepmc"
+    assert result["journal"] == "Journal of Federated Search"
+    assert result["oa_url"] == "https://example.org/merged.pdf"
+    assert result["is_open_access"] is True
+    assert len(result["authors"]) == 2
+    assert "richer abstract" in result["abstract"]

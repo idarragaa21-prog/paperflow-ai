@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: paperflow-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENV
+        value: production
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: COOKIE_DOMAIN
+        sync: false
+      - key: COOKIE_SAMESITE
+        value: "none"
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: LEGACY_MODULES_ENABLED
+        value: "false"
+      - key: METRICS_ENABLED
+        value: "false"
+      - key: PROJECT_DEFAULT_RUNTIME_MODE
+        value: cloud_enabled
+
+  - type: worker
+    name: paperflow-worker-documents
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    startCommand: ./scripts/run_worker.sh documents
+    envVars:
+      - key: ENV
+        value: production
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: LEGACY_MODULES_ENABLED
+        value: "false"
+
+  - type: worker
+    name: paperflow-worker-analysis
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    startCommand: ./scripts/run_worker.sh analysis
+    envVars:
+      - key: ENV
+        value: production
+      - key: BACKEND_CORS_ORIGINS
+        sync: false
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: LEGACY_MODULES_ENABLED
+        value: "false"

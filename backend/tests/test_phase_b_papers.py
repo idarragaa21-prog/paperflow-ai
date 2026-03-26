@@ -43,6 +43,22 @@ class FakeDB:
             obj.id = uuid.uuid4()
         return None
 
+    async def execute(self, stmt):
+        del stmt
+
+        class _Result:
+            def __init__(self, items):
+                self._items = items
+
+            def scalars(self):
+                return self
+
+            def first(self):
+                return self._items[-1] if self._items else None
+
+        audit_entries = [obj for obj in self.added if obj.__class__.__name__ == "AuditLog"]
+        return _Result(audit_entries)
+
 
 class FakeRepo:
     def __init__(self, user_id: str, project_id: str):
@@ -93,6 +109,23 @@ class FakeRepo:
 class FakeDownloader:
     async def download_open_access_pdf(self, *, doi, pmid, client):
         raise AssertionError("downloader should not be called")
+
+
+class SuccessfulDownloader:
+    async def download_open_access_pdf(self, *, doi, pmid, client):
+        del client
+        return type(
+            "DownloadResult",
+            (),
+            {
+                "pdf_bytes": _valid_pdf_bytes(),
+                "source": "unpaywall",
+                "resolved_url": "https://cdn.example.org/paper.pdf",
+                "oa_url": "https://oa.example.org/paper.pdf",
+                "landing_url": f"https://doi.org/{doi or '10.1000/test'}",
+                "used_fallback": True,
+            },
+        )()
 
 
 @pytest.mark.asyncio
@@ -346,3 +379,75 @@ async def test_batch_download_enqueues_for_editor(monkeypatch):
     assert len(job_records) == 1
     assert job_records[0].queue_name == "documents"
     assert job_records[0].result["rq_job_id"] == "rq-123"
+
+
+@pytest.mark.asyncio
+async def test_download_response_includes_download_trace(monkeypatch):
+    from app.api import deps
+    from app.api.papers import get_downloader, get_repo
+    from app.services import paper_service as paper_service_mod
+
+    user_id = "00000000-0000-0000-0000-000000000000"
+    project_id = "11111111-1111-1111-1111-111111111111"
+
+    repo = FakeRepo(user_id, project_id)
+
+    async def repo_override():
+        return repo
+
+    async def downloader_override():
+        return SuccessfulDownloader()
+
+    async def fake_get_db():
+        yield None
+
+    async def fake_access(db, project_id, user, required_role="viewer"):
+        return FakeProject(str(project_id), str(user.id)), type("Membership", (), {"role": required_role})()
+
+    async def fake_save(*, data, project_id, suggested_filename=None):
+        del data, suggested_filename
+        return {
+            "filename": "paper.pdf",
+            "file_path": "papers/paper.pdf",
+            "size_kb": 12,
+            "content_hash": "hash-123",
+        }
+
+    class U:
+        id = uuid.UUID(user_id)
+        is_active = True
+
+    async def fake_user(request=None, db=None):
+        return U()
+
+    monkeypatch.setattr("app.api.papers.require_project_access", fake_access)
+    monkeypatch.setattr("app.api.papers.storage_manager.save_paper_bytes", fake_save)
+    monkeypatch.setattr("app.api.papers.storage_manager.validate_pdf", lambda data: True)
+    monkeypatch.setattr(paper_service_mod, "sha256_hex", lambda data: "hash-123")
+
+    app.dependency_overrides[get_repo] = repo_override
+    app.dependency_overrides[get_downloader] = downloader_override
+    app.dependency_overrides[deps.get_db] = fake_get_db
+    app.dependency_overrides[deps.get_current_user] = fake_user
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        ac.cookies.set("csrf_token", "abc")
+        ac.cookies.set("access_token", create_access_token(user_id))
+
+        resp = await ac.post(
+            "/papers/download",
+            json={"project_id": project_id, "doi": "10.1000/test", "title": "Traceable paper"},
+            headers={"X-CSRF-Token": "abc"},
+        )
+
+    app.dependency_overrides = {}
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["duplicate"] is False
+    assert body["download_trace"]["source_provider"] == "unpaywall"
+    assert body["download_trace"]["landing_url"] == "https://doi.org/10.1000/test"
+    assert body["download_trace"]["resolved_url"] == "https://cdn.example.org/paper.pdf"
+    assert body["download_trace"]["used_fallback"] is True
+    assert body["download_trace"]["final_status"] == "downloaded"

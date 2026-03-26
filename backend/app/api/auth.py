@@ -40,7 +40,7 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         value=access_token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         domain=settings.cookie_domain,
         path="/",
@@ -51,7 +51,7 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         value=refresh_token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         domain=settings.cookie_domain,
         path="/auth/refresh",
@@ -64,7 +64,7 @@ def _set_csrf_cookie(response: Response, csrf_token: str) -> None:
         value=csrf_token,
         httponly=False,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
         max_age=86400,
         domain=settings.cookie_domain,
         path="/",
@@ -72,10 +72,15 @@ def _set_csrf_cookie(response: Response, csrf_token: str) -> None:
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/auth/refresh")
-    response.delete_cookie("refresh_token", path="/")
-    response.delete_cookie("csrf_token", path="/")
+    cookie_domains = [None]
+    if settings.cookie_domain:
+        cookie_domains.append(settings.cookie_domain)
+
+    for domain in cookie_domains:
+        response.delete_cookie("access_token", path="/", domain=domain)
+        response.delete_cookie("refresh_token", path="/auth/refresh", domain=domain)
+        response.delete_cookie("refresh_token", path="/", domain=domain)
+        response.delete_cookie("csrf_token", path="/", domain=domain)
 
 
 def _request_identity(request: Request) -> tuple[str | None, str | None]:
@@ -203,7 +208,7 @@ async def refresh(
         value=new_access,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         domain=settings.cookie_domain,
         path="/",
@@ -213,7 +218,7 @@ async def refresh(
         value=new_refresh,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         domain=settings.cookie_domain,
         path="/auth/refresh",

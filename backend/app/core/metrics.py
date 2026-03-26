@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import os
+
 try:
+    if os.getenv("PAPERFLOW_DISABLE_PROMETHEUS") == "1":
+        raise ImportError("Prometheus metrics disabled by environment")
     from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 except Exception:  # pragma: no cover
     CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"

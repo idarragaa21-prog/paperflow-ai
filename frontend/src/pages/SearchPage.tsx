@@ -95,6 +95,8 @@ const SOURCE_LABELS: Record<string, string> = {
   pubmed: 'PubMed',
   europepmc: 'Europe PMC',
   doaj: 'DOAJ',
+  unpaywall: 'Unpaywall',
+  doi_content_negotiation: 'DOI direct',
 };
 
 const EXAMPLE_GROUPS: ExampleGroup[] = [

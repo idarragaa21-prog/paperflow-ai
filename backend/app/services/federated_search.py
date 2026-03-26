@@ -10,6 +10,7 @@ import httpx
 
 from app.core.logger import logger
 from app.schemas.search import SearchFilters
+from app.services.oa_resolvers import normalize_doi
 from app.services.pubmed import pubmed_client
 from app.services.search_results import enrich_search_result
 
@@ -22,13 +23,130 @@ def _normalize_title(value: str | None) -> str:
 
 
 def _record_key(item: dict[str, Any]) -> str:
-    for key in ("doi", "pmid", "pmcid"):
+    doi = normalize_doi(item.get("doi"))
+    if doi:
+        return f"doi:{doi}"
+    for key in ("pmid", "pmcid"):
         value = (item.get(key) or "").strip().lower()
         if value:
             return f"{key}:{value}"
     title = _normalize_title(str(item.get("title") or ""))
     year = item.get("pub_year") or "na"
     return f"title:{title}:{year}"
+
+
+SOURCE_PRIORITY = {"europepmc": 3, "pubmed": 2, "doaj": 1}
+
+
+def _normalized_journal(value: str | None) -> str:
+    return _normalize_title(value)
+
+
+def _abstract_quality_score(item: dict[str, Any]) -> int:
+    abstract = str(item.get("abstract") or "").strip()
+    if not abstract:
+        return 0
+    word_count = len(abstract.split())
+    if word_count >= 120:
+        return 5
+    if word_count >= 60:
+        return 4
+    if word_count >= 30:
+        return 3
+    if word_count >= 10:
+        return 2
+    return 1
+
+
+def _metadata_score(item: dict[str, Any]) -> int:
+    authors = item.get("authors") or []
+    oa_url = str(item.get("oa_url") or "").strip()
+    score = 0
+    score += 5 if normalize_doi(item.get("doi")) else 0
+    score += 4 if str(item.get("pmid") or "").strip() else 0
+    score += 2 if str(item.get("pmcid") or "").strip() else 0
+    score += _abstract_quality_score(item) * 3
+    score += 4 if item.get("journal") else 0
+    score += 3 if item.get("pub_year") else 0
+    score += 2 if item.get("language") else 0
+    score += 2 if authors else 0
+    score += min(len(authors), 6)
+    score += 6 if oa_url.lower().endswith(".pdf") else 0
+    score += 4 if oa_url else 0
+    score += 2 if item.get("is_open_access") else 0
+    score += SOURCE_PRIORITY.get(str(item.get("source") or "").lower(), 0)
+    return score
+
+
+def _consistency_score(candidate: dict[str, Any], peers: list[dict[str, Any]]) -> int:
+    score = 0
+    candidate_doi = normalize_doi(candidate.get("doi"))
+    candidate_pmid = str(candidate.get("pmid") or "").strip()
+    candidate_pmcid = str(candidate.get("pmcid") or "").strip()
+    candidate_title = _normalize_title(candidate.get("title"))
+    candidate_year = candidate.get("pub_year")
+    candidate_journal = _normalized_journal(candidate.get("journal"))
+
+    for peer in peers:
+        if peer is candidate:
+            continue
+        if candidate_doi and candidate_doi == normalize_doi(peer.get("doi")):
+            score += 4
+        if candidate_pmid and candidate_pmid == str(peer.get("pmid") or "").strip():
+            score += 4
+        if candidate_pmcid and candidate_pmcid == str(peer.get("pmcid") or "").strip():
+            score += 2
+        if candidate_title and candidate_title == _normalize_title(peer.get("title")):
+            score += 2
+        if candidate_year and candidate_year == peer.get("pub_year"):
+            score += 1
+        if candidate_journal and candidate_journal == _normalized_journal(peer.get("journal")):
+            score += 1
+    return score
+
+
+def _candidate_rank(candidate: dict[str, Any], peers: list[dict[str, Any]]) -> tuple[int, int, int]:
+    return (
+        _metadata_score(candidate),
+        _consistency_score(candidate, peers),
+        SOURCE_PRIORITY.get(str(candidate.get("source") or "").lower(), 0),
+    )
+
+
+def _pick_richer_value(current, candidate):
+    if current in (None, "", [], {}):
+        return candidate
+    if candidate in (None, "", [], {}):
+        return current
+    if isinstance(current, str) and isinstance(candidate, str):
+        return candidate if len(candidate.strip()) > len(current.strip()) else current
+    if isinstance(current, list) and isinstance(candidate, list):
+        return candidate if len(candidate) > len(current) else current
+    return current
+
+
+def _merge_duplicate_group(records: list[dict[str, Any]]) -> dict[str, Any]:
+    ordered = sorted(records, key=lambda record: _candidate_rank(record, records), reverse=True)
+    merged = dict(ordered[0])
+
+    for candidate in ordered[1:]:
+        for field in ("doi", "pmid", "pmcid", "journal", "pub_year", "language"):
+            merged[field] = _pick_richer_value(merged.get(field), candidate.get(field))
+
+        if _abstract_quality_score(candidate) > _abstract_quality_score(merged):
+            merged["abstract"] = candidate.get("abstract")
+
+        merged["authors"] = _pick_richer_value(merged.get("authors"), candidate.get("authors"))
+
+        candidate_oa = str(candidate.get("oa_url") or "").strip()
+        merged_oa = str(merged.get("oa_url") or "").strip()
+        if (candidate_oa and not merged_oa) or (
+            candidate_oa.lower().endswith(".pdf") and not merged_oa.lower().endswith(".pdf")
+        ):
+            merged["oa_url"] = candidate_oa
+        merged["is_open_access"] = bool(merged.get("is_open_access") or candidate.get("is_open_access"))
+
+    return enrich_search_result(merged)
 
 
 def _passes_filters(item: dict[str, Any], filters: SearchFilters | None) -> bool:
@@ -194,23 +312,14 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
             provider_status["doaj"] = "filtered_server_side"
             warnings.append("DOAJ se filtro por ano en el servidor")
 
-    deduped: OrderedDict[str, dict[str, Any]] = OrderedDict()
+    deduped: OrderedDict[str, list[dict[str, Any]]] = OrderedDict()
     for item in [*pubmed_results, *europe_results, *doaj_results]:
         if not _passes_filters(item, filters):
             continue
         key = _record_key(item)
-        existing = deduped.get(key)
-        if existing is None:
-            deduped[key] = item
-            continue
+        deduped.setdefault(key, []).append(item)
 
-        # Prefer richer OA / metadata coverage.
-        score_existing = int(bool(existing.get("abstract"))) + int(bool(existing.get("oa_url"))) + int(bool(existing.get("doi")))
-        score_new = int(bool(item.get("abstract"))) + int(bool(item.get("oa_url"))) + int(bool(item.get("doi")))
-        if score_new > score_existing:
-            deduped[key] = item
-
-    results = list(deduped.values())[:max_results]
+    results = [_merge_duplicate_group(group) for group in deduped.values()][:max_results]
     return {
         "count": len(results),
         "results": results,

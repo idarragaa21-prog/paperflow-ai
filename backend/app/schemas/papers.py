@@ -37,9 +37,11 @@ class PaperRecordResponse(BaseModel):
     file_path: str
     file_size_kb: int | None = None
     content_hash: str
+    is_processed: bool = False
     processing_status: str = "uploaded"
 
     duplicate: bool = False
+    download_trace: "PaperDownloadTraceResponse | None" = None
 
 
 class PaperDeleteResponse(BaseModel):
@@ -73,6 +75,32 @@ class BatchDownloadTraceItemResponse(BaseModel):
     failure_reason: str | None = None
 
 
+class PaperDownloadTraceResponse(BaseModel):
+    title: str
+    paper_id: str
+    doi: str | None = None
+    pmid: str | None = None
+    pmcid: str | None = None
+    source_provider: str | None = None
+    oa_url: str | None = None
+    landing_url: str | None = None
+    resolved_url: str | None = None
+    used_fallback: bool = False
+    final_status: Literal["downloaded", "existing", "unavailable", "failed"]
+    failure_reason: str | None = None
+    audited_at: str | None = None
+
+
+class PaperDetailResponse(PaperRecordResponse):
+    authors: str | None = None
+    favorite: bool = False
+    full_text_extracted: str | None = None
+    processing_error: str | None = None
+    processing_warnings: list[str] = Field(default_factory=list)
+    downloaded_at: str | None = None
+    created_at: str | None = None
+
+
 class BatchDownloadOutputResponse(BaseModel):
     items: list[BatchDownloadTraceItemResponse] = Field(default_factory=list)
     downloaded: list[BatchDownloadTraceItemResponse] = Field(default_factory=list)
@@ -83,3 +111,7 @@ class BatchDownloadOutputResponse(BaseModel):
 
 class PapersBatchDownloadQueuedResponse(BaseModel):
     job_id: UUID
+
+
+PaperRecordResponse.model_rebuild()
+PaperDetailResponse.model_rebuild()
