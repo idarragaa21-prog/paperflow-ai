@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import httpx
 
 from app.core.storage import storage_manager
-from app.services.oa_resolvers import EuropePMCResolver, OAResolverError, UnpaywallResolver
+from app.services.oa_resolvers import (
+    DOIContentNegotiationResolver,
+    EuropePMCResolver,
+    OAResolverError,
+    UnpaywallResolver,
+    normalize_reference_identity,
+)
 
 
 class PaperServiceError(Exception):
@@ -22,76 +29,114 @@ class DownloadResult:
     pdf_bytes: bytes
     source: str
     resolved_url: str
+    oa_url: str | None = None
+    landing_url: str | None = None
+    used_fallback: bool = False
+
+
+@dataclass
+class OAResolutionTrace:
+    source: str
+    resolved_url: str
+    oa_url: str | None = None
+    landing_url: str | None = None
+    used_fallback: bool = False
+
+
+def _normalized_error_message(exc: Exception) -> str:
+    return str(exc).strip() or exc.__class__.__name__
 
 
 class PaperDownloadService:
-    def __init__(self):
-        self.unpaywall = UnpaywallResolver()
+    def __init__(self) -> None:
         self.europepmc = EuropePMCResolver()
+        self.unpaywall = UnpaywallResolver()
+        self.doi_content_negotiation = DOIContentNegotiationResolver()
+
+    async def resolve_open_access_target(
+        self,
+        *,
+        doi: str | None,
+        pmid: str | None,
+        pmcid: str | None = None,
+        client: httpx.AsyncClient,
+    ) -> OAResolutionTrace:
+        attempts: list[str] = []
+        resolvers: list[tuple[str, Callable[[], object]]] = []
+
+        if pmcid and pmid:
+            resolvers.append(("europepmc", lambda: self.europepmc.resolve_by_pmid(pmid, client)))
+        if doi:
+            resolvers.append(("unpaywall", lambda: self.unpaywall.resolve(doi, client)))
+            resolvers.append(("doi_content_negotiation", lambda: self.doi_content_negotiation.resolve(doi, client)))
+        if (not pmcid) and pmid:
+            resolvers.append(("europepmc", lambda: self.europepmc.resolve_by_pmid(pmid, client)))
+
+        for index, (name, resolver) in enumerate(resolvers):
+            try:
+                resolved = await resolver()
+                return OAResolutionTrace(
+                    source=resolved.source,
+                    resolved_url=resolved.url_for_pdf,
+                    oa_url=resolved.oa_url or resolved.url_for_pdf,
+                    landing_url=resolved.landing_url,
+                    used_fallback=index > 0,
+                )
+            except (OAResolverError, httpx.HTTPError) as exc:
+                attempts.append(f"{name}: {_normalized_error_message(exc)}")
+
+        raise PaperServiceError("; ".join(attempts) or "No se pudo resolver un PDF open-access")
 
     async def download_open_access_pdf(
         self,
         *,
         doi: str | None,
         pmid: str | None,
+        pmcid: str | None = None,
         oa_url: str | None = None,
         client: httpx.AsyncClient,
     ) -> DownloadResult:
-        """Resolve OA PDF URL via caller-provided URL, Unpaywall (DOI), or EuropePMC (PMID), then download bytes.
-
-        Priority order:
-        1. oa_url provided by caller (from search result the user actually saw)
-        2. Unpaywall via DOI
-        3. EuropePMC via PMID
-        """
-
-        resolved_url: str | None = None
-        source: str | None = None
-        last_err: str | None = None
-
-        # Priority 1: Use the exact OA URL the user saw in search results.
+        resolved = None
         if oa_url:
-            resolved_url = oa_url
-            source = "user_provided_oa"
-
-        # Priority 2: Unpaywall via DOI.
-        if (not resolved_url) and doi:
+            resolved = OAResolutionTrace(
+                source="user_provided_oa",
+                resolved_url=oa_url,
+                oa_url=oa_url,
+                landing_url=None,
+                used_fallback=False,
+            )
+        else:
             try:
-                resolved = await self.unpaywall.resolve(doi, client)
-                resolved_url, source = resolved.url_for_pdf, resolved.source
-            except (OAResolverError, httpx.HTTPError) as e:
-                last_err = str(e)
-                resolved_url = None
-                source = None
+                resolved = await self.resolve_open_access_target(doi=doi, pmid=pmid, pmcid=pmcid, client=client)
+            except PaperServiceError as exc:
+                raise PaperServiceError(str(exc)) from exc
 
-        # Priority 3: EuropePMC via PMID.
-        if (not resolved_url) and pmid:
-            try:
-                resolved = await self.europepmc.resolve_by_pmid(pmid, client)
-                resolved_url, source = resolved.url_for_pdf, resolved.source
-            except (OAResolverError, httpx.HTTPError) as e:
-                last_err = str(e)
-                resolved_url = None
-                source = None
-
-        if not resolved_url or not source:
-            raise PaperServiceError(last_err or "No se pudo resolver un PDF open-access")
-
-        assert resolved_url and source
-        r = await client.get(resolved_url, timeout=60, follow_redirects=True)
+        r = await client.get(resolved.resolved_url, timeout=60, follow_redirects=True)
         r.raise_for_status()
         data = r.content
 
-        # Hard validation: magic bytes + %%EOF.
         if not storage_manager.validate_pdf(data):
-            # If caller-provided URL failed validation, retry with resolvers.
-            if oa_url and source == "user_provided_oa":
-                return await self.download_open_access_pdf(
-                    doi=doi, pmid=pmid, oa_url=None, client=client,
-                )
-            ct = r.headers.get("content-type")
-            raise PaperServiceError(
-                f"La URL resuelta no devolvió un PDF válido (content-type={ct})."
-            )
+            if oa_url and resolved.source == "user_provided_oa":
+                try:
+                    resolved = await self.resolve_open_access_target(doi=doi, pmid=pmid, pmcid=pmcid, client=client)
+                except PaperServiceError as exc:
+                    raise PaperServiceError(str(exc)) from exc
+                r = await client.get(resolved.resolved_url, timeout=60, follow_redirects=True)
+                r.raise_for_status()
+                data = r.content
+            if not storage_manager.validate_pdf(data):
+                ct = r.headers.get("content-type")
+                raise PaperServiceError(f"La URL resuelta no devolvió un PDF válido (content-type={ct}).")
 
-        return DownloadResult(pdf_bytes=data, source=source, resolved_url=resolved_url)
+        return DownloadResult(
+            pdf_bytes=data,
+            source=resolved.source,
+            resolved_url=str(r.url),
+            oa_url=resolved.oa_url,
+            landing_url=resolved.landing_url,
+            used_fallback=resolved.used_fallback,
+        )
+
+
+def canonical_reference_identity(*, doi: str | None, pmid: str | None, title: str | None, source: str | None) -> dict:
+    return normalize_reference_identity(doi=doi, pmid=pmid, title=title, source=source)

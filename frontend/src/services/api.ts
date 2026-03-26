@@ -2,27 +2,38 @@ import axios, { AxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { getCookie } from './cookies';
 
-/**
- * API base URL resolution:
- *   1. Explicit VITE_API_BASE_URL env var (always wins)
- *   2. In production without demo mode: same-origin (reverse proxy)
- *   3. In development: http://127.0.0.1:8000
- *   4. In demo mode: empty string (calls are intercepted by demo layer anyway)
- */
+const PRODUCTION_API_SENTINEL = '__REQUIRE_EXPLICIT_API_BASE_URL__';
+
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
 function resolveBaseUrl(): string {
-  const explicit = import.meta.env.VITE_API_BASE_URL;
-  if (explicit) return explicit;
+  const explicitBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  const sameOriginOptIn = String(import.meta.env.VITE_USE_SAME_ORIGIN_API || '')
+    .trim()
+    .toLowerCase() === 'true';
+  const isRelativeBaseUrl = explicitBaseUrl.startsWith('/');
 
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-
-  if (import.meta.env.PROD) {
-    if (!isDemoMode) {
-      console.warn(
-        '[PaperFlow] VITE_API_BASE_URL not set in production. ' +
-        'Using same-origin. Set VITE_API_BASE_URL if backend is on a different host.',
+  if (explicitBaseUrl && explicitBaseUrl !== PRODUCTION_API_SENTINEL) {
+    if (!import.meta.env.DEV && isRelativeBaseUrl && !sameOriginOptIn) {
+      throw new Error(
+        'Relative production API base URLs require VITE_USE_SAME_ORIGIN_API=true and a real /api proxy configuration.',
       );
     }
-    return '';
+    if (!import.meta.env.DEV && isRelativeBaseUrl && explicitBaseUrl !== '/api') {
+      throw new Error('PaperFlow same-origin mode only supports /api as the production API base URL.');
+    }
+    return normalizeBaseUrl(explicitBaseUrl);
+  }
+
+  if (import.meta.env.PROD) {
+    if (sameOriginOptIn) {
+      return '/api';
+    }
+    throw new Error(
+      'PaperFlow production builds require VITE_API_BASE_URL unless you intentionally enable same-origin mode with VITE_USE_SAME_ORIGIN_API=true.',
+    );
   }
 
   return 'http://127.0.0.1:8000';
@@ -43,7 +54,7 @@ api.interceptors.request.use((config) => {
     const csrf = getCookie('csrf_token');
     if (csrf) {
       config.headers = config.headers ?? {};
-      (config.headers as any)['X-CSRF-Token'] = csrf;
+      (config.headers as Record<string, string>)['X-CSRF-Token'] = csrf;
     }
   }
   return config;
@@ -65,7 +76,7 @@ api.interceptors.response.use(
   (resp) => resp,
   async (error: AxiosError) => {
     const status = error.response?.status;
-    const original = error.config as any;
+    const original = error.config as (typeof error.config & { __isRetry?: boolean }) | undefined;
 
     const url = String(original?.url || '');
     const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/logout');

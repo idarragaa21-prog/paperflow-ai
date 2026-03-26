@@ -166,6 +166,13 @@ Key variables in `backend/.env`:
 | `PAPERFLOW_CHAT_MODEL` | `qwen2.5:7b` | Ollama model for paper chat |
 | `GROBID_ENABLED` | `true` | Enable PDF parsing via Grobid |
 
+Production deploy notes:
+
+- Set `BACKEND_CORS_ORIGINS` to the real frontend origin.
+- If frontend and backend live on different origins, use `COOKIE_SAMESITE=none` over HTTPS.
+- Do not leave `VITE_API_BASE_URL` implicit in production.
+- `vercel.json` must never rewrite `/api/*` to `index.html`.
+
 ### LLM Configuration
 
 PaperFlow AI supports multiple LLM backends:

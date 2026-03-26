@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+from urllib.parse import urlparse
+
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -90,6 +94,7 @@ class Settings(BaseSettings):
     # Default: localhost dev servers. Override via env for production.
     # Example: BACKEND_CORS_ORIGINS=["https://app.paperflow.ai","https://paperflow.ai"]
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    COOKIE_SAMESITE: str | None = None
 
     # Cookie domain — set via env for production.
     # None = browser default (current domain only). Set to ".yourdomain.com" for subdomains.
@@ -97,6 +102,62 @@ class Settings(BaseSettings):
 
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = True
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value):
+        if isinstance(value, list):
+            return [cls._normalize_origin(item) for item in value if str(item or "").strip()]
+        if value is None:
+            return []
+
+        raw = str(value).strip()
+        if not raw:
+            return []
+
+        if raw.startswith("["):
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError("BACKEND_CORS_ORIGINS must be a JSON array or comma-separated list") from exc
+            if not isinstance(parsed, list):
+                raise ValueError("BACKEND_CORS_ORIGINS JSON value must be an array")
+            return [cls._normalize_origin(item) for item in parsed if str(item or "").strip()]
+
+        return [cls._normalize_origin(item) for item in raw.split(",") if str(item or "").strip()]
+
+    @field_validator("COOKIE_DOMAIN", mode="before")
+    @classmethod
+    def normalize_cookie_domain(cls, value):
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+    @field_validator("COOKIE_SAMESITE", mode="before")
+    @classmethod
+    def normalize_cookie_samesite(cls, value):
+        if value is None:
+            return None
+        cleaned = str(value).strip().lower()
+        return cleaned or None
+
+    @classmethod
+    def _normalize_origin(cls, value) -> str:
+        origin = str(value or "").strip().rstrip("/")
+        if not origin:
+            raise ValueError("CORS origins cannot be empty")
+        if origin == "*":
+            return origin
+        parsed = urlparse(origin)
+        if not parsed.scheme or not parsed.netloc:
+            raise ValueError(f"Invalid CORS origin: {origin}")
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    @staticmethod
+    def _is_local_origin(origin: str) -> bool:
+        normalized = str(origin or "").lower()
+        return "localhost" in normalized or "127.0.0.1" in normalized
 
     @property
     def async_database_url(self) -> str:
@@ -115,6 +176,35 @@ class Settings(BaseSettings):
     @property
     def cookie_domain(self) -> str | None:
         return self.COOKIE_DOMAIN
+
+    @property
+    def cookie_samesite(self) -> str:
+        if self.COOKIE_SAMESITE:
+            return self.COOKIE_SAMESITE
+        return "none" if self.ENV == "production" else "lax"
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.cookie_samesite not in {"lax", "strict", "none"}:
+            raise ValueError("COOKIE_SAMESITE must be one of: lax, strict, none")
+
+        if self.ENV != "production":
+            return self
+
+        insecure_secret = self.SECRET_KEY.startswith("DEV_ONLY") or self.SECRET_KEY == "CHANGE_ME"
+        insecure_access = self.S3_ACCESS_KEY.startswith("DEV_ONLY")
+        insecure_secret_key = self.S3_SECRET_KEY.startswith("DEV_ONLY")
+        if insecure_secret:
+            raise ValueError("SECRET_KEY must be set in production")
+        if self.STORAGE_BACKEND == "s3" and (insecure_access or insecure_secret_key):
+            raise ValueError("S3 credentials must be set in production")
+        if not self.BACKEND_CORS_ORIGINS:
+            raise ValueError("BACKEND_CORS_ORIGINS must be explicitly set in production")
+        if any(origin == "*" for origin in self.BACKEND_CORS_ORIGINS):
+            raise ValueError("BACKEND_CORS_ORIGINS cannot use '*' when credentials are enabled")
+        if all(self._is_local_origin(origin) for origin in self.BACKEND_CORS_ORIGINS):
+            raise ValueError("BACKEND_CORS_ORIGINS must include the real frontend origin in production")
+        return self
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

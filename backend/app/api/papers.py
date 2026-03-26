@@ -16,12 +16,14 @@ from app.models.paper import Paper
 from app.models.user import User
 from app.schemas.papers import (
     BatchDownloadPaperRef,
+    PaperDetailResponse,
     PaperDeleteResponse,
     PaperDownloadRequest,
+    PaperDownloadTraceResponse,
     PaperRecordResponse,
     PapersBatchDownloadRequest,
 )
-from app.services.audit import log_audit
+from app.services.audit import get_latest_paper_download_trace, log_audit
 from app.services.jobs import enqueue_process_pdf, get_job_queue
 from app.services.paper_repo import SQLPaperRepository
 from app.services.paper_service import PaperDownloadService, PaperServiceError, sha256_hex
@@ -47,7 +49,12 @@ async def _require_owned_project(repo: SQLPaperRepository, *, project_id: UUID, 
         raise HTTPException(status_code=403, detail="Proyecto no pertenece al usuario")
 
 
-def _paper_to_response(p: Paper, *, duplicate: bool = False) -> PaperRecordResponse:
+def _paper_to_response(
+    p: Paper,
+    *,
+    duplicate: bool = False,
+    download_trace: dict | None = None,
+) -> PaperRecordResponse:
     return PaperRecordResponse(
         id=p.id,
         project_id=p.project_id,
@@ -67,8 +74,21 @@ def _paper_to_response(p: Paper, *, duplicate: bool = False) -> PaperRecordRespo
         file_path=p.file_path,
         file_size_kb=getattr(p, "file_size_kb", None),
         content_hash=p.content_hash,
+        is_processed=bool(getattr(p, "is_processed", False)),
         processing_status=getattr(p, "processing_status", "uploaded") or "uploaded",
         duplicate=duplicate,
+        download_trace=PaperDownloadTraceResponse(**download_trace) if download_trace else None,
+    )
+
+
+async def _load_paper_download_trace(repo: SQLPaperRepository, paper: Paper) -> dict | None:
+    return await get_latest_paper_download_trace(
+        repo.db,
+        paper_id=paper.id,
+        title=paper.title,
+        doi=paper.doi,
+        pmid=paper.pmid,
+        pmcid=paper.pmcid,
     )
 
 
@@ -93,12 +113,39 @@ async def download_paper(
     # Dedup 1: by (project_id, pmid/doi) BEFORE downloading.
     dup = await repo.find_duplicate_by_identifiers(project_id=payload.project_id, pmid=payload.pmid, doi=payload.doi)
     if dup:
-        return _paper_to_response(dup, duplicate=True)
+        await log_audit(
+            repo.db,
+            user=user,
+            action="download",
+            entity_type="paper",
+            entity_id=dup.id,
+            details={
+                "project_id": str(dup.project_id),
+                "paper_id": str(dup.id),
+                "title": dup.title,
+                "source_provider": getattr(dup, "source_provider", None),
+                "oa_url": getattr(dup, "oa_url", None),
+                "landing_url": None,
+                "resolved_url": None,
+                "used_fallback": False,
+                "final_status": "existing",
+                "failure_reason": "Matched existing paper by DOI/PMID before download",
+                "doi": dup.doi or payload.doi,
+                "pmid": dup.pmid or payload.pmid,
+                "pmcid": dup.pmcid,
+                "filename": dup.filename,
+                "size_kb": dup.file_size_kb,
+                "content_hash": dup.content_hash,
+            },
+            request=request,
+        )
+        return _paper_to_response(dup, duplicate=True, download_trace=await _load_paper_download_trace(repo, dup))
 
     async with httpx.AsyncClient() as client:
         try:
             dl = await downloader.download_open_access_pdf(
-                doi=payload.doi, pmid=payload.pmid,
+                doi=payload.doi,
+                pmid=payload.pmid,
                 oa_url=payload.oa_url, client=client,
             )
         except PaperServiceError as e:
@@ -112,7 +159,34 @@ async def download_paper(
     # Dedup 2: by (project_id, content_hash) ALWAYS.
     dup2 = await repo.find_duplicate_by_hash(project_id=payload.project_id, content_hash=content_hash)
     if dup2:
-        return _paper_to_response(dup2, duplicate=True)
+        await log_audit(
+            repo.db,
+            user=user,
+            action="download",
+            entity_type="paper",
+            entity_id=dup2.id,
+            details={
+                "project_id": str(dup2.project_id),
+                "paper_id": str(dup2.id),
+                "title": dup2.title,
+                "source": dl.source,
+                "source_provider": dl.source,
+                "oa_url": dl.oa_url or dl.resolved_url,
+                "landing_url": dl.landing_url,
+                "resolved_url": dl.resolved_url,
+                "used_fallback": dl.used_fallback,
+                "final_status": "existing",
+                "failure_reason": "Downloaded content matched an existing paper in this project",
+                "doi": dup2.doi or payload.doi,
+                "pmid": dup2.pmid or payload.pmid,
+                "pmcid": dup2.pmcid,
+                "filename": dup2.filename,
+                "size_kb": dup2.file_size_kb,
+                "content_hash": dup2.content_hash,
+            },
+            request=request,
+        )
+        return _paper_to_response(dup2, duplicate=True, download_trace=await _load_paper_download_trace(repo, dup2))
 
     # Persist file
     try:
@@ -134,7 +208,7 @@ async def download_paper(
         source_provider=dl.source,
         source_type="download",
         is_open_access=True,
-        oa_url=dl.resolved_url,
+        oa_url=dl.oa_url or dl.resolved_url,
         filename=saved["filename"],
         file_path=saved["file_path"],
         file_size_kb=saved["size_kb"],
@@ -163,9 +237,19 @@ async def download_paper(
         entity_id=paper.id,
         details={
             "project_id": str(paper.project_id),
+            "paper_id": str(paper.id),
+            "title": paper.title,
             "source": dl.source,
+            "source_provider": dl.source,
+            "oa_url": dl.oa_url or dl.resolved_url,
+            "landing_url": dl.landing_url,
+            "resolved_url": dl.resolved_url,
+            "used_fallback": dl.used_fallback,
+            "final_status": "downloaded",
+            "failure_reason": None,
             "doi": paper.doi,
             "pmid": paper.pmid,
+            "pmcid": paper.pmcid,
             "filename": paper.filename,
             "size_kb": paper.file_size_kb,
             "content_hash": paper.content_hash,
@@ -173,7 +257,7 @@ async def download_paper(
         request=request,
     )
 
-    return _paper_to_response(paper)
+    return _paper_to_response(paper, download_trace=await _load_paper_download_trace(repo, paper))
 
 
 @router.post("/batch-download")
@@ -360,35 +444,37 @@ async def get_paper(
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     await _require_owned_project(repo, project_id=paper.project_id, user=user)
-    return {
-        "id": str(paper.id),
-        "project_id": str(paper.project_id),
-        "title": paper.title,
-        "authors": paper.authors,
-        "doi": paper.doi,
-        "pmid": paper.pmid,
-        "pmcid": paper.pmcid,
-        "filename": paper.filename,
-        "file_path": paper.file_path,
-        "file_size_kb": paper.file_size_kb,
-        "content_hash": paper.content_hash,
-        "is_processed": paper.is_processed,
-        "processing_status": paper.processing_status,
-        "processing_error": paper.processing_error,
-        "processing_warnings": paper.processing_warnings or [],
-        "journal": paper.journal,
-        "publication_year": paper.publication_year,
-        "language": paper.language,
-        "abstract_text": paper.abstract_text,
-        "source_provider": paper.source_provider,
-        "source_type": paper.source_type,
-        "is_open_access": paper.is_open_access,
-        "oa_url": paper.oa_url,
-        "favorite": paper.favorite,
-        "full_text_extracted": paper.full_text_extracted,
-        "downloaded_at": paper.downloaded_at.isoformat() if paper.downloaded_at else None,
-        "created_at": paper.created_at.isoformat() if paper.created_at else None,
-    }
+    download_trace = await _load_paper_download_trace(repo, paper)
+    return PaperDetailResponse(
+        id=str(paper.id),
+        project_id=str(paper.project_id),
+        title=paper.title,
+        authors=paper.authors,
+        doi=paper.doi,
+        pmid=paper.pmid,
+        pmcid=paper.pmcid,
+        filename=paper.filename,
+        file_path=paper.file_path,
+        file_size_kb=paper.file_size_kb,
+        content_hash=paper.content_hash,
+        is_processed=bool(paper.is_processed),
+        processing_status=paper.processing_status or "uploaded",
+        processing_error=paper.processing_error,
+        processing_warnings=paper.processing_warnings or [],
+        journal=paper.journal,
+        publication_year=paper.publication_year,
+        language=paper.language,
+        abstract_text=paper.abstract_text,
+        source_provider=paper.source_provider,
+        source_type=paper.source_type,
+        is_open_access=paper.is_open_access,
+        oa_url=paper.oa_url,
+        favorite=bool(paper.favorite),
+        full_text_extracted=paper.full_text_extracted,
+        downloaded_at=paper.downloaded_at.isoformat() if paper.downloaded_at else None,
+        created_at=paper.created_at.isoformat() if paper.created_at else None,
+        download_trace=PaperDownloadTraceResponse(**download_trace) if download_trace else None,
+    )
 
 
 @router.get("/{paper_id}/download")

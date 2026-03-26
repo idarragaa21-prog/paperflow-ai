@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 import httpx
 
@@ -15,33 +16,59 @@ class OAResolverError(Exception):
 class OAResolved:
     url_for_pdf: str
     source: str
+    oa_url: str | None = None
+    landing_url: str | None = None
+
+
+def normalize_doi(value: str | None) -> str | None:
+    if not value:
+        return None
+    cleaned = value.strip()
+    cleaned = re.sub(r"^https?://(dx\.)?doi\.org/", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.lower() or None
+
+
+def normalize_title(value: str | None) -> str | None:
+    if not value:
+        return None
+    cleaned = re.sub(r"\s+", " ", value.strip().lower())
+    cleaned = re.sub(r"[^a-z0-9 ]", "", cleaned)
+    return cleaned or None
+
+
+def normalize_reference_identity(*, doi: str | None, pmid: str | None, title: str | None, source: str | None) -> dict:
+    return {
+        "doi": normalize_doi(doi),
+        "pmid": (pmid or "").strip() or None,
+        "title_normalized": normalize_title(title),
+        "source_provenance": source,
+    }
 
 
 class UnpaywallResolver:
     base_url = "https://api.unpaywall.org/v2"
 
     async def resolve(self, doi: str, client: httpx.AsyncClient) -> OAResolved:
-        if not doi:
+        normalized_doi = normalize_doi(doi)
+        if not normalized_doi:
             raise OAResolverError("DOI requerido")
-        email = settings.UNPAYWALL_EMAIL or "idarragaa21@gmail.com"
-        url = f"{self.base_url}/{doi}"
-        r = await client.get(url, params={"email": email}, timeout=30)
-        r.raise_for_status()
-        data = r.json()
+        email = settings.UNPAYWALL_EMAIL or "you@example.com"
+        response = await client.get(f"{self.base_url}/{normalized_doi}", params={"email": email}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
 
         best = data.get("best_oa_location") or {}
         pdf = best.get("url_for_pdf")
+        landing_url = best.get("url")
         if not pdf:
-            # fallback to any oa_location
             for loc in data.get("oa_locations") or []:
                 pdf = (loc or {}).get("url_for_pdf")
                 if pdf:
+                    landing_url = (loc or {}).get("url") or landing_url
                     break
-
         if not pdf:
             raise OAResolverError("Unpaywall no devolvió URL PDF open-access")
-
-        return OAResolved(url_for_pdf=pdf, source="unpaywall")
+        return OAResolved(url_for_pdf=pdf, source="unpaywall", oa_url=pdf, landing_url=landing_url)
 
 
 class EuropePMCResolver:
@@ -51,15 +78,14 @@ class EuropePMCResolver:
         if not pmid:
             raise OAResolverError("PMID requerido")
 
-        # Query by external id; request core fields incl. OA and fullTextUrlList.
         query = f"EXT_ID:{pmid} AND SRC:MED"
-        r = await client.get(
+        response = await client.get(
             f"{self.base_url}/search",
             params={"query": query, "format": "json", "pageSize": 1, "resultType": "core"},
             timeout=30,
         )
-        r.raise_for_status()
-        data = r.json()
+        response.raise_for_status()
+        data = response.json()
         hits = (data.get("resultList") or {}).get("result") or []
         if not hits:
             raise OAResolverError("Europe PMC no encontró resultado para el PMID")
@@ -69,18 +95,67 @@ class EuropePMCResolver:
         if not is_oa:
             raise OAResolverError("Europe PMC: el artículo no está marcado como Open Access")
 
-        ft = (item.get("fullTextUrlList") or {}).get("fullTextUrl") or []
+        full_text = (item.get("fullTextUrlList") or {}).get("fullTextUrl") or []
         pdf_url = None
-        for u in ft:
-            url = (u or {}).get("url")
+        for candidate in full_text:
+            url = (candidate or {}).get("url")
             if not url:
                 continue
-            style = str((u or {}).get("documentStyle") or "").lower()
+            style = str((candidate or {}).get("documentStyle") or "").lower()
             if style == "pdf" or url.lower().endswith(".pdf"):
                 pdf_url = url
                 break
-
         if not pdf_url:
             raise OAResolverError("Europe PMC no devolvió URL PDF open-access")
+        return OAResolved(
+            url_for_pdf=pdf_url,
+            source="europepmc",
+            oa_url=pdf_url,
+            landing_url=f"https://europepmc.org/article/MED/{pmid}",
+        )
 
-        return OAResolved(url_for_pdf=pdf_url, source="europepmc")
+
+class DOIContentNegotiationResolver:
+    async def resolve(self, doi: str, client: httpx.AsyncClient) -> OAResolved:
+        normalized_doi = normalize_doi(doi)
+        if not normalized_doi:
+            raise OAResolverError("DOI requerido")
+
+        response = await client.get(
+            f"https://doi.org/{normalized_doi}",
+            headers={"Accept": "application/pdf"},
+            follow_redirects=True,
+            timeout=30,
+        )
+        response.raise_for_status()
+        content_type = str(response.headers.get("content-type") or "").lower()
+        if "pdf" not in content_type and not str(response.url).lower().endswith(".pdf"):
+            raise OAResolverError("DOI resolution did not return a PDF")
+        landing_url = f"https://doi.org/{normalized_doi}"
+        return OAResolved(
+            url_for_pdf=str(response.url),
+            source="doi_content_negotiation",
+            oa_url=str(response.url),
+            landing_url=landing_url,
+        )
+
+
+async def resolve_open_access_pdf(
+    *,
+    doi: str | None,
+    pmid: str | None,
+    client: httpx.AsyncClient,
+) -> OAResolved:
+    attempts: list[str] = []
+    if doi:
+        for resolver in (UnpaywallResolver(), DOIContentNegotiationResolver()):
+            try:
+                return await resolver.resolve(doi, client)
+            except (OAResolverError, httpx.HTTPError) as exc:
+                attempts.append(str(exc))
+    if pmid:
+        try:
+            return await EuropePMCResolver().resolve_by_pmid(pmid, client)
+        except (OAResolverError, httpx.HTTPError) as exc:
+            attempts.append(str(exc))
+    raise OAResolverError("; ".join([attempt for attempt in attempts if attempt]) or "No se pudo resolver un PDF open-access")

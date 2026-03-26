@@ -11,6 +11,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.core.logger import logger
+from app.schemas.search import SearchFilters
 
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -151,8 +152,23 @@ class PubMedClient:
                 doi = str(val).strip()
         return pmcid, doi
 
-    async def search_and_fetch(self, query: str, max_results: int = 20) -> dict[str, Any]:
-        s = await self.esearch(query=query, retmax=max_results)
+    def _apply_filters_to_query(self, query: str, filters: SearchFilters | None) -> str:
+        if not filters:
+            return query
+
+        parts = [f"({query})"]
+        if filters.year_from:
+            parts.append(f'"{filters.year_from}"[Date - Publication] : "3000"[Date - Publication]')
+        if filters.year_to and not filters.year_from:
+            parts.append(f'"1900"[Date - Publication] : "{filters.year_to}"[Date - Publication]')
+        elif filters.year_to and filters.year_from:
+            parts[-1] = f'"{filters.year_from}"[Date - Publication] : "{filters.year_to}"[Date - Publication]'
+        if filters.journal:
+            parts.append(f'"{filters.journal}"[Journal]')
+        return " AND ".join(parts)
+
+    async def search_and_fetch(self, query: str, max_results: int = 20, filters: SearchFilters | None = None) -> dict[str, Any]:
+        s = await self.esearch(query=self._apply_filters_to_query(query, filters), retmax=max_results)
         es = s.get("esearchresult", {})
         pmids = es.get("idlist", []) or []
         query_translation = es.get("querytranslation")

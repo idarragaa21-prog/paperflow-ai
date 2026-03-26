@@ -54,9 +54,35 @@ export type PaperRow = {
   source_type?: string | null;
   is_open_access?: boolean;
   oa_url?: string | null;
+  download_trace?: PaperDownloadTrace | null;
   favorite?: boolean;
   created_at?: string | null;
   downloaded_at?: string | null;
+};
+
+export type PaperDownloadTrace = {
+  title: string;
+  paper_id: string;
+  doi?: string | null;
+  pmid?: string | null;
+  pmcid?: string | null;
+  source_provider?: string | null;
+  oa_url?: string | null;
+  landing_url?: string | null;
+  resolved_url?: string | null;
+  used_fallback: boolean;
+  final_status: 'downloaded' | 'existing' | 'unavailable' | 'failed';
+  failure_reason?: string | null;
+  audited_at?: string | null;
+};
+
+export type PaperDetailResponse = PaperRow & {
+  authors?: string | null;
+  abstract_text?: string | null;
+  full_text_extracted?: string | null;
+  processing_error?: string | null;
+  processing_warnings?: string[];
+  download_trace?: PaperDownloadTrace | null;
 };
 
 /** Result item from search endpoints (PubMed / federated) — not yet saved */
@@ -83,6 +109,29 @@ export type SearchResponse = {
   query_translation?: string | null;
   cached: boolean;
   sources?: string[];
+};
+
+export type BatchDownloadTraceItem = {
+  title: string;
+  pmid?: string | null;
+  pmcid?: string | null;
+  doi?: string | null;
+  paper_id?: string | null;
+  source_provider?: string | null;
+  oa_url?: string | null;
+  landing_url?: string | null;
+  resolved_url?: string | null;
+  used_fallback: boolean;
+  final_status: 'downloaded' | 'existing' | 'unavailable' | 'failed';
+  failure_reason?: string | null;
+};
+
+export type BatchDownloadOutput = {
+  items: BatchDownloadTraceItem[];
+  downloaded: BatchDownloadTraceItem[];
+  already_exists: BatchDownloadTraceItem[];
+  not_available: BatchDownloadTraceItem[];
+  failed: BatchDownloadTraceItem[];
 };
 
 export type SearchRecord = {

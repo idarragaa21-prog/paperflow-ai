@@ -23,11 +23,36 @@ class FakeProject:
 
 
 class FakeDB:
+    def __init__(self):
+        self.added = []
+
     def add(self, obj):
+        if getattr(obj, "id", None) is None:
+            try:
+                obj.id = uuid.uuid4()
+            except Exception:
+                pass
+        self.added.append(obj)
         return None
 
     async def commit(self):
         return None
+
+    async def execute(self, stmt):
+        del stmt
+
+        class _Result:
+            def __init__(self, items):
+                self._items = items
+
+            def scalars(self):
+                return self
+
+            def first(self):
+                return self._items[-1] if self._items else None
+
+        audit_entries = [obj for obj in self.added if obj.__class__.__name__ == "AuditLog"]
+        return _Result(audit_entries)
 
 
 class FakeRepo:
@@ -77,8 +102,26 @@ class FakeRepo:
 
 
 class FakeDownloader:
-    async def download_open_access_pdf(self, *, doi, pmid, client):
+    async def download_open_access_pdf(self, *, doi, pmid, oa_url=None, pmcid=None, client):
+        del doi, pmid, oa_url, pmcid, client
         raise AssertionError("downloader should not be called")
+
+
+class SuccessfulDownloader:
+    async def download_open_access_pdf(self, *, doi, pmid, oa_url=None, pmcid=None, client):
+        del pmid, oa_url, pmcid, client
+        return type(
+            "DownloadResult",
+            (),
+            {
+                "pdf_bytes": _valid_pdf_bytes(),
+                "source": "unpaywall",
+                "resolved_url": "https://cdn.example.org/paper.pdf",
+                "oa_url": "https://oa.example.org/paper.pdf",
+                "landing_url": f"https://doi.org/{doi or '10.1000/test'}",
+                "used_fallback": True,
+            },
+        )()
 
 
 @pytest.mark.asyncio
@@ -202,6 +245,64 @@ async def test_download_returns_duplicate_when_exists(monkeypatch):
         body = resp.json()
         assert body["duplicate"] is True
         assert body["id"] == str(existing.id)
+
+    app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_download_persists_trace_in_response(monkeypatch):
+    from app.api import deps
+    from app.api.papers import get_downloader, get_repo
+
+    user_id = "00000000-0000-0000-0000-000000000000"
+    project_id = "11111111-1111-1111-1111-111111111111"
+
+    repo = FakeRepo(user_id, project_id)
+
+    async def repo_override():
+        return repo
+
+    async def downloader_override():
+        return SuccessfulDownloader()
+
+    async def fake_get_db():
+        yield None
+
+    app.dependency_overrides[get_repo] = repo_override
+    app.dependency_overrides[get_downloader] = downloader_override
+    app.dependency_overrides[deps.get_db] = fake_get_db
+
+    class U:
+        id = uuid.UUID(user_id)
+        is_active = True
+
+    async def fake_user(request=None, db=None):
+        del request, db
+        return U()
+
+    app.dependency_overrides[deps.get_current_user] = fake_user
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        ac.cookies.set("csrf_token", "abc")
+        ac.cookies.set("access_token", create_access_token(user_id))
+
+        resp = await ac.post(
+            "/papers/download",
+            json={"project_id": project_id, "doi": "10.1000/test", "title": "Traceable paper"},
+            headers={"X-CSRF-Token": "abc"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["download_trace"]["source_provider"] == "unpaywall"
+        assert body["download_trace"]["resolved_url"] == "https://cdn.example.org/paper.pdf"
+        assert body["download_trace"]["landing_url"] == "https://doi.org/10.1000/test"
+        assert body["download_trace"]["used_fallback"] is True
+        assert body["download_trace"]["final_status"] == "downloaded"
+
+        detail = await ac.get(f"/papers/{body['id']}")
+        assert detail.status_code == 200
+        assert detail.json()["download_trace"]["resolved_url"] == "https://cdn.example.org/paper.pdf"
 
     app.dependency_overrides = {}
 

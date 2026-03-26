@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from app.services.batch_download import batch_download_papers
+from app.services.paper_service import PaperServiceError
 
 
 class FakePaper:
@@ -43,27 +44,26 @@ class FakeRepo:
         return paper
 
 
-class FakeResolver:
-    def __init__(self, url: str, source: str, fail: bool = False):
-        self.url = url
-        self.source = source
-        self.fail = fail
-
-    async def resolve_by_pmid(self, pmid, client):
-        if self.fail:
-            raise RuntimeError("not oa")
-        return type("R", (), {"url_for_pdf": self.url, "source": self.source})
-
-    async def resolve(self, doi, client):
-        if self.fail:
-            raise RuntimeError("not oa")
-        return type("R", (), {"url_for_pdf": self.url, "source": self.source})
-
-
 class FakeDownloader:
     def __init__(self, *, ok_url: str):
-        self.europepmc = FakeResolver(ok_url, "europepmc")
-        self.unpaywall = FakeResolver(ok_url, "unpaywall")
+        self.ok_url = ok_url
+
+    async def download_open_access_pdf(self, *, doi=None, pmid=None, pmcid=None, oa_url=None, client=None):
+        if not oa_url and not doi and not pmid:
+            raise PaperServiceError("not oa")
+        del pmcid, client
+        return type(
+            "DownloadResult",
+            (),
+            {
+                "pdf_bytes": _pdf_bytes(),
+                "source": "europepmc",
+                "resolved_url": oa_url or self.ok_url,
+                "oa_url": oa_url or self.ok_url,
+                "landing_url": "https://example.com/landing",
+                "used_fallback": False,
+            },
+        )()
 
 
 def _pdf_bytes() -> bytes:
@@ -102,6 +102,7 @@ async def test_batch_download_dedup(monkeypatch):
 
     assert len(res.downloaded) == 0
     assert len(res.already_exists) == 1
+    assert res.already_exists[0]["final_status"] == "existing"
 
 
 @pytest.mark.asyncio
@@ -131,6 +132,7 @@ async def test_batch_download_not_oa(monkeypatch):
         )
 
     assert len(res.not_available) == 1
+    assert res.not_available[0]["final_status"] == "unavailable"
 
 
 @pytest.mark.asyncio
@@ -163,3 +165,4 @@ async def test_batch_download_job_result_structure(monkeypatch):
     assert hasattr(res, "already_exists")
     assert hasattr(res, "not_available")
     assert hasattr(res, "failed")
+    assert hasattr(res, "items")

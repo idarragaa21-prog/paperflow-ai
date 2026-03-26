@@ -7,8 +7,35 @@ import { useSearchHistory } from '../hooks/useSearchHistory';
 import { useBatchDownload } from '../hooks/useBatchDownload';
 import { SearchResultCard } from '../components/search/SearchResultCard';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
+import type { BatchDownloadTraceItem } from '../types/api';
 
 const SEARCH_PAGE_SIZE = 10;
+
+const SOURCE_LABELS: Record<string, string> = {
+  pubmed: 'PubMed',
+  europepmc: 'Europe PMC',
+  doaj: 'DOAJ',
+  unpaywall: 'Unpaywall',
+  doi_content_negotiation: 'DOI direct',
+  user_provided_oa: 'OA provista por el usuario',
+};
+
+function providerLabel(source?: string | null) {
+  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
+}
+
+function batchStatusLabel(status: BatchDownloadTraceItem['final_status']) {
+  if (status === 'downloaded') return 'Descargado';
+  if (status === 'existing') return 'Ya existía';
+  if (status === 'unavailable') return 'No disponible';
+  return 'Fallido';
+}
+
+function batchStatusClass(status: BatchDownloadTraceItem['final_status']) {
+  if (status === 'downloaded') return 'rc-badge rc-badge--success';
+  if (status === 'existing') return 'rc-badge';
+  return 'rc-badge rc-badge--danger';
+}
 
 export default function SearchPage() {
   const { projectId } = useParams();
@@ -237,11 +264,43 @@ export default function SearchPage() {
             )}
             {batch.batchJob?.error && <div className="rc-error" style={{ marginBottom: 8 }}>{String(batch.batchJob.error)}</div>}
             {batch.batchJob?.output && (
-              <div className="rc-row" style={{ gap: 8, marginBottom: 12 }}>
-                <span className="rc-badge rc-badge--success">Downloaded: <b>{(batch.batchJob.output as { downloaded?: unknown[] })?.downloaded?.length ?? 0}</b></span>
-                <span className="rc-badge">Already exists: <b>{(batch.batchJob.output as { already_exists?: unknown[] })?.already_exists?.length ?? 0}</b></span>
-                <span className="rc-badge rc-badge--danger">Failed: <b>{(batch.batchJob.output as { failed?: unknown[] })?.failed?.length ?? 0}</b></span>
-              </div>
+              <>
+                <div className="rc-row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <span className="rc-badge rc-badge--success">Descargados: <b>{batch.batchJob.output.downloaded.length}</b></span>
+                  <span className="rc-badge">Ya existían: <b>{batch.batchJob.output.already_exists.length}</b></span>
+                  <span className="rc-badge">No disponibles: <b>{batch.batchJob.output.not_available.length}</b></span>
+                  <span className="rc-badge rc-badge--danger">Fallidos: <b>{batch.batchJob.output.failed.length}</b></span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '48vh', overflowY: 'auto', paddingRight: 4 }}>
+                  {batch.batchJob.output.items.map((item, index) => (
+                    <div key={`${item.paper_id || item.doi || item.pmid || item.title}-${index}`} className="rc-card" style={{ padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>{item.title}</div>
+                          <div className="rc-help">
+                            {item.paper_id ? `Paper ID: ${item.paper_id}` : 'Paper aún no persistido'}
+                          </div>
+                          <div className="rc-help">
+                            {item.source_provider ? `Proveedor: ${providerLabel(item.source_provider)}` : 'Proveedor no resuelto'}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <span className={batchStatusClass(item.final_status)}>{batchStatusLabel(item.final_status)}</span>
+                          {item.used_fallback ? <span className="rc-badge">Usó fallback</span> : null}
+                        </div>
+                      </div>
+                      <div className="rc-help" style={{ display: 'grid', gap: 6 }}>
+                        <div>DOI: {item.doi || '—'}</div>
+                        <div>PMID: {item.pmid || '—'}</div>
+                        <div>OA URL: {item.oa_url ? <a href={item.oa_url} target="_blank" rel="noopener noreferrer">{item.oa_url}</a> : '—'}</div>
+                        <div>Landing URL: {item.landing_url ? <a href={item.landing_url} target="_blank" rel="noopener noreferrer">{item.landing_url}</a> : '—'}</div>
+                        <div>Resolved URL: {item.resolved_url ? <a href={item.resolved_url} target="_blank" rel="noopener noreferrer">{item.resolved_url}</a> : '—'}</div>
+                        <div>Resultado: {item.failure_reason || batchStatusLabel(item.final_status)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
             {batch.batchJob?.status === 'completed' && projectId && (
               <Link

@@ -1,7 +1,11 @@
 import asyncio
 from collections.abc import Generator
+import os
 
 import pytest
+
+os.environ.setdefault("PAPERFLOW_DISABLE_DOTENV", "1")
+os.environ.setdefault("PAPERFLOW_DISABLE_PROMETHEUS", "1")
 
 
 @pytest.fixture(scope="session")
