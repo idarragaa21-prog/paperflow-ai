@@ -23,7 +23,13 @@ export function useClinicalSheet(sheetId: string | undefined): {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!sheetId) return;
+    if (!sheetId) {
+      setSheet(null);
+      setVersions([]);
+      setStatus('idle');
+      setError(null);
+      return;
+    }
     setStatus((s) => (s === 'idle' ? 'loading' : s));
     setError(null);
     try {
@@ -38,10 +44,8 @@ export function useClinicalSheet(sheetId: string | undefined): {
   }, [sheetId]);
 
   useEffect(() => {
-    if (!sheetId) return;
-    setStatus('loading');
-    refresh();
-  }, [sheetId]);
+    void refresh();
+  }, [refresh]);
 
   const toc = useMemo(() => deriveToc(sheet), [sheet]);
   const evidenceSummary = useMemo(() => deriveEvidenceSummary(sheet), [sheet]);

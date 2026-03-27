@@ -5,6 +5,7 @@ import io
 import json
 from pathlib import Path
 from statistics import mean
+from textwrap import wrap
 from uuid import UUID
 
 import httpx
@@ -36,6 +37,9 @@ async def create_dataset(
     rows: list[dict],
 ) -> Dataset:
     import pandas as pd
+
+    if not rows:
+        raise ValueError("Dataset rows cannot be empty")
 
     df = pd.DataFrame(rows)
     csv_bytes = df.to_csv(index=False).encode("utf-8")
@@ -126,6 +130,136 @@ def _local_analysis(df: pd.DataFrame, analysis_type: str, input_params: dict) ->
         warnings.append("Advanced analysis delegated to r-engine when available.")
 
     return {"summary": summary, "warnings": warnings, "script": f"# local fallback analysis\n# type: {analysis_type}\n# params: {json.dumps(input_params)}"}
+
+
+def _analysis_payload(run: AnalysisRun) -> dict:
+    return {
+        "title": getattr(run, "title", None),
+        "analysis_type": getattr(run, "analysis_type", None),
+        "summary": getattr(run, "result_summary", None),
+        "warnings": getattr(run, "warnings", None) or [],
+        "script": getattr(run, "script_text", None),
+    }
+
+
+def _render_analysis_html(run: AnalysisRun) -> bytes:
+    payload = _analysis_payload(run)
+    body = (
+        "<html><body><h1>{title}</h1><h2>{analysis_type}</h2><pre>{summary}</pre><pre>{script}</pre></body></html>".format(
+            title=payload.get("title") or f"Analysis {run.id}",
+            analysis_type=payload.get("analysis_type") or "analysis",
+            summary=json.dumps(payload.get("summary") or {}, indent=2, ensure_ascii=False),
+            script=payload.get("script") or "",
+        )
+    )
+    return body.encode("utf-8")
+
+
+def _render_analysis_docx(run: AnalysisRun) -> bytes:
+    from docx import Document
+
+    payload = _analysis_payload(run)
+    doc = Document()
+    doc.add_heading(payload.get("title") or f"Analysis {run.id}", level=1)
+    doc.add_paragraph(f"Type: {payload.get('analysis_type') or 'analysis'}")
+    doc.add_heading("Summary", level=2)
+    doc.add_paragraph(json.dumps(payload.get("summary") or {}, indent=2, ensure_ascii=False))
+    warnings = payload.get("warnings") or []
+    if warnings:
+        doc.add_heading("Warnings", level=2)
+        for warning in warnings:
+            doc.add_paragraph(str(warning), style="List Bullet")
+    if payload.get("script"):
+        doc.add_heading("Script", level=2)
+        doc.add_paragraph(str(payload["script"]))
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
+
+def _render_analysis_pdf(run: AnalysisRun) -> bytes:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.pdfgen import canvas
+
+    payload = _analysis_payload(run)
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    x = 2 * cm
+    y = height - 2 * cm
+
+    def write_block(text: str, *, font: str = "Helvetica", size: int = 10) -> None:
+        nonlocal y
+        pdf.setFont(font, size)
+        for raw_line in (text or "").splitlines() or [""]:
+            for line in wrap(raw_line, 100) or [""]:
+                if y < 2 * cm:
+                    pdf.showPage()
+                    pdf.setFont(font, size)
+                    y = height - 2 * cm
+                pdf.drawString(x, y, line)
+                y -= 0.55 * cm
+
+    write_block(payload.get("title") or f"Analysis {run.id}", font="Helvetica-Bold", size=16)
+    write_block(f"Type: {payload.get('analysis_type') or 'analysis'}", font="Helvetica", size=11)
+    write_block("Summary", font="Helvetica-Bold", size=12)
+    write_block(json.dumps(payload.get("summary") or {}, indent=2, ensure_ascii=False))
+    warnings = payload.get("warnings") or []
+    if warnings:
+        write_block("Warnings", font="Helvetica-Bold", size=12)
+        for warning in warnings:
+            write_block(f"- {warning}")
+    if payload.get("script"):
+        write_block("Script", font="Helvetica-Bold", size=12)
+        write_block(str(payload["script"]))
+
+    pdf.save()
+    return buffer.getvalue()
+
+
+def _artifact_matches_format(artifact: AnalysisArtifact, fmt: str) -> bool:
+    metadata = getattr(artifact, "metadata_json", None) or {}
+    filename = str(getattr(artifact, "filename", "") or "").lower()
+    return (
+        getattr(artifact, "artifact_type", None) == f"report_{fmt}"
+        or metadata.get("format") == fmt
+        or filename.endswith(f".{fmt}")
+    )
+
+
+async def _persist_export_artifact(
+    db: AsyncSession,
+    *,
+    run: AnalysisRun,
+    fmt: str,
+    data: bytes,
+    mime_type: str,
+    artifact_manifest: list[dict],
+) -> None:
+    saved = await storage_manager.save_artifact_bytes(
+        data=data,
+        filename=f"{run.id}.{fmt}",
+        project_id=run.project_id,
+    )
+    db.add(
+        AnalysisArtifact(
+            analysis_run_id=run.id,
+            artifact_type=f"report_{fmt}",
+            filename=saved["filename"],
+            file_path=saved["file_path"],
+            mime_type=mime_type,
+            metadata_json={"analysis_type": run.analysis_type, "format": fmt},
+        )
+    )
+    artifact_manifest.append(
+        {
+            "artifact_type": f"report_{fmt}",
+            "filename": saved["filename"],
+            "file_path": saved["file_path"],
+        }
+    )
 
 
 async def create_analysis_run(
@@ -224,6 +358,31 @@ async def create_analysis_run(
     )
     artifact_manifest.append({"artifact_type": "figure", "filename": chart_saved["filename"], "file_path": chart_saved["file_path"]})
 
+    await _persist_export_artifact(
+        db,
+        run=run,
+        fmt="html",
+        data=_render_analysis_html(run),
+        mime_type="text/html",
+        artifact_manifest=artifact_manifest,
+    )
+    await _persist_export_artifact(
+        db,
+        run=run,
+        fmt="pdf",
+        data=_render_analysis_pdf(run),
+        mime_type="application/pdf",
+        artifact_manifest=artifact_manifest,
+    )
+    await _persist_export_artifact(
+        db,
+        run=run,
+        fmt="docx",
+        data=_render_analysis_docx(run),
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        artifact_manifest=artifact_manifest,
+    )
+
     await db.commit()
     stmt = (
         select(AnalysisRun)
@@ -235,26 +394,29 @@ async def create_analysis_run(
 
 
 async def export_analysis_run(db: AsyncSession, *, run: AnalysisRun, fmt: str) -> tuple[bytes, str, str]:
-    payload = {
-        "title": run.title,
-        "analysis_type": run.analysis_type,
-        "summary": run.result_summary,
-        "warnings": run.warnings or [],
-        "script": run.script_text,
-    }
-    if fmt == "html":
-        body = (
-            "<html><body><h1>{title}</h1><pre>{summary}</pre><pre>{script}</pre></body></html>".format(
-                title=run.title,
-                summary=json.dumps(run.result_summary or {}, indent=2, ensure_ascii=False),
-                script=run.script_text or "",
-            )
-        )
-        return body.encode("utf-8"), "text/html", f"{run.id}.html"
-    if fmt == "pdf":
-        body = json.dumps(payload, indent=2, ensure_ascii=False)
-        return body.encode("utf-8"), "application/pdf", f"{run.id}.pdf"
-    if fmt == "docx":
-        body = json.dumps(payload, indent=2, ensure_ascii=False)
-        return body.encode("utf-8"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", f"{run.id}.docx"
-    raise ValueError("Unsupported export format")
+    if fmt not in {"html", "pdf", "docx"}:
+        raise ValueError("Unsupported export format")
+
+    if getattr(run, "status", None) != "completed":
+        raise ValueError(f"Analysis run {getattr(run, 'id', 'unknown')} is not completed")
+
+    artifacts = list(getattr(run, "artifacts", None) or [])
+    artifact = next((item for item in artifacts if _artifact_matches_format(item, fmt)), None)
+    if artifact is None:
+        raise ValueError(f"No persisted {fmt} artifact found for analysis run {getattr(run, 'id', 'unknown')}")
+
+    try:
+        data = storage_manager.read_bytes(artifact.file_path)
+    except FileNotFoundError as exc:
+        raise ValueError(f"Artifact {artifact.file_path} missing from storage") from exc
+
+    return (
+        data,
+        getattr(artifact, "mime_type", None)
+        or {
+            "html": "text/html",
+            "pdf": "application/pdf",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }[fmt],
+        getattr(artifact, "filename", None) or f"{run.id}.{fmt}",
+    )

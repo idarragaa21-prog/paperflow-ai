@@ -32,3 +32,5 @@ class User(Base, TimestampMixin):
     screening_decisions = relationship("ScreeningDecision", back_populates="user", cascade="all, delete-orphan")
     comments = relationship("ProjectComment", back_populates="user", cascade="all, delete-orphan")
     peer_review_actions = relationship("PeerReviewAction", back_populates="user", cascade="all, delete-orphan")
+    auth_sessions = relationship("AuthSession", back_populates="user", cascade="all, delete-orphan")
+    project_memberships = relationship("ProjectMembership", back_populates="user", cascade="all, delete-orphan")

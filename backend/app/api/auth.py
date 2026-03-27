@@ -12,13 +12,16 @@ from app.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    decode_token_payload,
     generate_csrf_token,
     hash_password,
     verify_password,
     verify_token,
 )
+from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister
+from app.services import auth_rate_limit, auth_sessions
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -77,24 +80,60 @@ def _clear_auth_cookies(response: Response) -> None:
 
 @router.post("/login")
 async def login(
+    request: Request,
     credentials: UserLogin,
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    identifier = credentials.email.lower().strip()
+    client_ip = request.client.host if request.client else "unknown"
+
     q = await db.execute(select(User).where(User.email == credentials.email))
     user = q.scalar_one_or_none()
+
+    try:
+        auth_rate_limit.hit("login_email", identifier, limit=5, window_seconds=300)
+        auth_rate_limit.hit("login_ip", client_ip, limit=25, window_seconds=300)
+    except auth_rate_limit.AuthRateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many authentication attempts",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
 
     if not user or not user.is_active or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
-    access_token = create_access_token(user.id)
-    refresh_token = create_refresh_token(user.id)
+    session = await auth_sessions.create_auth_session(
+        db,
+        user_id=user.id,
+        ip_address=client_ip,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    access_token = create_access_token(user.id, session_id=session.id)
+    refresh_token = create_refresh_token(
+        user.id,
+        session_id=session.id,
+        token_family=session.token_family,
+        refresh_jti=session.refresh_jti,
+    )
     csrf_token = generate_csrf_token()
 
     _set_auth_cookies(response, access_token, refresh_token)
     _set_csrf_cookie(response, csrf_token)
 
     user.last_login = datetime.now(timezone.utc)
+    db.add(
+        AuditLog(
+            user_id=user.id,
+            action="login",
+            entity_type="user",
+            entity_id=user.id,
+            details={"session_id": str(session.id)},
+            ip_address=client_ip,
+        )
+    )
     await db.commit()
 
     return {"email": user.email, "full_name": user.full_name}
@@ -110,17 +149,36 @@ async def refresh(
     if not token:
         raise HTTPException(status_code=401, detail="No refresh token")
 
-    user_id = verify_token(token, "refresh")
-    if not user_id:
+    payload = decode_token_payload(token, "refresh")
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    user_id = UUID(str(payload["sub"]))
+    session_id = payload.get("sid")
+    token_family = payload.get("fam")
+    refresh_jti = payload.get("jti")
+    if not session_id or not token_family or not refresh_jti:
         raise HTTPException(status_code=401, detail="Token inválido")
 
-    # Optional: could verify user still exists/active
     user = await db.get(User, user_id)
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Usuario inválido")
 
-    # Nuevo access + nuevo CSRF
-    new_access = create_access_token(user_id)
+    session = await auth_sessions.get_auth_session(db, UUID(str(session_id)))
+    if not auth_sessions.is_session_active(session) or session is None:
+        raise HTTPException(status_code=401, detail="Sesión inválida")
+    if session.token_family != token_family or session.refresh_jti != refresh_jti:
+        await auth_sessions.revoke_session_family(db, user_id=user.id, token_family=token_family)
+        await db.commit()
+        raise HTTPException(status_code=401, detail="Refresh token reuse detected")
+
+    next_refresh_jti = await auth_sessions.rotate_refresh_session(db, session=session, previous_jti=refresh_jti)
+    new_access = create_access_token(user_id, session_id=session.id)
+    new_refresh = create_refresh_token(
+        user_id,
+        session_id=session.id,
+        token_family=session.token_family,
+        refresh_jti=next_refresh_jti,
+    )
     new_csrf = generate_csrf_token()
 
     response.set_cookie(
@@ -133,41 +191,50 @@ async def refresh(
         domain=settings.cookie_domain,
         path="/",
     )
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        domain=settings.cookie_domain,
+        path="/auth/refresh",
+    )
     _set_csrf_cookie(response, new_csrf)
-
-    # Rotación opcional de refresh si expira en <24h
-    # (simple: re-emitimos un refresh nuevo cuando está cerca)
-    try:
-        from jose import jwt
-
-        payload = jwt.get_unverified_claims(token)
-        exp = payload.get("exp")
-        if exp:
-            from datetime import datetime, timedelta, timezone
-
-            exp_dt = datetime.utcfromtimestamp(exp)
-            if exp_dt - datetime.now(timezone.utc) < timedelta(hours=24):
-                new_refresh = create_refresh_token(user_id)
-                response.set_cookie(
-                    key="refresh_token",
-                    value=new_refresh,
-                    httponly=True,
-                    secure=settings.cookie_secure,
-                    samesite=settings.cookie_samesite,
-                    max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-                    domain=settings.cookie_domain,
-                    path="/auth/refresh",
-                )
-    except Exception:
-        pass
+    await db.commit()
 
     return {"status": "refreshed"}
 
 
 @router.post("/logout")
-async def logout(response: Response) -> dict:
+async def logout(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    token = request.cookies.get("access_token")
+    payload = decode_token_payload(token, "access") if token else None
+    session_id = payload.get("sid") if payload else None
+    if session_id:
+        session = await auth_sessions.get_auth_session(db, UUID(str(session_id)))
+        if session is not None:
+            await auth_sessions.revoke_session(db, session)
+            await db.commit()
     _clear_auth_cookies(response)
     return {"status": "logged out"}
+
+
+@router.post("/logout-all")
+async def logout_all(
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    await auth_sessions.revoke_all_sessions(db, user_id=user.id)
+    await db.commit()
+    _clear_auth_cookies(response)
+    return {"status": "logged out everywhere"}
 
 
 @router.get("/me")

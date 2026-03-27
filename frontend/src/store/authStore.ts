@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     if (DEMO_MODE) { set({ user: null }); return; }
-    try { await api.post('/auth/logout'); } catch {}
+    try { await api.post('/auth/logout'); } catch { /* best-effort logout */ }
     set({ user: null });
   },
 }));

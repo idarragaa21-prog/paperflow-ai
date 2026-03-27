@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PaperRow } from '../types/api';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
@@ -45,7 +45,7 @@ export default function PresentationsPage() {
 
   const selectedIds = useMemo(() => Object.entries(selectedPaperIds).filter(([, v]) => v).map(([k]) => k), [selectedPaperIds]);
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     setError(null);
@@ -61,11 +61,11 @@ export default function PresentationsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId]);
 
   useEffect(() => {
-    loadAll();
-  }, [projectId]);
+    void loadAll();
+  }, [loadAll]);
 
   async function generate() {
     if (!projectId) return;

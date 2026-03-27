@@ -15,6 +15,9 @@ __pycache__/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+frontend/e2e/.auth/
 
 # Logs & pids
 logs/
@@ -29,6 +32,7 @@ backend/logs/
 
 # Reports
 reports/
+tmp/
 
 # OS
 .DS_Store

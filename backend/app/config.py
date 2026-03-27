@@ -1,10 +1,23 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 from urllib.parse import urlparse
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+BACKEND_ENV_FILE = BACKEND_DIR / ".env"
+
+
+def resolve_settings_env_file() -> str | None:
+    disabled = str(os.getenv("PAPERFLOW_DISABLE_DOTENV", "")).strip().lower()
+    if disabled in {"1", "true", "yes", "on"}:
+        return None
+    return str(BACKEND_ENV_FILE)
 
 
 class Settings(BaseSettings):
@@ -206,7 +219,7 @@ class Settings(BaseSettings):
             raise ValueError("BACKEND_CORS_ORIGINS must include the real frontend origin in production")
         return self
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=resolve_settings_env_file(), extra="ignore")
 
 
 settings = Settings()

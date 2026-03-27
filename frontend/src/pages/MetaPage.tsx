@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StudyRow } from '../types/api';
 import { useParams } from 'react-router-dom';
 import StudyViewer from '../components/meta/StudyViewer';
@@ -58,6 +58,7 @@ export default function MetaPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const runningItems = useMemo(() => items.filter((it) => ['queued', 'started'].includes(it.status)), [items]);
+  const runningItemIds = useMemo(() => runningItems.map((item) => item.id).join('|'), [runningItems]);
 
   const exportJob = useJobPolling(exportJobId, {
     onCompleted: async () => {
@@ -71,7 +72,7 @@ export default function MetaPage() {
     },
   });
 
-  async function loadBatches() {
+  const loadBatches = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     setError(null);
@@ -84,9 +85,9 @@ export default function MetaPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId]);
 
-  async function loadItems(batchId: string) {
+  const loadItems = useCallback(async (batchId: string) => {
     setError(null);
     try {
       const r = await api.get(`/meta/batches/${batchId}/items`);
@@ -95,9 +96,9 @@ export default function MetaPage() {
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load batch items');
     }
-  }
+  }, []);
 
-  async function loadStudies() {
+  const loadStudies = useCallback(async () => {
     if (!projectId) return;
     setError(null);
     try {
@@ -107,9 +108,9 @@ export default function MetaPage() {
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load studies');
     }
-  }
+  }, [projectId, selectedBatchId]);
 
-  async function loadExports() {
+  const loadExports = useCallback(async () => {
     if (!projectId) return;
     setError(null);
     try {
@@ -119,7 +120,7 @@ export default function MetaPage() {
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load exports');
     }
-  }
+  }, [projectId, selectedBatchId]);
 
   async function createBatch() {
     if (!projectId) return;
@@ -180,7 +181,6 @@ export default function MetaPage() {
       const jid = r.data?.job_id as string | undefined;
       if (jid) {
         setExportJobId(jid);
-        setExportJobStatus({ status: 'queued', progress: 0, error: null });
       }
       setNotice(`Export job enqueued: ${jid || '(unknown job id)'}`);
     } catch (e: any) {
@@ -199,25 +199,23 @@ export default function MetaPage() {
   }
 
   useEffect(() => {
-    loadBatches();
-    loadStudies();
-    loadExports();
-  }, [projectId]);
+    void loadBatches();
+  }, [loadBatches]);
 
   useEffect(() => {
-    loadStudies();
-    loadExports();
-  }, [selectedBatchId]);
+    void loadStudies();
+    void loadExports();
+  }, [loadStudies, loadExports]);
 
   useEffect(() => {
     if (!selectedBatchId) return;
     if (runningItems.length === 0) return;
     const t = window.setInterval(() => {
-      loadItems(selectedBatchId);
-      loadStudies();
+      void loadItems(selectedBatchId);
+      void loadStudies();
     }, 4000);
     return () => window.clearInterval(t);
-  }, [selectedBatchId, runningItems.map((i) => i.id).join('|')]);
+  }, [selectedBatchId, runningItemIds, runningItems.length, loadItems, loadStudies]);
 
   // Export job polling handled by useJobPolling hook above
 
@@ -345,7 +343,7 @@ export default function MetaPage() {
                       <button
                         className="rc-btn rc-btn--sm"
                         onClick={() => retryItem(it.id)}
-                        disabled={it.status === 'queued' || it.status === 'started'}
+                        disabled={it.status === 'queued'}
                         style={{ marginTop: 4 }}
                       >
                         Retry

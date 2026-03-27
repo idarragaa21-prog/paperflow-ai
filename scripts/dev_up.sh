@@ -7,6 +7,7 @@ mkdir -p "$LOG_DIR"
 
 BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
+SKIP_GROBID_WAIT="${PAPERFLOW_SKIP_GROBID_WAIT:-0}"
 
 copy_if_missing() {
   local src="$1"
@@ -64,7 +65,13 @@ echo "[dev_up] starting infrastructure with docker compose..."
 (cd "$ROOT_DIR" && docker compose up -d postgres redis qdrant minio minio-init grobid r-engine)
 
 wait_for_url "http://127.0.0.1:8010/health" "r-engine"
-wait_for_url "http://127.0.0.1:8070/api/isalive" "grobid"
+if [[ "$SKIP_GROBID_WAIT" == "1" ]]; then
+  echo "[dev_up] skipping grobid wait because PAPERFLOW_SKIP_GROBID_WAIT=1"
+else
+  if ! wait_for_url "http://127.0.0.1:8070/api/isalive" "grobid" 60; then
+    echo "[dev_up] grobid is still not ready; continuing because Grobid is optional in local development"
+  fi
+fi
 wait_for_url "http://127.0.0.1:9000/minio/health/live" "minio"
 
 if [[ ! -d "$BACKEND_DIR/.venv" ]]; then

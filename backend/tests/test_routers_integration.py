@@ -18,6 +18,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import ARRAY
+from sqlalchemy.dialects.postgresql import INET, JSONB, UUID as PGUUID
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.main import app
@@ -25,6 +28,28 @@ from app.api.deps import get_db, get_current_user
 from app.database import Base
 from app.models.user import User
 from app.core.security import hash_password
+
+pytestmark = pytest.mark.asyncio
+
+
+@compiles(PGUUID, "sqlite")
+def _compile_uuid_sqlite(_type, _compiler, **_kw):
+    return "TEXT"
+
+
+@compiles(JSONB, "sqlite")
+def _compile_jsonb_sqlite(_type, _compiler, **_kw):
+    return "TEXT"
+
+
+@compiles(INET, "sqlite")
+def _compile_inet_sqlite(_type, _compiler, **_kw):
+    return "TEXT"
+
+
+@compiles(ARRAY, "sqlite")
+def _compile_array_sqlite(_type, _compiler, **_kw):
+    return "TEXT"
 
 # ── In-memory SQLite engine for tests ────────────────────────────────────────
 
@@ -48,7 +73,7 @@ async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest_asyncio.fixture(scope="module", autouse=True)
 async def setup_db():
     await _init_db()
     yield
@@ -65,7 +90,7 @@ async def test_user(db_session: AsyncSession) -> User:
     """Create a fresh user for each test."""
     user = User(
         id=uuid.uuid4(),
-        email=f"test-{uuid.uuid4().hex[:8]}@paperflow.test",
+        email=f"test-{uuid.uuid4().hex[:8]}@paperflow.example.com",
         full_name="Test User",
         password_hash=hash_password("testpass123"),
         is_active=True,

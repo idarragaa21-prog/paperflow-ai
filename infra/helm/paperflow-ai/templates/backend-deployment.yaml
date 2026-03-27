@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperflow-backend
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app: paperflow-backend
+  template:
+    metadata:
+      labels:
+        app: paperflow-backend
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.service.port }}
+          env:
+            - name: ENV
+              value: {{ .Values.backend.env.ENV | quote }}
+            - name: STORAGE_BACKEND
+              value: {{ .Values.backend.env.STORAGE_BACKEND | quote }}
+            - name: METRICS_ENABLED
+              value: {{ .Values.backend.env.METRICS_ENABLED | quote }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.backend.service.port }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.backend.service.port }}

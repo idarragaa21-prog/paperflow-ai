@@ -41,6 +41,7 @@ class Project(Base, TimestampMixin):
     eligibility_reasons = relationship("EligibilityReason", back_populates="project", cascade="all, delete-orphan")
     comments = relationship("ProjectComment", back_populates="project", cascade="all, delete-orphan")
     peer_review_actions = relationship("PeerReviewAction", back_populates="project", cascade="all, delete-orphan")
+    memberships = relationship("ProjectMembership", back_populates="project", cascade="all, delete-orphan")
 
 
 Index("idx_projects_user", Project.user_id)

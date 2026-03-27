@@ -24,14 +24,19 @@ from app.services.jobs import get_job_queue
 from app.models.meta_export import MetaExport
 from app.schemas.meta import BatchEffectPatchRequest, MetaExportListRow
 from app.services.meta_extractor.export_service import create_meta_export
+from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/meta", tags=["meta"])
 
 
-async def _require_owned_project(db: AsyncSession, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+async def _require_project_role(
+    db: AsyncSession,
+    project_id: UUID,
+    user: User,
+    *,
+    required_role: str = "viewer",
+) -> Project:
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role=required_role)
     return project
 
 
@@ -45,7 +50,7 @@ async def create_batch(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id, user)
+    await _require_project_role(db, project_id, user, required_role="editor")
 
     batch = MetaExtractionBatch(user_id=user.id, project_id=project_id, title=title, status="created")
     db.add(batch)
@@ -127,7 +132,7 @@ async def list_batches(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id, user)
+    await _require_project_role(db, project_id, user, required_role="viewer")
     q = await db.execute(
         select(MetaExtractionBatch).where(MetaExtractionBatch.project_id == project_id).order_by(MetaExtractionBatch.created_at.desc())
     )
@@ -145,8 +150,9 @@ async def list_batch_items(
     user: User = Depends(get_current_user),
 ):
     batch = await db.get(MetaExtractionBatch, batch_id)
-    if not batch or batch.user_id != user.id:
+    if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    await _require_project_role(db, batch.project_id, user, required_role="viewer")
 
     q = await db.execute(
         select(MetaExtractionItem, Paper)
@@ -184,8 +190,9 @@ async def retry_item(
         raise HTTPException(status_code=404, detail="Item not found")
 
     batch = await db.get(MetaExtractionBatch, item.batch_id)
-    if not batch or batch.user_id != user.id:
+    if not batch:
         raise HTTPException(status_code=404, detail="Item not found")
+    await _require_project_role(db, batch.project_id, user, required_role="editor")
 
     # ensure paper belongs to project
     paper = await db.get(Paper, item.paper_id)
@@ -244,8 +251,9 @@ async def delete_batch(
     user: User = Depends(get_current_user),
 ):
     batch = await db.get(MetaExtractionBatch, batch_id)
-    if not batch or batch.user_id != user.id:
+    if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    await _require_project_role(db, batch.project_id, user, required_role="editor")
 
     await db.delete(batch)
     await db.commit()
@@ -264,7 +272,7 @@ async def reextract_study(
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
 
-    project = await _require_owned_project(db, study.project_id, user)
+    project = await _require_project_role(db, study.project_id, user, required_role="editor")
 
     # create a synthetic item if not in a batch
     batch_id = study.batch_id
@@ -324,7 +332,7 @@ async def list_study_versions(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="viewer")
 
     q = await db.execute(
         select(ExtractedStudy).where(ExtractedStudy.paper_id == study.paper_id).order_by(ExtractedStudy.version.desc())
@@ -350,7 +358,7 @@ async def list_effects(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="viewer")
 
     q = await db.execute(select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == study.id))
     eff = q.scalars().all()
@@ -369,7 +377,7 @@ async def add_effect(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="editor")
 
     required = ["outcome_name", "arm_intervention", "arm_control"]
     for r in required:
@@ -405,7 +413,7 @@ async def delete_effect(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="editor")
 
     eff = await db.get(ExtractedEffectSize, effect_id)
     if not eff or eff.extracted_study_id != study.id:
@@ -425,7 +433,7 @@ async def list_rob(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="viewer")
 
     q = await db.execute(select(ExtractedRiskOfBias).where(ExtractedRiskOfBias.extracted_study_id == study.id))
     rob = q.scalars().all()
@@ -444,7 +452,7 @@ async def add_rob(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="editor")
 
     if not payload.get("domain"):
         raise HTTPException(status_code=400, detail="domain requerido")
@@ -502,7 +510,7 @@ async def list_studies(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id, user)
+    await _require_project_role(db, project_id, user, required_role="viewer")
 
     from sqlalchemy import exists
 
@@ -551,7 +559,7 @@ async def get_study(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    project = await _require_owned_project(db, study.project_id, user)
+    project = await _require_project_role(db, study.project_id, user, required_role="viewer")
 
     q1 = await db.execute(select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == study.id))
     eff = q1.scalars().all()
@@ -628,7 +636,7 @@ async def patch_study(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="editor")
 
     # Update only keys present (top-level) in study_json
     sj = dict(study.study_json or {})
@@ -654,7 +662,7 @@ async def patch_effect(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="editor")
 
     eff = await db.get(ExtractedEffectSize, effect_id)
     if not eff or eff.extracted_study_id != study.id:
@@ -688,7 +696,7 @@ async def patch_effects_batch(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="editor")
 
     updated = 0
     for upd in payload.updates:
@@ -727,7 +735,7 @@ async def list_exports(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id, user)
+    await _require_project_role(db, project_id, user, required_role="viewer")
 
     stmt = select(MetaExport).where(MetaExport.project_id == project_id)
     if batch_id:
@@ -762,7 +770,7 @@ async def export_excel(
         raise HTTPException(status_code=400, detail="project_id requerido")
 
     project_uuid = UUID(str(project_id))
-    await _require_owned_project(db, project_uuid, user)
+    await _require_project_role(db, project_uuid, user, required_role="editor")
 
     batch_uuid = UUID(str(batch_id)) if batch_id else None
 
@@ -805,7 +813,7 @@ async def download_export(
     if not export:
         raise HTTPException(status_code=404, detail="Export not found")
 
-    await _require_owned_project(db, export.project_id, user)
+    await _require_project_role(db, export.project_id, user, required_role="viewer")
 
     abs_path = (storage_manager.base_dir / export.file_path).resolve()
     try:
@@ -832,7 +840,7 @@ async def patch_rob(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    await _require_owned_project(db, study.project_id, user)
+    await _require_project_role(db, study.project_id, user, required_role="editor")
 
     rob = await db.get(ExtractedRiskOfBias, rob_id)
     if not rob or rob.extracted_study_id != study.id:

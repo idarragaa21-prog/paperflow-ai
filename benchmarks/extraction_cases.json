@@ -1,0 +1,132 @@
+[
+  {
+    "id": "study-001",
+    "fields": {
+      "doi": {"gold": "10.1000/abc001", "predicted": "10.1000/abc001", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2024", "predicted": "2024", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Effect of Structured Rehab on Knee Pain", "predicted": "Effect of Structured Rehab on Knee Pain", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "randomized", "predicted": "randomized", "has_locator": true, "confidence": 0.94},
+      "population": {"gold": "Adults with knee osteoarthritis", "predicted": "Adults with knee osteoarthritis", "has_locator": true, "confidence": 0.92},
+      "sample": {"gold": "120", "predicted": "120", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Pain and function", "predicted": "Pain and function", "has_locator": true, "confidence": 0.91},
+      "results": {"gold": "Pain improved versus comparator", "predicted": "Pain improved versus comparator", "has_locator": true, "confidence": 0.90}
+    }
+  },
+  {
+    "id": "study-002",
+    "fields": {
+      "doi": {"gold": "10.1000/abc002", "predicted": "10.1000/abc002", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2023", "predicted": "2023", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Meta-analysis of Exercise for Back Pain", "predicted": "Meta-analysis of Exercise for Back Pain", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "meta-analysis", "predicted": "meta analysis", "has_locator": true, "confidence": 0.90},
+      "population": {"gold": "Adults with chronic low back pain", "predicted": "Adults with chronic low back pain", "has_locator": true, "confidence": 0.92},
+      "sample": {"gold": "18", "predicted": "18", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Pain intensity and disability", "predicted": "Pain intensity disability", "has_locator": true, "confidence": 0.89},
+      "results": {"gold": "Moderate reduction in pain", "predicted": "Moderate reduction in pain", "has_locator": true, "confidence": 0.88}
+    }
+  },
+  {
+    "id": "study-003",
+    "fields": {
+      "doi": {"gold": "10.1000/abc003", "predicted": "10.1000/abc003", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2022", "predicted": "2022", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Cohort Study of Balance Training", "predicted": "Cohort Study of Balance Training", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "cohort", "predicted": "cohort", "has_locator": true, "confidence": 0.94},
+      "population": {"gold": "Older adults at risk of falls", "predicted": "Older adults at risk of falls", "has_locator": true, "confidence": 0.90},
+      "sample": {"gold": "245", "predicted": "245", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Falls and mobility", "predicted": "Falls mobility", "has_locator": true, "confidence": 0.88},
+      "results": {"gold": "Lower fall incidence after training", "predicted": "Lower fall incidence after training", "has_locator": true, "confidence": 0.87}
+    }
+  },
+  {
+    "id": "study-004",
+    "fields": {
+      "doi": {"gold": "10.1000/abc004", "predicted": "10.1000/abc004", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2021", "predicted": "2021", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Logistic Model of Readmission Risk", "predicted": "Logistic Model of Readmission Risk", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "cohort", "predicted": "cohort", "has_locator": true, "confidence": 0.92},
+      "population": {"gold": "Hospitalized adults", "predicted": "Hospitalized adults", "has_locator": true, "confidence": 0.91},
+      "sample": {"gold": "980", "predicted": "980", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Thirty-day readmission", "predicted": "Thirty day readmission", "has_locator": true, "confidence": 0.89},
+      "results": {"gold": "Increased risk in frail patients", "predicted": "Increased risk in frail patients", "has_locator": true, "confidence": 0.88}
+    }
+  },
+  {
+    "id": "study-005",
+    "fields": {
+      "doi": {"gold": "10.1000/abc005", "predicted": "10.1000/abc005", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2020", "predicted": "2020", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Cross-sectional Survey of Burnout", "predicted": "Cross-sectional Survey of Burnout", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "cross-sectional", "predicted": "cross sectional", "has_locator": true, "confidence": 0.90},
+      "population": {"gold": "Resident physicians", "predicted": "Resident physicians", "has_locator": true, "confidence": 0.90},
+      "sample": {"gold": "430", "predicted": "430", "has_locator": true, "confidence": 0.94},
+      "outcomes": {"gold": "Burnout and job satisfaction", "predicted": "Burnout job satisfaction", "has_locator": true, "confidence": 0.87},
+      "results": {"gold": "High burnout prevalence", "predicted": "High burnout prevalence", "has_locator": true, "confidence": 0.86}
+    }
+  },
+  {
+    "id": "study-006",
+    "fields": {
+      "doi": {"gold": "10.1000/abc006", "predicted": "10.1000/abc006", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2019", "predicted": "2019", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Systematic Review of Telemedicine", "predicted": "Systematic Review of Telemedicine", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "systematic review", "predicted": "systematic review", "has_locator": true, "confidence": 0.91},
+      "population": {"gold": "Patients with chronic disease", "predicted": "Patients with chronic disease", "has_locator": true, "confidence": 0.91},
+      "sample": {"gold": "32", "predicted": "32", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Utilization and outcomes", "predicted": "Utilization and outcomes", "has_locator": true, "confidence": 0.88},
+      "results": {"gold": "Improved access with mixed outcome gains", "predicted": "Improved access with mixed outcome gains", "has_locator": true, "confidence": 0.87}
+    }
+  },
+  {
+    "id": "study-007",
+    "fields": {
+      "doi": {"gold": "10.1000/abc007", "predicted": "10.1000/abc007", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2018", "predicted": "2018", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Case-Control Study of Sepsis Biomarkers", "predicted": "Case-Control Study of Sepsis Biomarkers", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "case-control", "predicted": "case control", "has_locator": true, "confidence": 0.90},
+      "population": {"gold": "ICU patients with suspected infection", "predicted": "ICU patients with suspected infection", "has_locator": true, "confidence": 0.91},
+      "sample": {"gold": "150", "predicted": "150", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Biomarker discrimination", "predicted": "Biomarker discrimination", "has_locator": true, "confidence": 0.88},
+      "results": {"gold": "Biomarker A outperformed comparator", "predicted": "Biomarker A outperformed comparator", "has_locator": true, "confidence": 0.87}
+    }
+  },
+  {
+    "id": "study-008",
+    "fields": {
+      "doi": {"gold": "10.1000/abc008", "predicted": "10.1000/abc008", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2017", "predicted": "2017", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Randomized Trial of Remote Monitoring", "predicted": "Randomized Trial of Remote Monitoring", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "randomized", "predicted": "randomized", "has_locator": true, "confidence": 0.94},
+      "population": {"gold": "Adults with heart failure", "predicted": "Adults with heart failure", "has_locator": true, "confidence": 0.92},
+      "sample": {"gold": "204", "predicted": "204", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Hospitalization and mortality", "predicted": "Hospitalization mortality", "has_locator": true, "confidence": 0.88},
+      "results": {"gold": "Lower hospitalization with no mortality difference", "predicted": "Lower hospitalization with no mortality difference", "has_locator": true, "confidence": 0.87}
+    }
+  },
+  {
+    "id": "study-009",
+    "fields": {
+      "doi": {"gold": "10.1000/abc009", "predicted": "10.1000/abc009", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2016", "predicted": "2016", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Survival Analysis in Oncology Cohort", "predicted": "Survival Analysis in Oncology Cohort", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "cohort", "predicted": "cohort", "has_locator": true, "confidence": 0.92},
+      "population": {"gold": "Patients with stage III disease", "predicted": "Patients with stage III disease", "has_locator": true, "confidence": 0.90},
+      "sample": {"gold": "312", "predicted": "312", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Overall survival", "predicted": "Overall survival", "has_locator": true, "confidence": 0.89},
+      "results": {"gold": "Hazard reduced in intervention arm", "predicted": "Hazard reduced in intervention arm", "has_locator": true, "confidence": 0.88}
+    }
+  },
+  {
+    "id": "study-010",
+    "fields": {
+      "doi": {"gold": "10.1000/abc010", "predicted": "10.1000/abc010", "has_locator": true, "confidence": 0.99},
+      "year": {"gold": "2015", "predicted": "2015", "has_locator": true, "confidence": 0.98},
+      "title": {"gold": "Observational Study of Sleep Duration", "predicted": "Observational Study of Sleep Duration", "has_locator": true, "confidence": 0.97},
+      "design": {"gold": "cohort", "predicted": "cohort", "has_locator": true, "confidence": 0.91},
+      "population": {"gold": "Community adults", "predicted": "Community adults", "has_locator": true, "confidence": 0.90},
+      "sample": {"gold": "1500", "predicted": "1500", "has_locator": true, "confidence": 0.95},
+      "outcomes": {"gold": "Sleep duration and cardiometabolic risk", "predicted": "Sleep duration cardiometabolic risk", "has_locator": true, "confidence": 0.87},
+      "results": {"gold": "Short sleep associated with higher risk", "predicted": "Short sleep associated with higher risk", "has_locator": true, "confidence": 0.86}
+    }
+  }
+]

@@ -10,10 +10,19 @@ from app.database import async_session_maker
 from app.models.job import Job
 
 
+LOCKED_JOB_STATUSES = {"cancelled", "completed", "failed"}
+
+
+def _is_locked(job: Job) -> bool:
+    return str(getattr(job, "status", "") or "").lower() in LOCKED_JOB_STATUSES
+
+
 async def job_mark_started(job_id: UUID) -> None:
     async with async_session_maker() as db:
         job = await db.get(Job, job_id)
         if not job:
+            return
+        if _is_locked(job):
             return
         job.status = "started"
         job.started_at = job.started_at or datetime.now(timezone.utc)
@@ -38,6 +47,8 @@ async def job_set_progress(job_id: UUID, percent: int, status: str = "progress",
         job = await db.get(Job, job_id)
         if not job:
             return
+        if _is_locked(job):
+            return
         job.status = status
         job.progress_percent = percent
         job.started_at = job.started_at or datetime.now(timezone.utc)
@@ -47,11 +58,17 @@ async def job_set_progress(job_id: UUID, percent: int, status: str = "progress",
 
 
 async def job_mark_completed(job_id: UUID, result: dict[str, Any] | None = None) -> None:
-    await job_set_progress(job_id, 100, status="completed", result_patch=result)
     async with async_session_maker() as db:
         job = await db.get(Job, job_id)
         if not job:
             return
+        if _is_locked(job):
+            return
+        job.status = "completed"
+        job.progress_percent = 100
+        job.started_at = job.started_at or datetime.now(timezone.utc)
+        if result:
+            job.result = {**(job.result or {}), **result}
         job.completed_at = job.completed_at or datetime.now(timezone.utc)
         await db.commit()
 
@@ -69,6 +86,8 @@ async def job_mark_failed(job_id: UUID, error_message: str) -> None:
     async with async_session_maker() as db:
         job = await db.get(Job, job_id)
         if not job:
+            return
+        if str(getattr(job, "status", "") or "").lower() in {"cancelled", "completed"}:
             return
         job.status = "failed"
         job.error_message = error_message

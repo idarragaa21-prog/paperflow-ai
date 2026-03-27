@@ -71,7 +71,7 @@ export function useJobPolling(jobId: string | null, options: UseJobPollingOption
       stoppedRef.current = true;
       window.clearInterval(t);
     };
-  }, [jobId, intervalMs]);
+  }, [jobId, intervalMs, onCompleted, onFailed]);
 
   const isRunning = !!jobId && !!status && !['completed', 'failed', 'polling_error'].includes(status.status);
   const isDone = status?.status === 'completed';

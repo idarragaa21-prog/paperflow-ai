@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ClinicalProViewer from '../components/clinical/ClinicalProViewer';

@@ -28,6 +28,9 @@ async def build_export_payload(
     q = await db.execute(stmt)
     studies = q.scalars().all()
 
+    if not studies:
+        raise ValueError("No extracted studies available for export")
+
     study_rows: list[dict[str, Any]] = []
     arm_rows: list[dict[str, Any]] = []
     outcome_rows: list[dict[str, Any]] = []

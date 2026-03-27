@@ -1,0 +1,28 @@
+{{- range $name, $cfg := .Values.workers }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperflow-worker-{{ $name }}
+  namespace: {{ $.Values.namespace }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      app: paperflow-worker-{{ $name }}
+  template:
+    metadata:
+      labels:
+        app: paperflow-worker-{{ $name }}
+    spec:
+      containers:
+        - name: worker
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["python", "-m", "app.workers.worker"]
+          env:
+            - name: WORKER_QUEUES
+              value: {{ $name | quote }}
+            - name: ENV
+              value: {{ $.Values.backend.env.ENV | quote }}
+---
+{{- end }}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReferenceRow } from '../types/api';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
@@ -58,7 +58,7 @@ export default function ReferencesPage() {
   const [doiInput, setDoiInput] = useState('');
   const [doiLoading, setDoiLoading] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!projectId) return;
     setLoading(true); setError(null);
     try {
@@ -66,9 +66,9 @@ export default function ReferencesPage() {
       setItems(r.data as ReferenceRow[]);
     } catch (e: any) { setError(e?.response?.data?.detail || 'Error cargando referencias'); }
     finally { setLoading(false); }
-  }
+  }, [projectId]);
 
-  useEffect(() => { load(); }, [projectId]);
+  useEffect(() => { void load(); }, [load]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();

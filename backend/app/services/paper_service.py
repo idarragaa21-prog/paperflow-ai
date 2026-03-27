@@ -131,7 +131,7 @@ class PaperDownloadService:
         return DownloadResult(
             pdf_bytes=data,
             source=resolved.source,
-            resolved_url=str(r.url),
+            resolved_url=resolved.resolved_url,
             oa_url=resolved.oa_url,
             landing_url=resolved.landing_url,
             used_fallback=resolved.used_fallback,

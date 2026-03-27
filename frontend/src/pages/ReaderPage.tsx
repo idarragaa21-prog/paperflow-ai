@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -68,15 +68,15 @@ export default function ReaderPage() {
   const isProject = paperId === 'project';
   const hasReadyPapers = papers.some(p => ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase()));
 
-  async function loadPapers() {
+  const loadPapers = useCallback(async () => {
     if (!projectId) return;
     try {
       const response = await api.get(`/projects/${projectId}/library`);
       setPapers(response.data as PaperOption[]);
     } catch (e: any) { setError(e?.response?.data?.detail || 'Error cargando library'); }
-  }
+  }, [projectId]);
 
-  useEffect(() => { loadPapers(); }, [projectId]);
+  useEffect(() => { void loadPapers(); }, [loadPapers]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history, loading]);
 
   async function processNow(id: string) {

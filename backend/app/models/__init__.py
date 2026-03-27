@@ -1,4 +1,6 @@
 from app.models.user import User
+from app.models.auth import AuthSession
+from app.models.membership import ProjectMembership
 from app.models.project import Project
 from app.models.search import Search, SearchResult
 from app.models.paper import Paper
@@ -34,6 +36,8 @@ from app.models.billing import BillingUsageEvent
 
 __all__ = [
     "User",
+    "AuthSession",
+    "ProjectMembership",
     "Project",
     "Search",
     "SearchResult",

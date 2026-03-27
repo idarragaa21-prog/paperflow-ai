@@ -20,6 +20,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
             if request.url.path in ["/auth/login", "/auth/refresh", "/auth/logout"]:
                 return await call_next(request)
+            if not request.cookies.get("access_token"):
+                return await call_next(request)
 
             header_token = request.headers.get("X-CSRF-Token")
             cookie_token = request.cookies.get("csrf_token")

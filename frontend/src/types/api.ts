@@ -185,14 +185,19 @@ export type NoteDetail = {
 // ─── Drafts ───────────────────────────────────────────────────────────────────
 
 export type DraftSection = {
+  id: string;
   key: string;
+  heading: string;
   title: string;
   content: string;
+  position: number;
+  citations: DraftCitation[];
 };
 
 export type DraftCitation = {
   id: string;
   text: string;
+  marker: string;
 };
 
 export type Draft = {
@@ -220,6 +225,7 @@ export type PresentationRow = {
 export type ReferenceRow = {
   id: string;
   paper_id?: string | null;
+  citation_key?: string | null;
   title: string;
   authors: string[];
   journal?: string | null;
@@ -255,10 +261,15 @@ export type ClinicalSheetDetail = ClinicalSheetRow & {
 export type StudyRow = {
   id: string;
   title: string;
+  paper_title?: string | null;
+  paper_filename?: string | null;
   year?: number | null;
   design?: string | null;
   n?: number | null;
   rob_score?: number | null;
+  rob_auto_generated?: boolean;
+  version?: number | null;
+  extraction_confidence?: number | string | null;
 };
 
 // ─── Books ────────────────────────────────────────────────────────────────────
@@ -268,5 +279,8 @@ export type BookRow = {
   title: string;
   filename: string;
   chapter_count?: number;
+  chapters_count?: number;
+  total_pages?: number | null;
+  indexed_at?: string | null;
   created_at?: string | null;
 };

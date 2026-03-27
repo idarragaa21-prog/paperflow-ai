@@ -1,0 +1,122 @@
+[
+  {
+    "id": "chat-001",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-001", "c-009", "c-010"],
+    "gold_chunk_ids": ["c-001", "c-011"],
+    "predicted_citation_ids": ["c-001"],
+    "gold_citation_ids": ["c-001"]
+  },
+  {
+    "id": "chat-002",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-020", "c-021", "c-022"],
+    "gold_chunk_ids": ["c-020"],
+    "predicted_citation_ids": ["c-020", "c-021"],
+    "gold_citation_ids": ["c-020"]
+  },
+  {
+    "id": "chat-003",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-030", "c-031", "c-032"],
+    "gold_chunk_ids": ["c-030", "c-099"],
+    "predicted_citation_ids": ["c-030"],
+    "gold_citation_ids": ["c-030"]
+  },
+  {
+    "id": "chat-004",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-040", "c-041", "c-042"],
+    "gold_chunk_ids": ["c-040"],
+    "predicted_citation_ids": ["c-040"],
+    "gold_citation_ids": ["c-040"]
+  },
+  {
+    "id": "chat-005",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-050", "c-051", "c-052"],
+    "gold_chunk_ids": ["c-050"],
+    "predicted_citation_ids": ["c-050"],
+    "gold_citation_ids": ["c-050"]
+  },
+  {
+    "id": "chat-006",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-060", "c-061", "c-062"],
+    "gold_chunk_ids": ["c-060"],
+    "predicted_citation_ids": ["c-060"],
+    "gold_citation_ids": ["c-060"]
+  },
+  {
+    "id": "chat-007",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-070", "c-071", "c-072"],
+    "gold_chunk_ids": ["c-070"],
+    "predicted_citation_ids": ["c-070"],
+    "gold_citation_ids": ["c-070"]
+  },
+  {
+    "id": "chat-008",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-080", "c-081", "c-082"],
+    "gold_chunk_ids": ["c-080"],
+    "predicted_citation_ids": ["c-080"],
+    "gold_citation_ids": ["c-080"]
+  },
+  {
+    "id": "chat-009",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-090", "c-091", "c-092"],
+    "gold_chunk_ids": ["c-090"],
+    "predicted_citation_ids": ["c-090"],
+    "gold_citation_ids": ["c-090"]
+  },
+  {
+    "id": "chat-010",
+    "expected_blocked": false,
+    "grounded": true,
+    "blocked_reason": null,
+    "retrieved_chunk_ids": ["c-100", "c-101", "c-102"],
+    "gold_chunk_ids": ["c-999"],
+    "predicted_citation_ids": ["c-100"],
+    "gold_citation_ids": ["c-100"]
+  },
+  {
+    "id": "chat-011",
+    "expected_blocked": true,
+    "grounded": false,
+    "blocked_reason": "insufficient_grounding",
+    "retrieved_chunk_ids": ["c-110", "c-111"],
+    "gold_chunk_ids": [],
+    "predicted_citation_ids": [],
+    "gold_citation_ids": []
+  },
+  {
+    "id": "chat-012",
+    "expected_blocked": true,
+    "grounded": false,
+    "blocked_reason": "insufficient_grounding",
+    "retrieved_chunk_ids": ["c-120", "c-121"],
+    "gold_chunk_ids": [],
+    "predicted_citation_ids": [],
+    "gold_citation_ids": []
+  }
+]

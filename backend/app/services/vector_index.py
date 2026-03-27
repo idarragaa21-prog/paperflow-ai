@@ -111,10 +111,44 @@ class VectorIndex:
                 self._embed_dim = len(vector)
                 return [float(value) for value in vector]
         except Exception as exc:
-            logger.debug(f"Ollama embeddings unavailable, using hashed embeddings: {exc}")
+            logger.debug(f"Ollama /api/embed unavailable: {exc}")
+        for model in [settings.PAPERFLOW_EMBEDDING_MODEL, settings.PAPERFLOW_CHAT_MODEL]:
+            try:
+                response = httpx.post(
+                    f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/embeddings",
+                    json={"model": model, "prompt": text},
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                vector = payload.get("embedding")
+                if isinstance(vector, list) and vector:
+                    self._embed_dim = len(vector)
+                    return [float(value) for value in vector]
+            except Exception as exc:
+                logger.debug(f"Ollama embeddings unavailable for model {model}: {exc}")
         vector = _hash_embed(text)
         self._embed_dim = len(vector)
         return vector
+
+    def _embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        try:
+            response = httpx.post(
+                f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/embed",
+                json={"model": settings.PAPERFLOW_CHAT_MODEL, "input": texts},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            embeddings = payload.get("embeddings") or []
+            if embeddings and isinstance(embeddings[0], list):
+                self._embed_dim = len(embeddings[0])
+                return [[float(value) for value in vector] for vector in embeddings]
+        except Exception as exc:
+            logger.debug(f"Ollama batch embeddings unavailable, using per-text fallback: {exc}")
+        return [self._embed_text(text) for text in texts]
 
     def _ensure_collection(self) -> None:
         client = self._client_or_none()
@@ -125,6 +159,16 @@ class VectorIndex:
         try:
             existing = {item.name for item in client.get_collections().collections}
             if self.collection_name not in existing:
+                client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config=qm.VectorParams(size=dims, distance=qm.Distance.COSINE),
+                )
+                return
+            collection = client.get_collection(self.collection_name)
+            existing_size = getattr(getattr(getattr(collection, "config", None), "params", None), "vectors", None)
+            size = getattr(existing_size, "size", None)
+            if isinstance(size, int) and size != dims:
+                client.delete_collection(self.collection_name)
                 client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=qm.VectorParams(size=dims, distance=qm.Distance.COSINE),

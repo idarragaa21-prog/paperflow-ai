@@ -30,7 +30,7 @@ export default function ClinicalPage() {
   const [genError, setGenError] = useState<string | null>(null);
 
   const canGenerate = useMemo(() => topic.trim().length > 0, [topic]);
-  const sheetsKey = ['clinical-sheets', projectId];
+  const sheetsKey = useMemo(() => ['clinical-sheets', projectId], [projectId]);
 
   // ── Projects query ────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery<Pick<Project, 'id' | 'title' | 'clinical_area'>[]>({
@@ -125,7 +125,7 @@ export default function ClinicalPage() {
     poll();
     const t = window.setInterval(poll, 4000);
     return () => { stopped = true; window.clearInterval(t); };
-  }, [jobId]);
+  }, [jobId, navigate, qc, sheetsKey]);
 
   const errorMsg = genError || (sheetsError as Error | null)?.message;
 

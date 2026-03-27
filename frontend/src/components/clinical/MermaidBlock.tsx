@@ -7,7 +7,7 @@ type Props = {
 let mermaidInitDone = false;
 
 function stripFences(txt: string): string {
-  let t = (txt || '').trim();
+  const t = (txt || '').trim();
   if (!t.startsWith('```')) return t;
   const lines = t.split('\n');
   lines.shift();
@@ -95,7 +95,7 @@ export default function MermaidBlock({ code }: Props) {
         let svg = '';
         try {
           svg = await renderOnce(mermaid, normalized);
-        } catch (err: any) {
+        } catch {
           // Mermaid sometimes throws instead of returning an error SVG.
           svg = '';
         }

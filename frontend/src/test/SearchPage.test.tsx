@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import SearchPage from '../pages/SearchPage';
 
@@ -27,12 +28,22 @@ import { api } from '../services/api';
 const PROJECT_ID = 'test-project-uuid-001';
 
 function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
   return render(
-    <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/search`]}>
-      <Routes>
-        <Route path="/projects/:projectId/search" element={<SearchPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/search`]}>
+        <Routes>
+          <Route path="/projects/:projectId/search" element={<SearchPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -100,7 +111,15 @@ async function searchAndWait() {
 // ── Global setup ────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  vi.mocked(api.get).mockResolvedValue({ data: [] }); // search history — always mock
+  vi.mocked(api.get).mockImplementation(async (url: string) => {
+    if (url === `/projects/${PROJECT_ID}`) {
+      return { data: { title: 'ACL project' } };
+    }
+    if (url === `/search/projects/${PROJECT_ID}/searches`) {
+      return { data: [] };
+    }
+    return { data: [] };
+  });
   vi.mocked(api.post).mockResolvedValue({ data: MOCK_RESPONSE });
 });
 
@@ -168,8 +187,9 @@ describe('SearchPage — API call', () => {
 
   it('shows result count', async () => {
     await searchAndWait();
-    const els = screen.getAllByText(/Results:/);
-    expect(els.length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText((_, element) => element?.textContent === '3 results · from pubmed, europepmc, doaj').length,
+    ).toBeGreaterThan(0);
   });
 });
 
@@ -263,16 +283,16 @@ describe('SearchPage — oa_url in download payload', () => {
 describe('SearchPage — filters', () => {
   it('shows filter panel when Filters button is clicked', async () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /Filters/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Filters/i }));
     expect(screen.getByPlaceholderText(/e.g. Lancet/i)).toBeInTheDocument();
     expect(screen.getByText(/Open Access only/i)).toBeInTheDocument();
   });
 
   it('includes year_from filter in API payload', async () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /Filters/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Filters/i }));
 
-    const yearFrom = screen.getByPlaceholderText(/e.g. 2018/i);
+    const yearFrom = screen.getByPlaceholderText('2018');
     await userEvent.clear(yearFrom);
     await userEvent.type(yearFrom, '2020');
 
@@ -291,7 +311,7 @@ describe('SearchPage — filters', () => {
 
   it('includes open_access_only in payload when checked', async () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /Filters/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Filters/i }));
 
     // Find the OA checkbox specifically (not select-all checkboxes)
     const oaLabel = screen.getByText(/Open Access only/i);
@@ -451,7 +471,7 @@ describe('SearchPage — select and batch download', () => {
 
     await searchAndWait();
     fireEvent.click(screen.getByRole('button', { name: /Select all OA/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Download Selected/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add \(2\) to Library/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
@@ -474,12 +494,20 @@ describe('SearchPage — select and batch download', () => {
 
 describe('SearchPage — search history', () => {
   it('loads and displays search history on mount', async () => {
-    vi.mocked(api.get).mockResolvedValue({
-      data: [{
-        id: 'search-001', project_id: PROJECT_ID,
-        query: 'hip fracture outcomes', source: 'federated',
-        results_count: 15, executed_at: '2025-03-18T10:30:00Z',
-      }],
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === `/projects/${PROJECT_ID}`) {
+        return { data: { title: 'ACL project' } };
+      }
+      if (url === `/search/projects/${PROJECT_ID}/searches`) {
+        return {
+          data: [{
+            id: 'search-001', project_id: PROJECT_ID,
+            query: 'hip fracture outcomes', source: 'federated',
+            results_count: 15, executed_at: '2025-03-18T10:30:00Z',
+          }],
+        };
+      }
+      return { data: [] };
     });
 
     renderPage();
@@ -489,12 +517,20 @@ describe('SearchPage — search history', () => {
   });
 
   it('shows entries when expanded', async () => {
-    vi.mocked(api.get).mockResolvedValue({
-      data: [{
-        id: 'search-001', project_id: PROJECT_ID,
-        query: 'hip fracture outcomes', source: 'federated',
-        results_count: 15, executed_at: '2025-03-18T10:30:00Z',
-      }],
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === `/projects/${PROJECT_ID}`) {
+        return { data: { title: 'ACL project' } };
+      }
+      if (url === `/search/projects/${PROJECT_ID}/searches`) {
+        return {
+          data: [{
+            id: 'search-001', project_id: PROJECT_ID,
+            query: 'hip fracture outcomes', source: 'federated',
+            results_count: 15, executed_at: '2025-03-18T10:30:00Z',
+          }],
+        };
+      }
+      return { data: [] };
     });
 
     renderPage();

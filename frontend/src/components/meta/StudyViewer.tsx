@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { useConfirm } from '../../ui/Dialog/useConfirm';
 import { useToast } from '../../ui/Toast/ToastProvider';
@@ -41,7 +41,7 @@ export default function StudyViewer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -60,11 +60,11 @@ export default function StudyViewer({
     } finally {
       setLoading(false);
     }
-  }
+  }, [studyId]);
 
   useEffect(() => {
-    load();
-  }, [studyId]);
+    void load();
+  }, [load]);
 
   const [reextractJobId, setReextractJobId] = useState<string | null>(null);
   const [reextractStatus, setReextractStatus] = useState<{ status: string; progress: number; error?: string | null } | null>(null);
@@ -133,7 +133,7 @@ export default function StudyViewer({
       stopped = true;
       window.clearInterval(t);
     };
-  }, [reextractJobId]);
+  }, [reextractJobId, load, onSelectStudyId, studyId]);
 
   if (loading && !study) return <div>Loading study…</div>;
   if (error) return <div style={{ color: 'crimson' }}>{String(error)}</div>;

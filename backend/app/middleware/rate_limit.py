@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import sys
+
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.requests import Request
@@ -22,7 +25,12 @@ def rate_limit_key(request: Request) -> str:
 
 
 # In development, Redis can be optional. If Redis is down, disable rate limiting to avoid breaking requests/tests.
-_rate_limit_enabled = bool(settings.RATE_LIMIT_ENABLED and redis_available())
+_rate_limit_enabled = bool(
+    settings.RATE_LIMIT_ENABLED
+    and redis_available()
+    and "PYTEST_CURRENT_TEST" not in os.environ
+    and "pytest" not in sys.modules
+)
 
 limiter = Limiter(
     key_func=rate_limit_key,

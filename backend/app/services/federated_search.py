@@ -153,9 +153,6 @@ def _passes_filters(item: dict[str, Any], filters: SearchFilters | None) -> bool
     if not filters:
         return True
     pub_year = item.get("pub_year")
-    if filters.year_from or filters.year_to:
-        if not isinstance(pub_year, int):
-            return False
     if filters.year_from and isinstance(pub_year, int) and pub_year < filters.year_from:
         return False
     if filters.year_to and isinstance(pub_year, int) and pub_year > filters.year_to:
@@ -167,6 +164,14 @@ def _passes_filters(item: dict[str, Any], filters: SearchFilters | None) -> bool
     if filters.source and filters.source.lower() != str(item.get("source") or "").lower():
         return False
     return True
+
+
+def _should_drop_yearless_result(item: dict[str, Any], filters: SearchFilters | None) -> bool:
+    if not filters or not (filters.year_from or filters.year_to):
+        return False
+    if item.get("pub_year") is not None:
+        return False
+    return str(item.get("source") or "").lower() == "doaj"
 
 
 def _apply_europe_pmc_filters(query: str, filters: SearchFilters | None) -> str:
@@ -316,7 +321,7 @@ def _relevance_score(item: dict[str, Any], query: str) -> float:
     score += 0.15 * id_score
 
     score += min(_metadata_score(item) / 100, 0.10)
-    return round(score, 4)
+    return round(min(max(score, 0.0), 1.0), 4)
 
 
 async def federated_search(query: str, *, max_results: int, filters: SearchFilters | None = None) -> dict[str, Any]:
@@ -351,6 +356,8 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
     deduped: OrderedDict[str, list[dict[str, Any]]] = OrderedDict()
     for item in [*pubmed_results, *europe_results, *doaj_results]:
         if not _passes_filters(item, filters):
+            continue
+        if _should_drop_yearless_result(item, filters):
             continue
         key = _record_key(item)
         deduped.setdefault(key, []).append(item)

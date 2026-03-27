@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -29,7 +29,7 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!projectId) return;
     const [datasetResponse] = await Promise.all([
       api.get('/datasets', { params: { project_id: projectId } }),
@@ -39,11 +39,11 @@ export default function AnalysisPage() {
     if (!selectedDataset && nextDatasets[0]) {
       setSelectedDataset(nextDatasets[0].id);
     }
-  }
+  }, [projectId, selectedDataset]);
 
   useEffect(() => {
     load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load analysis workspace'));
-  }, [projectId]);
+  }, [load]);
 
   async function createDataset() {
     if (!projectId) return;

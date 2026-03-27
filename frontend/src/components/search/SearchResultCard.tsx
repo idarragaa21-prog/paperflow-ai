@@ -17,7 +17,17 @@ export function DownloadTrace({ info }: { info: DownloadInfo }) {
         {info.used_fallback ? '⚠ Downloaded (fallback)' : '✓ Downloaded'}
       </span>
       {providerLabel && <span style={{ color: 'var(--rc-muted)', marginLeft: 8 }}>via {providerLabel}</span>}
-      {info.oa_url && <span style={{ color: 'var(--rc-muted)', marginLeft: 8, wordBreak: 'break-all' }}>{info.oa_url}</span>}
+      {info.used_fallback && info.original_oa_url && (
+        <div style={{ color: 'var(--rc-muted)', marginTop: 6, wordBreak: 'break-all' }}>
+          Original OA URL: {info.original_oa_url}
+        </div>
+      )}
+      {info.oa_url && (
+        <div style={{ color: 'var(--rc-muted)', marginTop: 6, wordBreak: 'break-all' }}>
+          {info.used_fallback ? 'Resolved URL: ' : 'OA URL: '}
+          {info.oa_url}
+        </div>
+      )}
     </div>
   );
   if (info.status === 'duplicate') return (
