@@ -74,7 +74,7 @@ async def get_templates(
             description=item.description,
             discipline=item.discipline,
             is_builtin=item.is_builtin,
-            schema_json=item.schema_json,
+            schema_definition=item.schema_json,
         )
         for item in templates
     ]

@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExtractionTemplateResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: UUID
     name: str
     slug: str
     description: str | None
     discipline: str | None
     is_builtin: bool
-    schema_json: dict
+    schema_definition: dict = Field(alias="schema_json", serialization_alias="schema_json")
 
 
 class ExtractionRecordCreate(BaseModel):

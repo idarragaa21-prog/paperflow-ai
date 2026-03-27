@@ -314,6 +314,11 @@ python3.11 -m venv backend/.venv
 4. Push to branch (`git push origin feat/my-feature`)
 5. Open a Pull Request
 
+## Release Baseline
+
+`master` is the only release-tracked branch. Divergent `feat/*`, `fix/*`, `audit/*`, `claude/*` or `codex/*` branches should not be mass-merged into release; reintegrate only by fresh validation against current `master` or selective cherry-picks.
+The operational release checklist lives in [docs/release_status.md](docs/release_status.md).
+
 ---
 
 ## License

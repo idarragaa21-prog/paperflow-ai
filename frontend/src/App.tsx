@@ -2,22 +2,19 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
 import ErrorBoundary from './components/ErrorBoundary';
-import AuthedLayout from './components/AuthedLayout';
-import ProjectLayout from './components/ProjectLayout';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import LandingPage from './pages/LandingPage';
-import NotFoundPage from './pages/NotFoundPage';
 import { useAuthStore } from './store/authStore';
 
-// Eager: lightweight pages
-import DashboardPage from './pages/DashboardPage';
-import ProjectsPage from './pages/ProjectsPage';
-import JobsPage from './pages/JobsPage';
-import SettingsPage from './pages/SettingsPage';
-
-// Lazy: heavy pages (code-split)
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SignupPage = lazy(() => import('./pages/SignupPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const AuthedLayout = lazy(() => import('./components/AuthedLayout'));
+const ProjectLayout = lazy(() => import('./components/ProjectLayout'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
+const JobsPage = lazy(() => import('./pages/JobsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const PapersPage = lazy(() => import('./pages/PapersPage'));
 const ReaderPage = lazy(() => import('./pages/ReaderPage'));

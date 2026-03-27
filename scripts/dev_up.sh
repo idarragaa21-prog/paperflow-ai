@@ -62,7 +62,7 @@ copy_if_missing "$BACKEND_DIR/.env.example" "$BACKEND_DIR/.env"
 copy_if_missing "$FRONTEND_DIR/.env.example" "$FRONTEND_DIR/.env"
 
 echo "[dev_up] starting infrastructure with docker compose..."
-(cd "$ROOT_DIR" && docker compose up -d postgres redis qdrant minio minio-init grobid r-engine)
+(cd "$ROOT_DIR" && docker compose up -d --remove-orphans postgres redis qdrant minio minio-init grobid r-engine)
 
 wait_for_url "http://127.0.0.1:8010/health" "r-engine"
 if [[ "$SKIP_GROBID_WAIT" == "1" ]]; then
