@@ -45,7 +45,8 @@ function PageLoader() {
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const loading = useAuthStore((s) => s.loading);
-  if (loading && !user) return <PageLoader />;
+  const initialized = useAuthStore((s) => s.initialized);
+  if (!initialized || (loading && !user)) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }

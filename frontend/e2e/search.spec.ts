@@ -1,16 +1,23 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { loadFixture } from './fixture';
+
+async function dismissTourIfPresent(page: Page) {
+  const skipTour = page.getByRole('button', { name: /skip tour/i });
+  if (await skipTour.count()) {
+    await skipTour.click();
+  }
+}
 
 test('search can return openable results and save at least one paper with honest result states', async ({ page }) => {
   const fixture = loadFixture();
+  const minYear = new Date().getFullYear() - 2;
   await page.goto(`/projects/${fixture.project.id}`);
   await expect(page).toHaveURL(new RegExp(`/projects/${fixture.project.id}/research$`));
+  await dismissTourIfPresent(page);
 
-  await page.getByRole('button', { name: 'Filtros' }).click();
-  await expect(page.getByTestId('search-recency-select')).toHaveValue('5y');
-
+  await page.getByTestId('search-filters-toggle').click();
   await page.getByTestId('search-query-input').fill('rotator cuff repair augmentation review');
-  await page.getByTestId('search-recency-select').selectOption('2y');
+  await page.getByTestId('search-year-from-input').fill(String(minYear));
   await page.getByTestId('search-submit-button').click();
 
   const firstCard = page.locator('[data-testid^="search-result-card-"]').first();
@@ -22,12 +29,11 @@ test('search can return openable results and save at least one paper with honest
       .filter((year) => Number.isFinite(year) && year > 0)
       .slice(0, 8),
   );
-  const minYear = new Date().getFullYear() - 2;
   expect(years.length).toBeGreaterThan(0);
   expect(years.every((year) => year >= minYear)).toBeTruthy();
 
-  await page.getByTestId('search-details-0').click();
-  await expect(firstCard).toContainText(/Estado:|Proveedor:|Contenido:/);
+  await expect(firstCard).toContainText(/PubMed|Europe PMC|DOAJ/);
+  await expect(firstCard).toContainText(/OA|Closed/);
 
   const firstOpenButton = page.locator('a[data-testid^="search-open-"]').first();
   await expect(firstOpenButton).toBeVisible({ timeout: 120000 });
@@ -43,34 +49,37 @@ test('search can return openable results and save at least one paper with honest
   const firstSaveButton = page.locator('[data-testid^="search-save-"]').first();
   if (await firstSaveButton.count()) {
     await firstSaveButton.click();
-    await expect(firstSaveButton).toHaveText(/Guardado en biblioteca|Ya est[aá] en la biblioteca|Reintentar guardado/, { timeout: 120000 });
+    const firstTrace = page.locator('[data-testid^="search-download-trace-"]').first();
+    await expect(firstTrace).toContainText(/Downloaded|Already in project|Failed/, { timeout: 120000 });
   }
 });
 
 test('batch download shows per-paper traceability in the modal', async ({ page }) => {
   const fixture = loadFixture();
+  const minYear = new Date().getFullYear() - 2;
   await page.goto(`/projects/${fixture.project.id}`);
   await expect(page).toHaveURL(new RegExp(`/projects/${fixture.project.id}/research$`));
+  await dismissTourIfPresent(page);
 
-  await page.getByRole('button', { name: 'Filtros' }).click();
+  await page.getByTestId('search-filters-toggle').click();
   await page.getByTestId('search-query-input').fill('rotator cuff repair augmentation review');
-  await page.getByTestId('search-recency-select').selectOption('2y');
+  await page.getByTestId('search-year-from-input').fill(String(minYear));
   await page.getByTestId('search-submit-button').click();
 
-  const selectableRows = page.locator('.rc-discover-selectable input[type="checkbox"]');
+  const selectableRows = page.locator('[data-testid^="search-select-"]');
   await expect(selectableRows.first()).toBeVisible({ timeout: 120000 });
   await selectableRows.first().check();
 
-  const batchButton = page.getByRole('button', { name: /Guardar seleccionados/ });
+  const batchButton = page.getByTestId('batch-download-button');
   await expect(batchButton).toContainText('(1)');
   await batchButton.click();
 
   const batchModal = page.getByTestId('batch-trace-modal');
   await expect(batchModal).toBeVisible({ timeout: 120000 });
-  await expect(batchModal.getByTestId('batch-trace-title')).toHaveText('Guardado por lote');
+  await expect(batchModal.getByTestId('batch-trace-title')).toHaveText('Batch OA Download');
 
   const firstTraceRow = batchModal.getByTestId('batch-trace-row-0');
   await expect(firstTraceRow).toBeVisible({ timeout: 120000 });
   await expect(firstTraceRow).toContainText(/Proveedor:|Proveedor no resuelto/);
-  await expect(firstTraceRow).toContainText(/OA URL|Landing URL|URL final usada|Motivo final/);
+  await expect(firstTraceRow).toContainText(/OA URL|Landing URL|Resolved URL|Resultado:/);
 });

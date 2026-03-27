@@ -10,6 +10,8 @@ jobs:
   backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+    env:
+      PAPERFLOW_DISABLE_DOTENV: "1"
     defaults:
       run:
         working-directory: backend
@@ -95,4 +97,3 @@ jobs:
 
       - name: Lint
         run: npm run lint -- --max-warnings 0
-        continue-on-error: true

@@ -103,6 +103,7 @@ export default function SearchPage() {
             <div className="rc-kicker">Research query</div>
             <input
               className="rc-input"
+              data-testid="search-query-input"
               value={search.query}
               onChange={(e) => search.setQuery(e.target.value)}
               placeholder="e.g. ACL reconstruction hamstring vs BPTB meta-analysis"
@@ -113,16 +114,16 @@ export default function SearchPage() {
             <div className="rc-kicker">Max results</div>
             <input className="rc-input" type="number" value={search.maxResults} min={1} max={100} onChange={(e) => search.setMaxResults(Number(e.target.value))} />
           </div>
-          <button className="rc-btn" onClick={filters.toggleFilters}>{filters.showFilters ? 'Hide Filters' : 'Filters'}</button>
-          <button className="rc-btn rc-btn--primary" disabled={!search.canSearch || search.loading} onClick={handleSearch}>
+          <button className="rc-btn" data-testid="search-filters-toggle" onClick={filters.toggleFilters}>{filters.showFilters ? 'Hide Filters' : 'Filters'}</button>
+          <button className="rc-btn rc-btn--primary" data-testid="search-submit-button" disabled={!search.canSearch || search.loading} onClick={handleSearch}>
             {search.loading ? 'Searching…' : 'Search'}
           </button>
         </div>
 
         {filters.showFilters && (
           <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
-            <div style={{ width: 100 }}><div className="rc-kicker">Year from</div><input className="rc-input" type="number" value={filters.yearFrom} min={1900} max={2030} placeholder="2018" onChange={(e) => filters.setYearFrom(e.target.value)} /></div>
-            <div style={{ width: 100 }}><div className="rc-kicker">Year to</div><input className="rc-input" type="number" value={filters.yearTo} min={1900} max={2030} placeholder="2025" onChange={(e) => filters.setYearTo(e.target.value)} /></div>
+            <div style={{ width: 100 }}><div className="rc-kicker">Year from</div><input className="rc-input" data-testid="search-year-from-input" type="number" value={filters.yearFrom} min={1900} max={2030} placeholder="2018" onChange={(e) => filters.setYearFrom(e.target.value)} /></div>
+            <div style={{ width: 100 }}><div className="rc-kicker">Year to</div><input className="rc-input" data-testid="search-year-to-input" type="number" value={filters.yearTo} min={1900} max={2030} placeholder="2025" onChange={(e) => filters.setYearTo(e.target.value)} /></div>
             <div style={{ width: 180 }}><div className="rc-kicker">Journal</div><input className="rc-input" value={filters.journalFilter} placeholder="e.g. Lancet" onChange={(e) => filters.setJournalFilter(e.target.value)} /></div>
             <div style={{ width: 140 }}>
               <div className="rc-kicker">Source</div>
@@ -205,6 +206,7 @@ export default function SearchPage() {
               {projectId ? (
                 <button
                   className="rc-btn rc-btn--primary rc-btn--sm"
+                  data-testid="batch-download-button"
                   disabled={search.selectedCount === 0}
                   onClick={() => batch.startBatchDownload(projectId, search.selectedPapers, search.setError)}
                 >
@@ -246,10 +248,10 @@ export default function SearchPage() {
 
       {/* ── Batch modal ── */}
       {batch.batchModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }} onClick={() => batch.setBatchModalOpen(false)}>
+        <div data-testid="batch-trace-modal" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }} onClick={() => batch.setBatchModalOpen(false)}>
           <div className="rc-card" style={{ width: 'min(520px, 96vw)' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 800, fontFamily: 'var(--font-display)' }}>Batch OA Download</div>
+              <div data-testid="batch-trace-title" style={{ fontWeight: 800, fontFamily: 'var(--font-display)' }}>Batch OA Download</div>
               <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => batch.setBatchModalOpen(false)}>✕</button>
             </div>
             <div className="rc-help" style={{ marginBottom: 8 }}>Job: <span style={{ fontFamily: 'monospace' }}>{batch.batchJobId}</span></div>
@@ -273,7 +275,12 @@ export default function SearchPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '48vh', overflowY: 'auto', paddingRight: 4 }}>
                   {batch.batchJob.output.items.map((item, index) => (
-                    <div key={`${item.paper_id || item.doi || item.pmid || item.title}-${index}`} className="rc-card" style={{ padding: 12 }}>
+                    <div
+                      key={`${item.paper_id || item.doi || item.pmid || item.title}-${index}`}
+                      className="rc-card"
+                      data-testid={`batch-trace-row-${index}`}
+                      style={{ padding: 12 }}
+                    >
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 8 }}>
                         <div>
                           <div style={{ fontWeight: 700 }}>{item.title}</div>

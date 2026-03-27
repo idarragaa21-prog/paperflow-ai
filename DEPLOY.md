@@ -14,6 +14,8 @@ Set these Vercel environment variables:
 - `VITE_API_BASE_URL=https://<your-backend-origin>`
 - `VITE_USE_SAME_ORIGIN_API=false`
 
+You can start from [frontend/.env.production.example](/Users/diegoalejandroidarragalopez/Documents/New%20project/frontend/.env.production.example).
+
 `VITE_API_BASE_URL` is mandatory in production for the default deploy.
 `same-origin` is only supported if you deploy a real reverse proxy that preserves `/api/*`.
 The current `vercel.json` intentionally avoids rewriting `/api/*` to `index.html`.

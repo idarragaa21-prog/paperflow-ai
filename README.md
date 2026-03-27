@@ -101,7 +101,7 @@ This will:
 4. Create a demo user
 5. Start the backend API and frontend dev server
 
-Open **http://localhost:5173** and sign in with `demo@paperflow.ai` / `demo1234`.
+Open **http://127.0.0.1:5173** and sign in with `demo@paperflow.ai` / `demo1234`.
 
 ### Option B: Step-by-step (development)
 
@@ -244,7 +244,7 @@ paperflow-ai/
 | Notes | `/notes` | CRUD per project |
 | Jobs | `/jobs` | Background job tracking, cancel |
 
-Full API docs available at **http://localhost:8000/docs** when backend is running.
+Full API docs available at **http://127.0.0.1:8000/docs** when backend is running.
 
 ---
 

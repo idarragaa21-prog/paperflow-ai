@@ -54,10 +54,21 @@ export function SearchResultCard({
   const srcColor = SOURCE_COLORS[r.source || ''] || '#6b7280';
 
   return (
-    <div className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div
+      className="rc-card"
+      data-testid={`search-result-card-${idx}`}
+      data-pub-year={r.pub_year ?? ''}
+      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+    >
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <input type="checkbox" disabled={!canDownload} checked={isSelected}
-          onChange={() => search.setSelected((p) => ({ ...p, [key]: !p[key] }))} style={{ marginTop: 3 }} />
+        <input
+          type="checkbox"
+          data-testid={`search-select-${idx}`}
+          disabled={!canDownload}
+          checked={isSelected}
+          onChange={() => search.setSelected((p) => ({ ...p, [key]: !p[key] }))}
+          style={{ marginTop: 3 }}
+        />
         <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: srcColor + '18', color: srcColor, border: `1px solid ${srcColor}40` }}>
@@ -79,19 +90,42 @@ export function SearchResultCard({
             {r.abstract}
           </div>
           {r.abstract.length > 200 && (
-            <button onClick={() => search.toggleAbstract(key)} style={{ background: 'none', border: 'none', color: 'var(--rc-accent,#6366f1)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '2px 0', marginTop: 2 }}>
+            <button
+              data-testid={`search-details-${idx}`}
+              onClick={() => search.toggleAbstract(key)}
+              style={{ background: 'none', border: 'none', color: 'var(--rc-accent,#6366f1)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '2px 0', marginTop: 2 }}
+            >
               {isExpanded ? 'Show less ▲' : 'Show more ▼'}
             </button>
           )}
         </div>
       )}
       <div className="rc-row" style={{ flexWrap: 'wrap', gap: 6 }}>
-        <button className="rc-btn" disabled={!canDownload || search.downloadingKey === key} onClick={() => search.downloadOA(r)}>
+        <button
+          className="rc-btn"
+          data-testid={`search-save-${idx}`}
+          disabled={!canDownload || search.downloadingKey === key}
+          onClick={() => search.downloadOA(r)}
+        >
           {search.downloadingKey === key ? 'Downloading…' : 'Download OA PDF'}
         </button>
-        {r.oa_url && <a href={r.oa_url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>OA link ↗</a>}
+        {r.oa_url && (
+          <a
+            data-testid={`search-open-${idx}`}
+            href={r.oa_url}
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 12 }}
+          >
+            OA link ↗
+          </a>
+        )}
       </div>
-      {dlInfo && <DownloadTrace info={dlInfo} />}
+      {dlInfo && (
+        <div data-testid={`search-download-trace-${idx}`}>
+          <DownloadTrace info={dlInfo} />
+        </div>
+      )}
     </div>
   );
 }
