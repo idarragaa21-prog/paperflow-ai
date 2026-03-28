@@ -6,6 +6,14 @@ from typing import Any
 from app.config import settings
 from app.core.logger import logger
 from app.schemas.clinical_pro import ClinicalProOutput
+from app.services.clinical.prompts import (
+    clinical_pro_critic_system_prompt,
+    clinical_pro_revise_system_prompt,
+    clinical_pro_schema_repair_prompt,
+    clinical_pro_validate_system_prompt,
+    clinical_pro_writer_system_prompt,
+)
+from app.services.llm.claude import ClaudeProvider
 from app.services.llm.openclaw import OpenClawProvider
 
 
@@ -33,14 +41,37 @@ def _safe_json_loads(text: str) -> Any:
         return json.loads(text[start:end])
 
 
-async def _json_repair(openclaw: OpenClawProvider, *, model: str, previous_output: str, error: str) -> dict[str, Any]:
+async def _json_repair(llm: ClaudeProvider | OpenClawProvider, *, model: str, previous_output: str, error: str) -> dict[str, Any]:
     system = (
         "Tu salida anterior NO fue JSON válido. Devuelve SOLO JSON válido, sin markdown, sin comentarios. "
         "Corrige solo sintaxis (llaves, comas, comillas) y preserva el contenido clínico."
     )
     user = json.dumps({"error": error, "previous_output": previous_output[:24000]}, ensure_ascii=False)
-    r = await openclaw.chat(model=model, system=system, user=user, temperature=0.0, max_tokens=4096, timeout=360, retry=2)
+    r = await llm.chat(model=model, system=system, user=user, temperature=0.0, max_tokens=4096, timeout=360, retry=2)
     return _safe_json_loads(r.get("content") or "")
+
+
+def _clinical_openai_model() -> str:
+    configured = str(settings.OPENCLAW_OPENAI_MODEL or "").strip()
+    return configured if configured and configured != "default" else "gpt-4o"
+
+
+def _should_use_claude() -> bool:
+    if settings.CLINICAL_LLM_PROVIDER != "claude":
+        return False
+    return bool(settings.ANTHROPIC_API_KEY)
+
+
+def _select_clinical_llm() -> tuple[ClaudeProvider | OpenClawProvider, str, str, list[str]]:
+    warnings: list[str] = []
+    if _should_use_claude():
+        model = str(settings.CLAUDE_MODEL or "").strip() or "claude-sonnet-4-6"
+        return ClaudeProvider(), "claude", model, warnings
+
+    model = _clinical_openai_model()
+    if settings.CLINICAL_LLM_PROVIDER == "claude" and not settings.ANTHROPIC_API_KEY:
+        warnings.append("ANTHROPIC_API_KEY no configurada; Clinical PRO usó fallback OpenAI.")
+    return OpenClawProvider(), "openai", model, warnings
 
 
 async def generate_clinical_pro_output(
@@ -55,15 +86,13 @@ async def generate_clinical_pro_output(
     max_length: str,
     progress_cb: Any | None = None,
 ) -> tuple[ClinicalProOutput, dict[str, Any], list[str]]:
-    """4-pass PRO generation: Claude writer -> OpenAI critic -> Claude revise -> Gemini validate.
+    """4-pass PRO generation using Claude Sonnet 4 when available, else OpenAI fallback.
 
     Returns: (validated_output, usage, warnings)
     """
 
-    oc = OpenClawProvider()
-
-    warnings: list[str] = []
-    usage: dict[str, Any] = {"passes": []}
+    llm, provider_name, model_name, warnings = _select_clinical_llm()
+    usage: dict[str, Any] = {"provider": provider_name, "passes": []}
 
     import inspect
 
@@ -77,28 +106,9 @@ async def generate_clinical_pro_output(
         except Exception:
             return
 
-    # PASS 1: Writer (Claude)
+    # PASS 1: Writer
     await prog(45, "writer")
-    logger.info(f"[clinical_pro] pass=writer model={settings.OPENCLAW_CLAUDE_MODEL}")
-    system_writer = (
-        "Eres un ortopedista experto y metodólogo clínico. Genera una ficha tipo UpToDate basada PRINCIPALMENTE en ARTÍCULOS científicos. "
-        "Libros locales solo complementan definiciones/fisiopatología/contexto histórico (nunca dominan recomendaciones si hay artículos).\n\n"
-        "DEVUELVE SOLO JSON válido (sin markdown, sin texto extra).\n"
-        "Schema (obligatorio): {title, sections:[{id,title,content_markdown}], tables:[{title,columns,rows}], charts:[{title,type,data,note}], mermaid:[{title,code}], evidence_map:[{question,conclusion,strength,key_papers,limitations}], references_vancouver:[...], quality:{evidence_strength,gaps}}\n\n"
-        "Secciones obligatorias (en este orden):\n"
-        "A) Resumen Ejecutivo (5-8 bullets ultraclínicos)\n"
-        "B) Definición + fisiopatología (breve)\n"
-        "C) Diagnóstico (algoritmo)\n"
-        "D) Tratamiento (tabla por escenarios)\n"
-        "E) Perlas clínicas + errores frecuentes\n"
-        "F) Controversias / zonas grises (con evidencia)\n"
-        "G) Checklist para guardia / consultorio\n"
-        "H) Referencias (Vancouver)\n\n"
-        "Obligatorio: 3-6 tablas mínimo (ideal 5) y 2 charts (si no hay datos, conceptual).\n"
-        "Obligatorio: 1 mermaid mindmap o flowchart (mapa conceptual) y 1 mermaid flowchart (algoritmo clínico).\n"
-        "CITAS: En cada sección, termina con 'Fuentes: ...' con PMIDs/DOIs visibles. Si no hay evidencia, 'Fuentes: (No encontrado / evidencia insuficiente)'.\n"
-        "Para afirmaciones importantes, añade al final: (PMID/DOI + tipo de estudio + año). No inventes."
-    )
+    logger.info(f"[clinical_pro] pass=writer provider={provider_name} model={model_name}")
 
     user_writer = json.dumps(
         {
@@ -114,9 +124,9 @@ async def generate_clinical_pro_output(
         ensure_ascii=False,
     )
 
-    r1 = await oc.chat(
-        model=settings.OPENCLAW_CLAUDE_MODEL,
-        system=system_writer,
+    r1 = await llm.chat(
+        model=model_name,
+        system=clinical_pro_writer_system_prompt(),
         user=user_writer,
         temperature=0.3,
         max_tokens=4096,
@@ -130,21 +140,16 @@ async def generate_clinical_pro_output(
         draft_json = _safe_json_loads(draft_text)
     except Exception as e:
         warnings.append("Writer output was not valid JSON; attempted repair.")
-        draft_json = await _json_repair(oc, model=settings.OPENCLAW_CLAUDE_MODEL, previous_output=draft_text, error=str(e))
+        draft_json = await _json_repair(llm, model=model_name, previous_output=draft_text, error=str(e))
 
-    # PASS 2: Critic (OpenAI)
+    # PASS 2: Critic
     await prog(55, "critic")
-    logger.info(f"[clinical_pro] pass=critic model={settings.OPENCLAW_OPENAI_MODEL}")
-    system_crit = (
-        "Eres un crítico clínico-metodológico. Devuelve SOLO JSON válido.\n"
-        "Evalúa el JSON draft contra los requisitos: secciones A-H, min tablas (>=5), charts (>=2), mermaid (>=2: mindmap+flowchart), evidence_map presente, citas PMIDs/DOIs, libros secundarios.\n"
-        "Devuelve: {issues:[{severity,path,problem,fix}], summary:string}."
-    )
+    logger.info(f"[clinical_pro] pass=critic provider={provider_name} model={model_name}")
     user_crit = json.dumps({"draft": draft_json}, ensure_ascii=False)
 
-    r2 = await oc.chat(
-        model=settings.OPENCLAW_OPENAI_MODEL,
-        system=system_crit,
+    r2 = await llm.chat(
+        model=model_name,
+        system=clinical_pro_critic_system_prompt(),
         user=user_crit,
         temperature=0.0,
         max_tokens=2048,
@@ -160,19 +165,14 @@ async def generate_clinical_pro_output(
         warnings.append("Critic output was not valid JSON; ignoring critique.")
         critique_json = {"issues": [], "summary": f"critic_invalid_json: {e}"}
 
-    # PASS 3: Revise (Claude)
+    # PASS 3: Revise
     await prog(65, "revise")
-    logger.info(f"[clinical_pro] pass=revise model={settings.OPENCLAW_CLAUDE_MODEL}")
-    system_rev = (
-        "Eres el escritor senior. Devuelve SOLO JSON válido FINAL, cumpliendo todos los requisitos.\n"
-        "Aplica las correcciones del crítico. No inventes PMIDs/DOIs/años/tipos.\n"
-        "Recuerda: ARTÍCULOS dominan; libros solo conceptual."
-    )
+    logger.info(f"[clinical_pro] pass=revise provider={provider_name} model={model_name}")
     user_rev = json.dumps({"draft": draft_json, "critique": critique_json}, ensure_ascii=False)
 
-    r3 = await oc.chat(
-        model=settings.OPENCLAW_CLAUDE_MODEL,
-        system=system_rev,
+    r3 = await llm.chat(
+        model=model_name,
+        system=clinical_pro_revise_system_prompt(),
         user=user_rev,
         temperature=0.3,
         max_tokens=4096,
@@ -186,21 +186,16 @@ async def generate_clinical_pro_output(
         rev_json = _safe_json_loads(rev_text)
     except Exception as e:
         warnings.append("Revise output was not valid JSON; attempted repair.")
-        rev_json = await _json_repair(oc, model=settings.OPENCLAW_CLAUDE_MODEL, previous_output=rev_text, error=str(e))
+        rev_json = await _json_repair(llm, model=model_name, previous_output=rev_text, error=str(e))
 
-    # PASS 4: Validate (Gemini)
+    # PASS 4: Validate
     await prog(72, "validate")
-    logger.info(f"[clinical_pro] pass=validate model={settings.OPENCLAW_GEMINI_MODEL}")
-    system_val = (
-        "Eres un validador estricto. Devuelve SOLO JSON válido.\n"
-        "Valida que el objeto cumpla schema y requisitos mínimos (secciones A-H, tablas>=5, charts>=2, mermaid>=2, evidence_map>=1).\n"
-        "No inventes nada. Devuelve: {ok:bool, issues:[{severity,path,problem}], missing:[...]}"
-    )
+    logger.info(f"[clinical_pro] pass=validate provider={provider_name} model={model_name}")
     user_val = json.dumps({"candidate": rev_json}, ensure_ascii=False)
 
-    r4 = await oc.chat(
-        model=settings.OPENCLAW_GEMINI_MODEL,
-        system=system_val,
+    r4 = await llm.chat(
+        model=model_name,
+        system=clinical_pro_validate_system_prompt(),
         user=user_val,
         temperature=0.0,
         max_tokens=2048,
@@ -317,18 +312,12 @@ async def generate_clinical_pro_output(
     try:
         out = ClinicalProOutput.model_validate(candidate)
     except Exception as e:
-        # last resort: try a schema repair with Claude
+        # Last resort: ask the selected clinical model to repair the schema.
         warnings.append(f"Schema validation failed; attempted schema repair: {e}")
-        system_schema = (
-            "Tu JSON no cumple el schema requerido. Devuelve SOLO JSON válido que cumpla EXACTAMENTE el schema. "
-            "Campos enum: quality.evidence_strength y evidence_map[*].strength deben ser EXACTAMENTE: 'high'|'medium'|'low'. "
-            "charts[*].type debe ser EXACTAMENTE: 'bar'|'line'|'forest_like'|'conceptual'. "
-            "quality.gaps debe ser lista de strings. "
-            "No inventes referencias. Si faltan datos, usa placeholders '(No encontrado / evidencia insuficiente)'."
-        )
+        system_schema = clinical_pro_schema_repair_prompt()
         user_schema = json.dumps({"error": str(e), "candidate": candidate}, ensure_ascii=False)
-        rr = await oc.chat(
-            model=settings.OPENCLAW_CLAUDE_MODEL,
+        rr = await llm.chat(
+            model=model_name,
             system=system_schema,
             user=user_schema,
             temperature=0.0,

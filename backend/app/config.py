@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     # LLM
     LLM_PROVIDER: str = "openclaw"  # openclaw | direct_claude
     LLM_STRATEGY: str = "single"  # single | ensemble
+    CLINICAL_LLM_PROVIDER: str = "claude"  # claude | openai
     PROJECT_DEFAULT_RUNTIME_MODE: str = "local_only"
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     PAPERFLOW_CHAT_MODEL: str = "qwen2.5:7b"
@@ -99,7 +100,7 @@ class Settings(BaseSettings):
 
     # Optional direct providers (limited)
     ANTHROPIC_API_KEY: str | None = None
-    CLAUDE_MODEL: str = "claude-3-5-sonnet-20240620"
+    CLAUDE_MODEL: str = "claude-sonnet-4-6"
     CLAUDE_MAX_TOKENS: int = 4096
     CLAUDE_TEMPERATURE: float = 0.3
 
@@ -155,6 +156,12 @@ class Settings(BaseSettings):
         cleaned = str(value).strip().lower()
         return cleaned or None
 
+    @field_validator("CLINICAL_LLM_PROVIDER", mode="before")
+    @classmethod
+    def normalize_clinical_llm_provider(cls, value):
+        cleaned = str(value or "").strip().lower()
+        return cleaned or "claude"
+
     @classmethod
     def _normalize_origin(cls, value) -> str:
         origin = str(value or "").strip().rstrip("/")
@@ -198,6 +205,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
+        if self.CLINICAL_LLM_PROVIDER not in {"claude", "openai"}:
+            raise ValueError("CLINICAL_LLM_PROVIDER must be one of: claude, openai")
+
         if self.cookie_samesite not in {"lax", "strict", "none"}:
             raise ValueError("COOKIE_SAMESITE must be one of: lax, strict, none")
 
