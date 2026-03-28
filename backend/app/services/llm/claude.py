@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -25,16 +26,54 @@ class ClaudeProvider(LLMProvider):
         self.max_tokens = settings.CLAUDE_MAX_TOKENS
         self.temperature = settings.CLAUDE_TEMPERATURE
 
-    async def _chat(self, *, system: str, user: str, temperature: float | None = None, max_tokens: int | None = None) -> dict[str, Any]:
+    async def chat(
+        self,
+        *,
+        model: str | None = None,
+        system: str,
+        user: str,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        timeout: int | None = None,
+        retry: int = 2,
+    ) -> dict[str, Any]:
+        last_err: Exception | None = None
+        for attempt in range(retry + 1):
+            try:
+                return await self._chat(
+                    model=model,
+                    system=system,
+                    user=user,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    timeout=timeout,
+                )
+            except Exception as exc:
+                last_err = exc
+                if attempt < retry:
+                    await asyncio.sleep(0.25 * (attempt + 1))
+        raise RuntimeError(f"Claude chat failed for model={model or self.model}: {last_err}")
+
+    async def _chat(
+        self,
+        *,
+        model: str | None = None,
+        system: str,
+        user: str,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
         """Call Claude messages API and return a normalised response dict."""
         t0 = time.perf_counter()
-        msg = await self.client.messages.create(
-            model=self.model,
+        request = self.client.messages.create(
+            model=model or self.model,
             max_tokens=max_tokens or self.max_tokens,
             temperature=temperature if temperature is not None else self.temperature,
             system=system,
             messages=[{"role": "user", "content": user}],
         )
+        msg = await asyncio.wait_for(request, timeout=timeout) if timeout else await request
         latency_ms = int((time.perf_counter() - t0) * 1000)
         content = msg.content[0].text if msg.content else ""
         usage = msg.usage
@@ -79,7 +118,7 @@ class ClaudeProvider(LLMProvider):
         if custom_instructions:
             user += f"\nInstrucciones adicionales del usuario: {custom_instructions}\n"
 
-        r = await self._chat(system=system, user=user, temperature=0.2, max_tokens=4096)
+        r = await self.chat(system=system, user=user, temperature=0.2, max_tokens=4096)
         return {
             "summary": r["content"],
             "usage": r["usage"],
@@ -133,7 +172,7 @@ class ClaudeProvider(LLMProvider):
                 "include_citations": True,
             },
         }
-        r = await self._chat(system=system, user=str(user_payload), temperature=0.3, max_tokens=4096)
+        r = await self.chat(system=system, user=str(user_payload), temperature=0.3, max_tokens=4096)
         return {
             "outline": {"title": topic, "raw": r["content"], "slides": []},
             "usage": r["usage"],

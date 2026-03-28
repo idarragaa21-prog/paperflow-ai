@@ -19,7 +19,12 @@ from app.schemas.drafts import (
     GenerateDraftSectionRequest,
     ResolveDraftCitationsRequest,
 )
-from app.services.writing_service import build_evidence_table, generate_section, resolve_section_citations
+from app.services.writing_service import (
+    build_evidence_table,
+    enhance_draft_with_clinical_evidence,
+    generate_section,
+    resolve_section_citations,
+)
 
 router = APIRouter(tags=["drafts"])
 
@@ -207,6 +212,31 @@ async def resolve_draft_citations(
     if target_section is None:
         raise HTTPException(status_code=404, detail="Draft section not found")
     await resolve_section_citations(db, section=target_section)
+    refreshed = await db.execute(
+        select(Draft).where(Draft.id == draft.id).options(selectinload(Draft.sections).selectinload(DraftSection.citations))
+    )
+    return _draft_to_response(refreshed.scalars().first())
+
+
+@router.post("/drafts/{draft_id}/enhance-with-clinical", response_model=DraftResponse)
+async def enhance_draft_with_clinical(
+    draft_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    stmt = (
+        select(Draft)
+        .where(Draft.id == draft_id)
+        .options(selectinload(Draft.sections).selectinload(DraftSection.citations))
+    )
+    result = await db.execute(stmt)
+    draft = result.scalars().first()
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    await _require_project(db, draft.project_id, user)
+
+    await enhance_draft_with_clinical_evidence(db, draft=draft, user_id=user.id)
+
     refreshed = await db.execute(
         select(Draft).where(Draft.id == draft.id).options(selectinload(Draft.sections).selectinload(DraftSection.citations))
     )

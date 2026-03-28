@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.database import async_session_maker
 from app.models.clinical import ClinicalSheet
@@ -15,8 +15,8 @@ async def load_clinical_sheet_or_skip() -> ClinicalSheet:
     async with async_session_maker() as db:
         try:
             table_name = await db.scalar(text("select to_regclass('public.clinical_sheets')"))
-        except ProgrammingError as exc:
-            pytest.skip(f"clinical_sheets table is not available in the current test database: {exc}")
+        except (ProgrammingError, OperationalError, OSError) as exc:
+            pytest.skip(f"clinical_sheets fixture database is not available in the current test environment: {exc}")
 
         if table_name is None:
             pytest.skip("clinical_sheets table is not available in the current test database")

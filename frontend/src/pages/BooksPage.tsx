@@ -111,7 +111,13 @@ export default function BooksPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 980 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0 }}>Books</h2>
+        <div>
+          <div className="rc-kicker">Workspace / Private Knowledge Sources</div>
+          <h2 style={{ margin: 0 }}>Private Knowledge Sources</h2>
+          <div className="rc-help" style={{ marginTop: 4 }}>
+            Index internal PDFs and reference books into your private knowledge layer.
+          </div>
+        </div>
         <button onClick={load} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
@@ -125,7 +131,7 @@ export default function BooksPage() {
       {error ? <div style={{ color: 'crimson' }}>{String(error)}</div> : null}
 
       <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Index books from the server BOOKS folder (recommended)</div>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Index knowledge sources from the server BOOKS folder (recommended)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={scanFolder} disabled={Boolean(scanJobId)}>
             {scanJobId ? 'Scanning…' : 'Scan BOOKS folder + index'}
@@ -138,12 +144,12 @@ export default function BooksPage() {
           ) : null}
         </div>
         <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
-          Put your PDFs in STORAGE_BASE_PATH/BOOKS on the server (no upload needed). Indexing runs async (RQ/Redis).
+          Put your PDFs in STORAGE_BASE_PATH/BOOKS on the server (no upload needed). Indexing runs async (RQ/Redis) and keeps them available as private knowledge sources.
         </div>
       </div>
 
       <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Upload a book (optional)</div>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Upload a private source (optional)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
           <button onClick={upload} disabled={!file || uploading}>
@@ -174,9 +180,9 @@ export default function BooksPage() {
               <circle cx="68" cy="70" r="16" fill="var(--rc-surface)" stroke="rgba(59,130,246,0.28)" strokeWidth="1.5"/>
               <path d="M64 70h8M68 66v8" stroke="rgba(59,130,246,0.65)" strokeWidth="2.2" strokeLinecap="round"/>
             </svg>
-            <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>No books indexed yet</div>
+            <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>No private knowledge sources indexed yet</div>
             <div style={{ fontSize: 13, color: 'var(--rc-muted)', marginTop: 5, maxWidth: 280, margin: '5px auto 0' }}>
-              Place PDFs in <code style={{ background: 'rgba(59,130,246,0.08)', padding: '1px 5px', borderRadius: 4, fontSize: 12 }}>STORAGE_BASE_PATH/BOOKS</code> on the server to start indexing.
+              Place PDFs in <code style={{ background: 'rgba(59,130,246,0.08)', padding: '1px 5px', borderRadius: 4, fontSize: 12 }}>STORAGE_BASE_PATH/BOOKS</code> on the server to start indexing your private knowledge base.
             </div>
           </div>
         ) : null}

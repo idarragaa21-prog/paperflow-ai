@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import re
+from types import SimpleNamespace
 from uuid import UUID
 
 from sqlalchemy import select
@@ -161,3 +162,91 @@ async def resolve_section_citations(db: AsyncSession, *, section: DraftSection) 
         created.append(citation)
     await db.commit()
     return created
+
+
+def _build_clinical_context_for_draft(draft: Draft) -> str | None:
+    snippets: list[str] = []
+    for section in sorted(draft.sections, key=lambda item: item.position)[:4]:
+        content = (section.content or "").strip()
+        if not content:
+            continue
+        snippet = content[:900]
+        if len(content) > 900:
+            snippet = f"{snippet}..."
+        snippets.append(f"{section.heading}: {snippet}")
+    if not snippets:
+        return None
+    return "Existing draft context:\n" + "\n\n".join(snippets)
+
+
+async def enhance_draft_with_clinical_evidence(
+    db: AsyncSession,
+    *,
+    draft: Draft,
+    user_id: UUID,
+) -> DraftSection:
+    from app.services.clinical.generator import generate_clinical_sheet
+
+    context = _build_clinical_context_for_draft(draft)
+    clinical_request = SimpleNamespace(
+        project_id=draft.project_id,
+        user_id=user_id,
+        topic=draft.title,
+        input_params={
+            "context": context,
+            "objective": "quick_review",
+            "focus": "complete",
+            "level": "specialist",
+            "max_length": "standard",
+            "use_project_papers": True,
+            "search_online": True,
+            "use_books": True,
+            "pro_output": True,
+        },
+    )
+    output = await generate_clinical_sheet(db=db, sheet=clinical_request, progress_cb=None)
+
+    heading = "Clinical evidence enrichment"
+    content = str(output.get("content_markdown") or "").strip()
+    if not content:
+        raise RuntimeError("Clinical enrichment returned empty content")
+
+    source_summary = {
+        "generated_from": "clinical_pipeline",
+        "format_version": output.get("format_version"),
+        "llm_model": output.get("llm_model"),
+        "warnings": output.get("warnings") or [],
+        "sources_used": output.get("sources_used") or {},
+    }
+    metadata = dict(draft.metadata_json or {})
+    metadata["clinical_enrichment"] = {
+        "heading": heading,
+        "format_version": output.get("format_version"),
+        "llm_model": output.get("llm_model"),
+        "warnings": output.get("warnings") or [],
+    }
+    draft.metadata_json = metadata
+
+    existing_section = next((section for section in draft.sections if section.heading == heading), None)
+    if existing_section is None:
+        existing_section = DraftSection(
+            draft_id=draft.id,
+            heading=heading,
+            position=len(draft.sections),
+            content=content,
+            generated_with_model=str(output.get("llm_model") or "clinical"),
+            confidence=0.82,
+            source_summary=source_summary,
+        )
+        draft.sections.append(existing_section)
+        db.add(existing_section)
+    else:
+        existing_section.content = content
+        existing_section.generated_with_model = str(output.get("llm_model") or "clinical")
+        existing_section.confidence = 0.82
+        existing_section.source_summary = source_summary
+
+    draft.version += 1
+    await db.commit()
+    await db.refresh(existing_section)
+    return existing_section

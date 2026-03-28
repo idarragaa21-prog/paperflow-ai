@@ -23,8 +23,8 @@ This document tracks the non-destructive transition from `ResearchConsole` to `P
 
 | Current module | Status | Replacement path |
 | --- | --- | --- |
-| `clinical` | Legacy/internal | `drafts` + `writing studio` |
-| `books` | Legacy/internal | private knowledge sources later |
+| `clinical` | Bridged/internal | `drafts` + Writing Studio via `POST /drafts/{id}/enhance-with-clinical` |
+| `books` | Bridged/internal | private knowledge sources UI via `/knowledge` (backend `/books` kept for compatibility) |
 | `presentations` | Optional/secondary | post-MVP |
 
 ## Data model migration rules
