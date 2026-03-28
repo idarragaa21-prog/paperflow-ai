@@ -8,6 +8,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.analysis import router as analysis_router
+from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
 from app.api.drafts import router as drafts_router
 from app.api.jobs import router as jobs_router
@@ -59,6 +60,7 @@ instrument_fastapi(app)
 
 # Routers
 app.include_router(auth_router)
+app.include_router(billing_router)
 app.include_router(presentations_router)
 app.include_router(jobs_router)
 app.include_router(search_router)

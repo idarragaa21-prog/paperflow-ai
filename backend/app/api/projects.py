@@ -12,10 +12,17 @@ from app.api.deps import get_current_user, get_db
 from app.core.storage import storage_manager
 from app.middleware.rate_limit import limiter
 from app.models.job import Job
+from app.models.membership import PROJECT_MEMBER_ROLES, ProjectMembership
 from app.models.project import Project
 from app.models.user import User
+from app.schemas.membership import (
+    ProjectMemberInviteRequest,
+    ProjectMemberResponse,
+    ProjectMemberUpdateRequest,
+)
 from app.schemas.projects import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.jobs import get_job_queue
+from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -38,6 +45,70 @@ def _project_response(project: Project) -> ProjectResponse:
         runtime_mode=getattr(project, "runtime_mode", "local_only") or "local_only",
         archived=project.archived,
     )
+
+
+def _normalize_membership_role(role: str | None) -> str:
+    return role if role in PROJECT_MEMBER_ROLES else "viewer"
+
+
+def _member_response(*, project_id: UUID, user: User, role: str, membership: ProjectMembership | None = None) -> ProjectMemberResponse:
+    return ProjectMemberResponse(
+        id=getattr(membership, "id", None),
+        project_id=project_id,
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        role=_normalize_membership_role(role),  # type: ignore[arg-type]
+        created_at=getattr(membership, "created_at", None),
+    )
+
+
+async def _list_project_members(db: AsyncSession, *, project: Project) -> list[ProjectMemberResponse]:
+    rows = await db.execute(
+        select(ProjectMembership, User)
+        .join(User, User.id == ProjectMembership.user_id)
+        .where(ProjectMembership.project_id == project.id)
+        .order_by(ProjectMembership.created_at.asc())
+    )
+
+    members_by_user: dict[UUID, ProjectMemberResponse] = {}
+    owner_user = await db.get(User, project.user_id)
+    if owner_user is not None:
+        members_by_user[owner_user.id] = _member_response(project_id=project.id, user=owner_user, role="owner")
+
+    for membership, member_user in rows.all():
+        effective_role = "owner" if member_user.id == project.user_id else _normalize_membership_role(membership.role)
+        existing = members_by_user.get(member_user.id)
+        if existing is None or existing.role != "owner":
+            members_by_user[member_user.id] = _member_response(
+                project_id=project.id,
+                user=member_user,
+                role=effective_role,
+                membership=membership,
+            )
+
+    ordered = sorted(
+        members_by_user.values(),
+        key=lambda item: (
+            0 if item.role == "owner" else 1 if item.role == "editor" else 2,
+            (item.full_name or item.email).lower(),
+        ),
+    )
+    return ordered
+
+
+async def _get_membership_for_user(
+    db: AsyncSession,
+    *,
+    project_id: UUID,
+    user_id: UUID,
+) -> ProjectMembership | None:
+    result = await db.execute(
+        select(ProjectMembership)
+        .where(ProjectMembership.project_id == project_id)
+        .where(ProjectMembership.user_id == user_id)
+    )
+    return result.scalars().first()
 
 
 @router.post("", response_model=ProjectResponse)
@@ -83,6 +154,103 @@ async def get_project(
     if not project or project.user_id != user.id:
         raise HTTPException(status_code=404, detail="Project not found")
     return _project_response(project)
+
+
+@router.get("/{project_id}/members", response_model=list[ProjectMemberResponse])
+async def list_project_members(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    return await _list_project_members(db, project=project)
+
+
+@router.post("/{project_id}/members", response_model=ProjectMemberResponse)
+@limiter.limit("20/minute")
+async def invite_project_member(
+    request: Request,
+    project_id: UUID,
+    payload: ProjectMemberInviteRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+
+    email = payload.email.strip().lower()
+    if "@" not in email:
+        raise HTTPException(status_code=422, detail="Email inválido")
+
+    result = await db.execute(select(User).where(User.email == email))
+    invited_user = result.scalar_one_or_none()
+    if invited_user is None:
+        raise HTTPException(status_code=404, detail="User not found for that email")
+
+    role = "owner" if invited_user.id == project.user_id else payload.role
+    membership = await _get_membership_for_user(db, project_id=project.id, user_id=invited_user.id)
+    if membership is None:
+        membership = ProjectMembership(project_id=project.id, user_id=invited_user.id, role=role)
+        db.add(membership)
+    else:
+        membership.role = role
+
+    await db.commit()
+    await db.refresh(membership)
+
+    return _member_response(project_id=project.id, user=invited_user, role=role, membership=membership)
+
+
+@router.patch("/{project_id}/members/{member_user_id}", response_model=ProjectMemberResponse)
+@limiter.limit("30/minute")
+async def update_project_member(
+    request: Request,
+    project_id: UUID,
+    member_user_id: UUID,
+    payload: ProjectMemberUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+
+    member_user = await db.get(User, member_user_id)
+    if member_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if member_user.id == project.user_id:
+        raise HTTPException(status_code=400, detail="Project owner role cannot be changed")
+
+    membership = await _get_membership_for_user(db, project_id=project.id, user_id=member_user.id)
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Membership not found")
+
+    membership.role = payload.role
+    await db.commit()
+    await db.refresh(membership)
+
+    return _member_response(project_id=project.id, user=member_user, role=membership.role, membership=membership)
+
+
+@router.delete("/{project_id}/members/{member_user_id}")
+@limiter.limit("20/minute")
+async def delete_project_member(
+    request: Request,
+    project_id: UUID,
+    member_user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+
+    if member_user_id == project.user_id:
+        raise HTTPException(status_code=400, detail="Project owner cannot be removed")
+
+    membership = await _get_membership_for_user(db, project_id=project.id, user_id=member_user_id)
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Membership not found")
+
+    await db.delete(membership)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)

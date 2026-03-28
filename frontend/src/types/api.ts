@@ -33,6 +33,60 @@ export type ProjectCounts = {
   meta_studies_current: number;
 };
 
+export type MembershipRole = 'owner' | 'editor' | 'viewer';
+
+export type ProjectMember = {
+  id?: string | null;
+  project_id: string;
+  user_id: string;
+  email: string;
+  full_name?: string | null;
+  role: MembershipRole;
+  created_at?: string | null;
+};
+
+export type BillingModelUsage = {
+  model: string;
+  calls: number;
+  tokens_in: number;
+  tokens_out: number;
+  total_tokens: number;
+};
+
+export type BillingUsageRecent = {
+  preset?: string | null;
+  tokens_in: number;
+  tokens_out: number;
+  total_tokens: number;
+  cost_usd: number;
+  models: Array<{ model: string; tokens_in: number; tokens_out: number }>;
+  at?: string | null;
+};
+
+export type BillingUsageSummary = {
+  period: string;
+  month: string;
+  tier: string;
+  quota_calls: number;
+  calls_used: number;
+  quota_remaining: number;
+  tokens_in: number;
+  tokens_out: number;
+  total_tokens: number;
+  cost_usd: number;
+  models: BillingModelUsage[];
+  recent: BillingUsageRecent[];
+};
+
+export type BillingUsageHistoryMonth = {
+  month: string;
+  calls: number;
+  tokens_in: number;
+  tokens_out: number;
+  total_tokens: number;
+  cost_usd: number;
+};
+
 // ─── Papers ───────────────────────────────────────────────────────────────────
 
 export type PaperRow = {
