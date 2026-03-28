@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.logger import logger
 
 
@@ -61,17 +62,20 @@ async def search_papers_pubmed(query: str, max_results: int = 20) -> list[dict]:
     from app.services.pubmed import PubMedClient
     client = PubMedClient()
     try:
-        results = await client.search(query=query, max_results=max_results)
+        payload = await client.search_and_fetch(query=query, max_results=max_results)
+        results = payload.get("results") or []
         return [
             {
                 "pmid": r.get("pmid", ""),
                 "doi": r.get("doi", ""),
                 "title": r.get("title", ""),
-                "authors": r.get("authors", ""),
+                "authors": ", ".join(r.get("authors") or []),
                 "journal": r.get("journal", ""),
-                "year": r.get("year", ""),
+                "year": str(r.get("pub_year") or ""),
                 "abstract": r.get("abstract", ""),
                 "source": "pubmed",
+                "oa_url": r.get("oa_url"),
+                "has_full_text": bool(r.get("is_open_access")),
             }
             for r in results
         ]
@@ -177,14 +181,28 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
         # Use the OpenClaw provider's chat() if available, else fall back to a
         # summary-like call by reusing the paper summarization system.
         if hasattr(provider, "chat"):
-            r = await provider.chat(  # type: ignore[attr-defined]
-                model="default",
-                system=system,
-                user=user,
-                temperature=0.3,
-                max_tokens=1500,
-            )
-            return (r.get("content") or "").strip()
+            try:
+                r = await provider.chat(  # type: ignore[attr-defined]
+                    model="default",
+                    system=system,
+                    user=user,
+                    temperature=0.3,
+                    max_tokens=1500,
+                )
+                return (r.get("content") or "").strip()
+            except Exception as primary_exc:
+                logger.warning(f"Deep Research primary chat provider failed, falling back to Ollama: {primary_exc}")
+                from app.services.llm.provider_adapters import OllamaAdapter
+
+                fallback = OllamaAdapter(settings.PAPERFLOW_CHAT_MODEL, base_url=settings.OLLAMA_BASE_URL)
+                response = await fallback.complete(
+                    prompt=user,
+                    system=system,
+                    temperature=0.3,
+                    max_tokens=1500,
+                    json_mode=False,
+                )
+                return response.text.strip()
         else:
             # Fallback: describe the inability gracefully
             return f"*LLM provider does not support direct chat. Configure OpenClaw or Claude provider.*"

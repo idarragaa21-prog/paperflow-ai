@@ -32,8 +32,11 @@ type ExportRow = {
   project_id: string;
   batch_id?: string | null;
   filename: string;
+  format?: string;
   created_at: string;
 };
+
+type ExportFormat = 'xlsx' | 'csv';
 
 export default function MetaPage() {
   const { projectId } = useParams();
@@ -48,6 +51,7 @@ export default function MetaPage() {
 
   const [exportsList, setExportsList] = useState<ExportRow[]>([]);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [pendingExportFormat, setPendingExportFormat] = useState<ExportFormat | null>(null);
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [title, setTitle] = useState('');
@@ -64,11 +68,18 @@ export default function MetaPage() {
     onCompleted: async () => {
       await loadExports();
       setExportJobId(null);
-      toast.success('Export ready', 'Excel export is ready to download.');
+      toast.success(
+        'Export ready',
+        pendingExportFormat === 'csv'
+          ? 'CSV bundle is ready to download.'
+          : 'Excel export is ready to download.',
+      );
+      setPendingExportFormat(null);
     },
     onFailed: (s) => {
       setExportJobId(null);
-      toast.error('Export failed', s.error || 'Excel export failed.');
+      setPendingExportFormat(null);
+      toast.error('Export failed', s.error || 'Export failed.');
     },
   });
 
@@ -169,7 +180,7 @@ export default function MetaPage() {
     }
   }
 
-  async function exportExcel() {
+  async function exportDataset(format: ExportFormat) {
     if (!projectId) return;
     setError(null);
     setNotice(null);
@@ -177,14 +188,17 @@ export default function MetaPage() {
       const r = await api.post('/meta/export', {
         project_id: projectId,
         batch_id: selectedBatchId,
+        format,
       });
       const jid = r.data?.job_id as string | undefined;
       if (jid) {
         setExportJobId(jid);
+        setPendingExportFormat(format);
       }
-      setNotice(`Export job enqueued: ${jid || '(unknown job id)'}`);
+      setNotice(`Export ${format === 'csv' ? 'CSV bundle' : 'Excel'} job enqueued: ${jid || '(unknown job id)'}`);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Export failed');
+      setPendingExportFormat(null);
     }
   }
 
@@ -192,10 +206,16 @@ export default function MetaPage() {
     setError(null);
     try {
       const r = await api.get(`/meta/exports/${row.id}/download`, { responseType: 'blob' });
-      downloadBlob(r.data as Blob, row.filename || 'meta_export.xlsx');
+      downloadBlob(r.data as Blob, row.filename || (row.format === 'csv_bundle' ? 'meta_export_csv_bundle.zip' : 'meta_export.xlsx'));
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Download failed');
     }
+  }
+
+  function exportLabel(format?: string) {
+    if (format === 'csv_bundle') return 'CSV bundle';
+    if (format === 'xlsx') return 'Excel';
+    return 'Export';
   }
 
   useEffect(() => {
@@ -288,9 +308,17 @@ export default function MetaPage() {
             <button className="rc-btn" onClick={loadExports}>Refresh</button>
           </div>
           <div style={{ height: 10 }} />
-          <button className="rc-btn rc-btn--primary" onClick={exportExcel} disabled={Boolean(exportJobId)}>
-            {exportJobId ? 'Exporting…' : 'Export Excel'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="rc-btn rc-btn--primary" onClick={() => exportDataset('xlsx')} disabled={Boolean(exportJobId)}>
+              {exportJobId && pendingExportFormat === 'xlsx' ? 'Exporting…' : 'Export Excel'}
+            </button>
+            <button className="rc-btn" onClick={() => exportDataset('csv')} disabled={Boolean(exportJobId)}>
+              {exportJobId && pendingExportFormat === 'csv' ? 'Exporting…' : 'Export CSV bundle'}
+            </button>
+          </div>
+          <div className="rc-help" style={{ marginTop: 8 }}>
+            CSV bundle includes structured qualitative and quantitative tables plus raw OCR/table context when available.
+          </div>
           {exportJob.status ? (
             <div className="rc-help" style={{ marginTop: 8 }}>
               Export: {exportJob.status.status} · {exportJob.status.progress}%
@@ -302,7 +330,10 @@ export default function MetaPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {exportsList.map((ex) => (
               <div key={ex.id} className="rc-card" style={{ padding: 10, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                <div className="rc-help" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ex.filename}</div>
+                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div className="rc-help" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ex.filename}</div>
+                  <div className="rc-help">{exportLabel(ex.format)}</div>
+                </div>
                 <button className="rc-btn" onClick={() => downloadExport(ex)}>Download</button>
               </div>
             ))}

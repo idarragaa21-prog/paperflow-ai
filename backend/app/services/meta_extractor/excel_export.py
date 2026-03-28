@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import csv
 import json
 from dataclasses import dataclass
 from datetime import datetime
+from io import BytesIO, StringIO
 from typing import Any
 from uuid import UUID
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from openpyxl import Workbook
 
@@ -25,6 +28,18 @@ SHEETS = [
 
 STUDIES_COLS = [
     "study_id",
+    "paper_id",
+    "batch_id",
+    "paper_title",
+    "paper_filename",
+    "paper_authors",
+    "paper_doi",
+    "paper_pmid",
+    "paper_pmcid",
+    "paper_journal",
+    "paper_publication_year",
+    "paper_source_provider",
+    "paper_oa_url",
     "citation_key",
     "title",
     "first_author",
@@ -58,6 +73,9 @@ STUDIES_COLS = [
     "peer_reviewed",
     "extraction_confidence",
     "provenance",
+    "study_created_at",
+    "study_updated_at",
+    "raw_study_json",
 ]
 
 ARMS_COLS = [
@@ -136,6 +154,7 @@ EFFECTS_COLS = [
     "page_number",
     "table_id",
     "figure_id",
+    "source_locator_json",
     "source_type",
     "extraction_confidence",
     "comments",
@@ -164,6 +183,7 @@ EFFECTS_COLS = [
     "analysis_method",
     "model_type",
     "intention_to_treat",
+    "raw_effect_json",
 ]
 
 ROB_COLS = [
@@ -173,8 +193,10 @@ ROB_COLS = [
     "domain_name",
     "judgement",
     "support_for_judgement",
+    "auto_generated",
     "manually_edited",
     "edited_at",
+    "raw_rob_json",
 ]
 
 TABLES_RAW_COLS = ["table_id", "study_id", "page", "extracted_markdown"]
@@ -192,6 +214,17 @@ class ExcelExportInput:
     tables_raw: list[dict[str, Any]]
     images_ocr_raw: list[dict[str, Any]]
     logs: list[dict[str, Any]]
+
+
+def iter_meta_export_tables(data: ExcelExportInput):
+    yield ("studies", "STUDIES", STUDIES_COLS, data.studies)
+    yield ("arms", "ARMS", ARMS_COLS, data.arms)
+    yield ("outcomes", "OUTCOMES", OUTCOMES_COLS, data.outcomes)
+    yield ("effect_sizes", "EFFECT_SIZES", EFFECTS_COLS, data.effects)
+    yield ("risk_of_bias", "RISK_OF_BIAS", ROB_COLS, data.rob)
+    yield ("tables_raw", "TABLES_RAW", TABLES_RAW_COLS, data.tables_raw)
+    yield ("images_ocr_raw", "IMAGES_OCR_RAW", IMAGES_OCR_RAW_COLS, data.images_ocr_raw)
+    yield ("logs", "LOGS", LOGS_COLS, data.logs)
 
 
 def _add_sheet(wb: Workbook, name: str, cols: list[str]) -> None:
@@ -230,8 +263,44 @@ def build_meta_xlsx(data: ExcelExportInput) -> bytes:
     _append_rows(wb["IMAGES_OCR_RAW"], IMAGES_OCR_RAW_COLS, data.images_ocr_raw)
     _append_rows(wb["LOGS"], LOGS_COLS, data.logs)
 
-    from io import BytesIO
-
     bio = BytesIO()
     wb.save(bio)
+    return bio.getvalue()
+
+
+def _csv_value(value: Any) -> Any:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    return value
+
+
+def build_meta_csv_bundle(data: ExcelExportInput) -> bytes:
+    bio = BytesIO()
+
+    with ZipFile(bio, mode="w", compression=ZIP_DEFLATED) as zf:
+        manifest = {
+            "format": "csv_bundle",
+            "tables": {
+                csv_name: {
+                    "sheet": sheet_name,
+                    "columns": cols,
+                    "rows": len(rows),
+                }
+                for csv_name, sheet_name, cols, rows in iter_meta_export_tables(data)
+            },
+        }
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+
+        for csv_name, _sheet_name, cols, rows in iter_meta_export_tables(data):
+            sio = StringIO(newline="")
+            writer = csv.DictWriter(sio, fieldnames=cols, extrasaction="ignore")
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({col: _csv_value(row.get(col)) for col in cols})
+            zf.writestr(f"{csv_name}.csv", sio.getvalue().encode("utf-8"))
+
     return bio.getvalue()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from typing import Any
 from uuid import UUID
 
@@ -58,4 +59,11 @@ class MetaExportListRow(BaseModel):
     project_id: UUID
     batch_id: UUID | None
     filename: str
+    format: str
     created_at: datetime
+
+
+class MetaExportRequest(BaseModel):
+    project_id: UUID
+    batch_id: UUID | None = None
+    format: Literal["xlsx", "csv"] = "xlsx"

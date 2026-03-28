@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import zipfile
 
 import pytest
 from openpyxl import load_workbook
@@ -15,6 +16,7 @@ from app.services.meta_extractor.excel_export import (
     STUDIES_COLS,
     TABLES_RAW_COLS,
     ExcelExportInput,
+    build_meta_csv_bundle,
     build_meta_xlsx,
 )
 from app.services.meta_extractor.schema import EffectSizeSchema, ExtractedStudySchema
@@ -184,6 +186,43 @@ def test_excel_export_includes_manual_edit_flags():
     row2 = {col: rows2[1][i] for i, col in enumerate(ROB_COLS)}
     assert row2["manually_edited"] is True
     assert row2["edited_at"] == "2026-02-09T00:00:00Z"
+
+
+def test_csv_bundle_export_includes_all_metadata_tables_and_manifest():
+    bundle = build_meta_csv_bundle(
+        ExcelExportInput(
+            studies=[{"study_id": "S1", "title": "Study 1"}],
+            arms=[{"arm_id": "A1", "study_id": "S1", "arm_name": "Intervention"}],
+            outcomes=[{"outcome_id": "O1", "study_id": "S1", "outcome_name": "Pain"}],
+            effects=[{"effect_id": "E1", "study_id": "S1", "outcome_name": "Pain"}],
+            rob=[{"rob_id": "R1", "study_id": "S1", "tool": "ROB2"}],
+            tables_raw=[],
+            images_ocr_raw=[],
+            logs=[],
+        )
+    )
+
+    with zipfile.ZipFile(bytes_to_filelike(bundle)) as zf:
+        names = set(zf.namelist())
+        assert {
+            "manifest.json",
+            "studies.csv",
+            "arms.csv",
+            "outcomes.csv",
+            "effect_sizes.csv",
+            "risk_of_bias.csv",
+            "tables_raw.csv",
+            "images_ocr_raw.csv",
+            "logs.csv",
+        }.issubset(names)
+
+        manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+        assert manifest["format"] == "csv_bundle"
+        assert manifest["tables"]["studies"]["rows"] == 1
+
+        studies_csv = zf.read("studies.csv").decode("utf-8")
+        assert studies_csv.splitlines()[0].split(",") == STUDIES_COLS
+        assert "Study 1" in studies_csv
 
 
 def bytes_to_filelike(data: bytes):

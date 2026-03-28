@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -22,11 +23,28 @@ from app.models.meta_extractor import (
 )
 from app.services.jobs import get_job_queue
 from app.models.meta_export import MetaExport
-from app.schemas.meta import BatchEffectPatchRequest, MetaExportListRow
-from app.services.meta_extractor.export_service import create_meta_export
+from app.schemas.meta import BatchEffectPatchRequest, MetaExportListRow, MetaExportRequest
 from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/meta", tags=["meta"])
+
+
+def _infer_export_format(filename: str) -> str:
+    lower_name = filename.lower()
+    if lower_name.endswith(".xlsx"):
+        return "xlsx"
+    if lower_name.endswith(".zip"):
+        return "csv_bundle"
+    return Path(lower_name).suffix.lstrip(".") or "unknown"
+
+
+def _export_media_type(filename: str) -> str:
+    export_format = _infer_export_format(filename)
+    if export_format == "xlsx":
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    if export_format == "csv_bundle":
+        return "application/zip"
+    return "application/octet-stream"
 
 
 async def _require_project_role(
@@ -750,6 +768,7 @@ async def list_exports(
             project_id=e.project_id,
             batch_id=e.batch_id,
             filename=e.filename,
+            format=_infer_export_format(e.filename),
             created_at=e.created_at,
         )
         for e in exports
@@ -758,27 +777,23 @@ async def list_exports(
 
 @router.post("/export")
 @limiter.limit("3/minute")
-async def export_excel(
+async def export_meta_dataset(
     request: Request,
-    payload: dict,
+    payload: MetaExportRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project_id = payload.get("project_id")
-    batch_id = payload.get("batch_id")
-    if not project_id:
-        raise HTTPException(status_code=400, detail="project_id requerido")
-
-    project_uuid = UUID(str(project_id))
+    project_uuid = payload.project_id
     await _require_project_role(db, project_uuid, user, required_role="editor")
 
-    batch_uuid = UUID(str(batch_id)) if batch_id else None
+    batch_uuid = payload.batch_id
+    export_format = payload.format
 
     job_record = Job(
         user_id=user.id,
-        job_type="meta_export_excel",
+        job_type=f"meta_export_{export_format}",
         status="queued",
-        input_params={"project_id": str(project_uuid), "batch_id": str(batch_uuid) if batch_uuid else None},
+        input_params={"project_id": str(project_uuid), "batch_id": str(batch_uuid) if batch_uuid else None, "format": export_format},
         result={},
         progress_percent=0,
     )
@@ -787,10 +802,14 @@ async def export_excel(
     await db.refresh(job_record)
 
     try:
-        from app.workers.tasks import meta_export_excel_job
+        from app.workers.tasks import meta_export_job
 
         q = get_job_queue()
-        rq_job = q.enqueue(meta_export_excel_job, args=(str(job_record.id), str(project_uuid), str(batch_uuid) if batch_uuid else ""), job_timeout="20m")
+        rq_job = q.enqueue(
+            meta_export_job,
+            args=(str(job_record.id), str(project_uuid), str(batch_uuid) if batch_uuid else "", export_format),
+            job_timeout="20m",
+        )
     except Exception:
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
@@ -824,7 +843,7 @@ async def download_export(
     if not abs_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
-    return FileResponse(abs_path, filename=export.filename, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return FileResponse(abs_path, filename=export.filename, media_type=_export_media_type(export.filename))
 
 
 @router.patch("/studies/{study_id}/rob/{rob_id}")

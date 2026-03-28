@@ -106,8 +106,25 @@ describe('MetaPage', () => {
       expect(api.post).toHaveBeenCalledWith('/meta/export', {
         project_id: PROJECT_ID,
         batch_id: null,
+        format: 'xlsx',
       });
-      expect(screen.getByText(/Export job enqueued/i)).toBeInTheDocument();
+      expect(screen.getByText(/Export Excel job enqueued/i)).toBeInTheDocument();
+    });
+  });
+
+  it('exports CSV bundle without errors', async () => {
+    renderPage();
+
+    const exportButton = await screen.findByRole('button', { name: 'Export CSV bundle' });
+    fireEvent.click(exportButton);
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/meta/export', {
+        project_id: PROJECT_ID,
+        batch_id: null,
+        format: 'csv',
+      });
+      expect(screen.getByText(/Export CSV bundle job enqueued/i)).toBeInTheDocument();
     });
   });
 });

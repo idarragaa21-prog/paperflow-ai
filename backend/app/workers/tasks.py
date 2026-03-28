@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import threading
 from collections.abc import Coroutine
 from datetime import datetime, timezone
@@ -163,6 +164,7 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
 
                 # Tables
                 tables_md_parts: list[str] = []
+                tables_raw_rows: list[dict[str, Any]] = []
                 try:
                     import pdfplumber
 
@@ -170,7 +172,16 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         for i, page in enumerate(pdf.pages, 1):
                             tbs = page.extract_tables() or []
                             for ti, tbl in enumerate(tbs, 1):
-                                tables_md_parts.append(f"\n\n### Table p{i}-{ti}\n" + "\n".join(["\t".join([str(c) if c is not None else "" for c in row]) for row in tbl]))
+                                table_id = f"p{i}-{ti}"
+                                extracted_markdown = "\n".join(["\t".join([str(c) if c is not None else "" for c in row]) for row in tbl])
+                                tables_md_parts.append(f"\n\n### Table {table_id}\n" + extracted_markdown)
+                                tables_raw_rows.append(
+                                    {
+                                        "table_id": table_id,
+                                        "page": i,
+                                        "extracted_markdown": extracted_markdown,
+                                    }
+                                )
                 except Exception:
                     pass
 
@@ -187,6 +198,7 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
 
                 ocr_snippets = ""
                 ocr_used = False
+                images_ocr_raw_rows: list[dict[str, Any]] = []
 
                 ocr_av = detect_ocr_availability(ocr_enabled=bool(getattr(settings, "OCR_ENABLED", False)))
 
@@ -202,6 +214,16 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                             try:
                                 text_for_llm = extract_text(out_pdf)
                                 ocr_snippets, ocr_used = ocr_pages_best_effort(out_pdf, max_pages=3)
+                                if ocr_snippets:
+                                    images_ocr_raw_rows = [
+                                        {
+                                            "image_id": f"ocr-page-{match.group(1)}",
+                                            "page": int(match.group(1)),
+                                            "ocr_text": match.group(2).strip(),
+                                        }
+                                        for match in re.finditer(r"\[page (\d+)\]\n(.*?)(?=\n\n\[page |\Z)", ocr_snippets, flags=re.S)
+                                        if match.group(2).strip()
+                                    ]
                             except Exception:
                                 pass
                         else:
@@ -217,6 +239,15 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         if used2:
                             ocr_snippets = (ocr_snippets + "\n\n" + ocr_snippets2).strip()
                             ocr_used = True
+                            images_ocr_raw_rows = [
+                                {
+                                    "image_id": f"ocr-page-{match.group(1)}",
+                                    "page": int(match.group(1)),
+                                    "ocr_text": match.group(2).strip(),
+                                }
+                                for match in re.finditer(r"\[page (\d+)\]\n(.*?)(?=\n\n\[page |\Z)", ocr_snippets, flags=re.S)
+                                if match.group(2).strip()
+                            ]
                 elif ocr_av.ocr_enabled and not ocr_av.tesseract_available:
                     warnings.append("Tesseract not installed. OCR disabled. Install with: brew install tesseract")
 
@@ -257,13 +288,27 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                     prev.is_current = False
                     next_version = int(prev.version) + 1
 
+                extracted_payload = extracted.model_dump()
+                extracted_payload["_tables_raw"] = tables_raw_rows
+                extracted_payload["_images_ocr_raw"] = images_ocr_raw_rows
+                extracted_payload["_extraction_warnings"] = list(warnings)
+                extracted_payload["_extraction_logs"] = [
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "job_id": str(job_uuid),
+                        "level": "warning",
+                        "message": warning,
+                    }
+                    for warning in warnings
+                ]
+
                 study = ExtractedStudy(
                     project_id=paper.project_id,
                     paper_id=paper_uuid,
                     batch_id=batch_uuid,
                     version=next_version,
                     is_current=True,
-                    study_json=extracted.model_dump(),
+                    study_json=extracted_payload,
                     extraction_confidence=float(extracted.extraction_confidence or 0.0),
                 )
                 db.add(study)
@@ -321,6 +366,9 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         "study_id": str(study.id),
                         "extraction_confidence": study.extraction_confidence,
                         "ocr_used": ocr_used,
+                        "warnings": list(warnings),
+                        "tables_extracted": len(tables_raw_rows),
+                        "ocr_snippets": len(images_ocr_raw_rows),
                     }
                     item.error_message = None
 
@@ -490,8 +538,8 @@ def summarize_paper_job(job_db_id: str, paper_id: str, custom_instructions: str 
     return run_coro(_async_logic())
 
 
-def meta_export_excel_job(job_db_id: str, project_id: str, batch_id: str = "") -> dict[str, Any]:
-    """Generate XLSX export for meta extractor. SYNC wrapper."""
+def meta_export_job(job_db_id: str, project_id: str, batch_id: str = "", export_format: str = "xlsx") -> dict[str, Any]:
+    """Generate meta extractor export (xlsx or csv bundle). SYNC wrapper."""
 
     from app.services.meta_extractor.export_service import create_meta_export
 
@@ -506,7 +554,7 @@ def meta_export_excel_job(job_db_id: str, project_id: str, batch_id: str = "") -
 
             async with async_session_maker() as db:
                 await job_set_progress(job_uuid, 60, status="progress")
-                export = await create_meta_export(db=db, project_id=proj_uuid, batch_id=batch_uuid)
+                export = await create_meta_export(db=db, project_id=proj_uuid, batch_id=batch_uuid, export_format=export_format)
                 await job_set_progress(job_uuid, 90, status="progress")
 
             await job_mark_completed(
@@ -519,6 +567,12 @@ def meta_export_excel_job(job_db_id: str, project_id: str, batch_id: str = "") -
             return {"output": {}, "warnings": [], "errors": [str(e)]}
 
     return run_coro(_async_logic())
+
+
+def meta_export_excel_job(job_db_id: str, project_id: str, batch_id: str = "") -> dict[str, Any]:
+    """Backward-compatible alias for XLSX meta exports."""
+
+    return meta_export_job(job_db_id, project_id, batch_id, "xlsx")
 
 
 
