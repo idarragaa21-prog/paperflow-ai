@@ -34,6 +34,9 @@ class FakeResult:
     def scalars(self):
         return FakeScalar(self._items)
 
+    def all(self):
+        return list(self._items)
+
 
 class FakeSession:
     def __init__(self, user_id: str):
@@ -57,7 +60,9 @@ class FakeSession:
         return None
 
     async def execute(self, stmt):
-        # return only user's projects
+        sql = str(stmt)
+        if "JOIN project_memberships" in sql and "FROM projects" in sql:
+            return FakeResult([(p, None) for p in self.projects if p.user_id == self.user_id])
         return FakeResult([p for p in self.projects if p.user_id == self.user_id])
 
     async def get(self, model, obj_id):

@@ -9,6 +9,28 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 
 
+class FakeScalar:
+    def __init__(self, items=None):
+        self._items = items or []
+
+    def first(self):
+        return self._items[0] if self._items else None
+
+    def all(self):
+        return list(self._items)
+
+
+class FakeResult:
+    def __init__(self, items=None):
+        self._items = items or []
+
+    def scalars(self):
+        return FakeScalar(self._items)
+
+    def all(self):
+        return list(self._items)
+
+
 class FakeProject:
     def __init__(self, project_id: uuid.UUID, user_id: uuid.UUID):
         self.id = project_id
@@ -65,7 +87,9 @@ class FakeSession:
         return None
 
     async def execute(self, stmt):
-        # not used in this test
+        sql = str(stmt)
+        if "FROM project_memberships" in sql:
+            return FakeResult([])
         raise AssertionError("execute() should not be called")
 
 

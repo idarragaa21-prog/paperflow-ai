@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import type { BatchDownloadOutput, BatchDownloadTraceItem } from '../types/api';
+import { emitProjectContentChanged } from '../utils/projectEvents';
 
 export type BatchJob = {
   status: string;
@@ -76,6 +77,7 @@ function batchErrorMessage(error: unknown, fallback: string): string {
 
 export function useBatchDownload(): UseBatchDownloadReturn {
   const [batchJobId, setBatchJobId] = useState<string | null>(null);
+  const [batchProjectId, setBatchProjectId] = useState<string | null>(null);
   const [batchJob, setBatchJob] = useState<BatchJob | null>(null);
   const [batchModalOpen, setBatchModalOpen] = useState(false);
 
@@ -94,6 +96,9 @@ export function useBatchDownload(): UseBatchDownloadReturn {
         const result = r.data?.result || {};
         const output = normalizeOutput(result?.output || result?.rq_result?.output);
         if (alive) setBatchJob({ status, progress, error, output });
+        if (status === 'completed' && batchProjectId && output.downloaded.length > 0) {
+          emitProjectContentChanged(batchProjectId, 'batch-download');
+        }
         if (status === 'completed' || status === 'failed') return;
       } catch (error: unknown) {
         if (alive) {
@@ -105,7 +110,7 @@ export function useBatchDownload(): UseBatchDownloadReturn {
 
     poll();
     return () => { alive = false; if (t) clearTimeout(t); };
-  }, [batchJobId, batchModalOpen]);
+  }, [batchJobId, batchModalOpen, batchProjectId]);
 
   async function startBatchDownload(
     projectId: string,
@@ -116,6 +121,7 @@ export function useBatchDownload(): UseBatchDownloadReturn {
       const resp = await api.post('/papers/batch-download', { project_id: projectId, papers });
       const jid = String(resp.data?.job_id || '');
       setBatchJobId(jid);
+      setBatchProjectId(projectId);
       setBatchJob({ status: 'queued', progress: 0, error: null });
       setBatchModalOpen(true);
     } catch (error: unknown) {
@@ -130,6 +136,7 @@ export function useBatchDownload(): UseBatchDownloadReturn {
 
   function resetBatch() {
     setBatchJobId(null);
+    setBatchProjectId(null);
     setBatchJob(null);
     setBatchModalOpen(false);
   }

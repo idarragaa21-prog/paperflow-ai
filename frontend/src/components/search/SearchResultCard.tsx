@@ -1,5 +1,6 @@
 import type { PaperSearchResult } from '../../types/api';
 import type { DownloadInfo, UseSearchReturn } from '../../hooks/useSearch';
+import { getTechnicalDownloadFailure, humanizeDownloadFailure } from './downloadMessaging';
 
 const SOURCE_LABELS: Record<string, string> = { pubmed: 'PubMed', europepmc: 'Europe PMC', doaj: 'DOAJ' };
 const SOURCE_COLORS: Record<string, string> = { pubmed: '#2563eb', europepmc: '#059669', doaj: '#d97706' };
@@ -10,6 +11,9 @@ export function DownloadTrace({ info }: { info: DownloadInfo }) {
     : info.source_provider === 'unpaywall' ? 'Unpaywall'
     : info.source_provider === 'europepmc' ? 'Europe PMC'
     : info.source_provider || null;
+
+  const humanizedError = humanizeDownloadFailure(info.error);
+  const technicalError = getTechnicalDownloadFailure(info.error);
 
   if (info.status === 'saved') return (
     <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: info.used_fallback ? 'rgba(234,179,8,0.08)' : 'rgba(16,185,129,0.08)', border: `1px solid ${info.used_fallback ? 'rgba(234,179,8,0.25)' : 'rgba(16,185,129,0.2)'}` }}>
@@ -38,7 +42,12 @@ export function DownloadTrace({ info }: { info: DownloadInfo }) {
   return (
     <div style={{ fontSize: 12, padding: '5px 8px', borderRadius: 5, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
       <span style={{ fontWeight: 700, color: '#ef4444' }}>✗ Failed</span>
-      {info.error && <span style={{ color: 'var(--rc-muted)', marginLeft: 6 }}>{info.error}</span>}
+      {humanizedError && <span style={{ color: 'var(--rc-muted)', marginLeft: 6 }}>{humanizedError}</span>}
+      {technicalError && (
+        <div style={{ color: 'var(--rc-muted)', marginTop: 6, wordBreak: 'break-word' }}>
+          Technical detail: {technicalError}
+        </div>
+      )}
     </div>
   );
 }

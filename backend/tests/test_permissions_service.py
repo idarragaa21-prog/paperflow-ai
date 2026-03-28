@@ -124,8 +124,21 @@ async def test_get_project_membership_falls_back_to_owner_membership():
     assert found_project is project
     assert membership is not None
     assert membership.role == "owner"
+    assert len(db.memberships) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_project_membership_reuses_existing_owner_membership_without_duplication():
+    project = make_project(owner_id=OWNER_ID, title="Owner existing membership")
+    existing = make_membership(project.id, OWNER_ID, "viewer")
+    db = FakeSession(projects=[project], memberships=[existing])
+
+    found_project, membership = await get_project_membership(db, project_id=project.id, user_id=OWNER_ID)
+
+    assert found_project is project
+    assert membership is existing
+    assert membership.role == "owner"
     assert len(db.memberships) == 1
-    assert db.memberships[0].user_id == OWNER_ID
 
 
 @pytest.mark.asyncio

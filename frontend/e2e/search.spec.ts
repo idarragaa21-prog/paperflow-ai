@@ -1,12 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { loadFixture } from './fixture';
-
-async function dismissTourIfPresent(page: Page) {
-  const skipTour = page.getByRole('button', { name: /skip tour/i });
-  if (await skipTour.count()) {
-    await skipTour.click();
-  }
-}
+import { dismissTourIfPresent } from './helpers';
 
 test('search can return openable results and save at least one paper with honest result states', async ({ page }) => {
   const fixture = loadFixture();

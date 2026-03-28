@@ -10,19 +10,12 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.models.analytics import AnalysisRun, Dataset
-from app.models.project import Project
 from app.models.user import User
 from app.schemas.analysis import AnalysisRunCreate, AnalysisRunResponse, DatasetCreate, DatasetResponse
+from app.services.permissions import require_project_access
 from app.services.analysis_service import create_analysis_run, create_dataset, export_analysis_run
 
 router = APIRouter(tags=["analysis"])
-
-
-async def _require_project(db: AsyncSession, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
 
 
 def _dataset_to_response(dataset: Dataset) -> DatasetResponse:
@@ -82,7 +75,7 @@ async def create_dataset_endpoint(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
     dataset = await create_dataset(
         db,
         project_id=payload.project_id,
@@ -99,10 +92,27 @@ async def list_datasets(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     stmt = select(Dataset).where(Dataset.project_id == project_id).options(selectinload(Dataset.columns)).order_by(Dataset.created_at.desc())
     result = await db.execute(stmt)
     return [_dataset_to_response(item) for item in result.scalars().all()]
+
+
+@router.get("/analysis-runs", response_model=list[AnalysisRunResponse])
+async def list_analysis_runs(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    stmt = (
+        select(AnalysisRun)
+        .where(AnalysisRun.project_id == project_id)
+        .options(selectinload(AnalysisRun.artifacts))
+        .order_by(AnalysisRun.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    return [_analysis_to_response(item) for item in result.scalars().all()]
 
 
 @router.post("/analysis-runs", response_model=AnalysisRunResponse)
@@ -111,7 +121,7 @@ async def create_analysis_run_endpoint(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
     dataset = await db.get(Dataset, payload.dataset_id) if payload.dataset_id else None
     if payload.dataset_id and (dataset is None or dataset.project_id != payload.project_id):
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -137,7 +147,7 @@ async def get_analysis_run(
     run = result.scalars().first()
     if run is None:
         raise HTTPException(status_code=404, detail="Analysis run not found")
-    await _require_project(db, run.project_id, user)
+    await require_project_access(db, project_id=run.project_id, user=user, required_role="viewer")
     return _analysis_to_response(run)
 
 
@@ -152,7 +162,7 @@ async def get_analysis_run_artifacts(
     run = result.scalars().first()
     if run is None:
         raise HTTPException(status_code=404, detail="Analysis run not found")
-    await _require_project(db, run.project_id, user)
+    await require_project_access(db, project_id=run.project_id, user=user, required_role="viewer")
     return [
         {
             "id": str(artifact.id),
@@ -173,12 +183,12 @@ async def export_analysis(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    stmt = select(AnalysisRun).where(AnalysisRun.id == run_id)
+    stmt = select(AnalysisRun).where(AnalysisRun.id == run_id).options(selectinload(AnalysisRun.artifacts))
     result = await db.execute(stmt)
     run = result.scalars().first()
     if run is None:
         raise HTTPException(status_code=404, detail="Analysis run not found")
-    await _require_project(db, run.project_id, user)
+    await require_project_access(db, project_id=run.project_id, user=user, required_role="viewer")
     data, media_type, filename = await export_analysis_run(db, run=run, fmt=format)
     return Response(
         data,

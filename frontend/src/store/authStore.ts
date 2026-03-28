@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '../services/api';
+import { getCookie } from '../services/cookies';
 import { DEMO_MODE, demoUser } from '../services/demo';
 
 export type UserMe = { id: string; email: string; full_name?: string | null; };
@@ -16,6 +17,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkAuth: async () => {
     if (DEMO_MODE) {
       set({ user: demoUser, loading: false, initialized: true, error: null });
+      return;
+    }
+    const hasSessionHint = Boolean(getCookie('csrf_token'));
+    if (!hasSessionHint) {
+      set({ user: null, loading: false, initialized: true, error: null });
       return;
     }
     set({ loading: true, error: null });

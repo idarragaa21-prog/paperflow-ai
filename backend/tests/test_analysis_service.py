@@ -5,7 +5,12 @@ from uuid import uuid4
 
 import pytest
 
-from app.services.analysis_service import create_dataset, export_analysis_run
+from app.services.analysis_service import (
+    _normalize_figure_payload,
+    _normalize_text_value,
+    create_dataset,
+    export_analysis_run,
+)
 
 
 class _FakeScalarResult:
@@ -125,3 +130,45 @@ async def test_create_dataset_rejects_empty_rows():
             description=None,
             rows=[],
         )
+
+
+@pytest.mark.asyncio
+async def test_create_dataset_persists_columns_for_valid_rows(monkeypatch):
+    db = _CaptureDB()
+
+    async def _save_dataset_bytes(*, data, filename, project_id):
+        return {"file_path": f"datasets/{filename}", "filename": filename, "project_id": str(project_id)}
+
+    monkeypatch.setattr("app.services.analysis_service.storage_manager.save_dataset_bytes", _save_dataset_bytes)
+
+    dataset = await create_dataset(
+        db,
+        project_id=uuid4(),
+        title="valid",
+        description=None,
+        rows=[{"group": "A", "value": 12}, {"group": "B", "value": 18}],
+    )
+
+    assert dataset.title == "valid"
+    assert dataset.row_count == 2
+    assert dataset.column_count == 2
+    assert {column.name for column in dataset.columns} == {"group", "value"}
+
+
+def test_normalize_text_value_flattens_list_payloads():
+    assert _normalize_text_value(["line 1", "line 2"]) == "line 1\n\nline 2"
+    assert _normalize_text_value("plain text") == "plain text"
+
+
+def test_normalize_figure_payload_flattens_list_fields():
+    normalized = _normalize_figure_payload(
+        {
+            "title": ["Analysis figure: group_comparison"],
+            "caption": ["Generated from group_comparison analysis."],
+            "analysis_type": ["group_comparison"],
+        }
+    )
+
+    assert normalized["title"] == "Analysis figure: group_comparison"
+    assert normalized["caption"] == "Generated from group_comparison analysis."
+    assert normalized["analysis_type"] == "group_comparison"

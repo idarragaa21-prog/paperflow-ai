@@ -163,7 +163,7 @@ Key variables in `backend/.env`:
 | `SECRET_KEY` | `CHANGE_ME` | JWT signing secret — **change in production** |
 | `STORAGE_BACKEND` | `s3` | `s3` (MinIO) or `filesystem` |
 | `LLM_PROVIDER` | `openclaw` | `openclaw` or `direct_claude` |
-| `PAPERFLOW_CHAT_MODEL` | `qwen2.5:7b` | Ollama model for paper chat |
+| `PAPERFLOW_CHAT_MODEL` | `qwen2.5-coder:7b` | Ollama model for paper chat |
 | `GROBID_ENABLED` | `true` | Enable PDF parsing via Grobid |
 
 Production deploy notes:
@@ -177,7 +177,7 @@ Production deploy notes:
 
 PaperFlow AI supports multiple LLM backends:
 
-1. **Ollama (default, free):** Install [Ollama](https://ollama.com), pull a model (`ollama pull qwen2.5:7b`), and it works out of the box.
+1. **Ollama (default, free):** Install [Ollama](https://ollama.com), pull the default local models (`ollama pull qwen2.5-coder:7b` and `ollama pull nomic-embed-text`), and it works out of the box.
 2. **OpenClaw:** Multi-vendor routing gateway for Groq, Gemini, DeepSeek, etc.
 3. **Direct Claude:** Set `ANTHROPIC_API_KEY` in `backend/.env`.
 

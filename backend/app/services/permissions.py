@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import inspect
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -35,17 +33,6 @@ async def get_project_membership(
     if project is None:
         return None, None
 
-    if project.user_id == user_id:
-        membership = ProjectMembership(project_id=project_id, user_id=user_id, role="owner")
-        if hasattr(db, "add"):
-            db.add(membership)
-        flush = getattr(db, "flush", None)
-        if callable(flush):
-            maybe_coro = flush()
-            if inspect.isawaitable(maybe_coro):
-                await maybe_coro
-        return project, membership
-
     result = await db.execute(
         select(ProjectMembership)
         .where(ProjectMembership.project_id == project_id)
@@ -57,6 +44,13 @@ async def get_project_membership(
     else:
         items = scalar_result.all() if hasattr(scalar_result, "all") else []
         membership = items[0] if items else None
+
+    if project.user_id == user_id:
+        if membership is None:
+            membership = ProjectMembership(project_id=project_id, user_id=user_id, role="owner")
+        else:
+            membership.role = "owner"
+
     return project, membership
 
 
@@ -98,7 +92,8 @@ async def list_accessible_projects(db: AsyncSession, *, user: User) -> list[tupl
         .order_by(Project.created_at.desc())
     )
     deduped: dict[UUID, tuple[Project, str]] = {}
-    for project, role in result.all():
+    rows = result.all() if hasattr(result, "all") else []
+    for project, role in rows:
         effective_role = "owner" if project.user_id == user.id else (role or "viewer")
         previous = deduped.get(project.id)
         if previous is None or ROLE_RANK[effective_role] > ROLE_RANK.get(previous[1], 0):

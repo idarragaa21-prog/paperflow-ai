@@ -22,7 +22,7 @@ from app.schemas.membership import (
 )
 from app.schemas.projects import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.jobs import get_job_queue
-from app.services.permissions import require_project_access
+from app.services.permissions import list_accessible_projects, require_project_access
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -139,9 +139,8 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    q = await db.execute(select(Project).where(Project.user_id == user.id).order_by(Project.created_at.desc()))
-    items = q.scalars().all()
-    return [_project_response(p) for p in items]
+    items = await list_accessible_projects(db, user=user)
+    return [_project_response(project) for project, _ in items]
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -150,9 +149,7 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     return _project_response(project)
 
 
@@ -307,9 +304,7 @@ async def project_dashboard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     from sqlalchemy import func
 
@@ -351,9 +346,7 @@ async def project_library(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     from app.models.paper import Paper
 

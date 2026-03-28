@@ -82,6 +82,43 @@ fi
 echo "[dev_up] applying migrations..."
 (cd "$BACKEND_DIR" && source .venv/bin/activate && alembic upgrade head)
 
+echo "[dev_up] ensuring demo user..."
+(
+  cd "$BACKEND_DIR"
+  source .venv/bin/activate
+  python - <<'PY'
+import asyncio
+
+from sqlalchemy import select
+
+from app.core.security import hash_password
+from app.database import async_session_maker
+from app.models.user import User
+
+
+async def ensure_demo_user() -> None:
+    async with async_session_maker() as db:
+        result = await db.execute(select(User).where(User.email == "demo@paperflow.ai"))
+        if result.scalars().first():
+            print("[dev_up] demo user already exists")
+            return
+
+        db.add(
+            User(
+                email="demo@paperflow.ai",
+                full_name="Demo User",
+                password_hash=hash_password("demo1234"),
+                is_active=True,
+            )
+        )
+        await db.commit()
+        print("[dev_up] created demo user: demo@paperflow.ai / demo1234")
+
+
+asyncio.run(ensure_demo_user())
+PY
+)
+
 start_if_not_running backend bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && exec uvicorn app.main:app --host 127.0.0.1 --port 8000"
 start_if_not_running worker bash -lc "cd '$BACKEND_DIR' && source .venv/bin/activate && exec python -m app.workers.worker"
 start_if_not_running frontend bash -lc "cd '$FRONTEND_DIR' && exec npm run dev -- --host 127.0.0.1 --port 5173"

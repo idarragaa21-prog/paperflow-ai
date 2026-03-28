@@ -41,7 +41,6 @@ export default async function globalSetup() {
       stdio: 'inherit',
       env: {
         ...process.env,
-        PAPERFLOW_DISABLE_DOTENV: process.env.PAPERFLOW_DISABLE_DOTENV || '1',
         PAPERFLOW_SKIP_GROBID_WAIT: process.env.PAPERFLOW_SKIP_GROBID_WAIT || '1',
       },
     });
@@ -68,7 +67,7 @@ export default async function globalSetup() {
     ],
     {
       stdio: 'inherit',
-      env: { ...process.env, PAPERFLOW_DISABLE_DOTENV: process.env.PAPERFLOW_DISABLE_DOTENV || '1' },
+      env: { ...process.env },
     },
   );
 

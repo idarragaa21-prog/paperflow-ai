@@ -67,6 +67,8 @@ export default function ReaderPage() {
   const selectedStatus = selectedPaper?.processing_status || '';
   const isProject = paperId === 'project';
   const hasReadyPapers = papers.some(p => ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase()));
+  const selectedPaperReady = ['ready', 'parsed'].includes(selectedStatus.toLowerCase());
+  const canAsk = question.trim().length > 0 && (isProject ? hasReadyPapers : selectedPaperReady);
 
   const loadPapers = useCallback(async () => {
     if (!projectId) return;
@@ -125,7 +127,12 @@ export default function ReaderPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 10 }}>
           <div style={{ minWidth: 260, flex: 1 }}>
             <div className="rc-kicker">Scope</div>
-            <select className="rc-input" value={paperId} onChange={e => setPaperId(e.target.value)}>
+            <select
+              className="rc-input"
+              data-testid="reader-scope-select"
+              value={paperId}
+              onChange={e => setPaperId(e.target.value)}
+            >
               <option value="project">Whole project</option>
               {papers.map(paper => (
                 <option key={paper.id} value={paper.id}>{paper.title}</option>
@@ -144,10 +151,10 @@ export default function ReaderPage() {
                 <span className="rc-help">This paper is still being processed. Chat will be available soon.</span>
               )}
               {(!selectedStatus || selectedStatus === 'uploaded') && (
-                <button className="rc-btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Process now</button>
+                <button className="rc-btn" data-testid="reader-process-now" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Process now</button>
               )}
               {selectedStatus === 'failed' && (
-                <button className="rc-btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Retry processing</button>
+                <button className="rc-btn" data-testid="reader-process-now" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Retry processing</button>
               )}
             </div>
           )}
@@ -162,7 +169,11 @@ export default function ReaderPage() {
       </div>
 
       {/* Chat history */}
-      <div className="rc-card" style={{ minHeight: 300, maxHeight: 500, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
+      <div
+        className="rc-card"
+        data-testid="reader-answer-panel"
+        style={{ minHeight: 300, maxHeight: 500, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}
+      >
         {history.length === 0 && !loading && (
           <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--rc-muted)' }}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 10, display: 'block', margin: '0 auto 12px' }}>
@@ -187,13 +198,20 @@ export default function ReaderPage() {
       <div className="rc-row" style={{ gap: 8 }}>
         <textarea
           className="rc-input"
+          data-testid="reader-question-input"
           style={{ flex: 1, minHeight: 48, maxHeight: 120, resize: 'vertical', fontSize: 13 }}
           value={question}
           onChange={e => setQuestion(e.target.value)}
           onKeyDown={handleKey}
           placeholder="Ask a question... (Enter to send)"
         />
-        <button className="rc-btn rc-btn--primary" onClick={askQuestion} disabled={loading || !question.trim()} style={{ alignSelf: 'flex-end', padding: '10px 16px' }}>
+        <button
+          className="rc-btn rc-btn--primary"
+          data-testid="reader-ask-button"
+          onClick={askQuestion}
+          disabled={loading || !canAsk}
+          style={{ alignSelf: 'flex-end', padding: '10px 16px' }}
+        >
           {loading ? '...' : 'Ask'}
         </button>
       </div>

@@ -9,7 +9,6 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db
 from app.models.draft import Draft, DraftSection, EvidenceTable
-from app.models.project import Project
 from app.models.user import User
 from app.schemas.drafts import (
     DraftCreate,
@@ -19,6 +18,7 @@ from app.schemas.drafts import (
     GenerateDraftSectionRequest,
     ResolveDraftCitationsRequest,
 )
+from app.services.permissions import require_project_access
 from app.services.writing_service import (
     build_evidence_table,
     enhance_draft_with_clinical_evidence,
@@ -27,13 +27,6 @@ from app.services.writing_service import (
 )
 
 router = APIRouter(tags=["drafts"])
-
-
-async def _require_project(db: AsyncSession, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
 
 
 def _draft_to_response(draft: Draft) -> DraftResponse:
@@ -75,7 +68,7 @@ async def create_draft(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
     draft = Draft(project_id=payload.project_id, title=payload.title, status="draft", version=1)
     db.add(draft)
     await db.commit()
@@ -90,7 +83,7 @@ async def list_drafts(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     stmt = (
         select(Draft)
         .where(Draft.project_id == project_id)
@@ -117,7 +110,7 @@ async def patch_draft(
     draft = result.scalars().first()
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
-    await _require_project(db, draft.project_id, user)
+    await require_project_access(db, project_id=draft.project_id, user=user, required_role="editor")
     if payload.title is not None:
         draft.title = payload.title
     if payload.status is not None:
@@ -143,7 +136,7 @@ async def patch_draft_section(
     draft = result.scalars().first()
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
-    await _require_project(db, draft.project_id, user)
+    await require_project_access(db, project_id=draft.project_id, user=user, required_role="editor")
 
     sec_stmt = select(DraftSection).where(DraftSection.id == section_id, DraftSection.draft_id == draft_id)
     sec_result = await db.execute(sec_stmt)
@@ -176,7 +169,7 @@ async def generate_draft_section(
     draft = result.scalars().first()
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
-    project = await _require_project(db, draft.project_id, user)
+    project, _ = await require_project_access(db, project_id=draft.project_id, user=user, required_role="editor")
     await generate_section(
         db,
         draft=draft,
@@ -207,7 +200,7 @@ async def resolve_draft_citations(
     draft = result.scalars().first()
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
-    await _require_project(db, draft.project_id, user)
+    await require_project_access(db, project_id=draft.project_id, user=user, required_role="editor")
     target_section = next((section for section in draft.sections if payload.section_id is None or section.id == payload.section_id), None)
     if target_section is None:
         raise HTTPException(status_code=404, detail="Draft section not found")
@@ -233,7 +226,7 @@ async def enhance_draft_with_clinical(
     draft = result.scalars().first()
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
-    await _require_project(db, draft.project_id, user)
+    await require_project_access(db, project_id=draft.project_id, user=user, required_role="editor")
 
     await enhance_draft_with_clinical_evidence(db, draft=draft, user_id=user.id)
 
@@ -250,8 +243,9 @@ async def list_evidence_tables(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     if build:
+        await require_project_access(db, project_id=project_id, user=user, required_role="editor")
         await build_evidence_table(db, project_id=project_id)
     stmt = select(EvidenceTable).where(EvidenceTable.project_id == project_id).order_by(EvidenceTable.created_at.desc())
     result = await db.execute(stmt)

@@ -234,23 +234,19 @@ export default function CollaborationPage() {
               </span>
             </div>
             <div className="rc-product-actions" style={{ marginTop: 12 }}>
-              {canManageMembers ? (
-                <select
-                  data-testid={`member-role-${member.user_id}`}
-                  className="rc-input"
-                  value={member.role}
-                  onChange={(e) => updateRole(member, e.target.value as MembershipRole)}
-                  disabled={saving || member.role === 'owner'}
-                >
-                  {ROLE_OPTIONS.map((role) => (
-                    <option key={role} value={role}>
-                      {ROLE_LABELS[role]}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="rc-help">Read-only team view</div>
-              )}
+              <select
+                data-testid={`member-role-${member.user_id}`}
+                className="rc-input"
+                value={member.role}
+                onChange={(e) => updateRole(member, e.target.value as MembershipRole)}
+                disabled={!canManageMembers || saving || member.role === 'owner'}
+              >
+                {ROLE_OPTIONS.map((role) => (
+                  <option key={role} value={role}>
+                    {ROLE_LABELS[role]}
+                  </option>
+                ))}
+              </select>
 
               {canManageMembers && member.role !== 'owner' ? (
                 <button

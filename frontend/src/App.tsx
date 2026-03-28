@@ -15,6 +15,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const JobsPage = lazy(() => import('./pages/JobsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const CollaborationPage = lazy(() => import('./pages/CollaborationPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const PapersPage = lazy(() => import('./pages/PapersPage'));
 const ReaderPage = lazy(() => import('./pages/ReaderPage'));
@@ -81,6 +82,7 @@ export default function App() {
                 <Route path="drafts" element={<DraftsPage />} />
                 <Route path="analysis" element={<AnalysisPage />} />
                 <Route path="screening" element={<ScreeningPage />} />
+                <Route path="collaboration" element={<CollaborationPage />} />
               </Route>
               <Route path="/clinical" element={<ClinicalPage />} />
               <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />

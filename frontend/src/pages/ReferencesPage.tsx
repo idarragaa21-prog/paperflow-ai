@@ -51,7 +51,7 @@ export default function ReferencesPage() {
   const [format, setFormat] = useState<'bibtex' | 'ris'>('bibtex');
   const [content, setContent] = useState('');
   const [importing, setImporting] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
 
   // DOI import
@@ -172,9 +172,9 @@ export default function ReferencesPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
             <div className="rc-kicker">Import by DOI</div>
-            <input className="rc-input" value={doiInput} onChange={e => setDoiInput(e.target.value)} placeholder="10.1000/xyz123" style={{ fontSize: 13 }} />
+            <input className="rc-input" data-testid="references-doi-input" value={doiInput} onChange={e => setDoiInput(e.target.value)} placeholder="10.1000/xyz123" style={{ fontSize: 13 }} />
           </div>
-          <button className="rc-btn rc-btn--primary" disabled={!doiInput.trim() || doiLoading} onClick={importByDOI} style={{ padding: '8px 14px', fontSize: 13 }}>
+          <button className="rc-btn rc-btn--primary" data-testid="references-import-doi-button" disabled={!doiInput.trim() || doiLoading} onClick={importByDOI} style={{ padding: '8px 14px', fontSize: 13 }}>
             {doiLoading ? 'Importing...' : 'Import DOI'}
           </button>
         </div>
@@ -182,31 +182,51 @@ export default function ReferencesPage() {
 
       {/* Import BibTeX/RIS colapsable */}
       <div className="rc-card" style={{ padding: importOpen ? 14 : '10px 14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setImportOpen(!importOpen)}>
+        <button
+          type="button"
+          data-testid="references-import-toggle"
+          className="rc-btn"
+          style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: 0, background: 'transparent', border: 'none' }}
+          onClick={() => setImportOpen(!importOpen)}
+        >
           <span style={{ fontWeight: 800, fontSize: 13 }}>Import BibTeX / RIS</span>
           <span style={{ fontSize: 11, opacity: 0.6 }}>{importOpen ? '\u25B2' : '\u25BC'}</span>
-        </div>
+        </button>
         {importOpen && (
           <div style={{ marginTop: 10 }}>
             <div className="rc-row" style={{ alignItems: 'flex-end', marginBottom: 8 }}>
               <div style={{ width: 140 }}>
                 <div className="rc-kicker">Format</div>
-                <select className="rc-input" value={format} onChange={e => setFormat(e.target.value as 'bibtex' | 'ris')}>
+                <select className="rc-input" data-testid="references-format-select" value={format} onChange={e => setFormat(e.target.value as 'bibtex' | 'ris')}>
                   <option value="bibtex">BibTeX</option>
                   <option value="ris">RIS</option>
                 </select>
               </div>
-              <button className="rc-btn rc-btn--primary" disabled={!content.trim() || importing} onClick={importReferences}>
+              <button className="rc-btn rc-btn--primary" data-testid="references-import-button" disabled={!content.trim() || importing} onClick={importReferences}>
                 {importing ? 'Importing...' : 'Import'}
               </button>
             </div>
-            <textarea className="rc-input" style={{ minHeight: 140, width: '100%' }} value={content} onChange={e => setContent(e.target.value)} placeholder={format === 'bibtex' ? '@article{...}' : 'TY  - JOUR'} />
+            <textarea
+              className="rc-input"
+              data-testid="references-content-input"
+              style={{ minHeight: 140, width: '100%' }}
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              placeholder={format === 'bibtex' ? '@article{...}' : 'TY  - JOUR'}
+            />
           </div>
         )}
       </div>
 
       {/* Search */}
-      <input className="rc-input" style={{ maxWidth: 320, padding: '8px 12px', fontSize: 13 }} placeholder="Buscar titulo, autores o journal..." value={search} onChange={e => setSearch(e.target.value)} />
+      <input
+        className="rc-input"
+        data-testid="references-search-input"
+        style={{ maxWidth: 320, padding: '8px 12px', fontSize: 13 }}
+        placeholder="Buscar titulo, autores o journal..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
 
       {/* Tabla */}
       {items.length === 0 && !loading ? (

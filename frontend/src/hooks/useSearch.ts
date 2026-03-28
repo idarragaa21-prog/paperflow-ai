@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import type { PaperSearchResult } from '../types/api';
+import { emitProjectContentChanged } from '../utils/projectEvents';
 
 export type DownloadInfo = {
   status: 'saved' | 'duplicate' | 'error';
@@ -149,8 +150,10 @@ export function useSearch(projectId: string | undefined): UseSearchReturn {
       if (duplicate) {
         toast.info('Duplicate', 'Paper already exists in this project.');
       } else if (usedFallback) {
+        emitProjectContentChanged(projectId, 'paper-downloaded');
         toast.info('Downloaded (fallback)', `OA link failed. Resolved via ${providerLabel || 'resolver'}.`);
       } else {
+        emitProjectContentChanged(projectId, 'paper-downloaded');
         toast.info('Downloaded', providerLabel ? `Saved via ${providerLabel}` : 'Downloaded and saved.');
       }
     } catch (e: any) {

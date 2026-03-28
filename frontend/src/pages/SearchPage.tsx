@@ -6,6 +6,7 @@ import { useSearchFilters } from '../hooks/useSearchFilters';
 import { useSearchHistory } from '../hooks/useSearchHistory';
 import { useBatchDownload } from '../hooks/useBatchDownload';
 import { SearchResultCard } from '../components/search/SearchResultCard';
+import { getTechnicalDownloadFailure, humanizeDownloadFailure } from '../components/search/downloadMessaging';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
 import type { BatchDownloadTraceItem } from '../types/api';
 
@@ -275,6 +276,10 @@ export default function SearchPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '48vh', overflowY: 'auto', paddingRight: 4 }}>
                   {batch.batchJob.output.items.map((item, index) => (
+                    (() => {
+                      const humanizedFailure = humanizeDownloadFailure(item.failure_reason);
+                      const technicalFailure = getTechnicalDownloadFailure(item.failure_reason);
+                      return (
                     <div
                       key={`${item.paper_id || item.doi || item.pmid || item.title}-${index}`}
                       className="rc-card"
@@ -302,9 +307,12 @@ export default function SearchPage() {
                         <div>OA URL: {item.oa_url ? <a href={item.oa_url} target="_blank" rel="noopener noreferrer">{item.oa_url}</a> : '—'}</div>
                         <div>Landing URL: {item.landing_url ? <a href={item.landing_url} target="_blank" rel="noopener noreferrer">{item.landing_url}</a> : '—'}</div>
                         <div>Resolved URL: {item.resolved_url ? <a href={item.resolved_url} target="_blank" rel="noopener noreferrer">{item.resolved_url}</a> : '—'}</div>
-                        <div>Resultado: {item.failure_reason || batchStatusLabel(item.final_status)}</div>
+                        <div>Resultado: {humanizedFailure || batchStatusLabel(item.final_status)}</div>
+                        {technicalFailure ? <div>Detalle técnico: {technicalFailure}</div> : null}
                       </div>
                     </div>
+                      );
+                    })()
                   ))}
                 </div>
               </>

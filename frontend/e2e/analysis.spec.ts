@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { loadFixture } from './fixture';
+import { dismissTourIfPresent } from './helpers';
 
 test('analysis workspace can create a dataset, queue a run and export html', async ({ page }) => {
   const fixture = loadFixture();
   const datasetName = `e2e_dataset_${Date.now()}`;
   const runTitle = `E2E run ${Date.now()}`;
   await page.goto(`/projects/${fixture.project.id}/analysis`);
+  await dismissTourIfPresent(page);
 
   await page.getByTestId('dataset-title-input').fill(datasetName);
   await page.getByTestId('dataset-rows-input').fill(
@@ -20,7 +22,6 @@ test('analysis workspace can create a dataset, queue a run and export html', asy
 
   const runCard = page.locator('[data-testid^="analysis-run-"]').filter({ hasText: runTitle }).first();
   await expect(runCard).toContainText(/queued|running|completed/);
-  await expect(runCard).toContainText(/Job:/);
   await expect(runCard).toContainText('completed', { timeout: 180000 });
 
   const exportResponsePromise = page.waitForResponse((response) => {
@@ -31,7 +32,7 @@ test('analysis workspace can create a dataset, queue a run and export html', asy
       response.status() === 200
     );
   });
-  await runCard.locator('button:has-text("HTML")').click();
+  await runCard.locator('button[data-testid*="-html"]').click();
   const exportResponse = await exportResponsePromise;
   expect(exportResponse.headers()['content-type'] || '').toContain('text/html');
 });

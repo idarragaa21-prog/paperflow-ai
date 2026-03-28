@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { loadFixture } from './fixture';
+import { dismissTourIfPresent } from './helpers';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const reviewerStorageState = path.resolve(currentDir, '.auth', 'reviewer.json');
@@ -10,12 +11,13 @@ test('owner can open seeded project and review memberships', async ({ page }) =>
   const fixture = loadFixture();
 
   await page.goto('/projects');
+  await dismissTourIfPresent(page);
   await expect(page.getByText(fixture.project.title, { exact: true })).toBeVisible();
 
   await page.goto(`/projects/${fixture.project.id}/collaboration`);
   await expect(page.getByTestId(`member-card-${fixture.owner.id}`)).toBeVisible();
   await expect(page.getByTestId(`member-card-${fixture.reviewer.id}`)).toBeVisible();
-  await expect(page.getByTestId(`member-role-${fixture.reviewer.id}`)).toHaveValue('reviewer');
+  await expect(page.getByTestId(`member-role-${fixture.reviewer.id}`)).toHaveValue('viewer');
 });
 
 test.describe('reviewer permissions', () => {
@@ -25,10 +27,12 @@ test.describe('reviewer permissions', () => {
     const fixture = loadFixture();
 
     await page.goto(`/projects/${fixture.project.id}/collaboration`);
+    await dismissTourIfPresent(page);
     await expect(page.getByTestId('member-add-button')).toBeDisabled();
     await expect(page.getByTestId(`member-role-${fixture.owner.id}`)).toBeDisabled();
 
     await page.goto(`/projects/${fixture.project.id}/screening`);
+    await dismissTourIfPresent(page);
     await expect(page.getByTestId('screening-create-batch')).toBeDisabled();
     await expect(page.getByTestId('screening-add-comment')).toBeEnabled();
     await expect(page.getByTestId('screening-queue-review-action')).toBeEnabled();

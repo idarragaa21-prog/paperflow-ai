@@ -247,7 +247,7 @@ async def _run(args) -> dict:
 
         project = await _ensure_project(session, owner=owner, title=args.project_title)
         await _ensure_membership(session, project_id=project.id, user_id=owner.id, role="owner")
-        await _ensure_membership(session, project_id=project.id, user_id=reviewer.id, role="reviewer")
+        await _ensure_membership(session, project_id=project.id, user_id=reviewer.id, role="viewer")
         await session.commit()
 
         papers = await _seed_papers(session, project=project, target_count=args.paper_count)

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuthStore } from '../store/authStore';
+import type { MembershipRole, ProjectMember } from '../types/api';
 
 type Batch = { id: string; title: string; stage: string; status: string };
 type Reason = { id: string; code: string; label: string };
@@ -8,42 +10,56 @@ type Paper = { id: string; title: string };
 
 export default function ScreeningPage() {
   const { projectId } = useParams();
+  const user = useAuthStore((state) => state.user);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [reasons, setReasons] = useState<Reason[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [prisma, setPrisma] = useState<Record<string, number>>({});
+  const [projectRole, setProjectRole] = useState<MembershipRole | null>(null);
   const [title, setTitle] = useState('Main screening batch');
   const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedPaper, setSelectedPaper] = useState('');
   const [decision, setDecision] = useState('include');
   const [reasonLabel, setReasonLabel] = useState('Wrong population');
+  const [commentBody, setCommentBody] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const canManageScreening = projectRole === 'owner' || projectRole === 'editor';
+  const canComment = projectRole === 'owner' || projectRole === 'editor' || projectRole === 'viewer';
 
   const load = useCallback(async () => {
     if (!projectId) return;
-    const [batchResponse, reasonResponse, paperResponse, prismaResponse] = await Promise.all([
+    const [batchResponse, reasonResponse, paperResponse, prismaResponse, membersResponse] = await Promise.all([
       api.get('/screening/batches', { params: { project_id: projectId } }),
       api.get('/screening/reasons', { params: { project_id: projectId } }),
       api.get(`/projects/${projectId}/library`),
       api.get('/screening/prisma', { params: { project_id: projectId } }).catch(() => ({ data: { counts: {} } })),
+      api.get(`/projects/${projectId}/members`).catch(() => ({ data: [] })),
     ]);
     const nextBatches = batchResponse.data as Batch[];
+    const nextPapers = paperResponse.data as Paper[];
+    const members = membersResponse.data as ProjectMember[];
     setBatches(nextBatches);
     setReasons(reasonResponse.data as Reason[]);
-    setPapers(paperResponse.data as Paper[]);
+    setPapers(nextPapers);
     setPrisma((prismaResponse.data?.counts || {}) as Record<string, number>);
+    setProjectRole(members.find((member) => member.user_id === user?.id)?.role || null);
     if (!selectedBatch && nextBatches[0]) setSelectedBatch(nextBatches[0].id);
-    if (!selectedPaper && (paperResponse.data as Paper[])[0]) setSelectedPaper((paperResponse.data as Paper[])[0].id);
-  }, [projectId, selectedBatch, selectedPaper]);
+    if (!selectedPaper && nextPapers[0]) setSelectedPaper(nextPapers[0].id);
+  }, [projectId, selectedBatch, selectedPaper, user?.id]);
 
   useEffect(() => {
     load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load screening workspace'));
   }, [load]);
 
   async function createBatch() {
-    if (!projectId) return;
+    if (!projectId || !canManageScreening) return;
     try {
+      setError(null);
+      setNotice(null);
       await api.post('/screening/batches', { project_id: projectId, title, stage: 'title_abstract' });
+      setNotice('Screening batch created.');
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to create screening batch');
@@ -51,10 +67,13 @@ export default function ScreeningPage() {
   }
 
   async function createReason() {
-    if (!projectId) return;
+    if (!projectId || !canManageScreening) return;
     try {
+      setError(null);
+      setNotice(null);
       await api.post('/screening/reasons', { project_id: projectId, code: reasonLabel.toLowerCase().replace(/\s+/g, '_'), label: reasonLabel });
       setReasonLabel('');
+      setNotice('Exclusion reason added.');
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to create reason');
@@ -62,8 +81,10 @@ export default function ScreeningPage() {
   }
 
   async function saveDecision() {
-    if (!selectedBatch || !selectedPaper) return;
+    if (!canManageScreening || !selectedBatch || !selectedPaper) return;
     try {
+      setError(null);
+      setNotice(null);
       await api.post('/screening/decisions', {
         batch_id: selectedBatch,
         paper_id: selectedPaper,
@@ -71,9 +92,53 @@ export default function ScreeningPage() {
         stage: 'title_abstract',
         reason_id: decision === 'exclude' ? reasons[0]?.id || null : null,
       });
+      setNotice('Screening decision saved.');
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to save screening decision');
+    }
+  }
+
+  async function addComment() {
+    if (!projectId || !selectedPaper || !canComment) return;
+    if (!commentBody.trim()) {
+      setError('Write a comment before adding it to the screening workflow.');
+      return;
+    }
+    try {
+      setError(null);
+      setNotice(null);
+      await api.post('/screening/comments', {
+        project_id: projectId,
+        body: commentBody.trim(),
+        target_type: 'paper',
+        target_id: selectedPaper,
+      });
+      setCommentBody('');
+      setNotice('Comment added to the screening workflow.');
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Failed to add comment');
+    }
+  }
+
+  async function queueReviewAction() {
+    if (!projectId || !selectedPaper || !canComment) return;
+    try {
+      setError(null);
+      setNotice(null);
+      await api.post('/screening/peer-review-actions', {
+        project_id: projectId,
+        action: 'screening_review',
+        status: 'open',
+        payload_json: {
+          paper_id: selectedPaper,
+          batch_id: selectedBatch || null,
+          stage: 'title_abstract',
+        },
+      });
+      setNotice('Peer review action queued.');
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Failed to queue peer review');
     }
   }
 
@@ -85,6 +150,7 @@ export default function ScreeningPage() {
       </div>
 
       {error ? <div className="rc-error">{error}</div> : null}
+      {notice ? <div className="rc-help">{notice}</div> : null}
 
       <div className="rc-card">
         <div className="rc-card-title">Setup</div>
@@ -93,12 +159,24 @@ export default function ScreeningPage() {
             <div className="rc-kicker">Batch title</div>
             <input className="rc-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={createBatch}>Create batch</button>
+          <button
+            className="rc-btn"
+            data-testid="screening-create-batch"
+            disabled={!canManageScreening || !title.trim()}
+            onClick={createBatch}
+          >
+            Create batch
+          </button>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Exclusion reason</div>
             <input className="rc-input" value={reasonLabel} onChange={(e) => setReasonLabel(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={createReason}>Add reason</button>
+          <button className="rc-btn" disabled={!canManageScreening || !reasonLabel.trim()} onClick={createReason}>Add reason</button>
+        </div>
+        <div className="rc-help" style={{ marginTop: 10 }}>
+          {canManageScreening
+            ? 'Editors and owners can create batches, define reasons and save screening decisions.'
+            : 'Viewers can comment and queue peer review requests, but only editors or owners can change screening structure.'}
         </div>
       </div>
 
@@ -133,7 +211,38 @@ export default function ScreeningPage() {
               <option value="maybe">Maybe</option>
             </select>
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={saveDecision}>Save decision</button>
+          <button className="rc-btn rc-btn--primary" disabled={!canManageScreening || !selectedBatch || !selectedPaper} onClick={saveDecision}>Save decision</button>
+        </div>
+      </div>
+
+      <div className="rc-card">
+        <div className="rc-card-title">Collaboration actions</div>
+        <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 280, flex: 1 }}>
+            <div className="rc-kicker">Comment for the current paper</div>
+            <input
+              className="rc-input"
+              value={commentBody}
+              onChange={(e) => setCommentBody(e.target.value)}
+              placeholder="Leave a note for the screening team"
+            />
+          </div>
+          <button
+            className="rc-btn"
+            data-testid="screening-add-comment"
+            disabled={!canComment || !selectedPaper}
+            onClick={addComment}
+          >
+            Add comment
+          </button>
+          <button
+            className="rc-btn rc-btn--primary"
+            data-testid="screening-queue-review-action"
+            disabled={!canComment || !selectedPaper}
+            onClick={queueReviewAction}
+          >
+            Queue review action
+          </button>
         </div>
       </div>
 

@@ -19,6 +19,8 @@ from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset, Dataset
 
 
 def _infer_dtype(series: pd.Series) -> str:
+    import pandas as pd
+
     if pd.api.types.is_bool_dtype(series):
         return "boolean"
     if pd.api.types.is_integer_dtype(series):
@@ -229,6 +231,31 @@ def _artifact_matches_format(artifact: AnalysisArtifact, fmt: str) -> bool:
     )
 
 
+def _normalize_text_value(value: object | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "\n\n".join(str(item) for item in value if item is not None)
+    return str(value)
+
+
+def _normalize_figure_payload(value: object | None) -> dict[str, object]:
+    if not isinstance(value, dict):
+        return {
+            "title": "Summary figure placeholder",
+            "caption": "Generated from analysis summary",
+        }
+
+    normalized = dict(value)
+    normalized["title"] = _normalize_text_value(normalized.get("title")) or "Summary figure"
+    normalized["caption"] = _normalize_text_value(normalized.get("caption"))
+    if "analysis_type" in normalized:
+        normalized["analysis_type"] = _normalize_text_value(normalized.get("analysis_type"))
+    return normalized
+
+
 async def _persist_export_artifact(
     db: AsyncSession,
     *,
@@ -314,10 +341,10 @@ async def create_analysis_run(
             },
             "artifact_manifest": artifact_manifest,
         },
-        script_text=response_data.get("script"),
-        warnings=warnings,
+        script_text=_normalize_text_value(response_data.get("script")),
+        warnings=[str(item) for item in warnings],
         result_summary=response_data.get("summary"),
-        engine_version=response_data.get("engine_version") or "local-fallback",
+        engine_version=_normalize_text_value(response_data.get("engine_version")) or "local-fallback",
     )
     db.add(run)
     await db.flush()
@@ -340,7 +367,7 @@ async def create_analysis_run(
     )
     artifact_manifest.append({"artifact_type": "summary", "filename": report_saved["filename"], "file_path": report_saved["file_path"]})
 
-    chart_data = response_data.get("figure") or {"title": "Summary figure placeholder", "caption": "Generated from analysis summary"}
+    chart_data = _normalize_figure_payload(response_data.get("figure"))
     chart_saved = await storage_manager.save_text_artifact(
         text=json.dumps(chart_data, indent=2, ensure_ascii=False),
         filename=f"{run.id}_figure.json",

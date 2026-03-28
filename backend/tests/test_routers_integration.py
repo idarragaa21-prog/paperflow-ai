@@ -26,6 +26,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.main import app
 from app.api.deps import get_db, get_current_user
 from app.database import Base
+from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset
+from app.models.draft import Draft
+from app.models.membership import ProjectMembership
+from app.models.paper import Paper
+from app.models.project import Project
+from app.models.reference_item import ReferenceItem
 from app.models.user import User
 from app.core.security import hash_password
 
@@ -272,3 +278,184 @@ class TestSearchCacheHit:
 
         assert r.status_code == 200
         assert r.json()["cached"] is True
+
+
+@pytest.mark.asyncio
+class TestSharedProjectAccess:
+    async def test_viewer_can_access_reader_analysis_references_and_drafts(self, db_session: AsyncSession):
+        owner = User(
+            id=uuid.uuid4(),
+            email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Owner",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        viewer = User(
+            id=uuid.uuid4(),
+            email=f"viewer-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Viewer",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        project = Project(user_id=owner.id, title="Shared Workspace")
+        db_session.add_all([owner, viewer, project])
+        await db_session.flush()
+        db_session.add(ProjectMembership(project_id=project.id, user_id=viewer.id, role="viewer"))
+        paper = Paper(
+            project_id=project.id,
+            title="Shared paper",
+            authors="Owner, Viewer",
+            filename="shared.pdf",
+            file_path="papers/shared.pdf",
+            content_hash="hash-shared-paper",
+            processing_status="ready",
+            is_processed=True,
+        )
+        dataset = Dataset(project_id=project.id, title="Shared dataset", source_type="manual", row_count=2, column_count=2)
+        draft = Draft(project_id=project.id, title="Shared draft", status="draft", version=1)
+        reference = ReferenceItem(project_id=project.id, title="Shared reference", source_format="manual")
+        db_session.add_all([paper, dataset, draft, reference])
+        await db_session.flush()
+        run = AnalysisRun(
+            project_id=project.id,
+            dataset_id=dataset.id,
+            title="Shared run",
+            analysis_type="group_comparison",
+            status="completed",
+            input_params={},
+            warnings=[],
+            runtime_metadata={},
+            result_summary={"ok": True},
+        )
+        db_session.add(run)
+        await db_session.commit()
+
+        app.dependency_overrides[get_db] = _override_get_db
+        app.dependency_overrides[get_current_user] = lambda: viewer
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            with (
+                patch("app.api.chat.ask", new=AsyncMock(return_value={
+                    "session_id": str(uuid.uuid4()),
+                    "answer": "Grounded answer",
+                    "claim_type": "supported",
+                    "confidence": 0.9,
+                    "grounded": True,
+                    "citations": [],
+                })),
+                patch("app.api.chat.vector_index.index_paper", new=AsyncMock(return_value=None)),
+            ):
+                references_r = await client.get("/references", params={"project_id": str(project.id)})
+                drafts_r = await client.get("/drafts", params={"project_id": str(project.id)})
+                datasets_r = await client.get("/datasets", params={"project_id": str(project.id)})
+                runs_r = await client.get("/analysis-runs", params={"project_id": str(project.id)})
+                chat_r = await client.post(
+                    f"/projects/{project.id}/chat",
+                    json={"question": "What is the main finding?", "task_type": "chat", "max_citations": 4},
+                )
+
+        app.dependency_overrides.clear()
+
+        assert references_r.status_code == 200
+        assert drafts_r.status_code == 200
+        assert datasets_r.status_code == 200
+        assert runs_r.status_code == 200
+        assert chat_r.status_code == 200
+        assert references_r.json()[0]["title"] == "Shared reference"
+        assert drafts_r.json()[0]["title"] == "Shared draft"
+        assert datasets_r.json()[0]["title"] == "Shared dataset"
+        assert runs_r.json()[0]["title"] == "Shared run"
+        assert chat_r.json()["answer"] == "Grounded answer"
+
+    async def test_viewer_cannot_mutate_editor_only_endpoints(self, db_session: AsyncSession):
+        owner = User(
+            id=uuid.uuid4(),
+            email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Owner",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        viewer = User(
+            id=uuid.uuid4(),
+            email=f"viewer-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Viewer",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        project = Project(user_id=owner.id, title="Viewer locked")
+        db_session.add_all([owner, viewer, project])
+        await db_session.flush()
+        db_session.add(ProjectMembership(project_id=project.id, user_id=viewer.id, role="viewer"))
+        await db_session.commit()
+
+        app.dependency_overrides[get_db] = _override_get_db
+        app.dependency_overrides[get_current_user] = lambda: viewer
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            create_draft_r = await client.post("/drafts", json={"project_id": str(project.id), "title": "Viewer draft"})
+            create_dataset_r = await client.post(
+                "/datasets",
+                json={"project_id": str(project.id), "title": "Viewer dataset", "rows": [{"group": "A", "value": 1}]},
+            )
+            import_reference_r = await client.post(
+                "/references/import",
+                json={"project_id": str(project.id), "format": "bibtex", "content": "@article{viewer,title={Viewer Ref}}"},
+            )
+
+        app.dependency_overrides.clear()
+
+        assert create_draft_r.status_code == 403
+        assert create_dataset_r.status_code == 403
+        assert import_reference_r.status_code == 403
+
+
+@pytest.mark.asyncio
+class TestAnalysisExport:
+    async def test_analysis_export_loads_artifacts_without_missing_greenlet(self, db_session: AsyncSession):
+        owner = User(
+            id=uuid.uuid4(),
+            email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Owner",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        project = Project(user_id=owner.id, title="Analysis export")
+        db_session.add_all([owner, project])
+        await db_session.flush()
+        dataset = Dataset(project_id=project.id, title="Shared dataset", source_type="manual", row_count=2, column_count=2)
+        db_session.add(dataset)
+        await db_session.flush()
+        run = AnalysisRun(
+            project_id=project.id,
+            dataset_id=dataset.id,
+            title="Shared run",
+            analysis_type="group_comparison",
+            status="completed",
+            input_params={},
+            warnings=[],
+            runtime_metadata={},
+            result_summary={"ok": True},
+        )
+        db_session.add(run)
+        await db_session.flush()
+        db_session.add(
+            AnalysisArtifact(
+                analysis_run_id=run.id,
+                artifact_type="report_html",
+                filename="shared-run.html",
+                file_path="artifacts/shared-run.html",
+                mime_type="text/html",
+                metadata_json={"format": "html"},
+            )
+        )
+        await db_session.commit()
+
+        app.dependency_overrides[get_db] = _override_get_db
+        app.dependency_overrides[get_current_user] = lambda: owner
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            with patch("app.services.analysis_service.storage_manager.read_bytes", return_value=b"<html>ok</html>"):
+                response = await client.post(f"/analysis-runs/{run.id}/export", params={"format": "html"})
+
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html")
+        assert response.content == b"<html>ok</html>"

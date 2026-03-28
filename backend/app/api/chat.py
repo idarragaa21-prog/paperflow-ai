@@ -7,29 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.paper import Paper
-from app.models.project import Project
 from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse, ChatSessionResponse, HighlightCreate
+from app.services.permissions import require_paper_access, require_project_access
 from app.services.chat_service import add_highlight, ask, get_session
 from app.services.vector_index import vector_index
 
 router = APIRouter(tags=["chat"])
 
 
-async def _require_project(db: AsyncSession, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
-
-
 async def _require_paper(db: AsyncSession, paper_id: UUID, user: User) -> Paper:
-    paper = await db.get(Paper, paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-    project = await db.get(Project, paper.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Paper not found")
+    paper, _ = await require_paper_access(db, paper_id=paper_id, user=user, required_role="viewer")
     return paper
 
 
@@ -41,7 +29,7 @@ async def chat_with_paper(
     user: User = Depends(get_current_user),
 ):
     paper = await _require_paper(db, paper_id, user)
-    project = await _require_project(db, paper.project_id, user)
+    project, _ = await require_project_access(db, project_id=paper.project_id, user=user, required_role="viewer")
     await vector_index.index_paper(db, paper_id=paper.id)
     result = await ask(
         db,
@@ -63,7 +51,7 @@ async def chat_with_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await _require_project(db, project_id, user)
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     result = await ask(
         db,
         project=project,

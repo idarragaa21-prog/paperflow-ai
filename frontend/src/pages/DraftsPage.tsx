@@ -167,10 +167,10 @@ ${sections}
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">New draft title</div>
-            <input className="rc-input" value={title} onChange={e => setTitle(e.target.value)} />
+            <input className="rc-input" data-testid="draft-title-input" value={title} onChange={e => setTitle(e.target.value)} />
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={createDraft} disabled={busy}>Create draft</button>
-          <button className="rc-btn" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
+          <button className="rc-btn rc-btn--primary" data-testid="draft-create-button" onClick={createDraft} disabled={busy}>Create draft</button>
+          <button className="rc-btn" data-testid="draft-build-evidence-button" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
         </div>
       </div>
 
@@ -179,17 +179,17 @@ ${sections}
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Draft</div>
-            <select className="rc-input" value={selectedDraft} onChange={e => setSelectedDraft(e.target.value)}>
+            <select className="rc-input" data-testid="draft-select" value={selectedDraft} onChange={e => setSelectedDraft(e.target.value)}>
               <option value="">Select draft</option>
               {drafts.map(d => <option key={d.id} value={d.id}>{d.title} &middot; v{d.version}</option>)}
             </select>
           </div>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Heading</div>
-            <input className="rc-input" value={heading} onChange={e => setHeading(e.target.value)} />
+            <input className="rc-input" data-testid="draft-heading-input" value={heading} onChange={e => setHeading(e.target.value)} />
           </div>
-          <button className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
-          <button className="rc-btn rc-btn--primary" onClick={enhanceWithClinical} disabled={busy || !selectedDraft}>Enriquecer con evidencia</button>
+          <button className="rc-btn" data-testid="draft-generate-button" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
+          <button className="rc-btn rc-btn--primary" data-testid="draft-enhance-clinical-button" onClick={enhanceWithClinical} disabled={busy || !selectedDraft}>Enriquecer con evidencia</button>
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ReferencesPage from '../pages/ReferencesPage';
 
@@ -61,12 +60,10 @@ describe('ReferencesPage', () => {
   it('imports BibTeX content correctly', async () => {
     renderPage();
 
-    const user = userEvent.setup();
-    await user.click(screen.getByText('Import BibTeX / RIS'));
-    fireEvent.change(screen.getByPlaceholderText('@article{...}'), {
+    fireEvent.change(await screen.findByTestId('references-content-input'), {
       target: { value: '@article{smith2024,title={ACL outcomes}}' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    fireEvent.click(screen.getByTestId('references-import-button'));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/references/import', {

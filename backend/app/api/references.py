@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,11 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.middleware.rate_limit import limiter
 from app.models.paper import Paper
-from app.models.project import Project
 from app.models.reference_item import ReferenceItem
 from app.models.user import User
 from app.schemas.references import ReferenceItemResponse, ReferencesImportRequest, ReferencesImportResponse
 from app.services.audit import log_audit
+from app.services.permissions import require_project_access
 from app.services.references_io import export_bibtex, export_ris, parse_bibtex_entries, parse_ris_entries
 
 router = APIRouter(prefix="/references", tags=["references"])
@@ -36,13 +36,6 @@ def _to_response(item: ReferenceItem) -> ReferenceItemResponse:
     )
 
 
-async def _require_owned_project(db: AsyncSession, *, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
-
-
 @router.post("/import", response_model=ReferencesImportResponse)
 @limiter.limit("10/minute")
 async def import_references(
@@ -51,7 +44,7 @@ async def import_references(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=payload.project_id, user=user)
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
     parser = parse_bibtex_entries if payload.format == "bibtex" else parse_ris_entries
     parsed = parser(payload.content)
 
@@ -98,7 +91,7 @@ async def list_references(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=project_id, user=user)
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).order_by(ReferenceItem.created_at.desc()))
     return [_to_response(item) for item in q.scalars().all()]
 
@@ -111,7 +104,7 @@ async def sync_references_from_library(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=project_id, user=user)
+    await require_project_access(db, project_id=project_id, user=user, required_role="editor")
     papers_q = await db.execute(select(Paper).where(Paper.project_id == project_id))
     papers = papers_q.scalars().all()
     created = 0
@@ -158,7 +151,7 @@ async def export_references(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(db, project_id=project_id, user=user)
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
     q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).order_by(ReferenceItem.created_at.asc()))
     items = q.scalars().all()
     payload = [

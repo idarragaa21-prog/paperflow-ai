@@ -19,6 +19,7 @@ frontend/playwright-report/
 frontend/test-results/
 frontend/.auth/
 frontend/e2e/.auth/
+.playwright-cli/
 
 # Logs & pids
 logs/

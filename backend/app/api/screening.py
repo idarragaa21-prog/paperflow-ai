@@ -20,14 +20,19 @@ from app.schemas.screening import (
     ScreeningDecisionCreate,
     ScreeningDecisionResponse,
 )
+from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/screening", tags=["screening"])
 
 
-async def _require_project(db: AsyncSession, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+async def _require_project(
+    db: AsyncSession,
+    project_id: UUID,
+    user: User,
+    *,
+    required_role: str = "viewer",
+) -> Project:
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role=required_role)
     return project
 
 
@@ -37,7 +42,7 @@ async def create_batch(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await _require_project(db, payload.project_id, user, required_role="editor")
     batch = ScreeningBatch(project_id=payload.project_id, title=payload.title, stage=payload.stage, status="active")
     db.add(batch)
     await db.commit()
@@ -51,7 +56,7 @@ async def list_batches(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await _require_project(db, project_id, user, required_role="viewer")
     result = await db.execute(select(ScreeningBatch).where(ScreeningBatch.project_id == project_id).order_by(ScreeningBatch.created_at.desc()))
     return [
         ScreeningBatchResponse(id=batch.id, project_id=batch.project_id, title=batch.title, stage=batch.stage, status=batch.status)
@@ -68,7 +73,7 @@ async def create_decision(
     batch = await db.get(ScreeningBatch, payload.batch_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="Screening batch not found")
-    await _require_project(db, batch.project_id, user)
+    await _require_project(db, batch.project_id, user, required_role="editor")
     decision = ScreeningDecision(
         batch_id=batch.id,
         paper_id=payload.paper_id,
@@ -101,7 +106,7 @@ async def list_decisions(
     batch = await db.get(ScreeningBatch, batch_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="Screening batch not found")
-    await _require_project(db, batch.project_id, user)
+    await _require_project(db, batch.project_id, user, required_role="viewer")
     result = await db.execute(select(ScreeningDecision).where(ScreeningDecision.batch_id == batch_id).order_by(ScreeningDecision.created_at.desc()))
     return [
         ScreeningDecisionResponse(
@@ -123,7 +128,7 @@ async def create_reason(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await _require_project(db, payload.project_id, user, required_role="editor")
     reason = EligibilityReason(project_id=payload.project_id, code=payload.code, label=payload.label, description=payload.description)
     db.add(reason)
     await db.commit()
@@ -143,7 +148,7 @@ async def list_reasons(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await _require_project(db, project_id, user, required_role="viewer")
     result = await db.execute(select(EligibilityReason).where(EligibilityReason.project_id == project_id).order_by(EligibilityReason.label.asc()))
     return [
         EligibilityReasonResponse(
@@ -163,7 +168,7 @@ async def get_prisma_counts(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await _require_project(db, project_id, user, required_role="viewer")
     result = await db.execute(
         select(ScreeningDecision.decision, func.count())
         .join(ScreeningBatch, ScreeningBatch.id == ScreeningDecision.batch_id)
@@ -189,7 +194,7 @@ async def create_comment(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await _require_project(db, payload.project_id, user, required_role="viewer")
     comment = ProjectComment(
         project_id=payload.project_id,
         user_id=user.id,
@@ -209,7 +214,7 @@ async def create_peer_review_action(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await _require_project(db, payload.project_id, user, required_role="viewer")
     action = PeerReviewAction(
         project_id=payload.project_id,
         user_id=user.id,

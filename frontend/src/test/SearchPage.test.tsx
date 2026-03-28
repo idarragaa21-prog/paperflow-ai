@@ -488,6 +488,74 @@ describe('SearchPage — select and batch download', () => {
       );
     });
   });
+
+  it('shows a humanized batch failure message and preserves the technical detail', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === `/projects/${PROJECT_ID}`) {
+        return { data: { title: 'ACL project' } };
+      }
+      if (url === `/search/projects/${PROJECT_ID}/searches`) {
+        return { data: [] };
+      }
+      if (url === '/jobs/batch-001') {
+        return {
+          data: {
+            status: 'completed',
+            progress_percent: 100,
+            result: {
+              output: {
+                items: [
+                  {
+                    title: 'Open access orthopedic biomechanics',
+                    doi: '10.2000/doaj.003',
+                    paper_id: null,
+                    source_provider: 'doaj',
+                    oa_url: 'https://doaj.org/article/test.pdf',
+                    landing_url: 'https://doaj.org/article/test',
+                    resolved_url: 'https://publisher.example.com/paper.pdf',
+                    used_fallback: false,
+                    final_status: 'failed',
+                    failure_reason: "Client error '403 Forbidden' for url 'https://publisher.example.com/paper.pdf'",
+                  },
+                ],
+                downloaded: [],
+                already_exists: [],
+                not_available: [],
+                failed: [
+                  {
+                    title: 'Open access orthopedic biomechanics',
+                    doi: '10.2000/doaj.003',
+                    paper_id: null,
+                    source_provider: 'doaj',
+                    oa_url: 'https://doaj.org/article/test.pdf',
+                    landing_url: 'https://doaj.org/article/test',
+                    resolved_url: 'https://publisher.example.com/paper.pdf',
+                    used_fallback: false,
+                    final_status: 'failed',
+                    failure_reason: "Client error '403 Forbidden' for url 'https://publisher.example.com/paper.pdf'",
+                  },
+                ],
+              },
+            },
+          },
+        };
+      }
+      return { data: [] };
+    });
+
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: MOCK_RESPONSE })
+      .mockResolvedValueOnce({ data: { job_id: 'batch-001' } });
+
+    await searchAndWait();
+    fireEvent.click(screen.getByRole('button', { name: /Select all OA/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add \(2\) to Library/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/La editorial o el proveedor bloquearon el acceso directo al PDF\./)).toBeInTheDocument();
+      expect(screen.getByText(/Detalle técnico: .*403 Forbidden/)).toBeInTheDocument();
+    });
+  });
 });
 
 // ── 10. Search history ──────────────────────────────────────────────────────

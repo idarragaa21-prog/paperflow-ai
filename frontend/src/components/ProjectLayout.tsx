@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams, useNavigate, Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { NavLink, Outlet, useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { downloadBlob } from './meta/exportUtils';
 import { api } from '../services/api';
 import { useJobPolling } from '../hooks/useJobPolling';
 import { Breadcrumb } from './Breadcrumb';
 import { useToast } from '../ui/Toast/ToastProvider';
+import {
+  PROJECT_CONTENT_CHANGED_EVENT,
+  type ProjectContentChangedDetail,
+} from '../utils/projectEvents';
 
 type Project = {
   id: string;
@@ -41,6 +45,7 @@ function Tab({ to, label }: { to: string; label: string }) {
 
 export default function ProjectLayout() {
   const { projectId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
   const [project, setProject] = useState<Project | null>(null);
@@ -57,26 +62,58 @@ export default function ProjectLayout() {
     },
   });
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      if (!projectId) return;
+  const loadProject = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const response = await api.get(`/projects/${projectId}`);
+      setProject(response.data as Project);
       setError(null);
-      try {
-        const [rp, rd] = await Promise.all([
-          api.get(`/projects/${projectId}`),
-          api.get(`/projects/${projectId}/dashboard`),
-        ]);
-        if (mounted) setProject(rp.data as Project);
-        if (mounted) setDashboard(rd.data as Dashboard);
-      } catch (e: unknown) {
-        const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load project';
-        if (mounted) setError(msg);
-      }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load project';
+      setError(msg);
     }
-    load();
-    return () => { mounted = false; };
   }, [projectId]);
+
+  const loadDashboard = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const response = await api.get(`/projects/${projectId}/dashboard`);
+      setDashboard(response.data as Dashboard);
+      setError(null);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load project';
+      setError(msg);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void loadProject();
+  }, [loadProject]);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard, location.pathname]);
+
+  useEffect(() => {
+    if (!projectId) return undefined;
+
+    const handleProjectUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<ProjectContentChangedDetail>).detail;
+      if (detail?.projectId === projectId) {
+        void loadDashboard();
+      }
+    };
+    const handleFocus = () => {
+      void loadDashboard();
+    };
+
+    window.addEventListener(PROJECT_CONTENT_CHANGED_EVENT, handleProjectUpdate as EventListener);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener(PROJECT_CONTENT_CHANGED_EVENT, handleProjectUpdate as EventListener);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadDashboard, projectId]);
 
   async function startExportZip() {
     if (!projectId) return;
@@ -193,6 +230,7 @@ export default function ProjectLayout() {
           <Tab to={`/projects/${projectId}/drafts`} label="Drafts" />
           <Tab to={`/projects/${projectId}/analysis`} label="Analysis" />
           <Tab to={`/projects/${projectId}/screening`} label="Screening" />
+          <Tab to={`/projects/${projectId}/collaboration`} label="Team" />
           <Tab to={`/projects/${projectId}/notes`} label="Notes" />
         </div>
       </div>

@@ -17,6 +17,12 @@ type AnalysisRun = {
   warnings: string[];
 };
 
+function mergeRunsWithPending(currentRuns: AnalysisRun[], loadedRuns: AnalysisRun[]) {
+  const loadedById = new Set(loadedRuns.map((run) => run.id));
+  const pendingRuns = currentRuns.filter((run) => run.id.startsWith('pending-') && !loadedById.has(run.id));
+  return [...pendingRuns, ...loadedRuns];
+}
+
 export default function AnalysisPage() {
   const { projectId } = useParams();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -27,15 +33,19 @@ export default function AnalysisPage() {
   const [analysisTitle, setAnalysisTitle] = useState('Group comparison');
   const [analysisType, setAnalysisType] = useState('group_comparison');
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [creatingDataset, setCreatingDataset] = useState(false);
+  const [runningAnalysis, setRunningAnalysis] = useState(false);
 
   const load = useCallback(async () => {
     if (!projectId) return;
-    const [datasetResponse] = await Promise.all([
+    const [datasetResponse, runResponse] = await Promise.all([
       api.get('/datasets', { params: { project_id: projectId } }),
+      api.get('/analysis-runs', { params: { project_id: projectId } }),
     ]);
     const nextDatasets = datasetResponse.data as Dataset[];
+    const nextRuns = runResponse.data as AnalysisRun[];
     setDatasets(nextDatasets);
+    setRuns((currentRuns) => mergeRunsWithPending(currentRuns, nextRuns));
     if (!selectedDataset && nextDatasets[0]) {
       setSelectedDataset(nextDatasets[0].id);
     }
@@ -45,9 +55,17 @@ export default function AnalysisPage() {
     load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load analysis workspace'));
   }, [load]);
 
+  useEffect(() => {
+    if (!runs.some((run) => ['queued', 'started', 'running', 'progress'].includes(run.status))) return;
+    const interval = window.setInterval(() => {
+      load().catch(() => undefined);
+    }, 4000);
+    return () => window.clearInterval(interval);
+  }, [load, runs]);
+
   async function createDataset() {
     if (!projectId) return;
-    setBusy(true);
+    setCreatingDataset(true);
     setError(null);
     try {
       const rows = JSON.parse(rowsText) as Array<Record<string, unknown>>;
@@ -58,14 +76,25 @@ export default function AnalysisPage() {
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to create dataset');
     } finally {
-      setBusy(false);
+      setCreatingDataset(false);
     }
   }
 
   async function createRun() {
     if (!projectId) return;
-    setBusy(true);
+    setRunningAnalysis(true);
     setError(null);
+    const optimisticRunId = `pending-${Date.now()}`;
+    setRuns((prev) => [
+      {
+        id: optimisticRunId,
+        title: analysisTitle,
+        analysis_type: analysisType,
+        status: 'running',
+        warnings: [],
+      },
+      ...prev,
+    ]);
     try {
       const response = await api.post('/analysis-runs', {
         project_id: projectId,
@@ -76,14 +105,19 @@ export default function AnalysisPage() {
           analysisType === 'group_comparison'
             ? { group_column: 'group', value_column: 'value' }
             : analysisType === 'linear_regression'
-              ? { target_column: 'value', feature_columns: ['group'] }
-              : {},
+            ? { target_column: 'value', feature_columns: ['group'] }
+            : {},
       });
-      setRuns((prev) => [response.data as AnalysisRun, ...prev]);
+      setRuns((prev) => {
+        const nextRun = response.data as AnalysisRun;
+        const withoutOptimistic = prev.filter((run) => run.id !== optimisticRunId);
+        return [nextRun, ...withoutOptimistic];
+      });
     } catch (e: any) {
+      setRuns((prev) => prev.filter((run) => run.id !== optimisticRunId));
       setError(e?.response?.data?.detail || 'Failed to run analysis');
     } finally {
-      setBusy(false);
+      setRunningAnalysis(false);
     }
   }
 
@@ -118,12 +152,23 @@ export default function AnalysisPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Dataset title</div>
-            <input className="rc-input" value={datasetTitle} onChange={(e) => setDatasetTitle(e.target.value)} />
+            <input
+              className="rc-input"
+              data-testid="dataset-title-input"
+              value={datasetTitle}
+              onChange={(e) => setDatasetTitle(e.target.value)}
+            />
           </div>
-          <button className="rc-btn rc-btn--primary" onClick={createDataset} disabled={busy}>Create dataset</button>
+          <button className="rc-btn rc-btn--primary" data-testid="dataset-create-button" onClick={createDataset} disabled={creatingDataset}>Create dataset</button>
         </div>
         <div style={{ height: 10 }} />
-        <textarea className="rc-input" style={{ minHeight: 140, width: '100%' }} value={rowsText} onChange={(e) => setRowsText(e.target.value)} />
+        <textarea
+          className="rc-input"
+          data-testid="dataset-rows-input"
+          style={{ minHeight: 140, width: '100%' }}
+          value={rowsText}
+          onChange={(e) => setRowsText(e.target.value)}
+        />
       </div>
 
       <div className="rc-card">
@@ -131,7 +176,12 @@ export default function AnalysisPage() {
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Dataset</div>
-            <select className="rc-input" value={selectedDataset} onChange={(e) => setSelectedDataset(e.target.value)}>
+            <select
+              className="rc-input"
+              data-testid="analysis-dataset-select"
+              value={selectedDataset}
+              onChange={(e) => setSelectedDataset(e.target.value)}
+            >
               <option value="">No dataset</option>
               {datasets.map((dataset) => (
                 <option key={dataset.id} value={dataset.id}>
@@ -142,11 +192,21 @@ export default function AnalysisPage() {
           </div>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Title</div>
-            <input className="rc-input" value={analysisTitle} onChange={(e) => setAnalysisTitle(e.target.value)} />
+            <input
+              className="rc-input"
+              data-testid="analysis-title-input"
+              value={analysisTitle}
+              onChange={(e) => setAnalysisTitle(e.target.value)}
+            />
           </div>
           <div style={{ minWidth: 220 }}>
             <div className="rc-kicker">Type</div>
-            <select className="rc-input" value={analysisType} onChange={(e) => setAnalysisType(e.target.value)}>
+            <select
+              className="rc-input"
+              data-testid="analysis-type-select"
+              value={analysisType}
+              onChange={(e) => setAnalysisType(e.target.value)}
+            >
               <option value="descriptives">Descriptives</option>
               <option value="group_comparison">Group comparison</option>
               <option value="linear_regression">Linear regression</option>
@@ -154,7 +214,7 @@ export default function AnalysisPage() {
               <option value="meta_analysis">Meta-analysis</option>
             </select>
           </div>
-          <button className="rc-btn" onClick={createRun} disabled={busy}>Run</button>
+          <button className="rc-btn" data-testid="analysis-run-button" onClick={createRun} disabled={creatingDataset || runningAnalysis}>Run</button>
         </div>
       </div>
 
@@ -172,14 +232,14 @@ export default function AnalysisPage() {
         <div className="rc-card-title">Recent runs</div>
         {runs.length === 0 ? <div className="rc-muted">No analysis runs in this session yet.</div> : null}
         {runs.map((run) => (
-          <div key={run.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
+          <div key={run.id} className="rc-card" data-testid={`analysis-run-${run.id}`} style={{ padding: 12, marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{run.title}</div>
             <div className="rc-help">{run.analysis_type} · {run.status}</div>
             {run.warnings?.length ? <div className="rc-help">Warnings: {run.warnings.join(' | ')}</div> : null}
             <div className="rc-row">
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'html')}>HTML</button>
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'pdf')}>PDF</button>
-              <button className="rc-btn" onClick={() => exportRun(run.id, 'docx')}>DOCX</button>
+              <button className="rc-btn" data-testid={`analysis-export-${run.id}-html`} disabled={run.status !== 'completed'} onClick={() => exportRun(run.id, 'html')}>HTML</button>
+              <button className="rc-btn" data-testid={`analysis-export-${run.id}-pdf`} disabled={run.status !== 'completed'} onClick={() => exportRun(run.id, 'pdf')}>PDF</button>
+              <button className="rc-btn" data-testid={`analysis-export-${run.id}-docx`} disabled={run.status !== 'completed'} onClick={() => exportRun(run.id, 'docx')}>DOCX</button>
             </div>
           </div>
         ))}
