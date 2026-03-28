@@ -117,10 +117,10 @@ describe('ClinicalPage and ClinicalSheetPage', () => {
   });
 
   it('shows a spinner state while generation is starting', async () => {
-    let resolveRequest: ((value: { data: { job_id: string } }) => void) | null = null;
+    let resolveRequest!: (value: { data: { job_id: string } }) => void;
     vi.mocked(api.post).mockImplementation(
       () =>
-        new Promise((resolve) => {
+        new Promise<{ data: { job_id: string } }>((resolve) => {
           resolveRequest = resolve;
         }),
     );
@@ -134,7 +134,7 @@ describe('ClinicalPage and ClinicalSheetPage', () => {
       expect(screen.getByRole('button', { name: 'Starting…' })).toBeInTheDocument();
     });
 
-    resolveRequest?.({ data: { job_id: 'job-1' } });
+    resolveRequest({ data: { job_id: 'job-1' } });
   });
 
   it('renders ClinicalProViewer with the expected data on the sheet page', async () => {

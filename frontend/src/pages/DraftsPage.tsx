@@ -86,6 +86,17 @@ export default function DraftsPage() {
     finally { setBusy(false); }
   }
 
+  async function enhanceWithClinical() {
+    if (!selectedDraft) return;
+    setBusy(true); setError(null);
+    try {
+      await api.post(`/drafts/${selectedDraft}/enhance-with-clinical`);
+      toast.success('Clinical evidence added', 'The draft was enriched with evidence-backed clinical synthesis.');
+      await load();
+    } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to enrich draft with clinical evidence'); }
+    finally { setBusy(false); }
+  }
+
   // Inline edit
   function startEdit(section: DraftSection) {
     setEditingSection(section.id);
@@ -178,6 +189,7 @@ ${sections}
             <input className="rc-input" value={heading} onChange={e => setHeading(e.target.value)} />
           </div>
           <button className="rc-btn" onClick={generateSection} disabled={busy || !selectedDraft}>Generate</button>
+          <button className="rc-btn rc-btn--primary" onClick={enhanceWithClinical} disabled={busy || !selectedDraft}>Enriquecer con evidencia</button>
         </div>
       </div>
 

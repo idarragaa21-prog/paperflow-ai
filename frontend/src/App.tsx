@@ -84,7 +84,8 @@ export default function App() {
               </Route>
               <Route path="/clinical" element={<ClinicalPage />} />
               <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />
-              <Route path="/books" element={<BooksPage />} />
+              <Route path="/knowledge" element={<BooksPage />} />
+              <Route path="/books" element={<Navigate to="/knowledge" replace />} />
               <Route path="/deep-research" element={<DeepResearchPage />} />
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/settings" element={<SettingsPage />} />

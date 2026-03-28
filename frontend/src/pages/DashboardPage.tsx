@@ -110,9 +110,9 @@ const QUICK_ACCESS = [
     ),
   },
   {
-    label: 'Books & Scans',
-    sub: 'Indexed book library',
-    to: '/books',
+    label: 'Private Knowledge',
+    sub: 'Indexed internal sources',
+    to: '/knowledge',
     color: 'rgba(59,130,246,0.1)',
     stroke: 'rgba(59,130,246,0.85)',
     icon: (
