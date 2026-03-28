@@ -16,7 +16,6 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   useEffect(() => { if (user) navigate('/dashboard'); }, [user, navigate]);
 
@@ -28,28 +27,10 @@ export default function SignupPage() {
     setLoading(true);
     try {
       await api.post('/auth/register', { email, password, full_name: fullName || null });
-      setSuccess(true);
+      navigate('/login');
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Registration failed');
     } finally { setLoading(false); }
-  }
-
-  if (success) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f7f6f2', padding: 32 }}>
-        <div style={{ maxWidth: 400, textAlign: 'center' }}>
-          <div style={{ width: 64, height: 64, borderRadius: 20, margin: '0 auto 20px',
-            background: 'var(--rc-success-bg)', border: '1px solid var(--rc-success-border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>✓</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, marginBottom: 8 }}>
-            {t.auth.accountCreated}
-          </div>
-          <Link to="/login" className="rc-btn rc-btn--primary" style={{ textDecoration: 'none', marginTop: 16, display: 'inline-block' }}>
-            {t.auth.signIn} →
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   return (
