@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import re
 import threading
 from collections.abc import Coroutine
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
 from uuid import UUID
@@ -23,6 +22,7 @@ from app.workers.job_tracker import (
     job_mark_started,
     job_set_progress,
 )
+from app.core.logger import logger
 
 
 _T = TypeVar("_T")
@@ -71,20 +71,9 @@ def process_pdf_job(job_db_id: str, paper_id: str) -> dict[str, Any]:
             await job_set_progress(job_uuid, 10, status="started")  # load
 
             async with async_session_maker() as db:
-                await job_set_progress(job_uuid, 50, status="progress")  # extract + chunk
+                await job_set_progress(job_uuid, 60, status="progress")  # extract
                 result = await process_paper(paper_uuid, db)
-                await job_set_progress(job_uuid, 75, status="progress")  # index
-
-                # Critical: push chunks to Qdrant so Reader chat can retrieve them
-                from app.services.vector_index import vector_index
-                try:
-                    await vector_index.index_paper(db, paper_id=paper_uuid)
-                except Exception as idx_err:
-                    # Non-fatal: log but don't fail the job (chunks in DB, Qdrant can be rebuilt)
-                    from app.core.logger import logger
-                    logger.warning(f"vector_index.index_paper failed (non-fatal): {idx_err}")
-
-                await job_set_progress(job_uuid, 95, status="progress")  # done
+                await job_set_progress(job_uuid, 90, status="progress")  # save
 
             await job_mark_completed(job_uuid, result={"paper_id": str(paper_uuid)})
             return result
@@ -164,7 +153,6 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
 
                 # Tables
                 tables_md_parts: list[str] = []
-                tables_raw_rows: list[dict[str, Any]] = []
                 try:
                     import pdfplumber
 
@@ -172,18 +160,9 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         for i, page in enumerate(pdf.pages, 1):
                             tbs = page.extract_tables() or []
                             for ti, tbl in enumerate(tbs, 1):
-                                table_id = f"p{i}-{ti}"
-                                extracted_markdown = "\n".join(["\t".join([str(c) if c is not None else "" for c in row]) for row in tbl])
-                                tables_md_parts.append(f"\n\n### Table {table_id}\n" + extracted_markdown)
-                                tables_raw_rows.append(
-                                    {
-                                        "table_id": table_id,
-                                        "page": i,
-                                        "extracted_markdown": extracted_markdown,
-                                    }
-                                )
-                except Exception:
-                    pass
+                                tables_md_parts.append(f"\n\n### Table p{i}-{ti}\n" + "\n".join(["\t".join([str(c) if c is not None else "" for c in row]) for row in tbl]))
+                except Exception as _tbl_err:
+                    logger.warning(f"[meta_extract_paper_job] pdfplumber table extraction failed for paper={paper_id}: {_tbl_err!r}")
 
                 tables_markdown = "\n".join(tables_md_parts)
 
@@ -198,7 +177,6 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
 
                 ocr_snippets = ""
                 ocr_used = False
-                images_ocr_raw_rows: list[dict[str, Any]] = []
 
                 ocr_av = detect_ocr_availability(ocr_enabled=bool(getattr(settings, "OCR_ENABLED", False)))
 
@@ -214,18 +192,8 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                             try:
                                 text_for_llm = extract_text(out_pdf)
                                 ocr_snippets, ocr_used = ocr_pages_best_effort(out_pdf, max_pages=3)
-                                if ocr_snippets:
-                                    images_ocr_raw_rows = [
-                                        {
-                                            "image_id": f"ocr-page-{match.group(1)}",
-                                            "page": int(match.group(1)),
-                                            "ocr_text": match.group(2).strip(),
-                                        }
-                                        for match in re.finditer(r"\[page (\d+)\]\n(.*?)(?=\n\n\[page |\Z)", ocr_snippets, flags=re.S)
-                                        if match.group(2).strip()
-                                    ]
-                            except Exception:
-                                pass
+                            except Exception as _ocr_err:
+                                logger.warning(f"[meta_extract_paper_job] OCR text extraction failed for paper={paper_id}: {_ocr_err!r}")
                         else:
                             warnings.append("Scanned PDF preprocessing disabled or failed.")
                 elif scanned and ocr_av.ocr_enabled and not ocr_av.ocrmypdf_available:
@@ -239,15 +207,6 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         if used2:
                             ocr_snippets = (ocr_snippets + "\n\n" + ocr_snippets2).strip()
                             ocr_used = True
-                            images_ocr_raw_rows = [
-                                {
-                                    "image_id": f"ocr-page-{match.group(1)}",
-                                    "page": int(match.group(1)),
-                                    "ocr_text": match.group(2).strip(),
-                                }
-                                for match in re.finditer(r"\[page (\d+)\]\n(.*?)(?=\n\n\[page |\Z)", ocr_snippets, flags=re.S)
-                                if match.group(2).strip()
-                            ]
                 elif ocr_av.ocr_enabled and not ocr_av.tesseract_available:
                     warnings.append("Tesseract not installed. OCR disabled. Install with: brew install tesseract")
 
@@ -288,27 +247,13 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                     prev.is_current = False
                     next_version = int(prev.version) + 1
 
-                extracted_payload = extracted.model_dump()
-                extracted_payload["_tables_raw"] = tables_raw_rows
-                extracted_payload["_images_ocr_raw"] = images_ocr_raw_rows
-                extracted_payload["_extraction_warnings"] = list(warnings)
-                extracted_payload["_extraction_logs"] = [
-                    {
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "job_id": str(job_uuid),
-                        "level": "warning",
-                        "message": warning,
-                    }
-                    for warning in warnings
-                ]
-
                 study = ExtractedStudy(
                     project_id=paper.project_id,
                     paper_id=paper_uuid,
                     batch_id=batch_uuid,
                     version=next_version,
                     is_current=True,
-                    study_json=extracted_payload,
+                    study_json=extracted.model_dump(),
                     extraction_confidence=float(extracted.extraction_confidence or 0.0),
                 )
                 db.add(study)
@@ -366,9 +311,6 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         "study_id": str(study.id),
                         "extraction_confidence": study.extraction_confidence,
                         "ocr_used": ocr_used,
-                        "warnings": list(warnings),
-                        "tables_extracted": len(tables_raw_rows),
-                        "ocr_snippets": len(images_ocr_raw_rows),
                     }
                     item.error_message = None
 
@@ -383,8 +325,8 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         if b:
                             b.status = "failed" if any(s == "failed" for s in statuses) else "completed"
                             await db.commit()
-                except Exception:
-                    pass
+                except Exception as _fin_err:
+                    logger.warning(f"[meta_extract_paper_job] batch finalization failed for batch={batch_id}: {_fin_err!r}")
 
             study_id = str(study.id)
             await job_mark_completed(
@@ -417,11 +359,11 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                             if b:
                                 b.status = "failed" if any(s == "failed" for s in statuses) else "completed"
                                 await db2.commit()
-                    except Exception:
-                        pass
-            except Exception:
+                    except Exception as _fin2_err:
+                        logger.warning(f"[meta_extract_paper_job] failure-path batch finalization failed for batch={batch_id}: {_fin2_err!r}")
+            except Exception as _item_err:
                 # Best-effort; don't mask the original failure.
-                pass
+                logger.warning(f"[meta_extract_paper_job] failed to persist item failure for item={item_id}: {_item_err!r}")
 
             await job_mark_failed(job_uuid, str(e))
             return {"output": {}, "warnings": warnings, "errors": [str(e)]}
@@ -538,8 +480,8 @@ def summarize_paper_job(job_db_id: str, paper_id: str, custom_instructions: str 
     return run_coro(_async_logic())
 
 
-def meta_export_job(job_db_id: str, project_id: str, batch_id: str = "", export_format: str = "xlsx") -> dict[str, Any]:
-    """Generate meta extractor export (xlsx or csv bundle). SYNC wrapper."""
+def meta_export_excel_job(job_db_id: str, project_id: str, batch_id: str = "") -> dict[str, Any]:
+    """Generate XLSX export for meta extractor. SYNC wrapper."""
 
     from app.services.meta_extractor.export_service import create_meta_export
 
@@ -554,7 +496,7 @@ def meta_export_job(job_db_id: str, project_id: str, batch_id: str = "", export_
 
             async with async_session_maker() as db:
                 await job_set_progress(job_uuid, 60, status="progress")
-                export = await create_meta_export(db=db, project_id=proj_uuid, batch_id=batch_uuid, export_format=export_format)
+                export = await create_meta_export(db=db, project_id=proj_uuid, batch_id=batch_uuid)
                 await job_set_progress(job_uuid, 90, status="progress")
 
             await job_mark_completed(
@@ -567,12 +509,6 @@ def meta_export_job(job_db_id: str, project_id: str, batch_id: str = "", export_
             return {"output": {}, "warnings": [], "errors": [str(e)]}
 
     return run_coro(_async_logic())
-
-
-def meta_export_excel_job(job_db_id: str, project_id: str, batch_id: str = "") -> dict[str, Any]:
-    """Backward-compatible alias for XLSX meta exports."""
-
-    return meta_export_job(job_db_id, project_id, batch_id, "xlsx")
 
 
 
@@ -686,7 +622,7 @@ def books_index_job(job_db_id: str, book_id: str) -> dict[str, Any]:
                 b.title = idx.get("title")
                 b.total_pages = idx.get("total_pages")
                 b.chapters = idx.get("chapters")
-                b.indexed_at = datetime.now(timezone.utc)
+                b.indexed_at = datetime.utcnow()
                 await db.commit()
 
             await job_mark_completed(job_uuid, result={"output": {"book_id": book_id}, "warnings": [], "errors": []})
@@ -731,7 +667,7 @@ def clinical_query_job(job_db_id: str, sheet_id: str) -> dict[str, Any]:
                 sheet.sources_used = out.get("sources_used")
                 sheet.llm_model = out.get("llm_model")
                 sheet.llm_usage = out.get("llm_usage")
-                sheet.updated_at = datetime.now(timezone.utc)
+                sheet.updated_at = datetime.utcnow()
                 # keep input_params, but set status completed
                 sheet.input_params = {**(sheet.input_params or {}), "status": "completed"}
 
@@ -777,10 +713,10 @@ def clinical_query_job(job_db_id: str, sheet_id: str) -> dict[str, Any]:
                     s2 = await db2.get(ClinicalSheet, sheet_uuid)
                     if s2:
                         s2.input_params = {**(s2.input_params or {}), "status": "failed", "error": str(e)}
-                        s2.updated_at = datetime.now(timezone.utc)
+                        s2.updated_at = datetime.utcnow()
                         await db2.commit()
-            except Exception:
-                pass
+            except Exception as _sheet_err:
+                logger.warning(f"[clinical_query_job] failed to persist error state on sheet={sheet_id}: {_sheet_err!r}")
 
             await job_mark_failed(job_uuid, str(e))
             raise
@@ -970,7 +906,7 @@ def export_project_zip_job(job_db_id: str, project_id: str) -> dict[str, Any]:
                 import json
                 import re
                 import zipfile
-                from datetime import datetime, timezone
+                from datetime import datetime
                 from pathlib import Path
 
                 def _safe_name(s: str) -> str:
@@ -978,7 +914,7 @@ def export_project_zip_job(job_db_id: str, project_id: str) -> dict[str, Any]:
                     s = s.replace("..", ".")
                     return s or "item"
 
-                ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
                 filename = f"project_export_{project_uuid}_{ts}.zip"
 
                 # Keep exports under storage/searches/<project_id>/exports
@@ -990,7 +926,7 @@ def export_project_zip_job(job_db_id: str, project_id: str) -> dict[str, Any]:
                 root = "project_export"
 
                 manifest = {
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "generated_at": datetime.utcnow().isoformat(),
                     "project": {
                         "id": str(proj.id),
                         "title": proj.title,

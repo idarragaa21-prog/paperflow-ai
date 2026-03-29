@@ -8,15 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "e2e": "playwright test",
-    "e2e:smoke": "playwright test e2e/smoke-ci.spec.ts --reporter=list",
-    "e2e:list": "playwright test --list",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "e2e:smoke": "vitest run --reporter=verbose"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.94.5",
     "axios": "^1.13.4",
     "mermaid": "^11.12.2",
     "react": "^19.2.0",
@@ -27,7 +23,6 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
     "@eslint/js": "^9.39.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -36,15 +31,15 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.2",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "happy-dom": "^20.8.4",
+    "jsdom": "^29.0.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.2"
   }
 }

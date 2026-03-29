@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-import csv
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from io import BytesIO, StringIO
 from typing import Any
 from uuid import UUID
-from zipfile import ZIP_DEFLATED, ZipFile
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
 from app.core.logger import logger
+
+_HEADER_FONT = Font(bold=True, color="FFFFFF")
+_HEADER_FILL = PatternFill(fill_type="solid", fgColor="2F5496")
+_MAX_COL_WIDTH = 60
 
 
 SHEETS = [
@@ -30,18 +31,6 @@ SHEETS = [
 
 STUDIES_COLS = [
     "study_id",
-    "paper_id",
-    "batch_id",
-    "paper_title",
-    "paper_filename",
-    "paper_authors",
-    "paper_doi",
-    "paper_pmid",
-    "paper_pmcid",
-    "paper_journal",
-    "paper_publication_year",
-    "paper_source_provider",
-    "paper_oa_url",
     "citation_key",
     "title",
     "first_author",
@@ -75,9 +64,6 @@ STUDIES_COLS = [
     "peer_reviewed",
     "extraction_confidence",
     "provenance",
-    "study_created_at",
-    "study_updated_at",
-    "raw_study_json",
 ]
 
 ARMS_COLS = [
@@ -156,7 +142,6 @@ EFFECTS_COLS = [
     "page_number",
     "table_id",
     "figure_id",
-    "source_locator_json",
     "source_type",
     "extraction_confidence",
     "comments",
@@ -185,7 +170,6 @@ EFFECTS_COLS = [
     "analysis_method",
     "model_type",
     "intention_to_treat",
-    "raw_effect_json",
 ]
 
 ROB_COLS = [
@@ -195,18 +179,13 @@ ROB_COLS = [
     "domain_name",
     "judgement",
     "support_for_judgement",
-    "auto_generated",
     "manually_edited",
     "edited_at",
-    "raw_rob_json",
 ]
 
 TABLES_RAW_COLS = ["table_id", "study_id", "page", "extracted_markdown"]
 IMAGES_OCR_RAW_COLS = ["image_id", "study_id", "page", "ocr_text"]
 LOGS_COLS = ["timestamp", "job_id", "study_id", "level", "message"]
-
-HEADER_FONT = Font(bold=True)
-HEADER_FILL = PatternFill(fill_type="solid", fgColor="EEF3FF")
 
 
 @dataclass
@@ -221,51 +200,37 @@ class ExcelExportInput:
     logs: list[dict[str, Any]]
 
 
-def iter_meta_export_tables(data: ExcelExportInput):
-    yield ("studies", "STUDIES", STUDIES_COLS, data.studies)
-    yield ("arms", "ARMS", ARMS_COLS, data.arms)
-    yield ("outcomes", "OUTCOMES", OUTCOMES_COLS, data.outcomes)
-    yield ("effect_sizes", "EFFECT_SIZES", EFFECTS_COLS, data.effects)
-    yield ("risk_of_bias", "RISK_OF_BIAS", ROB_COLS, data.rob)
-    yield ("tables_raw", "TABLES_RAW", TABLES_RAW_COLS, data.tables_raw)
-    yield ("images_ocr_raw", "IMAGES_OCR_RAW", IMAGES_OCR_RAW_COLS, data.images_ocr_raw)
-    yield ("logs", "LOGS", LOGS_COLS, data.logs)
-
-
 def _add_sheet(wb: Workbook, name: str, cols: list[str]) -> None:
     ws = wb.create_sheet(title=name)
     ws.append(cols)
-    ws.freeze_panes = "A2"
+    # Bold + colored header row
     for cell in ws[1]:
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
-
-
-def _xlsx_value(value: Any) -> Any:
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, UUID):
-        return str(value)
-    return value
+        cell.font = _HEADER_FONT
+        cell.fill = _HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+    # Freeze header row and enable autofilter
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
 
 
 def _append_rows(ws, cols: list[str], rows: list[dict[str, Any]]) -> None:
     for r in rows:
-        ws.append([_xlsx_value(r.get(c)) for c in cols])
+        ws.append([r.get(c) for c in cols])
 
 
-def _finalize_sheet(ws, cols: list[str]) -> None:
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{max(ws.max_row, 1)}"
-    for idx, col_name in enumerate(cols, start=1):
-        max_len = len(str(col_name))
-        for row in ws.iter_rows(min_row=2, min_col=idx, max_col=idx, values_only=True):
-            value = row[0]
-            if value is None:
-                continue
-            max_len = max(max_len, len(str(value)))
-        ws.column_dimensions[get_column_letter(idx)].width = min(max(max_len + 2, 12), 42)
+def _autofit_columns(ws) -> None:
+    """Set column widths based on content, capped at _MAX_COL_WIDTH."""
+    col_widths: dict[int, int] = {}
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value is not None:
+                val_len = len(str(cell.value))
+                col_widths[cell.column] = min(
+                    _MAX_COL_WIDTH,
+                    max(col_widths.get(cell.column, 10), val_len + 2),
+                )
+    for col_idx, width in col_widths.items():
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
 
 
 def build_meta_xlsx(data: ExcelExportInput) -> bytes:
@@ -293,47 +258,13 @@ def build_meta_xlsx(data: ExcelExportInput) -> bytes:
     _append_rows(wb["TABLES_RAW"], TABLES_RAW_COLS, data.tables_raw)
     _append_rows(wb["IMAGES_OCR_RAW"], IMAGES_OCR_RAW_COLS, data.images_ocr_raw)
     _append_rows(wb["LOGS"], LOGS_COLS, data.logs)
-    for _csv_name, sheet_name, cols, _rows in iter_meta_export_tables(data):
-        _finalize_sheet(wb[sheet_name], cols)
+
+    # Auto-fit column widths on all sheets
+    for sheet_name in wb.sheetnames:
+        _autofit_columns(wb[sheet_name])
+
+    from io import BytesIO
 
     bio = BytesIO()
     wb.save(bio)
-    return bio.getvalue()
-
-
-def _csv_value(value: Any) -> Any:
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, UUID):
-        return str(value)
-    return value
-
-
-def build_meta_csv_bundle(data: ExcelExportInput) -> bytes:
-    bio = BytesIO()
-
-    with ZipFile(bio, mode="w", compression=ZIP_DEFLATED) as zf:
-        manifest = {
-            "format": "csv_bundle",
-            "tables": {
-                csv_name: {
-                    "sheet": sheet_name,
-                    "columns": cols,
-                    "rows": len(rows),
-                }
-                for csv_name, sheet_name, cols, rows in iter_meta_export_tables(data)
-            },
-        }
-        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-
-        for csv_name, _sheet_name, cols, rows in iter_meta_export_tables(data):
-            sio = StringIO(newline="")
-            writer = csv.DictWriter(sio, fieldnames=cols, extrasaction="ignore")
-            writer.writeheader()
-            for row in rows:
-                writer.writerow({col: _csv_value(row.get(col)) for col in cols})
-            zf.writestr(f"{csv_name}.csv", sio.getvalue().encode("utf-8"))
-
     return bio.getvalue()

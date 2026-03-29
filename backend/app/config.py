@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/paperflow_ai"
 
     # Security
+    # WARNING: Override this via the SECRET_KEY environment variable before deploying.
+    # A weak default is kept here only to allow local dev without any .env file.
+    # In production (ENV=production) startup will abort if this default is detected.
     SECRET_KEY: str = "CHANGE_ME"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15

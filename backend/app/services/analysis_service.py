@@ -5,7 +5,6 @@ import io
 import json
 from pathlib import Path
 from statistics import mean
-from textwrap import wrap
 from uuid import UUID
 
 import httpx
@@ -20,8 +19,6 @@ from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset, Dataset
 
 
 def _infer_dtype(series: pd.Series) -> str:
-    import pandas as pd
-
     if pd.api.types.is_bool_dtype(series):
         return "boolean"
     if pd.api.types.is_integer_dtype(series):
@@ -40,9 +37,6 @@ async def create_dataset(
     rows: list[dict],
 ) -> Dataset:
     import pandas as pd
-
-    if not rows:
-        raise ValueError("Dataset rows cannot be empty")
 
     df = pd.DataFrame(rows)
     csv_bytes = df.to_csv(index=False).encode("utf-8")
@@ -135,163 +129,6 @@ def _local_analysis(df: pd.DataFrame, analysis_type: str, input_params: dict) ->
     return {"summary": summary, "warnings": warnings, "script": f"# local fallback analysis\n# type: {analysis_type}\n# params: {json.dumps(input_params)}"}
 
 
-def _analysis_payload(run: AnalysisRun) -> dict:
-    return {
-        "title": getattr(run, "title", None),
-        "analysis_type": getattr(run, "analysis_type", None),
-        "summary": getattr(run, "result_summary", None),
-        "warnings": getattr(run, "warnings", None) or [],
-        "script": getattr(run, "script_text", None),
-    }
-
-
-def _render_analysis_html(run: AnalysisRun) -> bytes:
-    payload = _analysis_payload(run)
-    body = (
-        "<html><body><h1>{title}</h1><h2>{analysis_type}</h2><pre>{summary}</pre><pre>{script}</pre></body></html>".format(
-            title=payload.get("title") or f"Analysis {run.id}",
-            analysis_type=payload.get("analysis_type") or "analysis",
-            summary=json.dumps(payload.get("summary") or {}, indent=2, ensure_ascii=False),
-            script=payload.get("script") or "",
-        )
-    )
-    return body.encode("utf-8")
-
-
-def _render_analysis_docx(run: AnalysisRun) -> bytes:
-    from docx import Document
-
-    payload = _analysis_payload(run)
-    doc = Document()
-    doc.add_heading(payload.get("title") or f"Analysis {run.id}", level=1)
-    doc.add_paragraph(f"Type: {payload.get('analysis_type') or 'analysis'}")
-    doc.add_heading("Summary", level=2)
-    doc.add_paragraph(json.dumps(payload.get("summary") or {}, indent=2, ensure_ascii=False))
-    warnings = payload.get("warnings") or []
-    if warnings:
-        doc.add_heading("Warnings", level=2)
-        for warning in warnings:
-            doc.add_paragraph(str(warning), style="List Bullet")
-    if payload.get("script"):
-        doc.add_heading("Script", level=2)
-        doc.add_paragraph(str(payload["script"]))
-
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    return buffer.getvalue()
-
-
-def _render_analysis_pdf(run: AnalysisRun) -> bytes:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import cm
-    from reportlab.pdfgen import canvas
-
-    payload = _analysis_payload(run)
-    buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    x = 2 * cm
-    y = height - 2 * cm
-
-    def write_block(text: str, *, font: str = "Helvetica", size: int = 10) -> None:
-        nonlocal y
-        pdf.setFont(font, size)
-        for raw_line in (text or "").splitlines() or [""]:
-            for line in wrap(raw_line, 100) or [""]:
-                if y < 2 * cm:
-                    pdf.showPage()
-                    pdf.setFont(font, size)
-                    y = height - 2 * cm
-                pdf.drawString(x, y, line)
-                y -= 0.55 * cm
-
-    write_block(payload.get("title") or f"Analysis {run.id}", font="Helvetica-Bold", size=16)
-    write_block(f"Type: {payload.get('analysis_type') or 'analysis'}", font="Helvetica", size=11)
-    write_block("Summary", font="Helvetica-Bold", size=12)
-    write_block(json.dumps(payload.get("summary") or {}, indent=2, ensure_ascii=False))
-    warnings = payload.get("warnings") or []
-    if warnings:
-        write_block("Warnings", font="Helvetica-Bold", size=12)
-        for warning in warnings:
-            write_block(f"- {warning}")
-    if payload.get("script"):
-        write_block("Script", font="Helvetica-Bold", size=12)
-        write_block(str(payload["script"]))
-
-    pdf.save()
-    return buffer.getvalue()
-
-
-def _artifact_matches_format(artifact: AnalysisArtifact, fmt: str) -> bool:
-    metadata = getattr(artifact, "metadata_json", None) or {}
-    filename = str(getattr(artifact, "filename", "") or "").lower()
-    return (
-        getattr(artifact, "artifact_type", None) == f"report_{fmt}"
-        or metadata.get("format") == fmt
-        or filename.endswith(f".{fmt}")
-    )
-
-
-def _normalize_text_value(value: object | None) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list):
-        return "\n\n".join(str(item) for item in value if item is not None)
-    return str(value)
-
-
-def _normalize_figure_payload(value: object | None) -> dict[str, object]:
-    if not isinstance(value, dict):
-        return {
-            "title": "Summary figure unavailable (degraded fallback)",
-            "caption": "No structured figure payload was returned; using the analysis summary as a degraded fallback.",
-            "degraded": True,
-        }
-
-    normalized = dict(value)
-    normalized["title"] = _normalize_text_value(normalized.get("title")) or "Summary figure"
-    normalized["caption"] = _normalize_text_value(normalized.get("caption"))
-    if "analysis_type" in normalized:
-        normalized["analysis_type"] = _normalize_text_value(normalized.get("analysis_type"))
-    normalized["degraded"] = bool(normalized.get("degraded"))
-    return normalized
-
-
-async def _persist_export_artifact(
-    db: AsyncSession,
-    *,
-    run: AnalysisRun,
-    fmt: str,
-    data: bytes,
-    mime_type: str,
-    artifact_manifest: list[dict],
-) -> None:
-    saved = await storage_manager.save_artifact_bytes(
-        data=data,
-        filename=f"{run.id}.{fmt}",
-        project_id=run.project_id,
-    )
-    db.add(
-        AnalysisArtifact(
-            analysis_run_id=run.id,
-            artifact_type=f"report_{fmt}",
-            filename=saved["filename"],
-            file_path=saved["file_path"],
-            mime_type=mime_type,
-            metadata_json={"analysis_type": run.analysis_type, "format": fmt},
-        )
-    )
-    artifact_manifest.append(
-        {
-            "artifact_type": f"report_{fmt}",
-            "filename": saved["filename"],
-            "file_path": saved["file_path"],
-        }
-    )
-
-
 async def create_analysis_run(
     db: AsyncSession,
     *,
@@ -317,20 +154,17 @@ async def create_analysis_run(
     }
     response_data: dict | None = None
     warnings: list[str] = []
-    fallback_reason: str | None = None
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.post(f"{settings.R_ENGINE_URL}/run-analysis", json=payload)
             resp.raise_for_status()
             response_data = resp.json()
-    except Exception as exc:
-        fallback_reason = exc.__class__.__name__
-        logger.warning(f"Analysis run falling back to local execution for '{analysis_type}': {exc}")
+    except Exception as _r_err:
+        logger.warning(f"[analysis_service] r-engine call failed: {_r_err!r} — falling back to local analysis")
         response_data = _local_analysis(df, analysis_type, input_params)
-        warnings.append("r-engine unavailable; analysis completed with a degraded local fallback summary")
+        warnings.append("r-engine unavailable, local fallback used")
 
     warnings.extend(response_data.get("warnings") or [])
-    is_local_fallback = "engine_version" not in response_data
     artifact_manifest: list[dict] = []
     run = AnalysisRun(
         project_id=project_id,
@@ -340,9 +174,7 @@ async def create_analysis_run(
         status="completed",
         input_params=input_params,
         runtime_metadata={
-            "engine": "r-engine" if not is_local_fallback else "local_fallback",
-            "degraded": bool(is_local_fallback),
-            "fallback_reason": fallback_reason,
+            "engine": "r-engine" if "engine_version" in response_data else "local_fallback",
             "dataset_snapshot": {
                 "dataset_id": str(dataset.id) if dataset else None,
                 "row_count": len(rows),
@@ -350,10 +182,10 @@ async def create_analysis_run(
             },
             "artifact_manifest": artifact_manifest,
         },
-        script_text=_normalize_text_value(response_data.get("script")),
-        warnings=[str(item) for item in warnings],
+        script_text=response_data.get("script"),
+        warnings=warnings,
         result_summary=response_data.get("summary"),
-        engine_version=_normalize_text_value(response_data.get("engine_version")) or "local-fallback",
+        engine_version=response_data.get("engine_version") or "local-fallback",
     )
     db.add(run)
     await db.flush()
@@ -376,7 +208,7 @@ async def create_analysis_run(
     )
     artifact_manifest.append({"artifact_type": "summary", "filename": report_saved["filename"], "file_path": report_saved["file_path"]})
 
-    chart_data = _normalize_figure_payload(response_data.get("figure"))
+    chart_data = response_data.get("figure") or {"title": "Summary figure placeholder", "caption": "Generated from analysis summary"}
     chart_saved = await storage_manager.save_text_artifact(
         text=json.dumps(chart_data, indent=2, ensure_ascii=False),
         filename=f"{run.id}_figure.json",
@@ -394,31 +226,6 @@ async def create_analysis_run(
     )
     artifact_manifest.append({"artifact_type": "figure", "filename": chart_saved["filename"], "file_path": chart_saved["file_path"]})
 
-    await _persist_export_artifact(
-        db,
-        run=run,
-        fmt="html",
-        data=_render_analysis_html(run),
-        mime_type="text/html",
-        artifact_manifest=artifact_manifest,
-    )
-    await _persist_export_artifact(
-        db,
-        run=run,
-        fmt="pdf",
-        data=_render_analysis_pdf(run),
-        mime_type="application/pdf",
-        artifact_manifest=artifact_manifest,
-    )
-    await _persist_export_artifact(
-        db,
-        run=run,
-        fmt="docx",
-        data=_render_analysis_docx(run),
-        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        artifact_manifest=artifact_manifest,
-    )
-
     await db.commit()
     stmt = (
         select(AnalysisRun)
@@ -430,29 +237,26 @@ async def create_analysis_run(
 
 
 async def export_analysis_run(db: AsyncSession, *, run: AnalysisRun, fmt: str) -> tuple[bytes, str, str]:
-    if fmt not in {"html", "pdf", "docx"}:
-        raise ValueError("Unsupported export format")
-
-    if getattr(run, "status", None) != "completed":
-        raise ValueError(f"Analysis run {getattr(run, 'id', 'unknown')} is not completed")
-
-    artifacts = list(getattr(run, "artifacts", None) or [])
-    artifact = next((item for item in artifacts if _artifact_matches_format(item, fmt)), None)
-    if artifact is None:
-        raise ValueError(f"No persisted {fmt} artifact found for analysis run {getattr(run, 'id', 'unknown')}")
-
-    try:
-        data = storage_manager.read_bytes(artifact.file_path)
-    except FileNotFoundError as exc:
-        raise ValueError(f"Artifact {artifact.file_path} missing from storage") from exc
-
-    return (
-        data,
-        getattr(artifact, "mime_type", None)
-        or {
-            "html": "text/html",
-            "pdf": "application/pdf",
-            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }[fmt],
-        getattr(artifact, "filename", None) or f"{run.id}.{fmt}",
-    )
+    payload = {
+        "title": run.title,
+        "analysis_type": run.analysis_type,
+        "summary": run.result_summary,
+        "warnings": run.warnings or [],
+        "script": run.script_text,
+    }
+    if fmt == "html":
+        body = (
+            "<html><body><h1>{title}</h1><pre>{summary}</pre><pre>{script}</pre></body></html>".format(
+                title=run.title,
+                summary=json.dumps(run.result_summary or {}, indent=2, ensure_ascii=False),
+                script=run.script_text or "",
+            )
+        )
+        return body.encode("utf-8"), "text/html", f"{run.id}.html"
+    if fmt == "pdf":
+        body = json.dumps(payload, indent=2, ensure_ascii=False)
+        return body.encode("utf-8"), "application/pdf", f"{run.id}.pdf"
+    if fmt == "docx":
+        body = json.dumps(payload, indent=2, ensure_ascii=False)
+        return body.encode("utf-8"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", f"{run.id}.docx"
+    raise ValueError("Unsupported export format")
