@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import secrets
 from uuid import UUID
 
 from pathlib import Path
@@ -12,10 +13,14 @@ from app.api.deps import get_current_user, get_db
 from app.core.storage import storage_manager
 from app.middleware.rate_limit import limiter
 from app.models.job import Job
-from app.models.membership import PROJECT_MEMBER_ROLES, ProjectMembership
+from app.models.membership import PROJECT_MEMBER_ROLES, PROJECT_INVITATION_STATUSES, ProjectInvitation, ProjectMembership
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.membership import (
+    ProjectInvitationAcceptResponse,
+    ProjectInvitationLookupResponse,
+    ProjectInvitationResponse,
+    ProjectInviteResultResponse,
     ProjectMemberInviteRequest,
     ProjectMemberResponse,
     ProjectMemberUpdateRequest,
@@ -63,6 +68,32 @@ def _member_response(*, project_id: UUID, user: User, role: str, membership: Pro
     )
 
 
+def _invitation_status(invitation: ProjectInvitation) -> str:
+    if invitation.revoked_at is not None:
+        return "revoked"
+    if invitation.accepted_at is not None:
+        return "accepted"
+    return "pending"
+
+
+def _invitation_response(invitation: ProjectInvitation) -> ProjectInvitationResponse:
+    status = _invitation_status(invitation)
+    if status not in PROJECT_INVITATION_STATUSES:
+        status = "pending"
+    return ProjectInvitationResponse(
+        id=invitation.id,
+        project_id=invitation.project_id,
+        email=invitation.email,
+        role=_normalize_membership_role(invitation.role),  # type: ignore[arg-type]
+        token=invitation.token,
+        accept_path=f"/project-invitations/{invitation.token}",
+        status=status,  # type: ignore[arg-type]
+        created_at=invitation.created_at,
+        accepted_at=invitation.accepted_at,
+        revoked_at=invitation.revoked_at,
+    )
+
+
 async def _list_project_members(db: AsyncSession, *, project: Project) -> list[ProjectMemberResponse]:
     rows = await db.execute(
         select(ProjectMembership, User)
@@ -107,6 +138,23 @@ async def _get_membership_for_user(
         select(ProjectMembership)
         .where(ProjectMembership.project_id == project_id)
         .where(ProjectMembership.user_id == user_id)
+    )
+    return result.scalars().first()
+
+
+async def _get_pending_invitation_for_email(
+    db: AsyncSession,
+    *,
+    project_id: UUID,
+    email: str,
+) -> ProjectInvitation | None:
+    result = await db.execute(
+        select(ProjectInvitation)
+        .where(ProjectInvitation.project_id == project_id)
+        .where(ProjectInvitation.email == email)
+        .where(ProjectInvitation.revoked_at.is_(None))
+        .where(ProjectInvitation.accepted_at.is_(None))
+        .order_by(ProjectInvitation.created_at.desc())
     )
     return result.scalars().first()
 
@@ -163,7 +211,24 @@ async def list_project_members(
     return await _list_project_members(db, project=project)
 
 
-@router.post("/{project_id}/members", response_model=ProjectMemberResponse)
+@router.get("/{project_id}/invitations", response_model=list[ProjectInvitationResponse])
+async def list_project_invitations(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    result = await db.execute(
+        select(ProjectInvitation)
+        .where(ProjectInvitation.project_id == project.id)
+        .where(ProjectInvitation.revoked_at.is_(None))
+        .where(ProjectInvitation.accepted_at.is_(None))
+        .order_by(ProjectInvitation.created_at.desc())
+    )
+    return [_invitation_response(item) for item in result.scalars().all()]
+
+
+@router.post("/{project_id}/members", response_model=ProjectInviteResultResponse)
 @limiter.limit("20/minute")
 async def invite_project_member(
     request: Request,
@@ -180,21 +245,44 @@ async def invite_project_member(
 
     result = await db.execute(select(User).where(User.email == email))
     invited_user = result.scalar_one_or_none()
-    if invited_user is None:
-        raise HTTPException(status_code=404, detail="User not found for that email")
+    if invited_user is not None:
+        role = "owner" if invited_user.id == project.user_id else payload.role
+        membership = await _get_membership_for_user(db, project_id=project.id, user_id=invited_user.id)
+        if membership is None:
+            membership = ProjectMembership(project_id=project.id, user_id=invited_user.id, role=role)
+            db.add(membership)
+        else:
+            membership.role = role
 
-    role = "owner" if invited_user.id == project.user_id else payload.role
-    membership = await _get_membership_for_user(db, project_id=project.id, user_id=invited_user.id)
-    if membership is None:
-        membership = ProjectMembership(project_id=project.id, user_id=invited_user.id, role=role)
-        db.add(membership)
+        await db.commit()
+        await db.refresh(membership)
+
+        return ProjectInviteResultResponse(
+            kind="membership",
+            member=_member_response(project_id=project.id, user=invited_user, role=role, membership=membership),
+        )
+
+    invitation = await _get_pending_invitation_for_email(db, project_id=project.id, email=email)
+    if invitation is None:
+        invitation = ProjectInvitation(
+            project_id=project.id,
+            invited_by_user_id=user.id,
+            email=email,
+            role=payload.role,
+            token=secrets.token_urlsafe(24),
+        )
+        db.add(invitation)
     else:
-        membership.role = role
+        invitation.role = payload.role
+        invitation.token = secrets.token_urlsafe(24)
 
     await db.commit()
-    await db.refresh(membership)
+    await db.refresh(invitation)
 
-    return _member_response(project_id=project.id, user=invited_user, role=role, membership=membership)
+    return ProjectInviteResultResponse(
+        kind="invitation",
+        invitation=_invitation_response(invitation),
+    )
 
 
 @router.patch("/{project_id}/members/{member_user_id}", response_model=ProjectMemberResponse)
@@ -248,6 +336,93 @@ async def delete_project_member(
     await db.delete(membership)
     await db.commit()
     return {"ok": True}
+
+
+@router.delete("/{project_id}/invitations/{invitation_id}")
+@limiter.limit("20/minute")
+async def delete_project_invitation(
+    request: Request,
+    project_id: UUID,
+    invitation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    invitation = await db.get(ProjectInvitation, invitation_id)
+    if invitation is None or invitation.project_id != project.id:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if invitation.accepted_at is not None:
+        raise HTTPException(status_code=400, detail="Accepted invitations cannot be removed")
+    invitation.revoked_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.get("/invitations/{token}", response_model=ProjectInvitationLookupResponse)
+async def get_project_invitation(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(ProjectInvitation).where(ProjectInvitation.token == token).limit(1))
+    invitation = result.scalar_one_or_none()
+    if invitation is None:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    project = await db.get(Project, invitation.project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Invitation project not found")
+    return ProjectInvitationLookupResponse(
+        id=invitation.id,
+        project_id=project.id,
+        project_title=project.title,
+        email=invitation.email,
+        role=_normalize_membership_role(invitation.role),  # type: ignore[arg-type]
+        status=_invitation_status(invitation),  # type: ignore[arg-type]
+        accept_path=f"/project-invitations/{invitation.token}",
+        accepted_at=invitation.accepted_at,
+        revoked_at=invitation.revoked_at,
+    )
+
+
+@router.post("/invitations/{token}/accept", response_model=ProjectInvitationAcceptResponse)
+@limiter.limit("20/minute")
+async def accept_project_invitation(
+    request: Request,
+    token: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(ProjectInvitation).where(ProjectInvitation.token == token).limit(1))
+    invitation = result.scalar_one_or_none()
+    if invitation is None or invitation.revoked_at is not None:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if invitation.accepted_at is not None:
+        raise HTTPException(status_code=409, detail="Invitation already accepted")
+    if user.email.lower() != invitation.email.lower():
+        raise HTTPException(status_code=403, detail="Invitation email does not match the signed-in user")
+
+    project = await db.get(Project, invitation.project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Invitation project not found")
+
+    membership = await _get_membership_for_user(db, project_id=project.id, user_id=user.id)
+    role = "owner" if project.user_id == user.id else invitation.role
+    if membership is None:
+        membership = ProjectMembership(project_id=project.id, user_id=user.id, role=role)
+        db.add(membership)
+    else:
+        membership.role = role
+
+    invitation.accepted_at = datetime.now(timezone.utc)
+    invitation.accepted_by_user_id = user.id
+    await db.commit()
+    if getattr(membership, "id", None) is not None:
+        await db.refresh(membership)
+
+    return ProjectInvitationAcceptResponse(
+        project_id=project.id,
+        project_title=project.title,
+        member=_member_response(project_id=project.id, user=user, role=role, membership=membership),
+    )
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)

@@ -43,12 +43,14 @@ vi.mock('../i18n', () => ({
 
 import { api } from '../services/api';
 
-function renderAuth(initialEntry: '/login' | '/signup') {
+function renderAuth(initialEntry: string) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/project-invitations/:token" element={<div>Invitation landing</div>} />
+        <Route path="/projects/:projectId/research" element={<div>Project Research</div>} />
         <Route path="/dashboard" element={<div>Dashboard Home</div>} />
       </Routes>
     </MemoryRouter>,
@@ -120,6 +122,86 @@ describe('Auth pages', () => {
         full_name: 'New User',
       });
       expect(screen.getByText('Welcome back')).toBeInTheDocument();
+    });
+  });
+
+  it('passes the invitation token during signup when present in the URL', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        id: 'user-3',
+        email: 'invitee@example.com',
+        full_name: 'Invitee',
+        accepted_project_id: 'project-123',
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/signup?invitation_token=tok-123&email=invitee@example.com']}>
+        <Routes>
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/projects/:projectId/research" element={<div>Project Research</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByDisplayValue('invitee@example.com')).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText('Your name'), 'Invitee');
+    const passwordInputs = screen.getAllByPlaceholderText('••••••••');
+    await userEvent.type(passwordInputs[0], 'secure-pass');
+    await userEvent.type(passwordInputs[1], 'secure-pass');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up →' }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/register', {
+        email: 'invitee@example.com',
+        password: 'secure-pass',
+        full_name: 'Invitee',
+        invitation_token: 'tok-123',
+      });
+      expect(screen.getByText('Account created. Sign in to open your shared project.')).toBeInTheDocument();
+    });
+  });
+
+  it('redirects to the invitation landing after login when an invitation token is present', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    vi.mocked(api.get).mockResolvedValue({
+      data: { id: 'user-1', email: 'invitee@example.com', full_name: 'Invitee' },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/login?invitation_token=tok-456&email=invitee@example.com']}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/project-invitations/:token" element={<div>Invitation landing</div>} />
+          <Route path="/dashboard" element={<div>Dashboard Home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByDisplayValue('invitee@example.com')).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in →' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Invitation landing')).toBeInTheDocument();
+    });
+  });
+
+  it('redirects to the accepted project after login when signup already linked the invitation', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    vi.mocked(api.get).mockResolvedValue({
+      data: { id: 'user-9', email: 'invitee@example.com', full_name: 'Invitee' },
+    });
+
+    renderAuth('/login?accepted_project_id=project-123&email=invitee@example.com&invited=1');
+
+    expect(screen.getByDisplayValue('invitee@example.com')).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in →' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Project Research')).toBeInTheDocument();
     });
   });
 });

@@ -33,6 +33,11 @@ async def get_project_membership(
     if project is None:
         return None, None
 
+    if not hasattr(db, "execute"):
+        if project.user_id == user_id:
+            return project, ProjectMembership(project_id=project_id, user_id=user_id, role="owner")
+        return project, None
+
     result = await db.execute(
         select(ProjectMembership)
         .where(ProjectMembership.project_id == project_id)

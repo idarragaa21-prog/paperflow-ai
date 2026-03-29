@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import type { MembershipRole, ProjectMember } from '../types/api';
+import type { MembershipRole, ProjectInvitation, ProjectInviteResult, ProjectMember } from '../types/api';
 
 const ROLE_OPTIONS: MembershipRole[] = ['owner', 'editor', 'viewer'];
 const ROLE_LABELS: Record<MembershipRole, string> = {
@@ -22,6 +22,7 @@ export default function CollaborationPage() {
   const { projectId } = useParams();
   const user = useAuthStore((state) => state.user);
   const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [invitations, setInvitations] = useState<ProjectInvitation[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<MembershipRole>('viewer');
   const [loading, setLoading] = useState(false);
@@ -50,9 +51,27 @@ export default function CollaborationPage() {
     }
   }, [projectId]);
 
+  const loadInvitations = useCallback(async () => {
+    if (!projectId || !canManageMembers) {
+      setInvitations([]);
+      return;
+    }
+    try {
+      const response = await api.get(`/projects/${projectId}/invitations`);
+      setInvitations(response.data as ProjectInvitation[]);
+    } catch (e: any) {
+      setInvitations([]);
+      setError(e?.response?.data?.detail || 'Could not load pending invitations');
+    }
+  }, [canManageMembers, projectId]);
+
   useEffect(() => {
     void loadMembers();
   }, [loadMembers]);
+
+  useEffect(() => {
+    void loadInvitations();
+  }, [loadInvitations]);
 
   async function inviteMember() {
     const email = inviteEmail.trim().toLowerCase();
@@ -66,11 +85,18 @@ export default function CollaborationPage() {
     setError(null);
     setNotice(null);
     try {
-      await api.post(`/projects/${projectId}/members`, { email, role: inviteRole });
-      setNotice(`${email} invited as ${ROLE_LABELS[inviteRole]}.`);
+      const response = await api.post(`/projects/${projectId}/members`, { email, role: inviteRole });
+      const result = response.data as ProjectInviteResult;
+      if (result.kind === 'membership') {
+        setNotice(`${email} now has ${ROLE_LABELS[inviteRole]} access.`);
+      } else {
+        const acceptPath = result.invitation?.accept_path || `/project-invitations/${result.invitation?.token || ''}`;
+        setNotice(`Invitation created for ${email}. Share this link: ${window.location.origin}${acceptPath}`);
+      }
       setInviteEmail('');
       setInviteRole('viewer');
       await loadMembers();
+      await loadInvitations();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Could not invite member');
     } finally {
@@ -110,6 +136,32 @@ export default function CollaborationPage() {
     }
   }
 
+  async function removeInvitation(invitation: ProjectInvitation) {
+    if (!projectId || !canManageMembers) return;
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api.delete(`/projects/${projectId}/invitations/${invitation.id}`);
+      setNotice(`Invitation for ${invitation.email} removed.`);
+      await loadInvitations();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Could not remove invitation');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copyInvitationLink(invitation: ProjectInvitation) {
+    const link = `${window.location.origin}${invitation.accept_path}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setNotice(`Invitation link copied for ${invitation.email}.`);
+    } catch {
+      setNotice(`Copy this invitation link: ${link}`);
+    }
+  }
+
   return (
     <div className="rc-product-page">
       <div className="rc-product-page__header">
@@ -143,7 +195,7 @@ export default function CollaborationPage() {
           <div className="rc-product-card__header">
             <div>
               <div className="rc-card-title">Invite by email</div>
-              <div className="rc-help">Invitations resolve against an existing PaperFlow account.</div>
+              <div className="rc-help">Existing users are added immediately. New emails receive a secure invitation link.</div>
             </div>
           </div>
 
@@ -264,6 +316,41 @@ export default function CollaborationPage() {
           </div>
         ))}
       </section>
+
+      {canManageMembers ? (
+        <section className="rc-product-card">
+          <div className="rc-product-card__header">
+            <div>
+              <div className="rc-card-title">Pending invitations</div>
+              <div className="rc-help">Share the generated link with collaborators who do not yet have a PaperFlow account.</div>
+            </div>
+            <div className="rc-discover-badge">{invitations.length} pending</div>
+          </div>
+
+          {invitations.length === 0 ? <div className="rc-empty-state">No pending invitations.</div> : null}
+          {invitations.map((invitation) => (
+            <div key={invitation.id} data-testid={`invitation-card-${invitation.id}`} className="rc-product-record rc-product-record--soft">
+              <div className="rc-product-record__header">
+                <div>
+                  <div style={{ fontWeight: 800 }}>{invitation.email}</div>
+                  <div className="rc-help">{window.location.origin}{invitation.accept_path}</div>
+                </div>
+                <span className="rc-discover-badge" style={ROLE_BADGE_STYLES[invitation.role]}>
+                  {ROLE_LABELS[invitation.role]}
+                </span>
+              </div>
+              <div className="rc-product-actions" style={{ marginTop: 12 }}>
+                <button className="rc-btn" data-testid={`invitation-copy-${invitation.id}`} onClick={() => copyInvitationLink(invitation)} disabled={saving}>
+                  Copy link
+                </button>
+                <button className="rc-btn" data-testid={`invitation-remove-${invitation.id}`} onClick={() => removeInvitation(invitation)} disabled={saving}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

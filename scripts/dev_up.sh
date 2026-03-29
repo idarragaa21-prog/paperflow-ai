@@ -52,8 +52,16 @@ start_if_not_running() {
   fi
 
   echo "[dev_up] starting $name..."
-  nohup "$@" >"$LOG_DIR/${name}.log" 2>&1 &
-  echo $! >"$pid_file"
+  nohup "$@" </dev/null >"$LOG_DIR/${name}.log" 2>&1 &
+  local pid=$!
+  disown "$pid" 2>/dev/null || true
+  echo "$pid" >"$pid_file"
+  sleep 1
+  if ! kill -0 "$pid" 2>/dev/null; then
+    echo "[dev_up] $name failed to stay up; last log lines:" >&2
+    tail -n 40 "$LOG_DIR/${name}.log" >&2 || true
+    return 1
+  fi
   echo "[dev_up] $name started (pid=$(cat "$pid_file"))"
 }
 

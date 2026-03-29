@@ -118,6 +118,9 @@ export default function DeepResearchPage() {
 
   const selectedProject = projects.find(p => p.id === projectId);
   const isEs = locale === 'es';
+  const canGenerate =
+    query.trim().length > 0 &&
+    (sourceMode !== 'project' || (Boolean(projectId) && (paperCount ?? 0) > 0));
 
   return (
     <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 860 }}>
@@ -137,6 +140,7 @@ export default function DeepResearchPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button
+            data-testid="deep-research-source-pubmed"
             className={`rc-btn ${sourceMode === 'pubmed' ? 'rc-btn--primary' : ''}`}
             style={{ flex: 1, padding: '8px 0', fontSize: 13 }}
             onClick={() => setSourceMode('pubmed')}
@@ -144,6 +148,7 @@ export default function DeepResearchPage() {
             🌐 PubMed {isEs ? '(búsqueda nueva)' : '(fresh search)'}
           </button>
           <button
+            data-testid="deep-research-source-project"
             className={`rc-btn ${sourceMode === 'project' ? 'rc-btn--primary' : ''}`}
             style={{ flex: 1, padding: '8px 0', fontSize: 13 }}
             onClick={() => setSourceMode('project')}
@@ -167,6 +172,7 @@ export default function DeepResearchPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <select
+                data-testid="deep-research-project-select"
                 className="rc-select"
                 value={projectId}
                 onChange={e => setProjectId(e.target.value)}
@@ -210,6 +216,7 @@ export default function DeepResearchPage() {
       {/* ── Query form ── */}
       <form onSubmit={onSubmit} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <input
+          data-testid="deep-research-query-input"
           className="rc-input"
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -221,9 +228,10 @@ export default function DeepResearchPage() {
           style={{ flex: 1, minWidth: 300, fontSize: 14 }}
         />
         <button
+          data-testid="deep-research-generate-button"
           type="submit"
           className="rc-btn rc-btn--primary"
-          disabled={loading || !query.trim() || (sourceMode === 'project' && !projectId)}
+          disabled={loading || !canGenerate}
           style={{ padding: '10px 24px', whiteSpace: 'nowrap' }}
         >
           {loading ? (

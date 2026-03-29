@@ -22,6 +22,8 @@ class BillingRecentUsageResponse(BaseModel):
 
 
 class BillingUsageSummaryResponse(BaseModel):
+    mode: str = "usage_only"
+    commercial_billing_enabled: bool = False
     period: str
     month: str
     tier: str
@@ -46,4 +48,6 @@ class BillingUsageMonthResponse(BaseModel):
 
 
 class BillingHistoryResponse(BaseModel):
+    mode: str = "usage_only"
+    commercial_billing_enabled: bool = False
     months: list[BillingUsageMonthResponse] = Field(default_factory=list)

@@ -45,6 +45,39 @@ export type ProjectMember = {
   created_at?: string | null;
 };
 
+export type ProjectInvitationStatus = 'pending' | 'accepted' | 'revoked';
+
+export type ProjectInvitation = {
+  id: string;
+  project_id: string;
+  email: string;
+  role: MembershipRole;
+  token: string;
+  accept_path: string;
+  status: ProjectInvitationStatus;
+  created_at?: string | null;
+  accepted_at?: string | null;
+  revoked_at?: string | null;
+};
+
+export type ProjectInviteResult = {
+  kind: 'membership' | 'invitation';
+  member?: ProjectMember | null;
+  invitation?: ProjectInvitation | null;
+};
+
+export type ProjectInvitationLookup = {
+  id: string;
+  project_id: string;
+  project_title: string;
+  email: string;
+  role: MembershipRole;
+  status: ProjectInvitationStatus;
+  accept_path: string;
+  accepted_at?: string | null;
+  revoked_at?: string | null;
+};
+
 export type BillingModelUsage = {
   model: string;
   calls: number;
@@ -64,6 +97,8 @@ export type BillingUsageRecent = {
 };
 
 export type BillingUsageSummary = {
+  mode?: string;
+  commercial_billing_enabled?: boolean;
   period: string;
   month: string;
   tier: string;

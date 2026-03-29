@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useI18n } from '../i18n';
 
@@ -10,15 +10,36 @@ export default function LoginPage() {
   const error = useAuthStore((s) => s.error);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useI18n();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const invitationToken = searchParams.get('invitation_token');
+  const invitationEmail = searchParams.get('email');
+  const invitedAfterSignup = searchParams.get('invited') === '1';
+  const acceptedProjectId = searchParams.get('accepted_project_id');
+  const hasInvitationContext = Boolean(invitationToken || invitedAfterSignup || acceptedProjectId);
 
   useEffect(() => {
-    if (user) navigate('/dashboard');
-  }, [user, navigate]);
+    if (invitationEmail && !email) {
+      setEmail(invitationEmail);
+    }
+  }, [email, invitationEmail]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (acceptedProjectId) {
+      navigate(`/projects/${acceptedProjectId}/research`, { replace: true });
+      return;
+    }
+    if (invitationToken) {
+      navigate(`/project-invitations/${invitationToken}`, { replace: true });
+      return;
+    }
+    navigate('/dashboard');
+  }, [acceptedProjectId, user, invitationToken, navigate]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -112,6 +133,15 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={onSubmit} style={{ display:'flex',flexDirection:'column',gap:16 }}>
+            {hasInvitationContext ? (
+              <div style={{ padding:'10px 14px',borderRadius:10,background:'rgba(99,102,241,0.08)',border:'1px solid rgba(99,102,241,0.18)',color:'#4338ca',fontSize:13 }}>
+                {invitedAfterSignup
+                  ? acceptedProjectId
+                    ? 'Account created. Sign in to open your shared project.'
+                    : 'Account created. Sign in to accept your project invitation.'
+                  : 'Sign in with the invited email to accept this project invitation.'}
+              </div>
+            ) : null}
             <div>
               <div className="rc-kicker">Email</div>
               <input className="rc-input" type="email" value={email} onChange={e=>setEmail(e.target.value)}
@@ -157,7 +187,12 @@ export default function LoginPage() {
 
           <div style={{ marginTop:20,textAlign:'center',fontSize:13,color:'rgba(26,25,41,0.5)' }}>
             {t.auth.noAccount}{' '}
-            <Link to="/signup" style={{ fontWeight:700 }}>{t.auth.signUp}</Link>
+            <Link
+              to={invitationToken ? `/signup?invitation_token=${encodeURIComponent(invitationToken)}${invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}` : '/signup'}
+              style={{ fontWeight:700 }}
+            >
+              {t.auth.signUp}
+            </Link>
           </div>
 
           <div style={{ marginTop:20,paddingTop:20,borderTop:'1px solid rgba(26,25,41,0.1)',textAlign:'center',fontSize:12,color:'rgba(26,25,41,0.3)' }}>

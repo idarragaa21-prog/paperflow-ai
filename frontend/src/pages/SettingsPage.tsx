@@ -11,6 +11,7 @@ import type {
   BillingUsageSummary,
   MembershipRole,
   Project,
+  ProjectInviteResult,
   ProjectMember,
 } from '../types/api';
 
@@ -38,7 +39,7 @@ const TEAM_ROLE_LABELS: Record<MembershipRole, string> = {
 
 const TAB_LABELS: Record<SettingsTab, string> = {
   general: 'General',
-  usage: 'Uso & Facturación',
+  usage: 'Uso local & cuotas',
   team: 'Equipo',
 };
 
@@ -255,10 +256,16 @@ export default function SettingsPage() {
     setSavingTeam(true);
     setError(null);
     try {
-      await api.post(`/projects/${selectedProjectId}/members`, { email, role: inviteRole });
+      const response = await api.post(`/projects/${selectedProjectId}/members`, { email, role: inviteRole });
+      const result = response.data as ProjectInviteResult;
       setInviteEmail('');
       setInviteRole('viewer');
-      toast.success('Member invited', `${email} now has ${TEAM_ROLE_LABELS[inviteRole]} access.`);
+      if (result.kind === 'membership') {
+        toast.success('Member added', `${email} now has ${TEAM_ROLE_LABELS[inviteRole]} access.`);
+      } else {
+        const acceptPath = result.invitation?.accept_path || `/project-invitations/${result.invitation?.token || ''}`;
+        toast.success('Invitation created', `Share this link with ${email}: ${window.location.origin}${acceptPath}`);
+      }
       await loadTeamMembers(selectedProjectId);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Could not invite member');
@@ -469,13 +476,16 @@ export default function SettingsPage() {
         <>
           <div className="rc-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div className="rc-card-title" style={{ margin: 0 }}>Uso del mes actual</div>
+              <div className="rc-card-title" style={{ margin: 0 }}>Uso local del mes actual</div>
               <button className="rc-btn" onClick={loadUsage} disabled={loadingUsage}>
                 {loadingUsage ? 'Refreshing…' : 'Refresh usage'}
               </button>
             </div>
+            <div className="rc-help" style={{ marginBottom: 12 }}>
+              This build tracks local AI usage and quotas only. No payment processor, subscription checkout or external billing workflow is enabled here.
+            </div>
             {!billingSummary && !loadingUsage ? (
-              <div className="rc-muted">No billing activity yet.</div>
+              <div className="rc-muted">No tracked local AI usage yet.</div>
             ) : null}
             {billingSummary ? (
               <>
@@ -496,9 +506,9 @@ export default function SettingsPage() {
                     <div className="rc-help">Tier: {billingSummary.tier}</div>
                   </div>
                   <div className="rc-card" style={{ padding: 16 }}>
-                    <div className="rc-kicker">Estimated cost</div>
+                    <div className="rc-kicker">Estimated local cost</div>
                     <div style={{ fontSize: 26, fontWeight: 800 }}>${billingSummary.cost_usd.toFixed(4)}</div>
-                    <div className="rc-help">Aggregated from tracked model calls</div>
+                    <div className="rc-help">Usage telemetry only — not a billable checkout amount</div>
                   </div>
                 </div>
 
@@ -595,7 +605,7 @@ export default function SettingsPage() {
               <div className="rc-product-card__header">
                 <div>
                   <div className="rc-card-title">Invite member</div>
-                  <div className="rc-help">The invite resolves against an existing PaperFlow account by email.</div>
+                  <div className="rc-help">Existing users are added immediately. New emails receive a secure invitation link.</div>
                 </div>
               </div>
 

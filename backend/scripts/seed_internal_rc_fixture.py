@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import json
 from pathlib import Path
+import secrets
 import sys
 from uuid import UUID
 
@@ -16,7 +17,7 @@ from sqlalchemy import func, select
 
 from app.core.security import hash_password
 from app.database import async_session_maker
-from app.models.membership import ProjectMembership
+from app.models.membership import ProjectInvitation, ProjectMembership
 from app.models.paper import Paper
 from app.models.project import Project
 from app.models.reference_item import ReferenceItem
@@ -239,6 +240,20 @@ async def _seed_extraction(session, *, project: Project, paper: Paper) -> None:
         await create_extraction_record(session, project_id=project.id, paper_id=paper.id, template_id=None)
 
 
+async def _create_pending_invitation(session, *, project: Project, owner: User, email: str, role: str = "viewer") -> ProjectInvitation:
+    invitation = ProjectInvitation(
+        project_id=project.id,
+        invited_by_user_id=owner.id,
+        email=email,
+        role=role,
+        token=secrets.token_urlsafe(24),
+    )
+    session.add(invitation)
+    await session.commit()
+    await session.refresh(invitation)
+    return invitation
+
+
 async def _run(args) -> dict:
     async with async_session_maker() as session:
         owner = await _ensure_user(session, email=args.owner_email, password=args.owner_password, full_name="RC Owner")
@@ -254,6 +269,12 @@ async def _run(args) -> dict:
         await _seed_references(session, project=project, papers=papers)
         await _seed_screening(session, project=project, owner=owner, reviewer=reviewer, first_paper=papers[0])
         await _seed_extraction(session, project=project, paper=papers[0])
+        pending_invitation = await _create_pending_invitation(
+            session,
+            project=project,
+            owner=owner,
+            email=args.pending_invitee_email,
+        )
 
         visible_reader_paper = (
             await session.execute(
@@ -267,6 +288,11 @@ async def _run(args) -> dict:
             "owner": {"id": str(owner.id), "email": owner.email, "password": args.owner_password},
             "reviewer": {"id": str(reviewer.id), "email": reviewer.email, "password": args.reviewer_password},
             "project": {"id": str(project.id), "title": project.title},
+            "pending_invitation": {
+                "email": pending_invitation.email,
+                "token": pending_invitation.token,
+                "accept_path": f"/project-invitations/{pending_invitation.token}",
+            },
             "papers": {"count": len(papers), "first_paper_id": str(visible_reader_paper.id) if visible_reader_paper else None},
         }
         output_path = Path(args.output)
@@ -285,6 +311,7 @@ def main() -> None:
     parser.add_argument("--owner-password", default="paperflow-e2e-123")
     parser.add_argument("--reviewer-email", default="rc-reviewer@paperflow.dev")
     parser.add_argument("--reviewer-password", default="paperflow-e2e-123")
+    parser.add_argument("--pending-invitee-email", default=f"rc-invitee-{secrets.token_hex(4)}@paperflow.dev")
     args = parser.parse_args()
     asyncio.run(_run(args))
 

@@ -19,6 +19,8 @@ from app.core.security import (
     verify_token,
 )
 from app.models.audit_log import AuditLog
+from app.models.membership import ProjectInvitation, ProjectMembership
+from app.models.project import Project
 from app.models.user import User
 from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister
 from app.services import auth_rate_limit, auth_sessions
@@ -280,21 +282,62 @@ async def register(
     payload: UserRegister,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    q = await db.execute(select(User).where(User.email == payload.email).limit(1))
+    email = payload.email.lower().strip()
+
+    invitation: ProjectInvitation | None = None
+    project: Project | None = None
+    if payload.invitation_token:
+        invite_q = await db.execute(select(ProjectInvitation).where(ProjectInvitation.token == payload.invitation_token).limit(1))
+        invitation = invite_q.scalar_one_or_none()
+        if invitation is None or invitation.revoked_at is not None:
+            raise HTTPException(status_code=404, detail="Invitation not found")
+        if invitation.accepted_at is not None:
+            raise HTTPException(status_code=409, detail="Invitation already accepted")
+        if invitation.email.lower() != email:
+            raise HTTPException(status_code=400, detail="Invitation email does not match the registration email")
+        project = await db.get(Project, invitation.project_id)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Invitation project not found")
+
+    q = await db.execute(select(User).where(User.email == email).limit(1))
     if q.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered")
 
     user = User(
-        email=payload.email,
+        email=email,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
         is_active=True,
     )
     db.add(user)
+    await db.flush()
+
+    accepted_project_id: str | None = None
+    if invitation is not None:
+        membership_q = await db.execute(
+            select(ProjectMembership)
+            .where(ProjectMembership.project_id == invitation.project_id)
+            .where(ProjectMembership.user_id == user.id)
+            .limit(1)
+        )
+        membership = membership_q.scalar_one_or_none()
+        if membership is None:
+            db.add(ProjectMembership(project_id=invitation.project_id, user_id=user.id, role=invitation.role))
+        else:
+            membership.role = "owner" if project and project.user_id == user.id else invitation.role
+        invitation.accepted_at = datetime.now(timezone.utc)
+        invitation.accepted_by_user_id = user.id
+        accepted_project_id = str(invitation.project_id)
+
     await db.commit()
     await db.refresh(user)
 
-    return {"id": str(user.id), "email": user.email, "full_name": user.full_name}
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "full_name": user.full_name,
+        "accepted_project_id": accepted_project_id,
+    }
 
 
 @router.post("/forgot-password")

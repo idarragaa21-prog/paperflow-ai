@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.models.project import Project
 from app.services.deep_research import generate_deep_research_report
+from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/research", tags=["deep-research"])
 
@@ -31,7 +31,7 @@ async def create_deep_research(
     source_mode="project"  → use papers already in the project library.
                              project_id is required in this mode.
     """
-    # Validate project ownership when using project source
+    # Validate project visibility when using project source
     if payload.source_mode == "project":
         if not payload.project_id:
             raise HTTPException(status_code=400, detail="project_id requerido cuando source_mode='project'")
@@ -40,9 +40,7 @@ async def create_deep_research(
             proj_uuid = UUID(payload.project_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="project_id inválido")
-        project = await db.get(Project, proj_uuid)
-        if not project or project.user_id != user.id:
-            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        await require_project_access(db, project_id=proj_uuid, user=user, required_role="viewer")
 
     report = await generate_deep_research_report(
         query=payload.query,

@@ -12,6 +12,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     full_name: str | None = None
+    invitation_token: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

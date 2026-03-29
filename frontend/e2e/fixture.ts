@@ -6,6 +6,7 @@ export type E2EFixture = {
   owner: { id: string; email: string; password: string };
   reviewer: { id: string; email: string; password: string };
   project: { id: string; title: string };
+  pending_invitation: { email: string; token: string; accept_path: string };
   papers: { count: number; first_paper_id: string };
 };
 

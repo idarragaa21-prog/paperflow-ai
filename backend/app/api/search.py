@@ -19,6 +19,7 @@ from app.services.federated_search import (
     _relevance_score,
     federated_search,
 )
+from app.services.permissions import require_project_access
 from app.services.pubmed import pubmed_client
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -74,9 +75,7 @@ async def search_pubmed(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, payload.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="viewer")
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
     cache_key = cache.generate_search_key(
@@ -144,9 +143,7 @@ async def search_federated(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, payload.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="viewer")
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
     cache_key = cache.generate_search_key(
@@ -213,8 +210,7 @@ async def get_search_results(
         raise HTTPException(status_code=404, detail="Search not found")
 
     search, project = row
-    if project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Search not found")
+    await require_project_access(db, project_id=project.id, user=user, required_role="viewer")
 
     # ORDER BY relevance_score DESC so history matches what user originally saw.
     # NULLS LAST handles legacy rows that predate the relevance_score column.
@@ -251,9 +247,7 @@ async def list_searches(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     q = await db.execute(
         select(Search)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useI18n } from '../i18n';
@@ -8,6 +8,7 @@ import { useI18n } from '../i18n';
 export default function SignupPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useI18n();
 
   const [email, setEmail] = useState('');
@@ -16,8 +17,15 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const invitationToken = searchParams.get('invitation_token');
+  const invitationEmail = searchParams.get('email');
 
   useEffect(() => { if (user) navigate('/dashboard'); }, [user, navigate]);
+  useEffect(() => {
+    if (invitationEmail && !email) {
+      setEmail(invitationEmail);
+    }
+  }, [email, invitationEmail]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -26,8 +34,21 @@ export default function SignupPage() {
     if (password !== confirmPw) { setError(t.auth.passwordMismatch); return; }
     setLoading(true);
     try {
-      await api.post('/auth/register', { email, password, full_name: fullName || null });
-      navigate('/login');
+      const payload: Record<string, string | null> = {
+        email,
+        password,
+        full_name: fullName || null,
+      };
+      if (invitationToken) {
+        payload.invitation_token = invitationToken;
+      }
+      const response = await api.post('/auth/register', payload);
+      const acceptedProjectId = (response.data as { accepted_project_id?: string | null } | undefined)?.accepted_project_id;
+      navigate(
+        invitationToken
+          ? `/login?email=${encodeURIComponent(email)}&invited=1${acceptedProjectId ? `&accepted_project_id=${encodeURIComponent(acceptedProjectId)}` : `&invitation_token=${encodeURIComponent(invitationToken)}`}`
+          : '/login'
+      );
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Registration failed');
     } finally { setLoading(false); }
@@ -79,6 +100,11 @@ export default function SignupPage() {
           </div>
 
           <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {invitationToken ? (
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.18)', color: '#4338ca', fontSize: 13 }}>
+                Create an account with the invited email to join the shared project.
+              </div>
+            ) : null}
             <div>
               <div className="rc-kicker">{t.auth.fullName}</div>
               <input className="rc-input" type="text" value={fullName} onChange={e => setFullName(e.target.value)}
@@ -114,7 +140,12 @@ export default function SignupPage() {
 
           <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: 'rgba(26,25,41,0.5)' }}>
             {t.auth.hasAccount}{' '}
-            <Link to="/login" style={{ fontWeight: 700 }}>{t.auth.signIn}</Link>
+            <Link
+              to={invitationToken ? `/login?invitation_token=${encodeURIComponent(invitationToken)}${email ? `&email=${encodeURIComponent(email)}` : invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}` : '/login'}
+              style={{ fontWeight: 700 }}
+            >
+              {t.auth.signIn}
+            </Link>
           </div>
 
           <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(26,25,41,0.1)', textAlign: 'center', fontSize: 12, color: 'rgba(26,25,41,0.3)' }}>

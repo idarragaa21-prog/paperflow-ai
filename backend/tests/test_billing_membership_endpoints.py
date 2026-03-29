@@ -208,7 +208,8 @@ async def test_membership_endpoints_invite_list_update_and_delete():
             headers={"X-CSRF-Token": "csrf-123"},
         )
         assert created.status_code == 200
-        assert created.json()["role"] == "editor"
+        assert created.json()["kind"] == "membership"
+        assert created.json()["member"]["role"] == "editor"
 
         patched = await client.patch(
             f"/projects/{project.id}/members/{invited.id}",

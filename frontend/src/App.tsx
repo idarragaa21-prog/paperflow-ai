@@ -7,6 +7,7 @@ import { useAuthStore } from './store/authStore';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
+const ProjectInvitationPage = lazy(() => import('./pages/ProjectInvitationPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const AuthedLayout = lazy(() => import('./components/AuthedLayout'));
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/project-invitations/:token" element={<ProjectInvitationPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
             {/* Authenticated routes */}

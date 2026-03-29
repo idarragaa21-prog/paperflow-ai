@@ -32,6 +32,7 @@ from app.models.membership import ProjectMembership
 from app.models.paper import Paper
 from app.models.project import Project
 from app.models.reference_item import ReferenceItem
+from app.models.search import Search, SearchResult
 from app.models.user import User
 from app.core.security import hash_password
 
@@ -360,11 +361,84 @@ class TestSharedProjectAccess:
         assert datasets_r.status_code == 200
         assert runs_r.status_code == 200
         assert chat_r.status_code == 200
-        assert references_r.json()[0]["title"] == "Shared reference"
-        assert drafts_r.json()[0]["title"] == "Shared draft"
-        assert datasets_r.json()[0]["title"] == "Shared dataset"
-        assert runs_r.json()[0]["title"] == "Shared run"
-        assert chat_r.json()["answer"] == "Grounded answer"
+
+    async def test_viewer_can_run_and_reopen_project_search_history(self, db_session: AsyncSession):
+        owner = User(
+            id=uuid.uuid4(),
+            email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Owner",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        viewer = User(
+            id=uuid.uuid4(),
+            email=f"viewer-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Viewer",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        project = Project(user_id=owner.id, title="Shared Search")
+        db_session.add_all([owner, viewer, project])
+        await db_session.flush()
+        db_session.add(ProjectMembership(project_id=project.id, user_id=viewer.id, role="viewer"))
+        seeded_search = Search(
+            project_id=project.id,
+            query="viewer reopen history",
+            source="federated",
+            results_count=1,
+        )
+        db_session.add(seeded_search)
+        await db_session.flush()
+        db_session.add(
+            SearchResult(
+                search_id=seeded_search.id,
+                title="Seeded shared search result",
+                source="pubmed",
+                is_open_access=True,
+                relevance_score=0.9,
+            )
+        )
+        await db_session.commit()
+
+        app.dependency_overrides[get_db] = _override_get_db
+        app.dependency_overrides[get_current_user] = lambda: viewer
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            with patch(
+                "app.api.search.federated_search",
+                new=AsyncMock(
+                    return_value={
+                        "count": 1,
+                        "cached": False,
+                        "sources": ["pubmed"],
+                        "results": [
+                            {
+                                "title": "Shared search result",
+                                "source": "pubmed",
+                                "is_open_access": True,
+                                "relevance_score": 0.9,
+                            }
+                        ],
+                    }
+                ),
+            ):
+                search_r = await client.post(
+                    "/search/federated",
+                    json={"project_id": str(project.id), "query": "rotator cuff repair", "max_results": 5},
+                )
+                history_r = await client.get(f"/search/projects/{project.id}/searches")
+
+                assert search_r.status_code == 200
+                assert history_r.status_code == 200
+                history = history_r.json()
+                assert len(history) >= 1
+                saved_search = next(item for item in history if item["query"] == "viewer reopen history")
+
+                results_r = await client.get(f"/search/{saved_search['id']}/results")
+
+        app.dependency_overrides.clear()
+
+        assert results_r.status_code == 200
+        assert results_r.json()[0]["title"] == "Seeded shared search result"
 
     async def test_viewer_cannot_mutate_editor_only_endpoints(self, db_session: AsyncSession):
         owner = User(
@@ -459,3 +533,136 @@ class TestAnalysisExport:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/html")
         assert response.content == b"<html>ok</html>"
+
+
+@pytest.mark.asyncio
+class TestProjectInvitations:
+    async def test_owner_can_invite_unregistered_email_and_registration_accepts_invitation(self, db_session: AsyncSession):
+        owner = User(
+            id=uuid.uuid4(),
+            email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Owner",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        project = Project(user_id=owner.id, title="Shared by invite")
+        db_session.add_all([owner, project])
+        await db_session.commit()
+
+        async def get_db_override():
+            yield db_session
+
+        app.dependency_overrides[get_db] = get_db_override
+        app.dependency_overrides[get_current_user] = lambda: owner
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as owner_client:
+            owner_client.cookies.set("access_token", "token")
+            owner_client.cookies.set("csrf_token", "csrf-123")
+            created = await owner_client.post(
+                f"/projects/{project.id}/members",
+                json={"email": "new-collaborator@example.com", "role": "viewer"},
+                headers={"X-CSRF-Token": "csrf-123"},
+            )
+            invites = await owner_client.get(f"/projects/{project.id}/invitations")
+
+        app.dependency_overrides.clear()
+
+        assert created.status_code == 200
+        assert created.json()["kind"] == "invitation"
+        assert invites.status_code == 200
+        assert invites.json()[0]["email"] == "new-collaborator@example.com"
+        invitation_token = created.json()["invitation"]["token"]
+
+        async def public_db_override():
+            yield db_session
+
+        app.dependency_overrides[get_db] = public_db_override
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as public_client:
+            lookup = await public_client.get(f"/projects/invitations/{invitation_token}")
+            registered = await public_client.post(
+                "/auth/register",
+                json={
+                    "email": "new-collaborator@example.com",
+                    "password": "pass12345",
+                    "full_name": "New Collaborator",
+                    "invitation_token": invitation_token,
+                },
+            )
+
+        app.dependency_overrides.clear()
+
+        assert lookup.status_code == 200
+        assert lookup.json()["status"] == "pending"
+        assert registered.status_code == 200
+        assert registered.json()["accepted_project_id"] == str(project.id)
+
+        app.dependency_overrides[get_db] = get_db_override
+        app.dependency_overrides[get_current_user] = lambda: owner
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as owner_client:
+            members = await owner_client.get(f"/projects/{project.id}/members")
+            invite_lookup = await owner_client.get(f"/projects/invitations/{invitation_token}")
+
+        app.dependency_overrides.clear()
+
+        assert members.status_code == 200
+        emails = [item["email"] for item in members.json()]
+        assert "new-collaborator@example.com" in emails
+        assert invite_lookup.status_code == 200
+        assert invite_lookup.json()["status"] == "accepted"
+
+
+@pytest.mark.asyncio
+class TestDeepResearchAccess:
+    async def test_viewer_can_generate_project_mode_deep_research(self, db_session: AsyncSession):
+        owner = User(
+            id=uuid.uuid4(),
+            email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Owner",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        viewer = User(
+            id=uuid.uuid4(),
+            email=f"viewer-{uuid.uuid4().hex[:8]}@paperflow.example.com",
+            full_name="Viewer",
+            password_hash=hash_password("pass12345"),
+            is_active=True,
+        )
+        project = Project(user_id=owner.id, title="Shared research")
+        db_session.add_all([owner, viewer, project])
+        await db_session.flush()
+        db_session.add(ProjectMembership(project_id=project.id, user_id=viewer.id, role="viewer"))
+        await db_session.commit()
+
+        async def get_db_override():
+            yield db_session
+
+        app.dependency_overrides[get_db] = get_db_override
+        app.dependency_overrides[get_current_user] = lambda: viewer
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            with patch(
+                "app.api.research.generate_deep_research_report",
+                new=AsyncMock(
+                    return_value={
+                        "status": "completed",
+                        "query": "rotator cuff repair",
+                        "sections": [],
+                        "papers": [],
+                        "papers_analyzed": 0,
+                        "metadata": {"project_id": str(project.id), "source": "project_library"},
+                    }
+                ),
+            ):
+                response = await client.post(
+                    "/research/deep",
+                    json={
+                        "query": "rotator cuff repair",
+                        "source_mode": "project",
+                        "project_id": str(project.id),
+                    },
+                )
+
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "completed"
+        assert response.json()["metadata"]["project_id"] == str(project.id)

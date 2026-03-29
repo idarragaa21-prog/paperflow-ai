@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { request } from '@playwright/test';
@@ -22,6 +22,8 @@ export default async function globalSetup() {
   const apiURL = process.env.PLAYWRIGHT_API_URL || 'http://127.0.0.1:8000';
   const healthURL = `${apiURL.replace(/\/$/, '')}/health`;
   const devUpScript = path.resolve(repoRoot, 'scripts/dev_up.sh');
+  const ownerAuthPath = path.resolve(authDir, 'owner.json');
+  const reviewerAuthPath = path.resolve(authDir, 'reviewer.json');
 
   mkdirSync(authDir, { recursive: true });
   mkdirSync(tmpDir, { recursive: true });
@@ -72,25 +74,38 @@ export default async function globalSetup() {
   );
 
   const fixture = JSON.parse(readFileSync(fixturePath, 'utf-8')) as Fixture;
-  const context = await request.newContext({ baseURL: apiURL });
-  const response = await context.post('/auth/login', {
-    data: { email: fixture.owner.email, password: fixture.owner.password },
-  });
-  if (!response.ok()) {
-    throw new Error(`Playwright login failed: ${response.status()} ${await response.text()}`);
+
+  async function authStateStillWorks(storagePath: string) {
+    if (!existsSync(storagePath)) return false;
+    const ctx = await request.newContext({ baseURL: apiURL, storageState: storagePath });
+    try {
+      const response = await ctx.get('/auth/me');
+      return response.ok();
+    } finally {
+      await ctx.dispose();
+    }
   }
 
-  await context.storageState({ path: path.resolve(authDir, 'owner.json') });
-  await context.dispose();
-
-  const reviewerContext = await request.newContext({ baseURL: apiURL });
-  const reviewerResponse = await reviewerContext.post('/auth/login', {
-    data: { email: fixture.reviewer.email, password: fixture.reviewer.password },
-  });
-  if (!reviewerResponse.ok()) {
-    throw new Error(`Playwright reviewer login failed: ${reviewerResponse.status()} ${await reviewerResponse.text()}`);
+  async function loginAndPersist(storagePath: string, email: string, password: string, label: string) {
+    const ctx = await request.newContext({ baseURL: apiURL });
+    try {
+      const response = await ctx.post('/auth/login', {
+        data: { email, password },
+      });
+      if (!response.ok()) {
+        throw new Error(`Playwright ${label} login failed: ${response.status()} ${await response.text()}`);
+      }
+      await ctx.storageState({ path: storagePath });
+    } finally {
+      await ctx.dispose();
+    }
   }
 
-  await reviewerContext.storageState({ path: path.resolve(authDir, 'reviewer.json') });
-  await reviewerContext.dispose();
+  if (!(await authStateStillWorks(ownerAuthPath))) {
+    await loginAndPersist(ownerAuthPath, fixture.owner.email, fixture.owner.password, 'owner');
+  }
+
+  if (!(await authStateStillWorks(reviewerAuthPath))) {
+    await loginAndPersist(reviewerAuthPath, fixture.reviewer.email, fixture.reviewer.password, 'reviewer');
+  }
 }
