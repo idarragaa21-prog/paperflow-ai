@@ -94,7 +94,8 @@ class PubMedClient:
         abstracts: dict[str, str] = {}
         try:
             root = ET.fromstring(xml_text)
-        except Exception:
+        except Exception as _xml_err:
+            logger.warning(f"[PubMedClient] failed to parse efetch XML for abstracts: {_xml_err!r}")
             return abstracts
 
         for article in root.findall(".//PubmedArticle"):
@@ -117,7 +118,8 @@ class PubMedClient:
         out: dict[str, list[str]] = {}
         try:
             root = ET.fromstring(xml_text)
-        except Exception:
+        except Exception as _xml_err:
+            logger.warning(f"[PubMedClient] failed to parse efetch XML for publication types: {_xml_err!r}")
             return out
 
         for article in root.findall(".//PubmedArticle"):
@@ -170,7 +172,8 @@ class PubMedClient:
             xml_text = await self.efetch_xml(pmids)
             abstracts = self._parse_efetch_abstracts(xml_text)
             pub_types = self._parse_efetch_publication_types(xml_text)
-        except Exception:
+        except Exception as _fetch_err:
+            logger.warning(f"[PubMedClient] efetch failed for pmids={pmids[:5]}...: {_fetch_err!r} — results will have no abstracts or publication types")
             abstracts = {}
             pub_types = {}
 

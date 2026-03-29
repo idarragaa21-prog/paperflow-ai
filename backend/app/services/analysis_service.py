@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
+from app.core.logger import logger
 from app.core.storage import storage_manager
 from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset, DatasetColumn, FigureArtifact
 
@@ -158,7 +159,8 @@ async def create_analysis_run(
             resp = await client.post(f"{settings.R_ENGINE_URL}/run-analysis", json=payload)
             resp.raise_for_status()
             response_data = resp.json()
-    except Exception:
+    except Exception as _r_err:
+        logger.warning(f"[analysis_service] r-engine call failed: {_r_err!r} — falling back to local analysis")
         response_data = _local_analysis(df, analysis_type, input_params)
         warnings.append("r-engine unavailable, local fallback used")
 

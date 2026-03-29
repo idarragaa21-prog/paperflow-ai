@@ -7,8 +7,14 @@ from typing import Any
 from uuid import UUID
 
 from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 
 from app.core.logger import logger
+
+_HEADER_FONT = Font(bold=True, color="FFFFFF")
+_HEADER_FILL = PatternFill(fill_type="solid", fgColor="2F5496")
+_MAX_COL_WIDTH = 60
 
 
 SHEETS = [
@@ -197,11 +203,34 @@ class ExcelExportInput:
 def _add_sheet(wb: Workbook, name: str, cols: list[str]) -> None:
     ws = wb.create_sheet(title=name)
     ws.append(cols)
+    # Bold + colored header row
+    for cell in ws[1]:
+        cell.font = _HEADER_FONT
+        cell.fill = _HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+    # Freeze header row and enable autofilter
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
 
 
 def _append_rows(ws, cols: list[str], rows: list[dict[str, Any]]) -> None:
     for r in rows:
         ws.append([r.get(c) for c in cols])
+
+
+def _autofit_columns(ws) -> None:
+    """Set column widths based on content, capped at _MAX_COL_WIDTH."""
+    col_widths: dict[int, int] = {}
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value is not None:
+                val_len = len(str(cell.value))
+                col_widths[cell.column] = min(
+                    _MAX_COL_WIDTH,
+                    max(col_widths.get(cell.column, 10), val_len + 2),
+                )
+    for col_idx, width in col_widths.items():
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
 
 
 def build_meta_xlsx(data: ExcelExportInput) -> bytes:
@@ -229,6 +258,10 @@ def build_meta_xlsx(data: ExcelExportInput) -> bytes:
     _append_rows(wb["TABLES_RAW"], TABLES_RAW_COLS, data.tables_raw)
     _append_rows(wb["IMAGES_OCR_RAW"], IMAGES_OCR_RAW_COLS, data.images_ocr_raw)
     _append_rows(wb["LOGS"], LOGS_COLS, data.logs)
+
+    # Auto-fit column widths on all sheets
+    for sheet_name in wb.sheetnames:
+        _autofit_columns(wb[sheet_name])
 
     from io import BytesIO
 

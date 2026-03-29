@@ -22,6 +22,7 @@ from app.workers.job_tracker import (
     job_mark_started,
     job_set_progress,
 )
+from app.core.logger import logger
 
 
 _T = TypeVar("_T")
@@ -160,8 +161,8 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                             tbs = page.extract_tables() or []
                             for ti, tbl in enumerate(tbs, 1):
                                 tables_md_parts.append(f"\n\n### Table p{i}-{ti}\n" + "\n".join(["\t".join([str(c) if c is not None else "" for c in row]) for row in tbl]))
-                except Exception:
-                    pass
+                except Exception as _tbl_err:
+                    logger.warning(f"[meta_extract_paper_job] pdfplumber table extraction failed for paper={paper_id}: {_tbl_err!r}")
 
                 tables_markdown = "\n".join(tables_md_parts)
 
@@ -191,8 +192,8 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                             try:
                                 text_for_llm = extract_text(out_pdf)
                                 ocr_snippets, ocr_used = ocr_pages_best_effort(out_pdf, max_pages=3)
-                            except Exception:
-                                pass
+                            except Exception as _ocr_err:
+                                logger.warning(f"[meta_extract_paper_job] OCR text extraction failed for paper={paper_id}: {_ocr_err!r}")
                         else:
                             warnings.append("Scanned PDF preprocessing disabled or failed.")
                 elif scanned and ocr_av.ocr_enabled and not ocr_av.ocrmypdf_available:
@@ -324,8 +325,8 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                         if b:
                             b.status = "failed" if any(s == "failed" for s in statuses) else "completed"
                             await db.commit()
-                except Exception:
-                    pass
+                except Exception as _fin_err:
+                    logger.warning(f"[meta_extract_paper_job] batch finalization failed for batch={batch_id}: {_fin_err!r}")
 
             study_id = str(study.id)
             await job_mark_completed(
@@ -358,11 +359,11 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                             if b:
                                 b.status = "failed" if any(s == "failed" for s in statuses) else "completed"
                                 await db2.commit()
-                    except Exception:
-                        pass
-            except Exception:
+                    except Exception as _fin2_err:
+                        logger.warning(f"[meta_extract_paper_job] failure-path batch finalization failed for batch={batch_id}: {_fin2_err!r}")
+            except Exception as _item_err:
                 # Best-effort; don't mask the original failure.
-                pass
+                logger.warning(f"[meta_extract_paper_job] failed to persist item failure for item={item_id}: {_item_err!r}")
 
             await job_mark_failed(job_uuid, str(e))
             return {"output": {}, "warnings": warnings, "errors": [str(e)]}
@@ -714,8 +715,8 @@ def clinical_query_job(job_db_id: str, sheet_id: str) -> dict[str, Any]:
                         s2.input_params = {**(s2.input_params or {}), "status": "failed", "error": str(e)}
                         s2.updated_at = datetime.utcnow()
                         await db2.commit()
-            except Exception:
-                pass
+            except Exception as _sheet_err:
+                logger.warning(f"[clinical_query_job] failed to persist error state on sheet={sheet_id}: {_sheet_err!r}")
 
             await job_mark_failed(job_uuid, str(e))
             raise

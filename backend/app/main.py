@@ -33,6 +33,22 @@ from app.services.runtime_health import collect_runtime_health
 app = FastAPI(title="PaperFlow AI")
 setup_telemetry()
 
+# Security guard: abort startup in production if SECRET_KEY was never changed.
+import sys
+from app.core.logger import logger as _startup_logger
+if settings.SECRET_KEY == "CHANGE_ME":
+    if settings.ENV == "production":
+        _startup_logger.error(
+            "FATAL: SECRET_KEY is set to the insecure default 'CHANGE_ME'. "
+            "Set a strong random value via the SECRET_KEY environment variable before deploying."
+        )
+        sys.exit(1)
+    else:
+        _startup_logger.warning(
+            "SECRET_KEY is set to the insecure default 'CHANGE_ME'. "
+            "This is acceptable for local development but MUST be changed before deploying to production."
+        )
+
 # Middleware (orden importa: auth → csrf → rate limit)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(CSRFMiddleware)
