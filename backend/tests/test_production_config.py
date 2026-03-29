@@ -40,3 +40,16 @@ def test_resolve_settings_env_file_can_disable_dotenv(monkeypatch):
     monkeypatch.setenv("PAPERFLOW_DISABLE_DOTENV", "1")
 
     assert resolve_settings_env_file() is None
+
+
+def test_mail_enabled_requires_smtp_host_and_sender_in_production():
+    with pytest.raises(ValueError, match="MAIL_ENABLED requires"):
+        Settings(
+            ENV="production",
+            SECRET_KEY="super-secret",
+            STORAGE_BACKEND="filesystem",
+            BACKEND_CORS_ORIGINS="https://paperflow.ai",
+            APP_BASE_URL="https://paperflow.ai",
+            MAIL_ENABLED=True,
+            PAPERFLOW_DISABLE_DOTENV="1",
+        )

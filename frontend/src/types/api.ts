@@ -64,6 +64,10 @@ export type ProjectInviteResult = {
   kind: 'membership' | 'invitation';
   member?: ProjectMember | null;
   invitation?: ProjectInvitation | null;
+  invitation_url?: string | null;
+  delivery_status?: 'sent' | 'manual_required' | null;
+  delivery_method?: 'smtp' | 'manual_link' | null;
+  delivery_detail?: string | null;
 };
 
 export type ProjectInvitationLookup = {

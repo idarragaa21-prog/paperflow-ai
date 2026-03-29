@@ -90,8 +90,17 @@ export default function CollaborationPage() {
       if (result.kind === 'membership') {
         setNotice(`${email} now has ${ROLE_LABELS[inviteRole]} access.`);
       } else {
-        const acceptPath = result.invitation?.accept_path || `/project-invitations/${result.invitation?.token || ''}`;
-        setNotice(`Invitation created for ${email}. Share this link: ${window.location.origin}${acceptPath}`);
+        const invitationUrl = result.invitation_url || `${window.location.origin}${result.invitation?.accept_path || `/project-invitations/${result.invitation?.token || ''}`}`;
+        if (result.delivery_status === 'sent') {
+          setNotice(`${email} will receive an invitation email shortly. Backup link: ${invitationUrl}`);
+        } else {
+          try {
+            await navigator.clipboard.writeText(invitationUrl);
+            setNotice(`${email} does not have email delivery configured here. Invitation link copied: ${invitationUrl}`);
+          } catch {
+            setNotice(`${email} does not have email delivery configured here. Share this link manually: ${invitationUrl}`);
+          }
+        }
       }
       setInviteEmail('');
       setInviteRole('viewer');
@@ -195,7 +204,7 @@ export default function CollaborationPage() {
           <div className="rc-product-card__header">
             <div>
               <div className="rc-card-title">Invite by email</div>
-              <div className="rc-help">Existing users are added immediately. New emails receive a secure invitation link.</div>
+              <div className="rc-help">Existing users are added immediately. New emails receive an SMTP email when configured, or a secure fallback link you can copy manually.</div>
             </div>
           </div>
 
@@ -322,7 +331,7 @@ export default function CollaborationPage() {
           <div className="rc-product-card__header">
             <div>
               <div className="rc-card-title">Pending invitations</div>
-              <div className="rc-help">Share the generated link with collaborators who do not yet have a PaperFlow account.</div>
+              <div className="rc-help">Pending collaborators can accept by secure link. If SMTP is configured, the link is also emailed automatically at invite time.</div>
             </div>
             <div className="rc-discover-badge">{invitations.length} pending</div>
           </div>

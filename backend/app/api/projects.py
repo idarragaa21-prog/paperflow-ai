@@ -26,6 +26,7 @@ from app.schemas.membership import (
     ProjectMemberUpdateRequest,
 )
 from app.schemas.projects import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.services.email import build_project_invitation_url, send_project_invitation_email
 from app.services.jobs import get_job_queue
 from app.services.permissions import list_accessible_projects, require_project_access
 
@@ -279,9 +280,20 @@ async def invite_project_member(
     await db.commit()
     await db.refresh(invitation)
 
+    delivery = send_project_invitation_email(
+        invitation=invitation,
+        project=project,
+        invited_by=user,
+    )
+    invitation_url = build_project_invitation_url(invitation.token)
+
     return ProjectInviteResultResponse(
         kind="invitation",
         invitation=_invitation_response(invitation),
+        invitation_url=invitation_url,
+        delivery_status=delivery.status,  # type: ignore[arg-type]
+        delivery_method=delivery.method,  # type: ignore[arg-type]
+        delivery_detail=delivery.detail,
     )
 
 

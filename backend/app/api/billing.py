@@ -8,7 +8,7 @@ from app.models.user import User
 from app.schemas.billing import BillingHistoryResponse, BillingUsageSummaryResponse
 from app.services.billing.usage_tracker import UsageTracker
 
-router = APIRouter(prefix="/billing", tags=["billing"])
+router = APIRouter(prefix="/billing", tags=["usage"])
 
 
 @router.get("/usage", response_model=BillingUsageSummaryResponse)

@@ -104,6 +104,17 @@ class Settings(BaseSettings):
     CLAUDE_MAX_TOKENS: int = 4096
     CLAUDE_TEMPERATURE: float = 0.3
 
+    # App URLs / email delivery
+    APP_BASE_URL: str = "http://127.0.0.1:5173"
+    MAIL_ENABLED: bool = False
+    MAIL_FROM_EMAIL: str | None = None
+    MAIL_SMTP_HOST: str | None = None
+    MAIL_SMTP_PORT: int = 587
+    MAIL_SMTP_USERNAME: str | None = None
+    MAIL_SMTP_PASSWORD: str | None = None
+    MAIL_SMTP_USE_TLS: bool = True
+    MAIL_SMTP_USE_SSL: bool = False
+
     # CORS
     # Default: localhost dev servers. Override via env for production.
     # Example: BACKEND_CORS_ORIGINS=["https://app.paperflow.ai","https://paperflow.ai"]
@@ -156,6 +167,20 @@ class Settings(BaseSettings):
         cleaned = str(value).strip().lower()
         return cleaned or None
 
+    @field_validator("MAIL_FROM_EMAIL", "MAIL_SMTP_HOST", "MAIL_SMTP_USERNAME", "MAIL_SMTP_PASSWORD", mode="before")
+    @classmethod
+    def normalize_optional_strings(cls, value):
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
+
+    @field_validator("APP_BASE_URL", mode="before")
+    @classmethod
+    def normalize_app_base_url(cls, value):
+        raw = str(value or "").strip().rstrip("/")
+        return raw or "http://127.0.0.1:5173"
+
     @field_validator("CLINICAL_LLM_PROVIDER", mode="before")
     @classmethod
     def normalize_clinical_llm_provider(cls, value):
@@ -203,6 +228,21 @@ class Settings(BaseSettings):
             return self.COOKIE_SAMESITE
         return "none" if self.ENV == "production" else "lax"
 
+    @property
+    def invitation_base_url(self) -> str:
+        parsed = urlparse(self.APP_BASE_URL)
+        if not parsed.scheme or not parsed.netloc:
+            raise ValueError("APP_BASE_URL must be an absolute URL")
+        return f"{parsed.scheme}://{parsed.netloc}"
+
+    @property
+    def mail_configured(self) -> bool:
+        if not self.MAIL_ENABLED:
+            return False
+        if not self.MAIL_SMTP_HOST or not self.MAIL_FROM_EMAIL:
+            return False
+        return True
+
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
         if self.CLINICAL_LLM_PROVIDER not in {"claude", "openai"}:
@@ -210,6 +250,11 @@ class Settings(BaseSettings):
 
         if self.cookie_samesite not in {"lax", "strict", "none"}:
             raise ValueError("COOKIE_SAMESITE must be one of: lax, strict, none")
+        if self.MAIL_SMTP_USE_TLS and self.MAIL_SMTP_USE_SSL:
+            raise ValueError("MAIL_SMTP_USE_TLS and MAIL_SMTP_USE_SSL cannot both be enabled")
+        parsed_app_base = urlparse(self.APP_BASE_URL)
+        if not parsed_app_base.scheme or not parsed_app_base.netloc:
+            raise ValueError("APP_BASE_URL must be an absolute URL")
 
         if self.ENV != "production":
             return self
@@ -227,6 +272,8 @@ class Settings(BaseSettings):
             raise ValueError("BACKEND_CORS_ORIGINS cannot use '*' when credentials are enabled")
         if all(self._is_local_origin(origin) for origin in self.BACKEND_CORS_ORIGINS):
             raise ValueError("BACKEND_CORS_ORIGINS must include the real frontend origin in production")
+        if self.MAIL_ENABLED and not self.mail_configured:
+            raise ValueError("MAIL_ENABLED requires MAIL_SMTP_HOST and MAIL_FROM_EMAIL")
         return self
 
     model_config = SettingsConfigDict(env_file=resolve_settings_env_file(), extra="ignore")

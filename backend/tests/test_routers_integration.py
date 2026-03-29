@@ -568,6 +568,9 @@ class TestProjectInvitations:
 
         assert created.status_code == 200
         assert created.json()["kind"] == "invitation"
+        assert created.json()["delivery_status"] == "manual_required"
+        assert created.json()["delivery_method"] == "manual_link"
+        assert created.json()["invitation_url"].endswith(f"/project-invitations/{created.json()['invitation']['token']}")
         assert invites.status_code == 200
         assert invites.json()[0]["email"] == "new-collaborator@example.com"
         invitation_token = created.json()["invitation"]["token"]

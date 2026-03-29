@@ -120,6 +120,8 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const selectedProject = ownedProjects.find((project) => project.id === selectedProjectId) || null;
+  const currentTeamRole = projectMembers.find((member) => member.user_id === user?.id)?.role || null;
+  const canManageSelectedProject = currentTeamRole === 'owner';
 
   useEffect(() => {
     setFullName(user?.full_name || '');
@@ -247,7 +249,7 @@ export default function SettingsPage() {
 
   async function inviteMember() {
     const email = inviteEmail.trim().toLowerCase();
-    if (!selectedProjectId || !email) return;
+    if (!selectedProjectId || !email || !canManageSelectedProject) return;
     if (!email.includes('@')) {
       setError('Enter a valid email.');
       return;
@@ -263,8 +265,17 @@ export default function SettingsPage() {
       if (result.kind === 'membership') {
         toast.success('Member added', `${email} now has ${TEAM_ROLE_LABELS[inviteRole]} access.`);
       } else {
-        const acceptPath = result.invitation?.accept_path || `/project-invitations/${result.invitation?.token || ''}`;
-        toast.success('Invitation created', `Share this link with ${email}: ${window.location.origin}${acceptPath}`);
+        const invitationUrl = result.invitation_url || `${window.location.origin}${result.invitation?.accept_path || `/project-invitations/${result.invitation?.token || ''}`}`;
+        if (result.delivery_status === 'sent') {
+          toast.success('Invitation email sent', `${email} received a secure invitation email. Backup link: ${invitationUrl}`);
+        } else {
+          try {
+            await navigator.clipboard.writeText(invitationUrl);
+            toast.info('Copy this invite link', `SMTP is not configured here, so the secure link was copied for ${email}.`);
+          } catch {
+            toast.info('Share invite link manually', `${email} did not receive an email. Share this link: ${invitationUrl}`);
+          }
+        }
       }
       await loadTeamMembers(selectedProjectId);
     } catch (e: any) {
@@ -275,7 +286,7 @@ export default function SettingsPage() {
   }
 
   async function updateMemberRole(member: ProjectMember, role: MembershipRole) {
-    if (!selectedProjectId || role === member.role) return;
+    if (!selectedProjectId || role === member.role || !canManageSelectedProject) return;
     setSavingTeam(true);
     setError(null);
     try {
@@ -290,7 +301,7 @@ export default function SettingsPage() {
   }
 
   async function removeMember(member: ProjectMember) {
-    if (!selectedProjectId) return;
+    if (!selectedProjectId || !canManageSelectedProject) return;
     setSavingTeam(true);
     setError(null);
     try {
@@ -482,7 +493,7 @@ export default function SettingsPage() {
               </button>
             </div>
             <div className="rc-help" style={{ marginBottom: 12 }}>
-              This build tracks local AI usage and quotas only. No payment processor, subscription checkout or external billing workflow is enabled here.
+              This build tracks local AI usage and quotas only. It does not include payment processing, subscription checkout or commercial invoicing.
             </div>
             {!billingSummary && !loadingUsage ? (
               <div className="rc-muted">No tracked local AI usage yet.</div>
@@ -598,6 +609,14 @@ export default function SettingsPage() {
                 Managing access for <b>{selectedProject.title}</b>.
               </div>
             ) : null}
+            {selectedProject && currentTeamRole ? (
+              <div className="rc-help" style={{ marginTop: 8 }}>
+                Your role in this project is <b>{TEAM_ROLE_LABELS[currentTeamRole]}</b>.
+                {canManageSelectedProject
+                  ? ' You can invite members and change project access from here.'
+                  : ' Only owners can invite members or change project access from this screen.'}
+              </div>
+            ) : null}
           </div>
 
           <div className="rc-product-two-column">
@@ -605,7 +624,7 @@ export default function SettingsPage() {
               <div className="rc-product-card__header">
                 <div>
                   <div className="rc-card-title">Invite member</div>
-                  <div className="rc-help">Existing users are added immediately. New emails receive a secure invitation link.</div>
+                  <div className="rc-help">Existing users are added immediately. New emails get an SMTP invitation when configured, otherwise you can share the secure fallback link.</div>
                 </div>
               </div>
 
@@ -617,11 +636,17 @@ export default function SettingsPage() {
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="researcher@example.com"
+                    disabled={!canManageSelectedProject}
                   />
                 </label>
                 <label className="rc-discover-filter-field">
                   <span>Role</span>
-                  <select className="rc-input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as MembershipRole)}>
+                  <select
+                    className="rc-input"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as MembershipRole)}
+                    disabled={!canManageSelectedProject}
+                  >
                     {TEAM_ROLE_OPTIONS.map((role) => (
                       <option key={role} value={role}>
                         {TEAM_ROLE_LABELS[role]}
@@ -631,7 +656,11 @@ export default function SettingsPage() {
                 </label>
               </div>
 
-              <button className="rc-btn rc-btn--primary" onClick={inviteMember} disabled={savingTeam || !selectedProjectId || !inviteEmail.trim()}>
+              <button
+                className="rc-btn rc-btn--primary"
+                onClick={inviteMember}
+                disabled={savingTeam || !selectedProjectId || !inviteEmail.trim() || !canManageSelectedProject}
+              >
                 {savingTeam ? 'Saving…' : 'Invite member'}
               </button>
             </section>
@@ -689,7 +718,7 @@ export default function SettingsPage() {
                     className="rc-input"
                     value={member.role}
                     onChange={(e) => updateMemberRole(member, e.target.value as MembershipRole)}
-                    disabled={savingTeam || member.role === 'owner'}
+                    disabled={savingTeam || member.role === 'owner' || !canManageSelectedProject}
                   >
                     {TEAM_ROLE_OPTIONS.map((role) => (
                       <option key={role} value={role}>
@@ -700,7 +729,7 @@ export default function SettingsPage() {
                   <button
                     className="rc-btn"
                     onClick={() => removeMember(member)}
-                    disabled={savingTeam || member.role === 'owner'}
+                    disabled={savingTeam || member.role === 'owner' || !canManageSelectedProject}
                   >
                     Remove
                   </button>

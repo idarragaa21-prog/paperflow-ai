@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 
 MembershipRole = Literal["owner", "editor", "viewer"]
 InvitationStatus = Literal["pending", "accepted", "revoked"]
+InvitationDeliveryStatus = Literal["sent", "manual_required"]
+InvitationDeliveryMethod = Literal["smtp", "manual_link"]
 
 
 class ProjectMemberInviteRequest(BaseModel):
@@ -47,6 +49,10 @@ class ProjectInviteResultResponse(BaseModel):
     kind: Literal["membership", "invitation"]
     member: ProjectMemberResponse | None = None
     invitation: ProjectInvitationResponse | None = None
+    invitation_url: str | None = None
+    delivery_status: InvitationDeliveryStatus | None = None
+    delivery_method: InvitationDeliveryMethod | None = None
+    delivery_detail: str | None = None
 
 
 class ProjectInvitationLookupResponse(BaseModel):

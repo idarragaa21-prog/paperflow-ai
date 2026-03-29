@@ -24,6 +24,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister
 from app.services import auth_rate_limit, auth_sessions
+from app.services.email import send_password_reset_code_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -357,15 +358,18 @@ async def forgot_password(
     code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
     _reset_codes[payload.email] = code
 
-    # In development: print to console. In production: send email.
     from app.core.logger import logger
-    logger.info(f"[RESET CODE] {payload.email} → {code}")
-    print(f"\n{'='*50}")
-    print(f"  PASSWORD RESET CODE for {payload.email}")
-    print(f"  CODE: {code}")
-    print(f"{'='*50}\n")
+    delivery = send_password_reset_code_email(to_email=payload.email, code=code)
+    if delivery.sent:
+        logger.info("Password reset code sent to {}", payload.email)
+    else:
+        logger.info(f"[RESET CODE] {payload.email} → {code}")
+        print(f"\n{'='*50}")
+        print(f"  PASSWORD RESET CODE for {payload.email}")
+        print(f"  CODE: {code}")
+        print(f"{'='*50}\n")
 
-    return {"ok": True}
+    return {"ok": True, "delivery_status": delivery.status}
 
 
 @router.post("/reset-password")

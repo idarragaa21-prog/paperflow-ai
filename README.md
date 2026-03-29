@@ -5,7 +5,7 @@
 **AI-powered research workspace — local-first, private by design.**
 
 Search, extract, analyze and write academic papers with a full-stack platform
-that runs entirely on your machine. No cloud sync, no subscriptions, no data leaving your computer.
+that runs entirely on your machine. No cloud sync, no subscriptions, no commercial billing, and no data leaving your computer by default.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -172,6 +172,7 @@ Production deploy notes:
 - If frontend and backend live on different origins, use `COOKIE_SAMESITE=none` over HTTPS.
 - Do not leave `VITE_API_BASE_URL` implicit in production.
 - `vercel.json` must never rewrite `/api/*` to `index.html`.
+- Invitation emails are optional. Set `MAIL_ENABLED=true` plus SMTP settings to send real email invites and password reset codes; otherwise PaperFlow falls back to secure manual links.
 
 ### LLM Configuration
 
