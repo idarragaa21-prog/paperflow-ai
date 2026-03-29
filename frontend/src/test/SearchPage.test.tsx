@@ -51,6 +51,7 @@ const MOCK_RESPONSE = {
   count: 3,
   cached: false,
   sources: ['pubmed', 'europepmc', 'doaj'],
+  warnings: [],
   query_translation: null,
   results: [
     {
@@ -346,6 +347,24 @@ describe('SearchPage — error handling', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Rate limit exceeded')).toBeInTheDocument();
+    });
+  });
+
+  it('renders backend search warnings when providers degrade', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        ...MOCK_RESPONSE,
+        warnings: ['PubMed abstract enrichment unavailable; continuing with metadata-only results.'],
+      },
+    });
+
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL knee');
+    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('search-warning-banner')).toBeInTheDocument();
+      expect(screen.getByText('PubMed abstract enrichment unavailable; continuing with metadata-only results.')).toBeInTheDocument();
     });
   });
 });

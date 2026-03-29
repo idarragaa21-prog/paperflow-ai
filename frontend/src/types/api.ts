@@ -202,6 +202,7 @@ export type SearchResponse = {
   query_translation?: string | null;
   cached: boolean;
   sources?: string[];
+  warnings?: string[];
 };
 
 export type BatchDownloadTraceItem = {

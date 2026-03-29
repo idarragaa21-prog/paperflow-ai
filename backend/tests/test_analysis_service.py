@@ -172,3 +172,10 @@ def test_normalize_figure_payload_flattens_list_fields():
     assert normalized["title"] == "Analysis figure: group_comparison"
     assert normalized["caption"] == "Generated from group_comparison analysis."
     assert normalized["analysis_type"] == "group_comparison"
+
+
+def test_normalize_figure_payload_marks_missing_payload_as_degraded():
+    normalized = _normalize_figure_payload(None)
+
+    assert normalized["title"] == "Summary figure unavailable (degraded fallback)"
+    assert normalized["degraded"] is True

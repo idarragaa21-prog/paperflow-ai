@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
-import type { PaperSearchResult } from '../types/api';
+import type { PaperSearchResult, SearchResponse } from '../types/api';
 import { emitProjectContentChanged } from '../utils/projectEvents';
 
 export type DownloadInfo = {
@@ -11,14 +11,6 @@ export type DownloadInfo = {
   original_oa_url?: string | null;
   used_fallback?: boolean;
   error?: string | null;
-};
-
-export type SearchResponse = {
-  count: number;
-  results: PaperSearchResult[];
-  query_translation?: string | null;
-  cached: boolean;
-  sources?: string[];
 };
 
 export type UseSearchReturn = {

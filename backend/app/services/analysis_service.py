@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
+from app.core.logger import logger
 from app.core.storage import storage_manager
 from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset, DatasetColumn, FigureArtifact
 
@@ -244,8 +245,9 @@ def _normalize_text_value(value: object | None) -> str | None:
 def _normalize_figure_payload(value: object | None) -> dict[str, object]:
     if not isinstance(value, dict):
         return {
-            "title": "Summary figure placeholder",
-            "caption": "Generated from analysis summary",
+            "title": "Summary figure unavailable (degraded fallback)",
+            "caption": "No structured figure payload was returned; using the analysis summary as a degraded fallback.",
+            "degraded": True,
         }
 
     normalized = dict(value)
@@ -253,6 +255,7 @@ def _normalize_figure_payload(value: object | None) -> dict[str, object]:
     normalized["caption"] = _normalize_text_value(normalized.get("caption"))
     if "analysis_type" in normalized:
         normalized["analysis_type"] = _normalize_text_value(normalized.get("analysis_type"))
+    normalized["degraded"] = bool(normalized.get("degraded"))
     return normalized
 
 
@@ -314,16 +317,20 @@ async def create_analysis_run(
     }
     response_data: dict | None = None
     warnings: list[str] = []
+    fallback_reason: str | None = None
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.post(f"{settings.R_ENGINE_URL}/run-analysis", json=payload)
             resp.raise_for_status()
             response_data = resp.json()
-    except Exception:
+    except Exception as exc:
+        fallback_reason = exc.__class__.__name__
+        logger.warning(f"Analysis run falling back to local execution for '{analysis_type}': {exc}")
         response_data = _local_analysis(df, analysis_type, input_params)
-        warnings.append("r-engine unavailable, local fallback used")
+        warnings.append("r-engine unavailable; analysis completed with a degraded local fallback summary")
 
     warnings.extend(response_data.get("warnings") or [])
+    is_local_fallback = "engine_version" not in response_data
     artifact_manifest: list[dict] = []
     run = AnalysisRun(
         project_id=project_id,
@@ -333,7 +340,9 @@ async def create_analysis_run(
         status="completed",
         input_params=input_params,
         runtime_metadata={
-            "engine": "r-engine" if "engine_version" in response_data else "local_fallback",
+            "engine": "r-engine" if not is_local_fallback else "local_fallback",
+            "degraded": bool(is_local_fallback),
+            "fallback_reason": fallback_reason,
             "dataset_snapshot": {
                 "dataset_id": str(dataset.id) if dataset else None,
                 "row_count": len(rows),

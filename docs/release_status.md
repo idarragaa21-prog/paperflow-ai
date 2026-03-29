@@ -3,11 +3,13 @@
 ## Stable baseline
 
 - `master` is the only supported release baseline.
+- GitHub Actions should use Node 24-compatible action versions and Node 24 for frontend/browser jobs.
 - CI must stay green for:
   - backend tests
   - frontend lint, unit tests and build
   - browser smoke for auth, search UI and batch traceability
   - local runtime bootstrap (`dev_up` / `dev_check`) before a production push
+- Degraded fallbacks in search, analysis and bridged clinical flows must remain explicit through warnings or quality gaps; no silent placeholders in release builds.
 
 ## Branch policy
 

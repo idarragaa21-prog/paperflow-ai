@@ -42,6 +42,30 @@ CONTROLLED_VOCAB = {
     ],
 }
 
+COUNTRY_ALIASES = {
+    "us": "United States",
+    "u.s.": "United States",
+    "usa": "United States",
+    "u.s.a.": "United States",
+    "united states of america": "United States",
+    "uk": "United Kingdom",
+    "u.k.": "United Kingdom",
+}
+
+COUNTRY_TRAILING_TOKENS = (
+    "participants",
+    "patients",
+    "adults",
+    "children",
+    "women",
+    "men",
+    "hospitals",
+    "hospital",
+    "centers",
+    "centres",
+    "clinics",
+)
+
 
 def universal_template_schema() -> dict:
     return {
@@ -93,12 +117,103 @@ def _candidate_spans(chunks: list[PaperChunk], *, field_name: str, value: str | 
                     "paper_chunk_id": str(chunk.id),
                     "page": chunk.page_number,
                     "locator": chunk.locator,
-                    "quoted_text": chunk.text[:320],
+                    "quoted_text": _best_quoted_text(chunk.text, terms),
                 }
             )
         if len(candidates) >= limit:
             break
     return candidates
+
+
+def _normalize_inline_text(value: str, *, max_len: int | None = None) -> str:
+    text = re.sub(r"\s+", " ", value or "").strip()
+    if max_len is not None and len(text) > max_len:
+        return text[: max_len - 1].rstrip() + "…"
+    return text
+
+
+def _extract_context_window(text: str, start: int, end: int, *, max_len: int = 480) -> str:
+    if not text:
+        return ""
+
+    boundaries = ".!?\n"
+    left_candidates = [text.rfind(char, 0, start) for char in boundaries]
+    right_candidates = [text.find(char, end) for char in boundaries if text.find(char, end) != -1]
+
+    left = max(left_candidates)
+    left = 0 if left < 0 else left + 1
+    right = min(right_candidates) + 1 if right_candidates else len(text)
+
+    fragment = text[left:right].strip()
+    if not fragment:
+        half = max_len // 2
+        fragment = text[max(0, start - half):min(len(text), end + half)].strip()
+    if len(fragment) > max_len:
+        half = max_len // 2
+        fragment = text[max(0, start - half):min(len(text), end + half)].strip()
+    return _normalize_inline_text(fragment, max_len=max_len)
+
+
+def _best_quoted_text(text: str, terms: list[str], *, max_len: int = 480) -> str:
+    normalized_terms = [term.strip() for term in terms if term and term.strip()]
+    lowered = text.lower()
+    matches: list[tuple[int, int]] = []
+    for term in normalized_terms:
+        idx = lowered.find(term.lower())
+        if idx >= 0:
+            matches.append((idx, idx + len(term)))
+    if not matches:
+        return _normalize_inline_text(text, max_len=max_len)
+    start, end = min(matches, key=lambda item: item[0])
+    return _extract_context_window(text, start, end, max_len=max_len)
+
+
+def _normalize_country_name(raw_value: str) -> str | None:
+    cleaned = _normalize_inline_text(raw_value.strip(" ,;:."))
+    cleaned = re.sub(r"^(?:the)\s+", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(
+        rf"\s+(?:{'|'.join(COUNTRY_TRAILING_TOKENS)})\b.*$",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip(" ,;:.")
+    if not cleaned:
+        return None
+    alias = COUNTRY_ALIASES.get(cleaned.lower())
+    if alias:
+        return alias
+    return " ".join(part.capitalize() if part.islower() else part for part in cleaned.split())
+
+
+def _extract_country_value(text: str) -> str | None:
+    patterns = [
+        r"\bcountry(?:\s+of\s+(?:study|origin|recruitment|setting))?\s*[:=-]\s*([A-Za-z][A-Za-z .'\-]{1,60}?)(?:[\.,;\n]|$)",
+        r"\b(?:conducted|performed|carried out|implemented)\s+in\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:among|with|across|at|participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
+        r"\bfrom\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
+        r"\bin\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if not match:
+            continue
+        country = _normalize_country_name(match.group(1))
+        if country:
+            return country
+    return None
+
+
+def _extract_population_value(text: str) -> str | None:
+    patterns = [
+        r"\bpopulation\s*[:=-]\s*([^\n.;]{8,220})",
+        r"\bparticipants?\s*(?:were|included|comprised|consisted of|enrolled|recruited|:)?\s*([^\n.;]{8,220})",
+        r"\bpatients?\s*(?:were|included|comprised|consisted of|with|undergoing|presenting with|:)?\s*([^\n.;]{8,220})",
+        r"\b((?:adults?|children|women|men)\s+with\s+[^\n.;]{8,220})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return _normalize_inline_text(match.group(1), max_len=220)
+    return None
 
 
 def _extract_value(name: str, paper: Paper, text: str) -> str | None:
@@ -110,8 +225,7 @@ def _extract_value(name: str, paper: Paper, text: str) -> str | None:
     if name == "year":
         return str(paper.publication_year) if paper.publication_year else None
     if name == "country":
-        match = re.search(r"\b(in|from|country)\s+([A-Z][A-Za-z\s]{2,40})", text)
-        return match.group(2).strip() if match else None
+        return _extract_country_value(text)
     if name == "design":
         for candidate in ["randomized", "cohort", "case-control", "cross-sectional", "systematic review", "meta-analysis"]:
             if candidate in lowered:
@@ -142,8 +256,7 @@ def _extract_value(name: str, paper: Paper, text: str) -> str | None:
         match = re.search(r"\bconclusions?\b[:\s]*([^\n]{15,250})", text, re.IGNORECASE)
         return match.group(1).strip() if match else None
     if name == "population":
-        match = re.search(r"\bparticipants?\b[:\s]*([^\n.]+)", text, re.IGNORECASE)
-        return match.group(1).strip() if match else None
+        return _extract_population_value(text)
     return None
 
 

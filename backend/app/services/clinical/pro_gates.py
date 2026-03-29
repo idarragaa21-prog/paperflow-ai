@@ -17,6 +17,11 @@ from app.services.clinical.traceability_gate import enforce_claim_traceability
 RE_PAPER_CITE = re.compile(r"(PMID:\d+|doi:|DOI:)\S*")
 
 
+def _append_gap(out: ClinicalProOutput, gap: str) -> None:
+    if gap not in out.quality.gaps:
+        out.quality.gaps.append(gap)
+
+
 def gate_min_sections(out: ClinicalProOutput) -> tuple[ClinicalProOutput, list[str]]:
     warnings: list[str] = []
 
@@ -74,7 +79,7 @@ def gate_min_evidence_map(out: ClinicalProOutput) -> tuple[ClinicalProOutput, li
     out2 = out.model_copy(deep=True)
 
     if not out.evidence_map:
-        warnings.append("Inserted placeholder evidence_map row (missing).")
+        warnings.append("Evidence map missing; inserted explicit degraded fallback row.")
         out2.evidence_map = [
             {
                 "question": "(No encontrado / evidencia insuficiente)",
@@ -84,7 +89,8 @@ def gate_min_evidence_map(out: ClinicalProOutput) -> tuple[ClinicalProOutput, li
                 "limitations": "No se identificaron artículos suficientes en el bundle provisto.",
             }
         ]
-        out2.quality.gaps.append("evidence_map_missing")
+        _append_gap(out2, "evidence_map_missing")
+        _append_gap(out2, "evidence_map_degraded_fallback")
 
     return out2, warnings
 
@@ -101,12 +107,13 @@ def gate_min_assets(out: ClinicalProOutput) -> tuple[ClinicalProOutput, list[str
 
     # Tables: ensure >=5
     if len(tables) < 5:
-        warnings.append("Inserted placeholder tables to reach minimum 5.")
+        warnings.append("Inserted degraded fallback tables to reach minimum 5.")
+        _append_gap(out2, "tables_degraded_fallback")
         needed = 5 - len(tables)
         for i in range(needed):
             tables.append(
                 ClinicalProTable(
-                    title=f"Tabla placeholder {len(tables)+1}",
+                    title=f"Tabla de apoyo (fallback degradado {len(tables)+1})",
                     columns=["Campo", "Contenido", "Ref(s)"],
                     rows=[["(No encontrado / evidencia insuficiente)", "—", "—"]],
                 )
@@ -114,14 +121,15 @@ def gate_min_assets(out: ClinicalProOutput) -> tuple[ClinicalProOutput, list[str
 
     # Charts: ensure >=2
     if len(charts) < 2:
-        warnings.append("Inserted placeholder charts to reach minimum 2.")
+        warnings.append("Inserted degraded fallback charts to reach minimum 2.")
+        _append_gap(out2, "charts_degraded_fallback")
         while len(charts) < 2:
             charts.append(
                 ClinicalProChart(
-                    title=f"Gráfico conceptual {len(charts)+1}",
+                    title=f"Gráfico conceptual (fallback degradado {len(charts)+1})",
                     type="conceptual",
-                    data={"note": "No quantitative data extracted"},
-                    note="Conceptual (no derivado de datos)",
+                    data={"note": "No se extrajeron datos cuantitativos suficientes para un gráfico analítico."},
+                    note="Fallback degradado: conceptual, no derivado de datos cuantitativos.",
                 )
             )
 
@@ -130,19 +138,21 @@ def gate_min_assets(out: ClinicalProOutput) -> tuple[ClinicalProOutput, list[str
     has_mind = any("mindmap" in (m.code or "") for m in mermaid)
 
     if not has_mind:
-        warnings.append("Inserted mermaid mindmap placeholder.")
+        warnings.append("Inserted degraded fallback mermaid mindmap.")
+        _append_gap(out2, "mindmap_degraded_fallback")
         mermaid.append(
             ClinicalProMermaid(
-                title="Mapa conceptual (placeholder)",
+                title="Mapa conceptual (fallback degradado)",
                 code="mindmap\n  root((Tema))\n    (No encontrado / evidencia insuficiente)",
             )
         )
 
     if not has_flow:
-        warnings.append("Inserted mermaid flowchart placeholder.")
+        warnings.append("Inserted degraded fallback mermaid flowchart.")
+        _append_gap(out2, "flowchart_degraded_fallback")
         mermaid.append(
             ClinicalProMermaid(
-                title="Algoritmo clínico (placeholder)",
+                title="Algoritmo clínico (fallback degradado)",
                 code="flowchart TD\nA[Inicio]-->B{Evidencia?}\nB-->|No|C[No encontrado / evidencia insuficiente]\nB-->|Sí|D[Aplicar recomendación]\n",
             )
         )

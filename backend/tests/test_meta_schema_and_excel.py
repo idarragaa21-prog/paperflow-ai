@@ -5,6 +5,7 @@ import zipfile
 
 import pytest
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 from app.services.meta_extractor.excel_export import (
     ARMS_COLS,
@@ -129,6 +130,12 @@ def test_excel_export_has_all_sheets_and_column_order():
     assert [c.value for c in next(wb["IMAGES_OCR_RAW"].iter_rows(max_row=1))] == IMAGES_OCR_RAW_COLS
     assert [c.value for c in next(wb["LOGS"].iter_rows(max_row=1))] == LOGS_COLS
 
+    studies_sheet = wb["STUDIES"]
+    assert studies_sheet.freeze_panes == "A2"
+    assert studies_sheet.auto_filter.ref == f"A1:{get_column_letter(len(STUDIES_COLS))}1"
+    assert studies_sheet["A1"].font.bold is True
+    assert studies_sheet.column_dimensions["A"].width >= 12
+
 
 def test_excel_export_includes_manual_edit_flags():
     xlsx = build_meta_xlsx(
@@ -186,6 +193,29 @@ def test_excel_export_includes_manual_edit_flags():
     row2 = {col: rows2[1][i] for i, col in enumerate(ROB_COLS)}
     assert row2["manually_edited"] is True
     assert row2["edited_at"] == "2026-02-09T00:00:00Z"
+
+
+def test_excel_export_serializes_nested_values_and_adjusts_width():
+    xlsx = build_meta_xlsx(
+        ExcelExportInput(
+            studies=[{"study_id": "S1", "raw_study_json": {"source": "pubmed", "warnings": ["missing abstract"]}}],
+            arms=[],
+            outcomes=[],
+            effects=[],
+            rob=[],
+            tables_raw=[],
+            images_ocr_raw=[],
+            logs=[],
+        )
+    )
+
+    wb = load_workbook(filename=bytes_to_filelike(xlsx))
+    studies = wb["STUDIES"]
+    row = list(studies.iter_rows(min_row=2, max_row=2, values_only=True))[0]
+    raw_json = row[STUDIES_COLS.index("raw_study_json")]
+
+    assert '"source": "pubmed"' in raw_json
+    assert studies.column_dimensions[get_column_letter(STUDIES_COLS.index("raw_study_json") + 1)].width >= 20
 
 
 def test_csv_bundle_export_includes_all_metadata_tables_and_manifest():

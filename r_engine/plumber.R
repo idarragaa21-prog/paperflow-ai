@@ -112,8 +112,10 @@ function(req, res) {
     warnings <- append(warnings, result$warnings)
     script <- result$script
   } else {
-    warnings <- append(warnings, sprintf("Advanced analysis '%s' summarized without full modelling in this engine template", analysis_type))
-    summary_payload$note <- "Advanced template placeholder available. Extend plumber.R for full domain-specific workflow."
+    warnings <- append(warnings, sprintf("Advanced analysis '%s' is not fully modelled in this r-engine; returning a degraded summary only", analysis_type))
+    summary_payload$note <- "Advanced analysis returned a degraded summary only. Extend plumber.R for full domain-specific modelling."
+    figure$title <- sprintf("Analysis summary (%s, degraded)", analysis_type)
+    figure$caption <- sprintf("Degraded summary fallback for unsupported advanced analysis '%s'.", analysis_type)
   }
 
   list(

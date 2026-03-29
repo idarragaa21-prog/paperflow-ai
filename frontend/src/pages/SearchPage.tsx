@@ -192,6 +192,27 @@ export default function SearchPage() {
             )}
           </div>
 
+          {search.data.warnings && search.data.warnings.length > 0 && (
+            <div
+              className="rc-card"
+              data-testid="search-warning-banner"
+              style={{
+                borderColor: 'rgba(245,158,11,0.3)',
+                background: 'rgba(245,158,11,0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: 13 }}>Partial search warnings</div>
+              {search.data.warnings.map((warning, index) => (
+                <div key={`${warning}-${index}`} className="rc-help" style={{ color: 'var(--rc-text)' }}>
+                  {warning}
+                </div>
+              ))}
+            </div>
+          )}
+
           {search.loading && (
             <div className="rc-card">
               <Skeleton height={14} width="40%" />

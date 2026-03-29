@@ -10,6 +10,8 @@ from uuid import UUID
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils import get_column_letter
 
 from app.core.logger import logger
 
@@ -203,6 +205,9 @@ TABLES_RAW_COLS = ["table_id", "study_id", "page", "extracted_markdown"]
 IMAGES_OCR_RAW_COLS = ["image_id", "study_id", "page", "ocr_text"]
 LOGS_COLS = ["timestamp", "job_id", "study_id", "level", "message"]
 
+HEADER_FONT = Font(bold=True)
+HEADER_FILL = PatternFill(fill_type="solid", fgColor="EEF3FF")
+
 
 @dataclass
 class ExcelExportInput:
@@ -230,11 +235,37 @@ def iter_meta_export_tables(data: ExcelExportInput):
 def _add_sheet(wb: Workbook, name: str, cols: list[str]) -> None:
     ws = wb.create_sheet(title=name)
     ws.append(cols)
+    ws.freeze_panes = "A2"
+    for cell in ws[1]:
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+
+
+def _xlsx_value(value: Any) -> Any:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    return value
 
 
 def _append_rows(ws, cols: list[str], rows: list[dict[str, Any]]) -> None:
     for r in rows:
-        ws.append([r.get(c) for c in cols])
+        ws.append([_xlsx_value(r.get(c)) for c in cols])
+
+
+def _finalize_sheet(ws, cols: list[str]) -> None:
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{max(ws.max_row, 1)}"
+    for idx, col_name in enumerate(cols, start=1):
+        max_len = len(str(col_name))
+        for row in ws.iter_rows(min_row=2, min_col=idx, max_col=idx, values_only=True):
+            value = row[0]
+            if value is None:
+                continue
+            max_len = max(max_len, len(str(value)))
+        ws.column_dimensions[get_column_letter(idx)].width = min(max(max_len + 2, 12), 42)
 
 
 def build_meta_xlsx(data: ExcelExportInput) -> bytes:
@@ -262,6 +293,8 @@ def build_meta_xlsx(data: ExcelExportInput) -> bytes:
     _append_rows(wb["TABLES_RAW"], TABLES_RAW_COLS, data.tables_raw)
     _append_rows(wb["IMAGES_OCR_RAW"], IMAGES_OCR_RAW_COLS, data.images_ocr_raw)
     _append_rows(wb["LOGS"], LOGS_COLS, data.logs)
+    for _csv_name, sheet_name, cols, _rows in iter_meta_export_tables(data):
+        _finalize_sheet(wb[sheet_name], cols)
 
     bio = BytesIO()
     wb.save(bio)

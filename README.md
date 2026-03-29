@@ -47,10 +47,10 @@ that runs entirely on your machine. No cloud sync, no subscriptions, no commerci
 │            TypeScript · Vite · Zustand · Mermaid         │
 │                   Port 5173                              │
 └───────────────────────┬─────────────────────────────────┘
-                        │ HTTP (REST + cookies)
+│ HTTP (REST + cookies)
 ┌───────────────────────▼─────────────────────────────────┐
 │                    Backend (FastAPI)                      │
-│     17 API routers · 105+ endpoints · Auth middleware     │
+│     18 API routers · async services · Auth middleware     │
 │                    Port 8000                              │
 ├──────────┬──────────┬──────────┬──────────┬─────────────┤
 │ Postgres │  Redis   │  Qdrant  │  MinIO   │   Grobid    │
@@ -82,7 +82,7 @@ that runs entirely on your machine. No cloud sync, no subscriptions, no commerci
 
 - **Docker Desktop** (for infrastructure services)
 - **Python 3.11** (`brew install python@3.11` on macOS)
-- **Node.js 18+** and npm
+- **Node.js `^20.19.0` or `>=22.12.0`** and npm
 - **Git**
 
 ### Option A: One-command startup
@@ -190,27 +190,28 @@ PaperFlow AI supports multiple LLM backends:
 paperflow-ai/
 ├── backend/                    # Python FastAPI application
 │   ├── app/
-│   │   ├── api/                # 17 API routers (105+ endpoints)
+│   │   ├── api/                # FastAPI routers and HTTP endpoints
 │   │   ├── core/               # Security, storage, logging, telemetry
 │   │   ├── middleware/         # Auth, CSRF, rate limiting
-│   │   ├── models/            # 19 SQLAlchemy models
+│   │   ├── models/            # SQLAlchemy models
 │   │   ├── schemas/           # Pydantic request/response schemas
-│   │   ├── services/          # Business logic (56 service modules)
+│   │   ├── services/          # Business logic, search, extraction, analysis
 │   │   │   ├── clinical/      # Clinical PRO pipeline (multi-pass LLM)
 │   │   │   ├── llm/           # LLM routing, presets, ensemble
 │   │   │   └── meta_extractor/ # Meta-analysis data extraction
 │   │   ├── workers/           # Background job processing (RQ)
 │   │   └── main.py            # FastAPI app entry point
-│   ├── alembic/               # Database migrations (11 revisions)
-│   ├── tests/                 # 39 test files (78 tests)
+│   ├── alembic/               # Database migrations
+│   ├── tests/                 # Backend test suite
 │   └── requirements.txt
 ├── frontend/                   # React TypeScript application
 │   ├── src/
-│   │   ├── pages/             # 18 page components
+│   │   ├── pages/             # App pages and workflows
 │   │   ├── components/        # Layout, clinical, meta-analysis
 │   │   ├── domain/            # Clinical domain logic
 │   │   ├── services/          # API client, auth, demo mode
 │   │   ├── store/             # Zustand state management
+│   │   ├── test/              # Frontend unit/integration tests
 │   │   └── ui/                # Reusable UI primitives
 │   └── package.json
 ├── r_engine/                   # R statistical analysis service

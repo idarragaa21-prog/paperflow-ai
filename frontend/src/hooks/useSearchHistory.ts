@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
-import type { SearchRecord, PaperSearchResult } from '../types/api';
-
-type SearchResponse = {
-  count: number;
-  results: PaperSearchResult[];
-  query_translation?: string | null;
-  cached: boolean;
-  sources?: string[];
-};
+import type { SearchRecord, PaperSearchResult, SearchResponse } from '../types/api';
 
 export type UseSearchHistoryReturn = {
   searchHistory: SearchRecord[];
@@ -59,7 +51,7 @@ export function useSearchHistory({
       const r = await api.get(`/search/${searchId}/results`);
       const results = r.data as PaperSearchResult[];
       onResults(
-        { count: results.length, results, query_translation: null, cached: false, sources: [] },
+        { count: results.length, results, query_translation: null, cached: false, sources: [], warnings: [] },
         pastQuery,
       );
     } catch (e: any) {

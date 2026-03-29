@@ -87,7 +87,11 @@ async def search_pubmed(
     if cached_payload:
         return SearchResponse(**{**cached_payload, "cached": True})
 
-    data = await pubmed_client.search_and_fetch(payload.query, max_results=payload.max_results)
+    data = await pubmed_client.search_and_fetch(
+        payload.query,
+        max_results=payload.max_results,
+        filters=payload.filters,
+    )
 
     # Apply filters, dedup, oa_url promotion and ranking (same as federated)
     results = _postprocess_pubmed(data["results"], payload.query, payload.filters)
@@ -130,6 +134,7 @@ async def search_pubmed(
         "query_translation": data.get("query_translation"),
         "cached": False,
         "sources": ["pubmed"],
+        "warnings": data.get("warnings") or [],
     }
     await cache.set(cache_key, response_payload, ttl=3600)
     return SearchResponse(**response_payload)
