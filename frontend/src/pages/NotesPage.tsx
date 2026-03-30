@@ -35,6 +35,7 @@ export default function NotesPage() {
   const [selected, setSelected] = useState<NoteDetail | null>(null);
   const [filterText, setFilterText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadList = useCallback(async () => {
@@ -59,6 +60,7 @@ export default function NotesPage() {
       setError(e?.response?.data?.detail || 'No se pudieron cargar las notas');
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   }, [projectId, selectedId]);
 
@@ -102,7 +104,22 @@ export default function NotesPage() {
 
       {error ? <div className="rc-error">{String(error)}</div> : null}
 
-      <div className="rc-product-two-column rc-product-two-column--wide">
+      {initialLoading && (
+        <div className="rc-page-skeleton">
+          <div className="rc-skeleton-card" style={{ height: 80 }}>
+            {[60, 45].map((w, i) => (
+              <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, marginBottom: 8 }} />
+            ))}
+          </div>
+          <div className="rc-skeleton-card" style={{ height: 200 }}>
+            {[85, 70, 55, 80, 60].map((w, i) => (
+              <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, marginBottom: 8 }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!initialLoading && (<div className="rc-product-two-column rc-product-two-column--wide">
         <section className="rc-product-card">
           <div className="rc-product-card__header">
             <div>
@@ -179,7 +196,7 @@ export default function NotesPage() {
             </div>
           )}
         </section>
-      </div>
+      </div>)}
     </div>
   );
 }

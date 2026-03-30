@@ -3,6 +3,7 @@ import type { Draft, DraftSection } from '../types/api';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
+import { EmptyState } from '../components/EmptyState';
 
 type EvidenceTable = {
   id: string;
@@ -31,6 +32,7 @@ export default function DraftsPage() {
   const [selectedDraft, setSelectedDraft] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Inline editing state
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -38,15 +40,19 @@ export default function DraftsPage() {
 
   const load = useCallback(async () => {
     if (!projectId) return;
-    const [draftResponse, evidenceResponse] = await Promise.all([
-      api.get('/drafts', { params: { project_id: projectId } }),
-      api.get('/evidence/tables', { params: { project_id: projectId } }),
-    ]);
-    const nextDrafts = draftResponse.data as Draft[];
-    setDrafts(nextDrafts);
-    setTables(evidenceResponse.data as EvidenceTable[]);
-    if (!selectedDraft && nextDrafts[0]) {
-      setSelectedDraft(nextDrafts[0].id);
+    try {
+      const [draftResponse, evidenceResponse] = await Promise.all([
+        api.get('/drafts', { params: { project_id: projectId } }),
+        api.get('/evidence/tables', { params: { project_id: projectId } }),
+      ]);
+      const nextDrafts = draftResponse.data as Draft[];
+      setDrafts(nextDrafts);
+      setTables(evidenceResponse.data as EvidenceTable[]);
+      if (!selectedDraft && nextDrafts[0]) {
+        setSelectedDraft(nextDrafts[0].id);
+      }
+    } finally {
+      setInitialLoading(false);
     }
   }, [projectId, selectedDraft]);
 
@@ -162,6 +168,21 @@ ${sections}
 
       {error && <div className="rc-error">{error}</div>}
 
+      {initialLoading && (
+        <div className="rc-page-skeleton">
+          <div className="rc-skeleton-card" style={{ height: 100 }}>
+            {[70, 50, 40].map((w, i) => (
+              <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, marginBottom: 8 }} />
+            ))}
+          </div>
+          <div className="rc-skeleton-card" style={{ height: 200 }}>
+            {[90, 80, 60, 70, 50].map((w, i) => (
+              <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, marginBottom: 8 }} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="rc-card">
         <div className="rc-card-title">Drafts</div>
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -193,20 +214,14 @@ ${sections}
         </div>
       </div>
 
+      {!initialLoading && (
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }} className="rc-grid2">
         {/* Draft contents */}
         <div className="rc-card">
           <div className="rc-card-title">Draft contents</div>
 
           {drafts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 28 }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{'\u270D\uFE0F'}</div>
-              <div style={{ fontWeight: 800, marginBottom: 4 }}>No drafts yet</div>
-              <div className="rc-help" style={{ maxWidth: 320, margin: '0 auto' }}>
-                Drafts are generated with AI from references extracted from your papers.
-                Create a draft above and generate sections to get started.
-              </div>
-            </div>
+            <EmptyState variant="notes" title="No drafts yet" description="Create a draft above and generate AI-powered sections from your paper references." />
           ) : null}
 
           {drafts.map(draft => (
@@ -273,6 +288,7 @@ ${sections}
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

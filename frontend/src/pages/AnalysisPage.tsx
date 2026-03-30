@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { EmptyState } from '../components/EmptyState';
+import { useI18n } from '../i18n';
 
 type Dataset = {
   id: string;
@@ -26,6 +27,7 @@ function mergeRunsWithPending(currentRuns: AnalysisRun[], loadedRuns: AnalysisRu
 
 export default function AnalysisPage() {
   const { projectId } = useParams();
+  const { t } = useI18n();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [runs, setRuns] = useState<AnalysisRun[]>([]);
   const [datasetTitle, setDatasetTitle] = useState('demo_dataset');
@@ -149,17 +151,17 @@ export default function AnalysisPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
-        <h1 className="rc-page-title">Analysis</h1>
-        <div className="rc-subtitle">Create datasets from JSON rows and launch reproducible runs through the FastAPI orchestration layer.</div>
+        <h1 className="rc-page-title">{t.analysis.title}</h1>
+        <div className="rc-subtitle">{t.analysis.subtitle}</div>
       </div>
 
       {error ? <div className="rc-error">{error}</div> : null}
 
       <div className="rc-card">
-        <div className="rc-card-title">Dataset builder</div>
+        <div className="rc-card-title">{t.analysis.datasetBuilder}</div>
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Dataset title</div>
+            <div className="rc-kicker">{t.analysis.datasetTitle}</div>
             <input
               className="rc-input"
               data-testid="dataset-title-input"
@@ -167,7 +169,7 @@ export default function AnalysisPage() {
               onChange={(e) => setDatasetTitle(e.target.value)}
             />
           </div>
-          <button className="rc-btn rc-btn--primary" data-testid="dataset-create-button" onClick={createDataset} disabled={creatingDataset}>Create dataset</button>
+          <button className="rc-btn rc-btn--primary" data-testid="dataset-create-button" onClick={createDataset} disabled={creatingDataset}>{t.analysis.createDataset}</button>
         </div>
         <div style={{ height: 10 }} />
         <textarea
@@ -180,17 +182,17 @@ export default function AnalysisPage() {
       </div>
 
       <div className="rc-card">
-        <div className="rc-card-title">Run analysis</div>
+        <div className="rc-card-title">{t.analysis.runAnalysis}</div>
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Dataset</div>
+            <div className="rc-kicker">{t.analysis.dataset}</div>
             <select
               className="rc-input"
               data-testid="analysis-dataset-select"
               value={selectedDataset}
               onChange={(e) => setSelectedDataset(e.target.value)}
             >
-              <option value="">No dataset</option>
+              <option value="">{t.analysis.noDataset}</option>
               {datasets.map((dataset) => (
                 <option key={dataset.id} value={dataset.id}>
                   {dataset.title} · {dataset.row_count} rows
@@ -208,7 +210,7 @@ export default function AnalysisPage() {
             />
           </div>
           <div style={{ minWidth: 220 }}>
-            <div className="rc-kicker">Type</div>
+            <div className="rc-kicker">{t.analysis.type}</div>
             <select
               className="rc-input"
               data-testid="analysis-type-select"
@@ -222,7 +224,7 @@ export default function AnalysisPage() {
               <option value="meta_analysis">Meta-analysis</option>
             </select>
           </div>
-          <button className="rc-btn" data-testid="analysis-run-button" onClick={createRun} disabled={creatingDataset || runningAnalysis}>Run</button>
+          <button className="rc-btn" data-testid="analysis-run-button" onClick={createRun} disabled={creatingDataset || runningAnalysis}>{t.analysis.run}</button>
         </div>
       </div>
 
@@ -240,9 +242,9 @@ export default function AnalysisPage() {
 
       {!initialLoading && <>
       <div className="rc-card">
-        <div className="rc-card-title">Datasets</div>
+        <div className="rc-card-title">{t.analysis.datasets}</div>
         {datasets.length === 0 ? (
-          <EmptyState variant="generic" title="No datasets yet" description="Create your first dataset using the builder above." />
+          <EmptyState variant="generic" title={t.analysis.noDatasets} description={t.analysis.noDatasetsDesc} />
         ) : null}
         {datasets.map((dataset) => (
           <div key={dataset.id} className="rc-help" style={{ padding: '6px 0', borderBottom: '1px solid var(--rc-border)' }}>
@@ -252,9 +254,9 @@ export default function AnalysisPage() {
       </div>
 
       <div className="rc-card">
-        <div className="rc-card-title">Recent runs</div>
+        <div className="rc-card-title">{t.analysis.recentRuns}</div>
         {runs.length === 0 ? (
-          <EmptyState variant="generic" title="No analysis runs yet" description="Configure and run an analysis above to see results here." />
+          <EmptyState variant="generic" title={t.analysis.noRuns} description={t.analysis.noRunsDesc} />
         ) : null}
         {runs.map((run) => (
           <div key={run.id} className="rc-card rc-optimistic" data-testid={`analysis-run-${run.id}`} style={{ padding: 12, marginBottom: 10 }}>

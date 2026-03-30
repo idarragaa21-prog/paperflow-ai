@@ -339,3 +339,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   to   { opacity: 1; transform: translateY(0); }
 }
 .rc-optimistic { animation: rc-optimistic-in 200ms ease forwards; }
+
+/* Responsive table/card toggle */
+.rc-mobile-only { display: none; }
+@media (max-width: 768px) {
+  .rc-desktop-only { display: none !important; }
+  .rc-mobile-only { display: flex; flex-direction: column; gap: 10px; }
+}

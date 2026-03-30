@@ -137,7 +137,7 @@ export default function JobsPage() {
       )}
 
       {filtered.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
+        <div className="rc-desktop-only" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--rc-border)', textAlign: 'left' }}>
@@ -185,6 +185,31 @@ export default function JobsPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Mobile card view */}
+      {filtered.length > 0 && (
+        <div className="rc-mobile-only">
+          {filtered.map(j => (
+            <div key={j.id} className="rc-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{j.job_type}</div>
+                <span className={statusBadge(j.status)} style={{ fontSize: 11 }}>{j.status}</span>
+              </div>
+              <div className="rc-progress" style={{ height: 6 }}>
+                <div style={{ width: `${Math.max(0, Math.min(100, j.progress_percent || 0))}%` }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--rc-muted)' }}>
+                <span>{formatDate(j.started_at || j.created_at)}</span>
+                <span style={{ fontFamily: 'monospace' }}>{duration(j)}</span>
+              </div>
+              {j.error_message && <div className="rc-error" style={{ fontSize: 11, padding: '4px 8px' }}>{j.error_message}</div>}
+              {['queued','started','progress'].includes(j.status) && (
+                <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)', alignSelf: 'flex-start' }} onClick={() => handleCancel(j.id)}>Cancel</button>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

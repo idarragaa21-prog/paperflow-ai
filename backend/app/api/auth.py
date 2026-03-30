@@ -25,11 +25,9 @@ from app.models.user import User
 from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister
 from app.services import auth_rate_limit, auth_sessions
 from app.services.email import send_password_reset_code_email
+from app.services.reset_codes import delete_reset_code, get_reset_code, store_reset_code
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-# In-memory password reset codes (development). In production use Redis or DB table.
-_reset_codes: dict[str, str] = {}
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -356,7 +354,7 @@ async def forgot_password(
         return {"ok": True}
 
     code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
-    _reset_codes[payload.email] = code
+    store_reset_code(payload.email, code)
 
     from app.core.logger import logger
     delivery = send_password_reset_code_email(to_email=payload.email, code=code)
@@ -377,7 +375,7 @@ async def reset_password(
     payload: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    stored_code = _reset_codes.get(payload.email)
+    stored_code = get_reset_code(payload.email)
     if not stored_code or stored_code != payload.code:
         raise HTTPException(status_code=400, detail="Invalid or expired reset code")
 
@@ -390,6 +388,6 @@ async def reset_password(
     await db.commit()
 
     # Invalidate the code
-    _reset_codes.pop(payload.email, None)
+    delete_reset_code(payload.email)
 
     return {"ok": True}
