@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { EmptyState } from '../components/EmptyState';
 
 type Dataset = {
   id: string;
@@ -35,24 +36,31 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [creatingDataset, setCreatingDataset] = useState(false);
   const [runningAnalysis, setRunningAnalysis] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!projectId) return;
-    const [datasetResponse, runResponse] = await Promise.all([
-      api.get('/datasets', { params: { project_id: projectId } }),
-      api.get('/analysis-runs', { params: { project_id: projectId } }),
-    ]);
-    const nextDatasets = datasetResponse.data as Dataset[];
-    const nextRuns = runResponse.data as AnalysisRun[];
-    setDatasets(nextDatasets);
-    setRuns((currentRuns) => mergeRunsWithPending(currentRuns, nextRuns));
-    if (!selectedDataset && nextDatasets[0]) {
-      setSelectedDataset(nextDatasets[0].id);
+    try {
+      const [datasetResponse, runResponse] = await Promise.all([
+        api.get('/datasets', { params: { project_id: projectId } }),
+        api.get('/analysis-runs', { params: { project_id: projectId } }),
+      ]);
+      const nextDatasets = datasetResponse.data as Dataset[];
+      const nextRuns = runResponse.data as AnalysisRun[];
+      setDatasets(nextDatasets);
+      setRuns((currentRuns) => mergeRunsWithPending(currentRuns, nextRuns));
+      if (!selectedDataset && nextDatasets[0]) {
+        setSelectedDataset(nextDatasets[0].id);
+      }
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Failed to load analysis workspace');
+    } finally {
+      setInitialLoading(false);
     }
   }, [projectId, selectedDataset]);
 
   useEffect(() => {
-    load().catch((e: any) => setError(e?.response?.data?.detail || 'Failed to load analysis workspace'));
+    void load();
   }, [load]);
 
   useEffect(() => {
@@ -218,21 +226,38 @@ export default function AnalysisPage() {
         </div>
       </div>
 
+      {/* Skeleton while initial data loads */}
+      {initialLoading && (
+        <div className="rc-page-skeleton">
+          <div className="rc-skeleton-card" style={{ height: 80 }}>
+            {[70, 50].map((w, i) => (
+              <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, marginBottom: 8 }} />
+            ))}
+          </div>
+          <div className="rc-skeleton-card" style={{ height: 60 }} />
+        </div>
+      )}
+
+      {!initialLoading && <>
       <div className="rc-card">
         <div className="rc-card-title">Datasets</div>
-        {datasets.length === 0 ? <div className="rc-muted">No datasets yet.</div> : null}
+        {datasets.length === 0 ? (
+          <EmptyState variant="generic" title="No datasets yet" description="Create your first dataset using the builder above." />
+        ) : null}
         {datasets.map((dataset) => (
-          <div key={dataset.id} className="rc-help">
-            {dataset.title} · {dataset.row_count} rows · {dataset.column_count} columns
+          <div key={dataset.id} className="rc-help" style={{ padding: '6px 0', borderBottom: '1px solid var(--rc-border)' }}>
+            <strong>{dataset.title}</strong> · {dataset.row_count} rows · {dataset.column_count} columns
           </div>
         ))}
       </div>
 
       <div className="rc-card">
         <div className="rc-card-title">Recent runs</div>
-        {runs.length === 0 ? <div className="rc-muted">No analysis runs in this session yet.</div> : null}
+        {runs.length === 0 ? (
+          <EmptyState variant="generic" title="No analysis runs yet" description="Configure and run an analysis above to see results here." />
+        ) : null}
         {runs.map((run) => (
-          <div key={run.id} className="rc-card" data-testid={`analysis-run-${run.id}`} style={{ padding: 12, marginBottom: 10 }}>
+          <div key={run.id} className="rc-card rc-optimistic" data-testid={`analysis-run-${run.id}`} style={{ padding: 12, marginBottom: 10 }}>
             <div style={{ fontWeight: 800 }}>{run.title}</div>
             <div className="rc-help">{run.analysis_type} · {run.status}</div>
             {run.warnings?.length ? <div className="rc-help">Warnings: {run.warnings.join(' | ')}</div> : null}
@@ -244,6 +269,7 @@ export default function AnalysisPage() {
           </div>
         ))}
       </div>
+      </>}
     </div>
   );
 }

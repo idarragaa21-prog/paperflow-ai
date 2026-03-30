@@ -24,8 +24,43 @@ class ClaudeProvider(LLMProvider):
         self.temperature = settings.CLAUDE_TEMPERATURE
 
     async def summarize_paper(self, full_text: str, title: str, custom_instructions: str | None = None) -> dict[str, Any]:
-        logger.warning(f"[ClaudeProvider] summarize_paper not implemented in direct-Claude mode. {_NOT_IMPLEMENTED_MSG}")
-        raise NotImplementedError(_NOT_IMPLEMENTED_MSG)
+        system = (
+            "Eres un médico especialista experto en análisis de literatura científica médica. "
+            "Tu tarea es resumir SOLO con base en el texto proporcionado. "
+            "Responde EXCLUSIVAMENTE en español. "
+            "NO inventes datos (n, eventos, medidas, OR/RR/HR, p-values, CI, etc.). "
+            "Si algo no está explícitamente en el texto, escribe 'No reportado'. "
+            "No menciones rutas de archivos ni detalles del sistema. "
+            "Devuelve Markdown con títulos (##)."
+        )
+        user = (
+            f"Título: {title}\n\n"
+            "Secciones mínimas obligatorias (##): Resumen, Diseño y métodos, Población, "
+            "Intervención/Comparador, Outcomes, Resultados (solo números del texto), "
+            "Limitaciones, Conclusión clínica.\n\n"
+            f"Texto:\n{full_text[:15000]}\n"
+        )
+        if custom_instructions:
+            user += f"\nInstrucciones adicionales: {custom_instructions}\n"
+
+        r = await self.chat(
+            model=self.model,
+            system=system,
+            user=user,
+            temperature=0.2,
+            max_tokens=self.max_tokens,
+        )
+        usage = r.get("usage", {}) or {}
+        return {
+            "summary": r["content"],
+            "usage": {
+                "input_tokens": usage.get("prompt_tokens", 0),
+                "output_tokens": usage.get("completion_tokens", 0),
+                "cost_usd": None,
+                "latency_ms": r.get("latency_ms"),
+            },
+            "model": r.get("model"),
+        }
 
     async def generate_slide_outline(
         self,
@@ -35,12 +70,81 @@ class ClaudeProvider(LLMProvider):
         papers: list[dict[str, Any]] | None = None,
         num_slides: int | None = None,
     ) -> dict[str, Any]:
-        logger.warning(f"[ClaudeProvider] generate_slide_outline not implemented in direct-Claude mode. {_NOT_IMPLEMENTED_MSG}")
-        raise NotImplementedError(_NOT_IMPLEMENTED_MSG)
+        from app.config import settings as _s
+        import json
+
+        system = (
+            "Eres un experto en docencia médica y diseño de presentaciones. "
+            "Tu salida DEBE ser SOLO JSON válido (sin markdown, sin texto extra). "
+            "Objetivo: presentación 16:9 profesional con cifras específicas y referencias. "
+            "REGLAS: cada slide de contenido incluye 'takeaway' (1 frase) y 'citations' (lista). "
+            "No inventes números; si un dato no está en papers, marca 'No reportado'. "
+            "Máx 6 bullets por slide."
+        )
+        payload = {
+            "schema": {
+                "title": "string",
+                "slides": [{
+                    "type": "title|section|content|evidence_table|references",
+                    "title": "string", "subtitle": "string?",
+                    "bullets": ["string"], "takeaway": "string?",
+                    "citations": ["string"],
+                    "table": {"headers": ["string"], "rows": [["string"]]},
+                    "notes": "string?",
+                }],
+            },
+            "topic": topic,
+            "duration_minutes": duration_minutes,
+            "audience": audience,
+            "target_slides": int(num_slides) if num_slides else getattr(_s, "PRESENTATION_SLIDE_TARGET", 12),
+            "papers": papers or [],
+            "style": {"language": "es", "tone": "profesional", "avoid_generic": True},
+        }
+        r = await self.chat(
+            model=self.model,
+            system=system,
+            user=json.dumps(payload, ensure_ascii=False),
+            temperature=0.3,
+            max_tokens=self.max_tokens,
+        )
+        usage = r.get("usage", {}) or {}
+        return {
+            "outline": {"title": topic, "raw": r["content"], "slides": []},
+            "usage": {
+                "input_tokens": usage.get("prompt_tokens", 0),
+                "output_tokens": usage.get("completion_tokens", 0),
+                "cost_usd": None,
+                "latency_ms": r.get("latency_ms"),
+            },
+            "model": r.get("model"),
+        }
 
     async def format_references_vancouver(self, papers: list[dict[str, Any]]) -> list[str]:
-        logger.warning(f"[ClaudeProvider] format_references_vancouver not implemented in direct-Claude mode. {_NOT_IMPLEMENTED_MSG}")
-        raise NotImplementedError(_NOT_IMPLEMENTED_MSG)
+        refs: list[str] = []
+        seen: set[str] = set()
+        for p in papers or []:
+            doi = (p.get("doi") or "").strip()
+            pmid = str(p.get("pmid") or "").strip()
+            key = (f"doi:{doi.lower()}" if doi else f"pmid:{pmid}" if pmid else (p.get("title") or "").strip().lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            title = (p.get("title") or "").strip()
+            journal = (p.get("journal") or "").strip()
+            year = p.get("pub_year")
+            tail = []
+            if doi:
+                tail.append(f"doi:{doi}")
+            if pmid:
+                tail.append(f"PMID:{pmid}")
+            base = ". ".join([x for x in [title, journal] if x]).strip()
+            if year:
+                base = (base + f". {year}.").strip()
+            if tail:
+                base = (base + " " + " ".join(tail)).strip()
+            if base:
+                refs.append(base)
+        return refs[:20]
 
     async def chat(
         self,

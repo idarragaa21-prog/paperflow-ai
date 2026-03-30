@@ -147,12 +147,18 @@ async def create_batch(
 @router.get("/batches")
 async def list_batches(
     project_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     await _require_project_role(db, project_id, user, required_role="viewer")
     q = await db.execute(
-        select(MetaExtractionBatch).where(MetaExtractionBatch.project_id == project_id).order_by(MetaExtractionBatch.created_at.desc())
+        select(MetaExtractionBatch)
+        .where(MetaExtractionBatch.project_id == project_id)
+        .order_by(MetaExtractionBatch.created_at.desc())
+        .offset(offset)
+        .limit(limit)
     )
     items = q.scalars().all()
     return [

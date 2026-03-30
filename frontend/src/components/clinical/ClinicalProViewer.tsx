@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MermaidBlock from './MermaidBlock';
+import SectionErrorBoundary from '../SectionErrorBoundary';
 
 type ProSection = {
   id: string;
@@ -167,7 +168,9 @@ export default function ClinicalProViewer({ pro }: { pro: ProOutput }) {
             {pro.mermaid.map((m, idx) => (
               <div key={m.title + idx} style={{ border: '1px solid rgba(0,0,0,0.10)', borderRadius: 10, padding: 10 }}>
                 <div style={{ fontWeight: 800, marginBottom: 8 }}>{m.title}</div>
-                <MermaidBlock code={m.code} />
+                <SectionErrorBoundary label="Mermaid diagram">
+                  <MermaidBlock code={m.code} />
+                </SectionErrorBoundary>
                 <details style={{ marginTop: 8 }}>
                   <summary style={{ fontSize: 12, opacity: 0.8, cursor: 'pointer' }}>Show mermaid code</summary>
                   <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11, opacity: 0.85 }}>{m.code}</pre>

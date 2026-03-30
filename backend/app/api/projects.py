@@ -530,6 +530,8 @@ async def project_library(
     open_access: bool | None = None,
     processing_status: str | None = None,
     favorite: bool | None = None,
+    limit: int | None = None,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -551,7 +553,10 @@ async def project_library(
     if author:
         clauses.append(Paper.authors.ilike(f"%{author.strip()}%"))
 
-    q = await db.execute(select(Paper).where(and_(*clauses)).order_by(Paper.created_at.desc()))
+    stmt = select(Paper).where(and_(*clauses)).order_by(Paper.created_at.desc()).offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    q = await db.execute(stmt)
     items = q.scalars().all()
     return [
         {

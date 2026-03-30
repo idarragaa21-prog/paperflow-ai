@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ThemeProvider } from './components/ThemeProvider';
 import { useAuthStore } from './store/authStore';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -55,6 +56,7 @@ export default function App() {
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
   return (
+    <ThemeProvider>
     <ErrorBoundary>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Suspense fallback={<PageLoader />}>
@@ -99,5 +101,6 @@ export default function App() {
         </Suspense>
       </BrowserRouter>
     </ErrorBoundary>
+    </ThemeProvider>
   );
 }

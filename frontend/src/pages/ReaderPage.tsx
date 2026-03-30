@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { EmptyState } from '../components/EmptyState';
+import SectionErrorBoundary from '../components/SectionErrorBoundary';
 
 type PaperOption = {
   id: string;
@@ -56,6 +58,7 @@ export default function ReaderPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [papers, setPapers] = useState<PaperOption[]>([]);
+  const [papersLoading, setPapersLoading] = useState(true);
   const [paperId, setPaperId] = useState<string>('project');
   const [question, setQuestion] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -72,10 +75,15 @@ export default function ReaderPage() {
 
   const loadPapers = useCallback(async () => {
     if (!projectId) return;
+    setPapersLoading(true);
     try {
       const response = await api.get(`/projects/${projectId}/library`);
       setPapers(response.data as PaperOption[]);
-    } catch (e: any) { setError(e?.response?.data?.detail || 'Error cargando library'); }
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Error cargando library');
+    } finally {
+      setPapersLoading(false);
+    }
   }, [projectId]);
 
   useEffect(() => { void loadPapers(); }, [loadPapers]);
@@ -122,8 +130,42 @@ export default function ReaderPage() {
 
       {error && <div className="rc-error">{error}</div>}
 
+      {/* Skeleton while loading papers */}
+      {papersLoading && (
+        <div className="rc-page-skeleton">
+          <div className="rc-skeleton-card">
+            <div className="rc-skeleton-line" style={{ width: '40%', height: 12 }} />
+            <div className="rc-skeleton-line" style={{ width: '70%', height: 32 }} />
+          </div>
+          <div className="rc-skeleton-card" style={{ minHeight: 200 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 20 }}>
+              {[80, 60, 90, 50].map((w, i) => (
+                <div key={i} className="rc-skeleton-line" style={{ width: `${w}%` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state: no papers in project */}
+      {!papersLoading && papers.length === 0 && (
+        <EmptyState
+          variant="papers"
+          title="No papers in this project yet"
+          description="Add PDFs to your library first. Once processed, you can ask questions grounded in the full text."
+          action={
+            <button
+              className="rc-btn rc-btn--primary"
+              onClick={() => navigate(`/projects/${projectId}/library`)}
+            >
+              Go to Library →
+            </button>
+          }
+        />
+      )}
+
       {/* Scope selector */}
-      <div className="rc-card">
+      {!papersLoading && papers.length > 0 && <div className="rc-card">
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 10 }}>
           <div style={{ minWidth: 260, flex: 1 }}>
             <div className="rc-kicker">Scope</div>
@@ -166,10 +208,10 @@ export default function ReaderPage() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
-      {/* Chat history */}
-      <div
+      {/* Chat history — only shown once papers are loaded */}
+      {!papersLoading && papers.length > 0 && <div
         className="rc-card"
         data-testid="reader-answer-panel"
         style={{ minHeight: 300, maxHeight: 500, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}
@@ -192,29 +234,31 @@ export default function ReaderPage() {
           </div>
         )}
         <div ref={chatEndRef} />
-      </div>
+      </div>}
 
-      {/* Input */}
-      <div className="rc-row" style={{ gap: 8 }}>
-        <textarea
-          className="rc-input"
-          data-testid="reader-question-input"
-          style={{ flex: 1, minHeight: 48, maxHeight: 120, resize: 'vertical', fontSize: 13 }}
-          value={question}
-          onChange={e => setQuestion(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Ask a question... (Enter to send)"
-        />
-        <button
-          className="rc-btn rc-btn--primary"
-          data-testid="reader-ask-button"
-          onClick={askQuestion}
-          disabled={loading || !canAsk}
-          style={{ alignSelf: 'flex-end', padding: '10px 16px' }}
-        >
-          {loading ? '...' : 'Ask'}
-        </button>
-      </div>
+      {/* Input — only shown when papers are loaded */}
+      {!papersLoading && papers.length > 0 && (
+        <div className="rc-row" style={{ gap: 8 }}>
+          <textarea
+            className="rc-input"
+            data-testid="reader-question-input"
+            style={{ flex: 1, minHeight: 48, maxHeight: 120, resize: 'vertical', fontSize: 13 }}
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Ask a question... (Enter to send)"
+          />
+          <button
+            className="rc-btn rc-btn--primary"
+            data-testid="reader-ask-button"
+            onClick={askQuestion}
+            disabled={loading || !canAsk}
+            style={{ alignSelf: 'flex-end', padding: '10px 16px' }}
+          >
+            {loading ? '...' : 'Ask'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

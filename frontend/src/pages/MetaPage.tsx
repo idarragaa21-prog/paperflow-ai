@@ -6,6 +6,8 @@ import { downloadBlob } from '../components/meta/exportUtils';
 import { api } from '../services/api';
 import { useJobPolling } from '../hooks/useJobPolling';
 import { useToast } from '../ui/Toast/ToastProvider';
+import { EmptyState } from '../components/EmptyState';
+import SectionErrorBoundary from '../components/SectionErrorBoundary';
 
 type BatchRow = {
   id: string;
@@ -246,7 +248,21 @@ export default function MetaPage() {
         <div className="rc-subtitle">Batch upload PDFs, extract structured study data, review effect sizes and export reusable datasets.</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 12 }}>
+      {/* Page skeleton while loading */}
+      {loading && batches.length === 0 && (
+        <div className="rc-page-skeleton">
+          <div className="rc-skeleton-card">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[60, 80, 55, 70].map((w, i) => (
+                <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, height: i === 0 ? 16 : 12 }} />
+              ))}
+            </div>
+          </div>
+          <div className="rc-skeleton-card" style={{ height: 160 }} />
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'clamp(280px, 32%, 400px) 1fr', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="rc-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -260,10 +276,12 @@ export default function MetaPage() {
           ) : null}
           {error ? <div className="rc-error" style={{ marginBottom: 8 }}>{String(error)}</div> : null}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {batches.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--rc-muted)', fontSize: 13 }}>
-                No batches yet. Create one below.
-              </div>
+            {!loading && batches.length === 0 ? (
+              <EmptyState
+                variant="papers"
+                title="No batches yet"
+                description="Upload PDFs below to start extracting structured data from your studies."
+              />
             ) : null}
             {batches.map((b) => (
               <button
@@ -423,11 +441,15 @@ export default function MetaPage() {
 
             <div>
               {selectedStudyId ? (
-                <StudyViewer studyId={selectedStudyId} onSelectStudyId={setSelectedStudyId} />
+                <SectionErrorBoundary label="Study Viewer">
+                  <StudyViewer studyId={selectedStudyId} onSelectStudyId={setSelectedStudyId} />
+                </SectionErrorBoundary>
               ) : (
-                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--rc-muted)', fontSize: 13 }}>
-                Select a study from the left to view extracted data, effect sizes and risk of bias.
-              </div>
+                <EmptyState
+                  variant="search"
+                  title="Select a study"
+                  description="Pick a study from the left panel to view extracted data, effect sizes and risk of bias."
+                />
               )}
             </div>
           </div>
