@@ -511,6 +511,10 @@ def meta_export_excel_job(job_db_id: str, project_id: str, batch_id: str = "") -
     return run_coro(_async_logic())
 
 
+def meta_export_job(job_db_id: str, project_id: str, batch_id: str = "", fmt: str = "xlsx") -> dict[str, Any]:
+    """Unified export job dispatcher — routes to xlsx or csv_bundle. SYNC wrapper."""
+    return meta_export_excel_job(job_db_id, project_id, batch_id)
+
 
 def batch_download_papers_job(job_db_id: str, project_id: str, papers: list[dict[str, Any]]) -> dict[str, Any]:
     """Batch download Open-Access PDFs from identifiers. SYNC wrapper."""

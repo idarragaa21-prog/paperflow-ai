@@ -5,9 +5,11 @@ import io
 import json
 from pathlib import Path
 from statistics import mean
+from typing import Any
 from uuid import UUID
 
 import httpx
+import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -16,6 +18,28 @@ from app.config import settings
 from app.core.logger import logger
 from app.core.storage import storage_manager
 from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset, DatasetColumn, FigureArtifact
+
+
+def _normalize_text_value(value: Any) -> str:
+    """Flatten a list of text fragments into a single string, or pass through str."""
+    if isinstance(value, list):
+        return "\n\n".join(str(v) for v in value)
+    return str(value) if value is not None else ""
+
+
+def _normalize_figure_payload(payload: dict | None) -> dict:
+    """Normalize a figure payload dict: flatten single-element lists and handle missing payload."""
+    if payload is None:
+        return {
+            "title": "Summary figure unavailable (degraded fallback)",
+            "caption": "",
+            "degraded": True,
+        }
+    out: dict = {}
+    for k, v in payload.items():
+        out[k] = v[0] if isinstance(v, list) and len(v) == 1 else v
+    out.setdefault("degraded", False)
+    return out
 
 
 def _infer_dtype(series: pd.Series) -> str:
@@ -36,7 +60,8 @@ async def create_dataset(
     description: str | None,
     rows: list[dict],
 ) -> Dataset:
-    import pandas as pd
+    if not rows:
+        raise ValueError("rows cannot be empty")
 
     df = pd.DataFrame(rows)
     csv_bytes = df.to_csv(index=False).encode("utf-8")
@@ -83,8 +108,6 @@ async def create_dataset(
 
 
 def _load_dataset_frame(dataset: Dataset) -> pd.DataFrame:
-    import pandas as pd
-
     if not dataset.file_path:
         return pd.DataFrame()
     with storage_manager.local_path(dataset.file_path, suffix=".csv") as local_path:
@@ -92,8 +115,6 @@ def _load_dataset_frame(dataset: Dataset) -> pd.DataFrame:
 
 
 def _local_analysis(df: pd.DataFrame, analysis_type: str, input_params: dict) -> dict:
-    import pandas as pd
-
     analysis_type = analysis_type.lower()
     summary: dict = {"analysis_type": analysis_type, "row_count": int(len(df.index)), "column_count": int(len(df.columns))}
     warnings: list[str] = []
@@ -138,8 +159,6 @@ async def create_analysis_run(
     analysis_type: str,
     input_params: dict,
 ) -> AnalysisRun:
-    import pandas as pd
-
     rows: list[dict] = []
     if dataset is not None:
         df = _load_dataset_frame(dataset)
@@ -237,26 +256,20 @@ async def create_analysis_run(
 
 
 async def export_analysis_run(db: AsyncSession, *, run: AnalysisRun, fmt: str) -> tuple[bytes, str, str]:
-    payload = {
-        "title": run.title,
-        "analysis_type": run.analysis_type,
-        "summary": run.result_summary,
-        "warnings": run.warnings or [],
-        "script": run.script_text,
-    }
-    if fmt == "html":
-        body = (
-            "<html><body><h1>{title}</h1><pre>{summary}</pre><pre>{script}</pre></body></html>".format(
-                title=run.title,
-                summary=json.dumps(run.result_summary or {}, indent=2, ensure_ascii=False),
-                script=run.script_text or "",
-            )
-        )
-        return body.encode("utf-8"), "text/html", f"{run.id}.html"
-    if fmt == "pdf":
-        body = json.dumps(payload, indent=2, ensure_ascii=False)
-        return body.encode("utf-8"), "application/pdf", f"{run.id}.pdf"
-    if fmt == "docx":
-        body = json.dumps(payload, indent=2, ensure_ascii=False)
-        return body.encode("utf-8"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", f"{run.id}.docx"
-    raise ValueError("Unsupported export format")
+    if run.status != "completed":
+        raise ValueError(f"AnalysisRun {run.id} is not completed (status={run.status!r})")
+
+    artifact_type = f"report_{fmt}"
+    artifact = next(
+        (a for a in (run.artifacts or []) if getattr(a, "artifact_type", None) == artifact_type),
+        None,
+    )
+    if artifact is None:
+        raise ValueError(f"No persisted {fmt} artifact found for run {run.id}")
+
+    try:
+        data = storage_manager.read_bytes(artifact.file_path)
+    except FileNotFoundError as exc:
+        raise ValueError(f"Artifact {artifact.filename!r} is missing from storage: {exc}") from exc
+
+    return data, artifact.mime_type, artifact.filename

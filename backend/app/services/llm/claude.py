@@ -41,3 +41,43 @@ class ClaudeProvider(LLMProvider):
     async def format_references_vancouver(self, papers: list[dict[str, Any]]) -> list[str]:
         logger.warning(f"[ClaudeProvider] format_references_vancouver not implemented in direct-Claude mode. {_NOT_IMPLEMENTED_MSG}")
         raise NotImplementedError(_NOT_IMPLEMENTED_MSG)
+
+    async def chat(
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+        timeout: int | None = None,
+        retry: int = 2,
+    ) -> dict[str, Any]:
+        """Direct Anthropic Messages API call.
+
+        Returns dict compatible with OpenClawProvider.chat: content, usage, latency_ms, model.
+        """
+        import time
+
+        last_err: Exception | None = None
+        for attempt in range(retry + 1):
+            t0 = time.perf_counter()
+            try:
+                resp = await self.client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    system=system,
+                    messages=[{"role": "user", "content": user}],
+                    temperature=temperature,
+                )
+                latency_ms = int((time.perf_counter() - t0) * 1000)
+                content = resp.content[0].text if resp.content else ""
+                usage = {
+                    "prompt_tokens": resp.usage.input_tokens,
+                    "completion_tokens": resp.usage.output_tokens,
+                }
+                return {"content": content, "usage": usage, "latency_ms": latency_ms, "model": resp.model}
+            except Exception as exc:
+                last_err = exc
+                logger.warning(f"[ClaudeProvider] chat attempt {attempt + 1} failed: {exc!r}")
+        raise RuntimeError(f"ClaudeProvider.chat failed after {retry + 1} attempts") from last_err

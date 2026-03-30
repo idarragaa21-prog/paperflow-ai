@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
+import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -64,6 +67,7 @@ STUDIES_COLS = [
     "peer_reviewed",
     "extraction_confidence",
     "provenance",
+    "raw_study_json",
 ]
 
 ARMS_COLS = [
@@ -213,9 +217,16 @@ def _add_sheet(wb: Workbook, name: str, cols: list[str]) -> None:
     ws.auto_filter.ref = ws.dimensions
 
 
+def _cell_value(v: Any) -> Any:
+    """Convert non-primitive values to JSON strings so openpyxl can write them."""
+    if v is None or isinstance(v, (str, int, float, bool)):
+        return v
+    return json.dumps(v, ensure_ascii=False)
+
+
 def _append_rows(ws, cols: list[str], rows: list[dict[str, Any]]) -> None:
     for r in rows:
-        ws.append([r.get(c) for c in cols])
+        ws.append([_cell_value(r.get(c)) for c in cols])
 
 
 def _autofit_columns(ws) -> None:
@@ -227,7 +238,7 @@ def _autofit_columns(ws) -> None:
                 val_len = len(str(cell.value))
                 col_widths[cell.column] = min(
                     _MAX_COL_WIDTH,
-                    max(col_widths.get(cell.column, 10), val_len + 2),
+                    max(col_widths.get(cell.column, 12), val_len + 2),
                 )
     for col_idx, width in col_widths.items():
         ws.column_dimensions[get_column_letter(col_idx)].width = width
@@ -267,4 +278,63 @@ def build_meta_xlsx(data: ExcelExportInput) -> bytes:
 
     bio = BytesIO()
     wb.save(bio)
+    return bio.getvalue()
+
+
+# ── CSV bundle export ────────────────────────────────────────────────────────
+
+_SHEET_MAP = [
+    ("studies", STUDIES_COLS, "studies"),
+    ("arms", ARMS_COLS, "arms"),
+    ("outcomes", OUTCOMES_COLS, "outcomes"),
+    ("effects", EFFECTS_COLS, "effect_sizes"),
+    ("rob", ROB_COLS, "risk_of_bias"),
+    ("tables_raw", TABLES_RAW_COLS, "tables_raw"),
+    ("images_ocr_raw", IMAGES_OCR_RAW_COLS, "images_ocr_raw"),
+    ("logs", LOGS_COLS, "logs"),
+]
+
+
+def _rows_to_csv(cols: list[str], rows: list[dict[str, Any]]) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(cols)
+    for r in rows:
+        writer.writerow([r.get(c) for c in cols])
+    return buf.getvalue()
+
+
+def build_meta_csv_bundle(data: ExcelExportInput) -> bytes:
+    """Return a ZIP archive containing one CSV per sheet plus a manifest.json."""
+    data_map: dict[str, list[dict[str, Any]]] = {
+        "studies": data.studies,
+        "arms": data.arms,
+        "outcomes": data.outcomes,
+        "effects": data.effects,
+        "rob": data.rob,
+        "tables_raw": data.tables_raw,
+        "images_ocr_raw": data.images_ocr_raw,
+        "logs": data.logs,
+    }
+
+    manifest: dict[str, Any] = {
+        "format": "csv_bundle",
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "tables": {},
+    }
+
+    bio = io.BytesIO()
+    with zipfile.ZipFile(bio, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for attr, cols, filename in _SHEET_MAP:
+            rows = data_map[attr]
+            csv_text = _rows_to_csv(cols, rows)
+            zf.writestr(f"{filename}.csv", csv_text)
+            manifest["tables"][filename] = {
+                "filename": f"{filename}.csv",
+                "columns": cols,
+                "rows": len(rows),
+            }
+
+        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+
     return bio.getvalue()

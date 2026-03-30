@@ -89,14 +89,22 @@ class PubMedClient:
         resp = await self._get(url, params)
         return resp.text
 
-    def _parse_efetch_abstracts(self, xml_text: str) -> dict[str, str]:
-        """Return pmid -> abstract text (best effort)."""
+    def _collect_efetch_enrichment(self, xml_text: str) -> tuple[dict[str, str], dict[str, list[str]], list[str]]:
+        """Parse efetch XML and return (abstracts, pub_types, warnings).
+
+        Returns a warning string instead of silently degrading so callers
+        can surface the issue to the user.
+        """
         abstracts: dict[str, str] = {}
+        pub_types: dict[str, list[str]] = {}
+        warnings: list[str] = []
+
         try:
             root = ET.fromstring(xml_text)
         except Exception as _xml_err:
-            logger.warning(f"[PubMedClient] failed to parse efetch XML for abstracts: {_xml_err!r}")
-            return abstracts
+            logger.warning(f"[PubMedClient] failed to parse efetch XML: {_xml_err!r}")
+            warnings.append("PubMed abstract enrichment unavailable; continuing with metadata-only results.")
+            return abstracts, pub_types, warnings
 
         for article in root.findall(".//PubmedArticle"):
             pmid_el = article.find(".//MedlineCitation/PMID")
@@ -111,31 +119,24 @@ class PubMedClient:
             if abs_parts:
                 abstracts[pmid] = "\n".join(abs_parts).strip()
 
-        return abstracts
-
-    def _parse_efetch_publication_types(self, xml_text: str) -> dict[str, list[str]]:
-        """Return pmid -> publication types list (best effort)."""
-        out: dict[str, list[str]] = {}
-        try:
-            root = ET.fromstring(xml_text)
-        except Exception as _xml_err:
-            logger.warning(f"[PubMedClient] failed to parse efetch XML for publication types: {_xml_err!r}")
-            return out
-
-        for article in root.findall(".//PubmedArticle"):
-            pmid_el = article.find(".//MedlineCitation/PMID")
-            if pmid_el is None or not (pmid_el.text or "").strip():
-                continue
-            pmid = pmid_el.text.strip()
-
             pts: list[str] = []
             for pt_el in article.findall(".//Article/PublicationTypeList/PublicationType"):
                 if pt_el.text and pt_el.text.strip():
                     pts.append(pt_el.text.strip())
             if pts:
-                out[pmid] = pts
+                pub_types[pmid] = pts
 
-        return out
+        return abstracts, pub_types, warnings
+
+    def _parse_efetch_abstracts(self, xml_text: str) -> dict[str, str]:
+        """Return pmid -> abstract text (best effort). Legacy; prefer _collect_efetch_enrichment."""
+        abstracts, _, _ = self._collect_efetch_enrichment(xml_text)
+        return abstracts
+
+    def _parse_efetch_publication_types(self, xml_text: str) -> dict[str, list[str]]:
+        """Return pmid -> publication types list (best effort). Legacy; prefer _collect_efetch_enrichment."""
+        _, pub_types, _ = self._collect_efetch_enrichment(xml_text)
+        return pub_types
 
     def _extract_ids_from_esummary(self, item: dict[str, Any]) -> tuple[str | None, str | None]:
         pmcid = None
@@ -153,8 +154,21 @@ class PubMedClient:
                 doi = str(val).strip()
         return pmcid, doi
 
-    async def search_and_fetch(self, query: str, max_results: int = 20) -> dict[str, Any]:
-        s = await self.esearch(query=query, retmax=max_results)
+    def _apply_filters_to_query(self, query: str, filters: Any) -> str:
+        """Append PubMed date-range filters to a query string."""
+        parts = [query]
+        if filters is not None:
+            year_from = getattr(filters, "year_from", None)
+            year_to = getattr(filters, "year_to", None)
+            if year_from is not None:
+                parts.append(f'"{year_from}"[Date - Publication]')
+            if year_to is not None:
+                parts.append(f'"{year_to}"[Date - Publication]')
+        return " AND ".join(parts) if len(parts) > 1 else parts[0]
+
+    async def search_and_fetch(self, query: str, max_results: int = 20, filters: Any = None) -> dict[str, Any]:
+        effective_query = self._apply_filters_to_query(query, filters)
+        s = await self.esearch(query=effective_query, retmax=max_results)
         es = s.get("esearchresult", {})
         pmids = es.get("idlist", []) or []
         query_translation = es.get("querytranslation")
@@ -168,12 +182,13 @@ class PubMedClient:
         # Abstracts + publication types via efetch (best effort)
         abstracts: dict[str, str] = {}
         pub_types: dict[str, list[str]] = {}
+        enrich_warnings: list[str] = []
         try:
             xml_text = await self.efetch_xml(pmids)
-            abstracts = self._parse_efetch_abstracts(xml_text)
-            pub_types = self._parse_efetch_publication_types(xml_text)
+            abstracts, pub_types, enrich_warnings = self._collect_efetch_enrichment(xml_text)
         except Exception as _fetch_err:
             logger.warning(f"[PubMedClient] efetch failed for pmids={pmids[:5]}...: {_fetch_err!r} — results will have no abstracts or publication types")
+            enrich_warnings.append("PubMed abstract enrichment unavailable; continuing with metadata-only results.")
             abstracts = {}
             pub_types = {}
 
@@ -224,7 +239,7 @@ class PubMedClient:
                 }
             )
 
-        return {"results": results, "query_translation": query_translation}
+        return {"results": results, "query_translation": query_translation, "warnings": enrich_warnings}
 
 
 pubmed_client = PubMedClient()
