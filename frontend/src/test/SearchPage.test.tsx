@@ -599,7 +599,7 @@ describe('SearchPage — search history', () => {
 
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Search History/i)).toBeInTheDocument();
+      expect(screen.getByText(/Recent searches/i)).toBeInTheDocument();
     });
   });
 
@@ -621,8 +621,8 @@ describe('SearchPage — search history', () => {
     });
 
     renderPage();
-    await waitFor(() => screen.getByText(/Search History/i));
-    fireEvent.click(screen.getByText(/Search History/i));
+    await waitFor(() => screen.getByText(/Recent searches/i));
+    fireEvent.click(screen.getByText(/Recent searches/i));
 
     await waitFor(() => {
       expect(screen.getByText('hip fracture outcomes')).toBeInTheDocument();

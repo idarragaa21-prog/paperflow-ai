@@ -203,7 +203,7 @@ export default function DashboardPage() {
 
       <PageHero
         eyebrow={`${greeting}, ${firstName}`}
-        title=”Pick up the next best step in your research”
+        title="Pick up the next best step in your research"
         subtitle={active.length === 0
           ? 'Create your first project to move from search to library, reading, extraction, writing and analysis in one continuous workspace.'
           : `${active.length} active project${active.length !== 1 ? 's' : ''} · ${totalPapers} paper${totalPapers !== 1 ? 's' : ''} across your workspace. The goal is not just to store work, but to keep momentum.`}
@@ -215,24 +215,24 @@ export default function DashboardPage() {
         ]}
         actions={(
           <>
-            <button onClick={() => setShowNewProject(true)} className=”rc-btn rc-btn--primary”>
+            <button onClick={() => setShowNewProject(true)} className="rc-btn rc-btn--primary">
               + New project
             </button>
-            <Link to=”/projects” className=”rc-btn” style={{ textDecoration: 'none' }}>
+            <Link to="/projects" className="rc-btn" style={{ textDecoration: 'none' }}>
               View all projects
             </Link>
-            <Link to=”/clinical” className=”rc-btn” style={{ textDecoration: 'none' }}>
+            <Link to="/clinical" className="rc-btn" style={{ textDecoration: 'none' }}>
               Clinical Sheets
             </Link>
           </>
         )}
         aside={(
           <InsightCard
-            eyebrow=”Workspace signal”
+            eyebrow="Workspace signal"
             title={active.length === 0 ? 'No active projects yet' : `${totalNotes} notes already captured`}
             body={active.length === 0
               ? 'The fastest path to value is one project, one focused question and one paper set.'
-              : 'The next UX step is to turn these projects into a clearer “continue where you left off” flow.'}
+              : 'The next UX step is to turn these projects into a clearer "continue where you left off" flow.'}
             tone={active.length === 0 ? 'warning' : 'primary'}
           />
         )}

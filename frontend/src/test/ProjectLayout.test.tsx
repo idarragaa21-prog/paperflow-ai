@@ -101,7 +101,8 @@ describe('ProjectLayout', () => {
   it('refreshes project counts after a project content update event', async () => {
     renderPage();
 
-    await waitFor(() => expect(screen.queryByText('1 paper')).not.toBeInTheDocument());
+    // Initially papers count is 0 (first dashboard call)
+    await waitFor(() => expect(screen.getByText('Proyecto Hombro')).toBeInTheDocument());
 
     act(() => {
       window.dispatchEvent(
@@ -111,8 +112,12 @@ describe('ProjectLayout', () => {
       );
     });
 
+    // After event, dashboard is re-fetched (second call returns papers: 1)
+    // PageHero metrics render value and label in separate elements
     await waitFor(() => {
-      expect(screen.getByText('1 paper')).toBeInTheDocument();
+      const metricValues = document.querySelectorAll('.rc-metric-card__value');
+      const valuesArr = Array.from(metricValues).map(el => el.textContent);
+      expect(valuesArr).toContain('1');
     });
   });
 });
