@@ -1,0 +1,16 @@
+{
+  "name": "PaperFlow AI",
+  "short_name": "PaperFlow",
+  "description": "AI-powered research workspace for medical and academic professionals",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f4f0",
+  "theme_color": "#4338ca",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -289,7 +289,7 @@ export default function PapersPage() {
   const readyRatio = papers.length > 0 ? Math.round((readyCount / papers.length) * 100) : 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHero
         eyebrow="Stage 2 · Library"
         title="Library"
@@ -302,7 +302,7 @@ export default function PapersPage() {
         ]}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
+      <div className="rc-list-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
         <InsightCard
           eyebrow="Add"
           title="Bring papers in"
@@ -338,7 +338,7 @@ export default function PapersPage() {
       </div>
 
       {hasProcessing && !dismissBanner && (
-        <div className="rc-card" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="rc-card" style={{ background: 'var(--rc-info-bg)', border: '1px solid var(--rc-info-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 13 }}>⚙️ Procesando {papers.filter(p => ['processing','queued'].includes((p.processing_status||'').toLowerCase())).length} papers... (auto-refreshing)</span>
           <button className="rc-btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setDismissBanner(true)}>✕</button>
         </div>
@@ -461,7 +461,7 @@ export default function PapersPage() {
                       </td>
                     </tr>
                     {traceState[p.id]?.expanded ? (
-                      <tr style={{ background: 'rgba(15,23,42,0.02)' }}>
+                      <tr style={{ background: 'var(--rc-surface-2)' }}>
                         <td colSpan={6} style={{ padding: 12 }}>
                           {traceState[p.id]?.loading ? (
                             <div className="rc-help">Cargando traza…</div>

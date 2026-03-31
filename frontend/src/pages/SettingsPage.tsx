@@ -316,7 +316,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 920 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 920 }}>
       <div>
         <h1 className="rc-page-title">{t.settings.title}</h1>
         <div className="rc-subtitle">Manage your profile, usage and collaboration settings.</div>

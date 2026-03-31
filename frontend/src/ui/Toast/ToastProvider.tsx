@@ -68,9 +68,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={api}>
       {children}
-      <div style={{ position: 'fixed', right: 14, bottom: 14, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10, width: 'min(420px, 92vw)' }}>
+      <div role="status" aria-live="polite" style={{ position: 'fixed', right: 14, bottom: 14, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 10, width: 'min(420px, 92vw)' }}>
         {items.map((t) => (
-          <div key={t.id} className="rc-card" style={{ padding: 12 }}>
+          <div key={t.id} className="rc-card rc-toast-item" style={{ padding: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span className={kindClass(t.kind)} style={{ width: 'fit-content' }}>{t.kind}</span>

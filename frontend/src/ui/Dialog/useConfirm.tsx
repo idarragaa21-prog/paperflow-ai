@@ -37,10 +37,13 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {children}
       {pending ? (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 1200 }}
+          className="rc-modal-overlay"
           onClick={() => close(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={pending.opts.title}
         >
-          <div className="rc-card" style={{ width: 'min(520px, 96vw)' }} onClick={(e) => e.stopPropagation()}>
+          <div className="rc-card rc-modal-content" style={{ width: 'min(520px, 96vw)' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontWeight: 950, fontSize: 16 }}>{pending.opts.title}</div>
             {pending.opts.body ? <div className="rc-help" style={{ marginTop: 8 }}>{pending.opts.body}</div> : null}
             <div className="rc-row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>

@@ -101,7 +101,7 @@ export default function ProjectsPage() {
   );
 
   return (
-    <div className="rc-page-enter" style={{ display:'flex',flexDirection:'column',gap:20 }}>
+    <div className="rc-page-enter" style={{ display:'flex',flexDirection:'column',gap:20 }} role="main">
       <PageHero
         eyebrow="Project portfolio"
         title="Turn every project into a visible workflow"
@@ -143,7 +143,7 @@ export default function ProjectsPage() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rc-muted)" strokeWidth="2" strokeLinecap="round" style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',pointerEvents:'none' }}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input className="rc-input" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search projects…" style={{ paddingLeft:32 }}/>
         </div>
-        <div style={{ display:'flex',gap:2,background:'rgba(26,25,41,0.06)',padding:3,borderRadius:10 }}>
+        <div style={{ display:'flex',gap:2,background:'var(--rc-surface-3)',padding:3,borderRadius:10 }}>
           {(['active','archived'] as const).map(t=>(
             <button key={t} onClick={()=>setTab(t)} style={{ padding:'5px 14px',borderRadius:8,border:'none',cursor:'pointer',fontSize:12,fontWeight:600,background:tab===t?'var(--rc-surface)':'transparent',color:tab===t?'var(--rc-text)':'var(--rc-muted)',boxShadow:tab===t?'var(--rc-shadow-sm)':'none',transition:'all 150ms' }}>
               {t==='active'?`Active (${projects.filter(p=>!p.archived).length})`:`Archived (${projects.filter(p=>p.archived).length})`}
@@ -159,7 +159,7 @@ export default function ProjectsPage() {
       ) : filtered.length === 0 ? (
         <div className="rc-card"><EmptyState archived={tab==='archived'}/></div>
       ) : (
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:14 }}>
+        <div className="rc-list-stagger" style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:14 }}>
           {filtered.map(p => {
             const counts = countsMap[p.id];
             const nextAction = getProjectNextAction(p.id, counts);

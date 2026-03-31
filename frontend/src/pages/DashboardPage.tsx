@@ -96,10 +96,10 @@ const QUICK_ACCESS = [
     label: 'Clinical Sheets',
     sub: 'AI clinical summaries',
     to: '/clinical',
-    color: 'rgba(16,185,129,0.1)',
-    stroke: 'rgba(16,185,129,0.85)',
+    color: 'var(--rc-success-weak, rgba(16,185,129,0.1))',
+    stroke: 'var(--rc-success)',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="rgba(16,185,129,0.85)" strokeWidth="1.8" strokeLinecap="round">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--rc-success)" strokeWidth="1.8" strokeLinecap="round">
         <path d="M10 2v4M8 4h4"/><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M7 10h6M7 13h4"/>
       </svg>
     ),
@@ -108,10 +108,10 @@ const QUICK_ACCESS = [
     label: 'Deep Research',
     sub: 'Comprehensive reports',
     to: '/deep-research',
-    color: 'rgba(99,102,241,0.1)',
-    stroke: 'rgba(99,102,241,0.85)',
+    color: 'var(--rc-primary-weak, rgba(99,102,241,0.1))',
+    stroke: 'var(--rc-primary)',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="rgba(99,102,241,0.85)" strokeWidth="1.8" strokeLinecap="round">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--rc-primary)" strokeWidth="1.8" strokeLinecap="round">
         <circle cx="9" cy="8" r="5"/><path d="M14 13l3 3"/><path d="M6 8h6"/>
       </svg>
     ),
@@ -132,10 +132,10 @@ const QUICK_ACCESS = [
     label: 'Background Jobs',
     sub: 'Processing & downloads',
     to: '/jobs',
-    color: 'rgba(245,158,11,0.1)',
-    stroke: 'rgba(245,158,11,0.85)',
+    color: 'var(--rc-warning-weak, rgba(245,158,11,0.1))',
+    stroke: 'var(--rc-warning)',
     icon: (
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="rgba(245,158,11,0.85)" strokeWidth="1.8" strokeLinecap="round">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--rc-warning)" strokeWidth="1.8" strokeLinecap="round">
         <circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 2.5"/>
       </svg>
     ),
@@ -203,7 +203,7 @@ export default function DashboardPage() {
 
       <PageHero
         eyebrow={`${greeting}, ${firstName}`}
-        title="Pick up the next best step in your research"
+        title=”Pick up the next best step in your research”
         subtitle={active.length === 0
           ? 'Create your first project to move from search to library, reading, extraction, writing and analysis in one continuous workspace.'
           : `${active.length} active project${active.length !== 1 ? 's' : ''} · ${totalPapers} paper${totalPapers !== 1 ? 's' : ''} across your workspace. The goal is not just to store work, but to keep momentum.`}
@@ -215,20 +215,20 @@ export default function DashboardPage() {
         ]}
         actions={(
           <>
-            <button onClick={() => setShowNewProject(true)} className="rc-btn rc-btn--primary">
+            <button onClick={() => setShowNewProject(true)} className=”rc-btn rc-btn--primary”>
               + New project
             </button>
-            <Link to="/projects" className="rc-btn" style={{ textDecoration: 'none' }}>
+            <Link to=”/projects” className=”rc-btn” style={{ textDecoration: 'none' }}>
               View all projects
             </Link>
-            <Link to="/clinical" className="rc-btn" style={{ textDecoration: 'none' }}>
+            <Link to=”/clinical” className=”rc-btn” style={{ textDecoration: 'none' }}>
               Clinical Sheets
             </Link>
           </>
         )}
         aside={(
           <InsightCard
-            eyebrow="Workspace signal"
+            eyebrow=”Workspace signal”
             title={active.length === 0 ? 'No active projects yet' : `${totalNotes} notes already captured`}
             body={active.length === 0
               ? 'The fastest path to value is one project, one focused question and one paper set.'
@@ -311,12 +311,12 @@ export default function DashboardPage() {
       {/* Stats */}
       {!isLoading && active.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(175px,1fr))', gap: 12 }}>
-          <StatCard label="Active projects" value={active.length} color="rgba(99,102,241,0.12)"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(99,102,241,0.9)" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="8" height="8" rx="1.5"/><rect x="14" y="3" width="8" height="8" rx="1.5"/><rect x="2" y="13" width="8" height="8" rx="1.5"/><rect x="14" y="13" width="8" height="8" rx="1.5"/></svg>} />
-          <StatCard label="Total papers" value={totalPapers} color="rgba(16,185,129,0.12)"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(16,185,129,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>} />
-          <StatCard label="References" value={totalRefs} color="rgba(245,158,11,0.12)"
-            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(245,158,11,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>} />
+          <StatCard label="Active projects" value={active.length} color="var(--rc-primary-weak, rgba(99,102,241,0.12))"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-primary)" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="8" height="8" rx="1.5"/><rect x="14" y="3" width="8" height="8" rx="1.5"/><rect x="2" y="13" width="8" height="8" rx="1.5"/><rect x="14" y="13" width="8" height="8" rx="1.5"/></svg>} />
+          <StatCard label="Total papers" value={totalPapers} color="var(--rc-success-weak, rgba(16,185,129,0.12))"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-success)" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>} />
+          <StatCard label="References" value={totalRefs} color="var(--rc-warning-weak, rgba(245,158,11,0.12))"
+            icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-warning)" strokeWidth="2" strokeLinecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>} />
           <StatCard label="Notes" value={totalNotes} color="rgba(139,92,246,0.12)"
             icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,0.9)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>} />
         </div>
@@ -348,7 +348,7 @@ export default function DashboardPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 14 }}>
+          <div className="rc-list-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 14 }}>
             {active.slice(0, 6).map(p => {
               const c = countsMap[p.id];
               const nextAction = getProjectNextAction(p.id, c);
@@ -372,7 +372,7 @@ export default function DashboardPage() {
                   <div className="rc-progress"><div style={{ width: `${completion}%` }} /></div>
                   {c && (
                     <div style={{ display: 'flex', gap: 14, marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--rc-border)', flexWrap: 'wrap' }}>
-                      {([['Papers', c.papers, '#4f46e5'], ['Refs', c.references, '#d97706'], ['Notes', c.notes, '#7c3aed']] as [string, number, string][]).map(([l, v, col]) => (
+                      {([['Papers', c.papers, 'var(--rc-primary)'], ['Refs', c.references, 'var(--rc-warning)'], ['Notes', c.notes, '#7c3aed']] as [string, number, string][]).map(([l, v, col]) => (
                         <div key={l} style={{ fontSize: 12 }}>
                           <span style={{ fontWeight: 750, color: col }}>{v}</span>
                           <span style={{ color: 'var(--rc-muted)', marginLeft: 3 }}>{l}</span>

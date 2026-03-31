@@ -90,7 +90,7 @@ export default function JobsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <h1 className="rc-page-title">Jobs</h1>
         <div className="rc-subtitle">Background work queue: search ingestion, document parsing, extraction, exports and legacy jobs.</div>

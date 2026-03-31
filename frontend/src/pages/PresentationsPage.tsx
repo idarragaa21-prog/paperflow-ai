@@ -109,7 +109,7 @@ export default function PresentationsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <h1 className="rc-page-title">Presentations</h1>
         <div className="rc-subtitle">Generate a 16:9 deck from selected papers. Jobs run async; download PPTX when ready.</div>

@@ -16,8 +16,15 @@ const Icons = {
 };
 
 function NavItem({ to, label, Icon, onClick }: { to: string; label: string; Icon: React.FC; onClick?: () => void }) {
+  const location = useLocation();
+  const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
   return (
-    <NavLink to={to} onClick={onClick} className={({ isActive }) => `rc-nav-item${isActive ? ' rc-nav-item--active' : ''}`}>
+    <NavLink
+      to={to}
+      onClick={onClick}
+      className={`rc-nav-item${isActive ? ' rc-nav-item--active' : ''}`}
+      aria-current={isActive ? "page" : undefined}
+    >
       <Icon />{label}
     </NavLink>
   );
@@ -50,7 +57,7 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
         </div>
       </div>
 
-      <nav className="rc-nav">
+      <nav className="rc-nav" role="navigation" aria-label="Main navigation">
         <div className="rc-nav-section">Workspace</div>
         <NavItem to="/dashboard" label={t.nav.dashboard} Icon={Icons.Dashboard} onClick={onNav} />
         <NavItem to="/projects" label={t.nav.projects} Icon={Icons.Projects} onClick={onNav} />
@@ -69,7 +76,7 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
         <div className="rc-user-row">
           <div className="rc-avatar">{initials}</div>
           <span className="rc-user-email">{user?.email || ''}</span>
-          <button className="rc-logout-btn" onClick={onLogout} title={t.auth.signOut}><Icons.LogOut /></button>
+          <button className="rc-logout-btn" onClick={onLogout} title={t.auth.signOut} aria-label="Sign out"><Icons.LogOut /></button>
         </div>
         <div style={{ padding:'2px 10px 4px',fontSize:10,color:'rgba(255,255,255,0.2)',letterSpacing:'0.03em' }}>
           {t.nav.localFirst}
@@ -112,7 +119,7 @@ export default function AuthedLayout() {
         </>
       )}
 
-      <main className="rc-main">
+      <main className="rc-main rc-page-enter">
         <div className="rc-container"><Outlet /></div>
       </main>
     </div>

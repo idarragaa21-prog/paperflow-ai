@@ -375,3 +375,214 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .rc-desktop-only { display: none !important; }
   .rc-mobile-only { display: flex; flex-direction: column; gap: 10px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   S1+S2: Animation System & Enhanced Transitions
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Modal animations ── */
+@keyframes rc-modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes rc-modal-content-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.rc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1200;
+  animation: rc-modal-overlay-in 200ms ease forwards;
+}
+.rc-modal-content {
+  animation: rc-modal-content-in 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Toast slide-in ── */
+@keyframes rc-toast-in {
+  from { opacity: 0; transform: translateX(100%) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.rc-toast-item {
+  animation: rc-toast-in 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── List stagger animation ── */
+@keyframes rc-list-item-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rc-list-stagger > * {
+  animation: rc-list-item-in 200ms ease forwards;
+  opacity: 0;
+}
+.rc-list-stagger > *:nth-child(1)  { animation-delay: 0ms; }
+.rc-list-stagger > *:nth-child(2)  { animation-delay: 40ms; }
+.rc-list-stagger > *:nth-child(3)  { animation-delay: 80ms; }
+.rc-list-stagger > *:nth-child(4)  { animation-delay: 120ms; }
+.rc-list-stagger > *:nth-child(5)  { animation-delay: 160ms; }
+.rc-list-stagger > *:nth-child(6)  { animation-delay: 200ms; }
+.rc-list-stagger > *:nth-child(7)  { animation-delay: 240ms; }
+.rc-list-stagger > *:nth-child(8)  { animation-delay: 280ms; }
+.rc-list-stagger > *:nth-child(9)  { animation-delay: 320ms; }
+.rc-list-stagger > *:nth-child(10) { animation-delay: 360ms; }
+.rc-list-stagger > *:nth-child(n+11) { animation-delay: 380ms; }
+
+/* ── Enhanced card hover ── */
+.rc-card--interactive {
+  transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
+  cursor: pointer;
+}
+.rc-card--interactive:hover {
+  box-shadow: var(--rc-shadow-md);
+  transform: translateY(-3px);
+  border-color: rgba(99,102,241,0.2);
+}
+.rc-card--interactive:active {
+  transform: translateY(-1px);
+  box-shadow: var(--rc-shadow-sm);
+}
+
+/* ── Tooltip system ── */
+.rc-tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.rc-tooltip-wrap::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  padding: 5px 10px;
+  border-radius: var(--rc-r-sm);
+  background: var(--rc-text);
+  color: var(--rc-bg);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms, transform 150ms;
+  z-index: 100;
+  box-shadow: var(--rc-shadow-md);
+}
+.rc-tooltip-wrap:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+/* Bottom placement */
+.rc-tooltip-wrap--bottom::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+/* ── Dropdown animation ── */
+@keyframes rc-dropdown-in {
+  from { opacity: 0; transform: scaleY(0.9) translateY(-4px); }
+  to   { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+.rc-dropdown {
+  transform-origin: top center;
+  animation: rc-dropdown-in 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Button subtle improvements ── */
+.rc-btn--subtle {
+  background: transparent;
+  border-color: transparent;
+  color: var(--rc-text-secondary);
+  box-shadow: none;
+}
+.rc-btn--subtle:hover {
+  background: var(--rc-primary-weak);
+  color: var(--rc-primary);
+  border-color: transparent;
+}
+
+/* ── Scrollbar styling (dark mode friendly) ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--rc-border-strong);
+  border-radius: var(--rc-r-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--rc-muted); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Input focus enhanced ── */
+.rc-input:focus, .rc-select:focus, .rc-textarea:focus {
+  border-color: var(--rc-primary);
+  box-shadow: 0 0 0 3px var(--rc-primary-weak);
+}
+
+/* ── Table sticky header ── */
+.rc-table--sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--rc-surface);
+  box-shadow: 0 1px 0 var(--rc-border);
+}
+
+/* ── Spacing utility classes ── */
+.rc-gap-sm { gap: 8px; }
+.rc-gap-md { gap: 12px; }
+.rc-gap-lg { gap: 16px; }
+.rc-gap-xl { gap: 24px; }
+.rc-p-sm { padding: 8px; }
+.rc-p-md { padding: 12px; }
+.rc-p-lg { padding: 16px; }
+.rc-p-xl { padding: 24px; }
+.rc-mt-sm { margin-top: 8px; }
+.rc-mt-md { margin-top: 12px; }
+.rc-mt-lg { margin-top: 16px; }
+
+/* ── Text utilities ── */
+.rc-text-center { text-align: center; }
+.rc-text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-font-display { font-family: var(--font-display); }
+.rc-fw-bold { font-weight: 700; }
+.rc-fw-heavy { font-weight: 800; }
+
+/* ── Flex utilities ── */
+.rc-flex-col { display: flex; flex-direction: column; }
+.rc-flex-between { display: flex; justify-content: space-between; align-items: center; }
+.rc-flex-center { display: flex; align-items: center; justify-content: center; }
+
+/* ── Scroll to top ── */
+@keyframes rc-scroll-top-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.rc-scroll-top {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--rc-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--rc-shadow-lg);
+  animation: rc-scroll-top-in 200ms ease forwards;
+  transition: background 150ms, transform 150ms;
+}
+.rc-scroll-top:hover {
+  background: var(--rc-primary-hover);
+  transform: translateY(-2px);
+}

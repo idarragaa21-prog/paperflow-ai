@@ -86,7 +86,7 @@ export default function NotesPage() {
   }, [notes, filterText]);
 
   return (
-    <div className="rc-product-page">
+    <div className="rc-product-page rc-page-enter">
       <div className="rc-product-page__header">
         <div>
           <div className="rc-kicker">Notas</div>

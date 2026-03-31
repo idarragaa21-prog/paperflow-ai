@@ -170,47 +170,47 @@ export default function OnboardingTour({ onDone }: { onDone: () => void }) {
     zIndex: 10002,
     width: 340, padding: 24,
     borderRadius: 16,
-    background: 'white',
+    background: 'var(--rc-surface)',
     boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-    color: '#1a1929',
+    color: 'var(--rc-text)',
   };
 
   return (
     <>
       <div style={overlayStyle} onClick={finish} />
-      <div style={tooltipStyle}>
+      <div style={tooltipStyle} role="dialog" aria-modal="true" aria-label={step.title[locale] || step.title.en}>
         {/* Progress */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
           {steps.map((_, i) => (
             <div key={i} style={{
               flex: 1, height: 3, borderRadius: 2,
-              background: i <= current ? '#6366f1' : 'rgba(26,25,41,0.1)',
+              background: i <= current ? 'var(--rc-primary)' : 'var(--rc-border)',
               transition: 'background 200ms',
             }} />
           ))}
         </div>
 
-        <div style={{ fontSize: 11, color: 'rgba(26,25,41,0.4)', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: 'var(--rc-muted)', marginBottom: 8 }}>
           {current + 1} {t.of} {steps.length}
         </div>
 
         <div style={{ fontFamily: 'var(--font-display, sans-serif)', fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em', marginBottom: 8 }}>
           {step.title[locale] || step.title.en}
         </div>
-        <div style={{ fontSize: 14, color: 'rgba(26,25,41,0.6)', lineHeight: 1.6, marginBottom: 20 }}>
+        <div style={{ fontSize: 14, color: 'var(--rc-text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
           {step.body[locale] || step.body.en}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button onClick={finish} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 12, color: 'rgba(26,25,41,0.35)', padding: 0,
+            fontSize: 12, color: 'var(--rc-muted)', padding: 0,
           }}>{t.skip}</button>
           <div style={{ display: 'flex', gap: 8 }}>
             {current > 0 && (
               <button onClick={prev} style={{
                 padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'rgba(26,25,41,0.06)', border: 'none', cursor: 'pointer', color: '#1a1929',
+                background: 'var(--rc-surface-3)', border: 'none', cursor: 'pointer', color: 'var(--rc-text)',
               }}>{t.prev}</button>
             )}
             <button onClick={next} style={{
