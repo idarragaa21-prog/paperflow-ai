@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { EmptyState } from '../components/EmptyState';
-import SectionErrorBoundary from '../components/SectionErrorBoundary';
+import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
 type PaperOption = {
   id: string;
@@ -54,6 +54,13 @@ function BouncingDots() {
   );
 }
 
+const SUGGESTED_QUESTIONS = [
+  'What are the main findings and limitations?',
+  'Which outcomes showed the strongest evidence?',
+  'Summarize the cohort, intervention and comparator.',
+  'What caveats should I keep in mind before extraction?',
+];
+
 export default function ReaderPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -72,6 +79,7 @@ export default function ReaderPage() {
   const hasReadyPapers = papers.some(p => ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase()));
   const selectedPaperReady = ['ready', 'parsed'].includes(selectedStatus.toLowerCase());
   const canAsk = question.trim().length > 0 && (isProject ? hasReadyPapers : selectedPaperReady);
+  const latestAssistantResult = [...history].reverse().find((item) => item.role === 'assistant' && item.result?.claim_type !== 'error')?.result;
 
   const loadPapers = useCallback(async () => {
     if (!projectId) return;
@@ -123,14 +131,19 @@ export default function ReaderPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Reader</h1>
-        <div className="rc-subtitle">Grounded chat on one paper or the whole project. Answers are blocked when support is too weak.</div>
-      </div>
+      <PageHero
+        eyebrow="Stage 3 · Reader"
+        title="Read with AI, but keep the evidence surface visible"
+        subtitle="Use grounded chat on one paper or the whole project. The goal is not generic answers, but decisions backed by extractable evidence."
+        metrics={[
+          { label: 'papers in scope', value: papers.length, tone: 'primary' },
+          { label: 'ready for chat', value: papers.filter(p => ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase())).length, tone: 'success' },
+          { label: 'conversation turns', value: history.length, tone: 'neutral' },
+        ]}
+      />
 
       {error && <div className="rc-error">{error}</div>}
 
-      {/* Skeleton while loading papers */}
       {papersLoading && (
         <div className="rc-page-skeleton">
           <div className="rc-skeleton-card">
@@ -147,7 +160,6 @@ export default function ReaderPage() {
         </div>
       )}
 
-      {/* Empty state: no papers in project */}
       {!papersLoading && papers.length === 0 && (
         <EmptyState
           variant="papers"
@@ -164,99 +176,147 @@ export default function ReaderPage() {
         />
       )}
 
-      {/* Scope selector */}
-      {!papersLoading && papers.length > 0 && <div className="rc-card">
-        <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ minWidth: 260, flex: 1 }}>
-            <div className="rc-kicker">Scope</div>
-            <select
-              className="rc-input"
-              data-testid="reader-scope-select"
-              value={paperId}
-              onChange={e => setPaperId(e.target.value)}
-            >
-              <option value="project">Whole project</option>
-              {papers.map(paper => (
-                <option key={paper.id} value={paper.id}>{paper.title}</option>
-              ))}
-            </select>
-          </div>
-          <button className="rc-btn" onClick={loadPapers} style={{ padding: '8px 12px', fontSize: 12 }}>Refresh</button>
-        </div>
-
-        {/* Status indicator */}
-        <div style={{ marginTop: 10 }}>
-          {!isProject && selectedPaper && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <StatusDot status={selectedStatus} />
-              {['processing', 'queued'].includes(selectedStatus.toLowerCase()) && (
-                <span className="rc-help">This paper is still being processed. Chat will be available soon.</span>
-              )}
-              {(!selectedStatus || selectedStatus === 'uploaded') && (
-                <button className="rc-btn" data-testid="reader-process-now" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Process now</button>
-              )}
-              {selectedStatus === 'failed' && (
-                <button className="rc-btn" data-testid="reader-process-now" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Retry processing</button>
-              )}
-            </div>
-          )}
-          {isProject && !hasReadyPapers && papers.length > 0 && (
-            <div className="rc-card" style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)', marginTop: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>No processed papers in this project yet.</div>
-              <div className="rc-help" style={{ marginBottom: 8 }}>Go to Library, select papers, and click Process.</div>
-              <button className="rc-btn" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => navigate(`/projects/${projectId}/library`)}>Go to Library</button>
-            </div>
-          )}
-        </div>
-      </div>}
-
-      {/* Chat history — only shown once papers are loaded */}
-      {!papersLoading && papers.length > 0 && <div
-        className="rc-card"
-        data-testid="reader-answer-panel"
-        style={{ minHeight: 300, maxHeight: 500, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}
-      >
-        {history.length === 0 && !loading && (
-          <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--rc-muted)' }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 10, display: 'block', margin: '0 auto 12px' }}>
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>No conversation yet</div>
-            <div style={{ fontSize: 12 }}>Ask a question about the {isProject ? 'project papers' : 'selected paper'} below.</div>
-          </div>
-        )}
-        {history.map((item, i) => (
-          <ChatBubble key={i} item={item} />
-        ))}
-        {loading && (
-          <div style={{ alignSelf: 'flex-start', background: 'var(--rc-bg)', padding: '10px 16px', borderRadius: 14 }}>
-            <BouncingDots />
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>}
-
-      {/* Input — only shown when papers are loaded */}
       {!papersLoading && papers.length > 0 && (
-        <div className="rc-row" style={{ gap: 8 }}>
-          <textarea
-            className="rc-input"
-            data-testid="reader-question-input"
-            style={{ flex: 1, minHeight: 48, maxHeight: 120, resize: 'vertical', fontSize: 13 }}
-            value={question}
-            onChange={e => setQuestion(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder="Ask a question... (Enter to send)"
-          />
-          <button
-            className="rc-btn rc-btn--primary"
-            data-testid="reader-ask-button"
-            onClick={askQuestion}
-            disabled={loading || !canAsk}
-            style={{ alignSelf: 'flex-end', padding: '10px 16px' }}
-          >
-            {loading ? '...' : 'Ask'}
-          </button>
+        <div className="rc-composer-shell">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="rc-card">
+              <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ minWidth: 260, flex: 1 }}>
+                  <div className="rc-kicker">Scope</div>
+                  <select
+                    className="rc-input"
+                    data-testid="reader-scope-select"
+                    value={paperId}
+                    onChange={e => setPaperId(e.target.value)}
+                  >
+                    <option value="project">Whole project</option>
+                    {papers.map(paper => (
+                      <option key={paper.id} value={paper.id}>{paper.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <button className="rc-btn" onClick={loadPapers} style={{ padding: '8px 12px', fontSize: 12 }}>Refresh</button>
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                {!isProject && selectedPaper && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <StatusDot status={selectedStatus} />
+                    {['processing', 'queued'].includes(selectedStatus.toLowerCase()) && (
+                      <span className="rc-help">This paper is still being processed. Chat will be available soon.</span>
+                    )}
+                    {(!selectedStatus || selectedStatus === 'uploaded') && (
+                      <button className="rc-btn" data-testid="reader-process-now" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Process now</button>
+                    )}
+                    {selectedStatus === 'failed' && (
+                      <button className="rc-btn" data-testid="reader-process-now" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => processNow(paperId)}>Retry processing</button>
+                    )}
+                  </div>
+                )}
+                {isProject && !hasReadyPapers && papers.length > 0 && (
+                  <div className="rc-card" style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)', marginTop: 8 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>No processed papers in this project yet.</div>
+                    <div className="rc-help" style={{ marginBottom: 8 }}>Go to Library, select papers, and click Process.</div>
+                    <button className="rc-btn" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => navigate(`/projects/${projectId}/library`)}>Go to Library</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div
+              className="rc-card"
+              data-testid="reader-answer-panel"
+              style={{ minHeight: 320, maxHeight: 520, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}
+            >
+              {history.length === 0 && !loading && (
+                <div style={{ textAlign: 'center', padding: '40px 24px', color: 'var(--rc-muted)' }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 10, display: 'block', margin: '0 auto 12px' }}>
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>No conversation yet</div>
+                  <div style={{ fontSize: 12 }}>Ask a question about the {isProject ? 'project papers' : 'selected paper'} below.</div>
+                </div>
+              )}
+              {history.map((item, i) => (
+                <ChatBubble key={i} item={item} />
+              ))}
+              {loading && (
+                <div style={{ alignSelf: 'flex-start', background: 'var(--rc-bg)', padding: '10px 16px', borderRadius: 14 }}>
+                  <BouncingDots />
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <div className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="rc-kicker">Suggested prompts</div>
+              <div className="rc-row" style={{ gap: 8 }}>
+                {SUGGESTED_QUESTIONS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    className="rc-btn rc-btn--sm"
+                    onClick={() => setQuestion(prompt)}
+                    style={{ justifyContent: 'flex-start' }}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <div className="rc-row" style={{ gap: 8 }}>
+                <textarea
+                  className="rc-input"
+                  data-testid="reader-question-input"
+                  style={{ flex: 1, minHeight: 48, maxHeight: 120, resize: 'vertical', fontSize: 13 }}
+                  value={question}
+                  onChange={e => setQuestion(e.target.value)}
+                  onKeyDown={handleKey}
+                  placeholder="Ask a question... (Enter to send)"
+                />
+                <button
+                  className="rc-btn rc-btn--primary"
+                  data-testid="reader-ask-button"
+                  onClick={askQuestion}
+                  disabled={loading || !canAsk}
+                  style={{ alignSelf: 'flex-end', padding: '10px 16px' }}
+                >
+                  {loading ? '...' : 'Ask'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="rc-workspace-rail">
+            <InsightCard
+              eyebrow="Reading mode"
+              title={isProject ? 'Whole project scope' : selectedPaper?.title || 'Single paper scope'}
+              body={isProject
+                ? 'Project scope is best for synthesis questions after you already processed enough papers.'
+                : 'Single-paper mode is best when you need precise support before extracting or citing.'}
+              tone="primary"
+              action={projectId ? <Link className="rc-btn rc-btn--sm" style={{ textDecoration: 'none' }} to={`/projects/${projectId}/meta`}>Go to Extraction</Link> : undefined}
+            />
+
+            <InsightCard
+              eyebrow="Evidence rail"
+              title={latestAssistantResult?.citations.length ? `${latestAssistantResult.citations.length} citation(s) in latest answer` : 'No citations yet'}
+              body={latestAssistantResult?.citations.length
+                ? 'Use the latest grounded answer to decide what should become notes, extraction targets or writing inputs.'
+                : 'Citations will appear here as soon as the assistant can ground an answer in processed evidence.'}
+              tone={latestAssistantResult?.citations.length ? 'success' : 'neutral'}
+            />
+
+            {latestAssistantResult?.citations.length ? (
+              <div className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="rc-card-title" style={{ marginBottom: 0 }}>Latest citations</div>
+                {latestAssistantResult.citations.slice(0, 4).map((citation, index) => (
+                  <div key={`${citation.paper_id}-${index}`} style={{ padding: 10, borderRadius: 12, background: 'var(--rc-surface-2)', fontSize: 12 }}>
+                    <div className="rc-help">Citation {index + 1} · page {citation.page ?? '—'}</div>
+                    <div style={{ marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{citation.quoted_text}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

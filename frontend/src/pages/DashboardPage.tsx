@@ -5,6 +5,12 @@ import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { DEMO_MODE, demoProjects, demoCounts } from '../services/demo';
 import type { Project, ProjectCounts } from '../types/api';
+import {
+  getProjectNextAction,
+  getWorkflowCompletion,
+  InsightCard,
+  PageHero,
+} from '../components/WorkflowPrimitives';
 
 function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
   return (
@@ -176,6 +182,9 @@ export default function DashboardPage() {
   const totalPapers = Object.values(countsMap).reduce((s, c) => s + c.papers, 0);
   const totalRefs = Object.values(countsMap).reduce((s, c) => s + c.references, 0);
   const totalNotes = Object.values(countsMap).reduce((s, c) => s + c.notes, 0);
+  const averageCompletion = active.length
+    ? Math.round(active.reduce((sum, project) => sum + getWorkflowCompletion(countsMap[project.id]), 0) / active.length)
+    : 0;
 
   return (
     <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -186,40 +195,48 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Hero */}
-      <div style={{ borderRadius: 20, padding: '28px 32px', background: 'linear-gradient(135deg,#1a1040 0%,#13122a 100%)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.5, backgroundImage: 'radial-gradient(circle at 80% 50%,rgba(139,92,246,0.18) 0%,transparent 50%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'white', letterSpacing: '-0.03em', fontFamily: 'var(--font-display)' }}>
-            {greeting}, {firstName}
-          </div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 6 }}>
-            {active.length === 0
-              ? 'Create your first project to get started with structured research.'
-              : `${active.length} active project${active.length !== 1 ? 's' : ''} · ${totalPapers} paper${totalPapers !== 1 ? 's' : ''} across your workspace`}
-          </div>
-          {DEMO_MODE && (
-            <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '4px 10px', fontSize: 12, color: 'rgba(245,158,11,0.9)' }}>
-              <span>⚡</span> Demo mode — UI preview with mock data
-            </div>
-          )}
-          <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setShowNewProject(true)}
-              className="rc-btn"
-              style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
-            >
-              + New Project
+      <PageHero
+        eyebrow={`${greeting}, ${firstName}`}
+        title="Pick up the next best step in your research"
+        subtitle={active.length === 0
+          ? 'Create your first project to move from search to library, reading, extraction, writing and analysis in one continuous workspace.'
+          : `${active.length} active project${active.length !== 1 ? 's' : ''} · ${totalPapers} paper${totalPapers !== 1 ? 's' : ''} across your workspace. The goal is not just to store work, but to keep momentum.`}
+        metrics={[
+          { label: 'active projects', value: active.length, tone: 'primary' },
+          { label: 'papers', value: totalPapers, tone: 'success' },
+          { label: 'references', value: totalRefs, tone: 'warning' },
+          { label: 'avg. completion', value: `${averageCompletion}%`, tone: 'neutral' },
+        ]}
+        actions={(
+          <>
+            <button onClick={() => setShowNewProject(true)} className="rc-btn rc-btn--primary">
+              + New project
             </button>
-            <Link to="/projects" className="rc-btn" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}>
-              All Projects
+            <Link to="/projects" className="rc-btn" style={{ textDecoration: 'none' }}>
+              View all projects
             </Link>
-            <Link to="/clinical" className="rc-btn" style={{ textDecoration: 'none', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}>
+            <Link to="/clinical" className="rc-btn" style={{ textDecoration: 'none' }}>
               Clinical Sheets
             </Link>
-          </div>
+          </>
+        )}
+        aside={(
+          <InsightCard
+            eyebrow="Workspace signal"
+            title={active.length === 0 ? 'No active projects yet' : `${totalNotes} notes already captured`}
+            body={active.length === 0
+              ? 'The fastest path to value is one project, one focused question and one paper set.'
+              : 'The next UX step is to turn these projects into a clearer “continue where you left off” flow.'}
+            tone={active.length === 0 ? 'warning' : 'primary'}
+          />
+        )}
+      />
+
+      {DEMO_MODE && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 12, padding: '6px 12px', fontSize: 12, color: 'rgba(245,158,11,0.92)', alignSelf: 'flex-start' }}>
+          <span>⚡</span> Demo mode — UI preview with mock data
         </div>
-      </div>
+      )}
 
       {/* Stats */}
       {!isLoading && active.length > 0 && (
@@ -235,10 +252,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Projects grid */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em' }}>Recent projects</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.03em' }}>Continue your projects</div>
+            <div className="rc-help">Each card now acts like a workflow checkpoint, not just a shortcut.</div>
+          </div>
           <Link to="/projects" style={{ fontSize: 12, color: 'var(--rc-primary)', textDecoration: 'none' }}>View all →</Link>
         </div>
         {isLoading ? (
@@ -259,23 +278,29 @@ export default function DashboardPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 14 }}>
             {active.slice(0, 6).map(p => {
               const c = countsMap[p.id];
+              const nextAction = getProjectNextAction(p.id, c);
+              const completion = getWorkflowCompletion(c);
               return (
                 <div
                   key={p.id}
                   className="rc-card rc-card--hover"
                   onClick={() => navigate(`/projects/${p.id}/research`)}
-                  style={{ display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer' }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12, cursor: 'pointer' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ fontWeight: 750, fontSize: 14, letterSpacing: '-0.02em', fontFamily: 'var(--font-display)', lineHeight: 1.35 }}>{p.title}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                      <div style={{ fontWeight: 750, fontSize: 16, letterSpacing: '-0.03em', fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>{p.title}</div>
+                      <div className="rc-help">{completion}% workflow complete</div>
+                    </div>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rc-muted)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 2 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </div>
                   {p.clinical_area && <div className="rc-help">{p.clinical_area}</div>}
+                  <div className="rc-progress"><div style={{ width: `${completion}%` }} /></div>
                   {c && (
-                    <div style={{ display: 'flex', gap: 14, marginTop: 'auto', paddingTop: 8, borderTop: '1px solid var(--rc-border)' }}>
+                    <div style={{ display: 'flex', gap: 14, marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--rc-border)', flexWrap: 'wrap' }}>
                       {([['Papers', c.papers, '#4f46e5'], ['Refs', c.references, '#d97706'], ['Notes', c.notes, '#7c3aed']] as [string, number, string][]).map(([l, v, col]) => (
                         <div key={l} style={{ fontSize: 12 }}>
                           <span style={{ fontWeight: 750, color: col }}>{v}</span>
@@ -284,6 +309,11 @@ export default function DashboardPage() {
                       ))}
                     </div>
                   )}
+                  <div style={{ borderRadius: 14, border: '1px solid rgba(67,56,202,0.12)', background: 'var(--rc-primary-weak)', padding: '12px 14px' }}>
+                    <div className="rc-kicker" style={{ marginBottom: 4 }}>Next best action</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{nextAction.label}</div>
+                    <div className="rc-help" style={{ color: 'var(--rc-text-secondary)' }}>{nextAction.description}</div>
+                  </div>
                 </div>
               );
             })}
@@ -291,9 +321,8 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Quick access */}
       <div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', marginBottom: 12 }}>Quick access</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', marginBottom: 12 }}>Specialized surfaces</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))', gap: 10 }}>
           {QUICK_ACCESS.map(item => (
             <Link key={item.to} to={item.to} style={{ textDecoration: 'none' }}>

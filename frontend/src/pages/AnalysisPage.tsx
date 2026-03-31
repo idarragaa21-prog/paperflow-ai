@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { EmptyState } from '../components/EmptyState';
 import { useI18n } from '../i18n';
+import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
 type Dataset = {
   id: string;
@@ -150,12 +151,25 @@ export default function AnalysisPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">{t.analysis.title}</h1>
-        <div className="rc-subtitle">{t.analysis.subtitle}</div>
-      </div>
+      <PageHero
+        eyebrow="Stage 6 · Analysis"
+        title={t.analysis.title}
+        subtitle="Analysis should feel guided, not purely technical. Build the dataset, choose the method, understand the inputs and then run the report."
+        metrics={[
+          { label: 'datasets', value: datasets.length, tone: 'primary' },
+          { label: 'runs', value: runs.length, tone: 'success' },
+          { label: 'active jobs', value: runs.filter((run) => ['queued', 'started', 'running', 'progress'].includes(run.status)).length, tone: 'warning' },
+        ]}
+      />
 
       {error ? <div className="rc-error">{error}</div> : null}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
+        <InsightCard eyebrow="Dataset" title="Start from structured rows" body="Use extracted rows as the default mental model. The cleaner the dataset, the easier the rest of the workflow becomes." tone="primary" />
+        <InsightCard eyebrow="Type" title="Choose the right method" body="Group comparison, regression and meta-analysis should explain their required inputs before you run them." tone="warning" />
+        <InsightCard eyebrow="Run" title="Keep runs reproducible" body="Every run should read like a reusable artifact, not a one-off button click." tone="success" />
+        <InsightCard eyebrow="Export" title="Ship the final report" body="Exports belong at the end of the workflow, after dataset and run state are already trustworthy." tone="neutral" />
+      </div>
 
       <div className="rc-card">
         <div className="rc-card-title">{t.analysis.datasetBuilder}</div>
@@ -225,6 +239,13 @@ export default function AnalysisPage() {
             </select>
           </div>
           <button className="rc-btn" data-testid="analysis-run-button" onClick={createRun} disabled={creatingDataset || runningAnalysis}>{t.analysis.run}</button>
+        </div>
+        <div className="rc-help" style={{ marginTop: 10 }}>
+          Suggested defaults:
+          {' '}`group_comparison` for simple A vs B numeric data,
+          {' '}`linear_regression` for continuous targets,
+          {' '}`logistic_regression` for binary outcomes,
+          {' '}`meta_analysis` once extraction already produced study-level effects.
         </div>
       </div>
 

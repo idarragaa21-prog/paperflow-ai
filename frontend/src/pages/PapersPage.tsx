@@ -1,11 +1,12 @@
 import { Fragment, useMemo, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useConfirm } from '../ui/Dialog/useConfirm';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
 import type { PaperDetailResponse, PaperDownloadTrace, PaperRow } from '../types/api';
+import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
 type StatusFilter = 'all' | 'ready' | 'processing' | 'pending' | 'failed';
 
@@ -183,6 +184,18 @@ export default function PapersPage() {
     () => papers.some(p => ['processing', 'queued'].includes((p.processing_status || '').toLowerCase())),
     [papers],
   );
+  const readyCount = useMemo(
+    () => papers.filter(p => ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase())).length,
+    [papers],
+  );
+  const pendingCount = useMemo(
+    () => papers.filter(p => ['uploaded', ''].includes((p.processing_status || '').toLowerCase())).length,
+    [papers],
+  );
+  const failedCount = useMemo(
+    () => papers.filter(p => (p.processing_status || '').toLowerCase() === 'failed').length,
+    [papers],
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -270,9 +283,51 @@ export default function PapersPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Library</h1>
-        <div className="rc-subtitle">Curate PDFs, deduplicate sources, process full text and build a reusable project library.</div>
+      <PageHero
+        eyebrow="Stage 2 · Library"
+        title="Library"
+        subtitle="The library is where discovery becomes a working corpus. Add sources, process them, inspect traces and hand off the best papers to Reader and Extraction."
+        metrics={[
+          { label: 'papers in library', value: papers.length, tone: 'primary' },
+          { label: 'ready to use', value: readyCount, tone: 'success' },
+          { label: 'pending process', value: pendingCount, tone: 'warning' },
+          { label: 'failed', value: failedCount, tone: 'neutral' },
+        ]}
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
+        <InsightCard
+          eyebrow="Add"
+          title="Bring papers in"
+          body="Upload PDFs or resolve OA content by DOI/PMID. This is the intake lane for the project."
+          tone="primary"
+          action={<button className="rc-btn rc-btn--sm" onClick={() => setUploadOpen(!uploadOpen)}>{uploadOpen ? 'Hide intake' : 'Open intake'}</button>}
+        />
+        <InsightCard
+          eyebrow="Process"
+          title="Queue the full-text pipeline"
+          body={hasProcessing ? 'The pipeline is currently processing papers. Auto-refresh is enabled while jobs run.' : 'Run processing on pending papers to unlock Reader and Extraction.'}
+          tone="warning"
+          action={<button className="rc-btn rc-btn--sm" onClick={processAllPending}>Process pending</button>}
+        />
+        <InsightCard
+          eyebrow="Review"
+          title="Check readiness and trace"
+          body="Use status, source and download trace to verify what is actually usable before you rely on it downstream."
+          tone="neutral"
+        />
+        <InsightCard
+          eyebrow="Use"
+          title="Send the library downstream"
+          body="Once enough papers are ready, move into Reader for grounded questioning or Extraction for structured evidence."
+          tone="success"
+          action={(
+            <div className="rc-row" style={{ gap: 6 }}>
+              <Link className="rc-btn rc-btn--sm" style={{ textDecoration: 'none' }} to={`/projects/${projectId}/reader`}>Reader</Link>
+              <Link className="rc-btn rc-btn--sm" style={{ textDecoration: 'none' }} to={`/projects/${projectId}/meta`}>Extract</Link>
+            </div>
+          )}
+        />
       </div>
 
       {hasProcessing && !dismissBanner && (
@@ -287,7 +342,7 @@ export default function PapersPage() {
       {/* ── Upload panel ── */}
       <div className="rc-card" style={{ padding: uploadOpen ? 14 : '10px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setUploadOpen(!uploadOpen)}>
-          <span style={{ fontWeight: 800, fontSize: 13 }}>+ Add papers</span>
+          <span style={{ fontWeight: 800, fontSize: 13 }}>Add papers to the library</span>
           <span style={{ fontSize: 11, opacity: 0.6 }}>{uploadOpen ? '▲ Collapse' : '▼ Expand'}</span>
         </div>
         {uploadOpen && (

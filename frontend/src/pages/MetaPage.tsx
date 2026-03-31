@@ -8,6 +8,7 @@ import { useJobPolling } from '../hooks/useJobPolling';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { EmptyState } from '../components/EmptyState';
 import SectionErrorBoundary from '../components/SectionErrorBoundary';
+import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
 type BatchRow = {
   id: string;
@@ -243,9 +244,23 @@ export default function MetaPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Extraction Workspace</h1>
-        <div className="rc-subtitle">Batch upload PDFs, extract structured study data, review effect sizes and export reusable datasets.</div>
+      <PageHero
+        eyebrow="Stage 4 · Extraction"
+        title="Convert processed papers into reviewable structured evidence"
+        subtitle="Move from raw PDFs to batches, extraction status, study review and export. The workspace is still powerful, but now more explicitly organized by stage."
+        metrics={[
+          { label: 'batches', value: batches.length, tone: 'primary' },
+          { label: 'running items', value: runningItems.length, tone: 'warning' },
+          { label: 'studies', value: studies.length, tone: 'success' },
+          { label: 'exports', value: exportsList.length, tone: 'neutral' },
+        ]}
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
+        <InsightCard eyebrow="Batch" title="Create an extraction batch" body="Start with a named batch so the extraction job stays legible and easy to revisit." tone="primary" />
+        <InsightCard eyebrow="Status" title="Track processing in one place" body="Running items, failed rows and retries should feel like a queue, not a mystery." tone="warning" />
+        <InsightCard eyebrow="Review" title="Inspect structured studies" body="The goal is not just auto-extraction, but clean human review of study rows and effect sizes." tone="success" />
+        <InsightCard eyebrow="Export" title="Ship reusable datasets" body="Export should be the final stage after the study view is trustworthy." tone="neutral" />
       </div>
 
       {/* Page skeleton while loading */}
@@ -262,7 +277,7 @@ export default function MetaPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'clamp(280px, 32%, 400px) 1fr', gap: 12 }}>
+      <div className="rc-workspace-grid" style={{ gridTemplateColumns: 'minmax(280px, 380px) minmax(0, 1fr)' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="rc-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -410,7 +425,7 @@ export default function MetaPage() {
         </div>
 
         <div className="rc-card">
-          <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 12 }}>
+          <div className="rc-workspace-grid" style={{ gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="rc-card-title" style={{ marginBottom: 0 }}>Studies</div>

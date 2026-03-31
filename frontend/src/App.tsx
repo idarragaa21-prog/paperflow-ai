@@ -74,10 +74,9 @@ export default function App() {
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:projectId" element={<ProjectLayout />}>
                 <Route index element={<Navigate to="research" replace />} />
-                <Route path="search" element={<SearchPage />} />
+                {/* Canonical project workflow paths */}
                 <Route path="research" element={<SearchPage />} />
                 <Route path="reader" element={<ReaderPage />} />
-                <Route path="papers" element={<PapersPage />} />
                 <Route path="library" element={<PapersPage />} />
                 <Route path="notes" element={<NotesPage />} />
                 <Route path="presentations" element={<PresentationsPage />} />
@@ -87,10 +86,14 @@ export default function App() {
                 <Route path="analysis" element={<AnalysisPage />} />
                 <Route path="screening" element={<ScreeningPage />} />
                 <Route path="collaboration" element={<CollaborationPage />} />
+                {/* Legacy aliases kept as redirects-in-place for compatibility */}
+                <Route path="search" element={<SearchPage />} />
+                <Route path="papers" element={<PapersPage />} />
               </Route>
               <Route path="/clinical" element={<ClinicalPage />} />
               <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />
               <Route path="/knowledge" element={<BooksPage />} />
+              {/* Legacy alias */}
               <Route path="/books" element={<Navigate to="/knowledge" replace />} />
               <Route path="/deep-research" element={<DeepResearchPage />} />
               <Route path="/jobs" element={<JobsPage />} />

@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { EmptyState } from '../components/EmptyState';
+import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
 type EvidenceTable = {
   id: string;
@@ -159,12 +160,23 @@ ${sections}
     toast.success('Exported', `${draft.title} downloaded as HTML.`);
   }
 
+  const focusedDraft = drafts.find((draft) => draft.id === selectedDraft) || drafts[0] || null;
+  const focusedSections = focusedDraft
+    ? [...focusedDraft.sections].sort((a, b) => a.position - b.position)
+    : [];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div>
-        <h1 className="rc-page-title">Writing Studio</h1>
-        <div className="rc-subtitle">Create drafts, generate grounded sections and keep citations attached to the prose.</div>
-      </div>
+      <PageHero
+        eyebrow="Stage 5 · Writing"
+        title="Turn extracted evidence into a manuscript canvas"
+        subtitle="Writing should feel like one continuous workspace with structure, editable prose and evidence close at hand, not like a list of disconnected draft actions."
+        metrics={[
+          { label: 'drafts', value: drafts.length, tone: 'primary' },
+          { label: 'sections', value: drafts.reduce((sum, draft) => sum + draft.sections.length, 0), tone: 'success' },
+          { label: 'evidence tables', value: tables.length, tone: 'warning' },
+        ]}
+      />
 
       {error && <div className="rc-error">{error}</div>}
 
@@ -213,10 +225,34 @@ ${sections}
           <button className="rc-btn rc-btn--primary" data-testid="draft-enhance-clinical-button" onClick={enhanceWithClinical} disabled={busy || !selectedDraft}>Enriquecer con evidencia</button>
         </div>
       </div>
-
       {!initialLoading && (
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }} className="rc-grid2">
-        {/* Draft contents */}
+      <div className="rc-manuscript-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <InsightCard
+            eyebrow="Outline"
+            title={focusedDraft ? focusedDraft.title : 'No draft selected'}
+            body={focusedDraft
+              ? 'Use the outline to navigate the manuscript structure and keep section generation intentional.'
+              : 'Create a draft first so the writing canvas has structure.'}
+            tone="primary"
+          />
+          <div className="rc-card">
+            <div className="rc-card-title">Manuscript outline</div>
+            {focusedSections.length === 0 ? <div className="rc-muted">No sections yet.</div> : null}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {focusedSections.map((section) => (
+                <button
+                  key={section.id}
+                  className="rc-btn"
+                  style={{ justifyContent: 'flex-start', textAlign: 'left', padding: '10px 12px' }}
+                  onClick={() => startEdit(section)}
+                >
+                  <span style={{ fontWeight: 700 }}>{section.heading}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
         <div className="rc-card">
           <div className="rc-card-title">Draft contents</div>
 
@@ -276,9 +312,11 @@ ${sections}
           ))}
         </div>
 
-        {/* Evidence tables */}
         <div className="rc-card">
           <div className="rc-card-title">Evidence tables</div>
+          <div className="rc-help" style={{ marginBottom: 10 }}>
+            Keep the evidence surface visible while you write so the draft stays grounded and citations remain actionable.
+          </div>
           {tables.length === 0 ? <div className="rc-muted">No evidence tables yet.</div> : null}
           {tables.map(table => (
             <div key={table.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>

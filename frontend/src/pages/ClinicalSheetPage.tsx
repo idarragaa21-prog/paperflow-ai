@@ -41,6 +41,9 @@ export default function ClinicalSheetPage() {
   const vm = useClinicalSheet(sheetId);
 
   const [notice, setNotice] = useState<string | null>(null);
+  const [outlineOpen, setOutlineOpen] = useState(true);
+  const [evidenceOpen, setEvidenceOpen] = useState(true);
+  const workspaceColumns = `${outlineOpen ? '280px ' : ''}minmax(0,1fr)${evidenceOpen ? ' 340px' : ''}`;
 
   async function doUpdate() {
     if (!sheetId) return;
@@ -121,8 +124,8 @@ export default function ClinicalSheetPage() {
 
   if (vm.status === 'loading' && !vm.sheet) {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 360px', gap: 12, alignItems: 'start' }}>
-        <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: workspaceColumns, gap: 12, alignItems: 'start' }}>
+        {outlineOpen ? <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
           <div className="rc-card-title">Outline</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Skeleton height={12} width="85%" />
@@ -131,7 +134,7 @@ export default function ClinicalSheetPage() {
             <Skeleton height={12} width="64%" />
             <Skeleton height={12} width="78%" />
           </div>
-        </aside>
+        </aside> : null}
 
         <main>
           <div className="rc-card" style={{ position: 'sticky', top: 12, zIndex: 5 }}>
@@ -155,7 +158,7 @@ export default function ClinicalSheetPage() {
           </div>
         </main>
 
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12, height: 'fit-content' }}>
+        {evidenceOpen ? <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12, height: 'fit-content' }}>
           <div className="rc-card">
             <div className="rc-card-title">Versions</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -169,7 +172,7 @@ export default function ClinicalSheetPage() {
             <div className="rc-card-title">Evidence</div>
             <SkeletonLines lines={6} lineHeight={12} lastLineWidth="55%" />
           </div>
-        </aside>
+        </aside> : null}
       </div>
     );
   }
@@ -190,8 +193,8 @@ export default function ClinicalSheetPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <Breadcrumb items={breadcrumbItems} />
-    <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 360px', gap: 12, alignItems: 'start' }}>
-      <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: workspaceColumns, gap: 12, alignItems: 'start' }}>
+      {outlineOpen ? <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>
         <div className="rc-card-title">Outline</div>
         {vm.toc.length === 0 ? <div className="rc-muted">No headings.</div> : null}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -203,7 +206,7 @@ export default function ClinicalSheetPage() {
         </div>
         <div style={{ height: 10 }} />
         <div className="rc-help">Tip: use the outline to jump between sections.</div>
-      </aside>
+      </aside> : null}
 
       <main>
         <div className="rc-card" style={{ position: 'sticky', top: 12, zIndex: 5 }}>
@@ -224,6 +227,12 @@ export default function ClinicalSheetPage() {
             </div>
 
             <div className="rc-row">
+              <button className="rc-btn" onClick={() => setOutlineOpen((value) => !value)}>
+                {outlineOpen ? 'Hide outline' : 'Show outline'}
+              </button>
+              <button className="rc-btn" onClick={() => setEvidenceOpen((value) => !value)}>
+                {evidenceOpen ? 'Hide evidence rail' : 'Show evidence rail'}
+              </button>
               <button className="rc-btn" onClick={vm.refresh} disabled={vm.status === 'loading'}>
                 {vm.status === 'loading' ? 'Refreshing…' : 'Refresh'}
               </button>
@@ -270,7 +279,7 @@ export default function ClinicalSheetPage() {
         </div>
       </main>
 
-      <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12, height: 'fit-content' }}>
+      {evidenceOpen ? <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 12, height: 'fit-content' }}>
         <div className="rc-card">
           <div className="rc-card-title">Versions</div>
           {vm.versions.length === 0 ? <div className="rc-muted">No versions.</div> : null}
@@ -345,7 +354,7 @@ export default function ClinicalSheetPage() {
             </div>
           );
         })()}
-      </aside>
+      </aside> : null}
     </div>
     </div>
   );

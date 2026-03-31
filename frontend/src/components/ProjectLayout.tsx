@@ -6,6 +6,14 @@ import { useJobPolling } from '../hooks/useJobPolling';
 import { Breadcrumb } from './Breadcrumb';
 import { useToast } from '../ui/Toast/ToastProvider';
 import {
+  getProjectNextAction,
+  getWorkflowCompletion,
+  InsightCard,
+  PageHero,
+  ProjectWorkflowRail,
+  type WorkflowStageKey,
+} from './WorkflowPrimitives';
+import {
   PROJECT_CONTENT_CHANGED_EVENT,
   type ProjectContentChangedDetail,
 } from '../utils/projectEvents';
@@ -30,17 +38,14 @@ type Dashboard = {
   };
 };
 
-function Tab({ to, label }: { to: string; label: string }) {
-  return (
-    <NavLink
-      to={to}
-      end
-      className={({ isActive }) => `rc-nav-item ${isActive ? 'rc-nav-item--active' : ''}`}
-      style={{ padding: '8px 10px', borderRadius: 10, whiteSpace: 'nowrap' }}
-    >
-      {label}
-    </NavLink>
-  );
+function currentStage(pathname: string): WorkflowStageKey | undefined {
+  if (pathname.includes('/library') || pathname.includes('/papers')) return 'library';
+  if (pathname.includes('/reader')) return 'reader';
+  if (pathname.includes('/meta')) return 'extract';
+  if (pathname.includes('/drafts')) return 'write';
+  if (pathname.includes('/analysis')) return 'analysis';
+  if (pathname.includes('/research') || pathname.includes('/search')) return 'research';
+  return undefined;
 }
 
 export default function ProjectLayout() {
@@ -52,6 +57,8 @@ export default function ProjectLayout() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const counts = dashboard?.counts;
+  const stage = currentStage(location.pathname);
 
   const exportJob = useJobPolling(exportJobId, {
     onCompleted: () => toast.success('Export ready', 'ZIP is ready to download.'),
@@ -151,93 +158,72 @@ export default function ProjectLayout() {
     );
   }
 
+  const nextAction = getProjectNextAction(projectId, counts);
+  const completion = getWorkflowCompletion(counts);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
-      {/* Breadcrumb */}
       <Breadcrumb items={[
         { label: 'Projects', to: '/projects' },
         { label: project?.title || 'Project' },
       ]} />
 
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div>
-            <h1 className="rc-page-title" style={{ marginBottom: 0 }}>{project?.title || 'Project'}</h1>
-            {project?.clinical_area
-              ? <div className="rc-subtitle">{project.clinical_area}</div>
-              : <div className="rc-subtitle">Research project workspace</div>
-            }
-            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                className="rc-btn rc-btn--primary rc-btn--sm"
-                style={{ gap: 5 }}
-                onClick={() => navigate(`/clinical?from_project=${projectId}`)}
-              >
-                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 2v4M8 4h4"/><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M7 10h6M7 13h4"/></svg>
-                Generate Clinical Sheet
-                {(dashboard?.counts?.papers ?? 0) > 0 && (
-                  <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 6, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>
-                    {dashboard!.counts.papers} paper{dashboard!.counts.papers !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {[
-              { label: 'Papers', value: dashboard?.counts?.papers ?? '—', color: 'var(--rc-info)' },
-              { label: 'Notes', value: dashboard?.counts?.notes ?? '—', color: 'var(--rc-success)' },
-              { label: 'Refs', value: dashboard?.counts?.references ?? '—', color: 'var(--rc-warning)' },
-              { label: 'Extracted', value: dashboard?.counts?.meta_studies_current ?? '—', color: 'var(--rc-primary)' },
-            ].map(s => (
-              <div key={s.label} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                background: 'var(--rc-surface)', border: '1px solid var(--rc-border)',
-                borderRadius: 10, padding: '7px 12px', boxShadow: 'var(--rc-shadow-xs)',
-                minWidth: 52,
-              }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800, lineHeight: 1, color: s.color }}>{s.value}</span>
-                <span style={{ fontSize: 10, color: 'var(--rc-muted)', fontWeight: 600 }}>{s.label}</span>
-              </div>
-            ))}
-
-            <button className="rc-btn rc-btn--sm" onClick={startExportZip} style={{ gap: 5 }} disabled={exportJob.isRunning}>
-              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M10 3v10M5 13l5 5 5-5"/><path d="M3 17h14"/>
-              </svg>
-              {exportJob.isRunning ? `${exportJob.status?.progress ?? 0}%` : 'Export ZIP'}
+      <PageHero
+        eyebrow="Project workflow"
+        title={project?.title || 'Project'}
+        subtitle={project?.clinical_area || 'Move from evidence discovery to extraction, writing and final analysis in one continuous workspace.'}
+        metrics={[
+          { label: 'workflow completion', value: `${completion}%`, tone: 'primary' },
+          { label: 'papers', value: counts?.papers ?? '—', tone: 'success' },
+          { label: 'studies', value: counts?.meta_studies_current ?? '—', tone: 'warning' },
+          { label: 'references', value: counts?.references ?? '—', tone: 'neutral' },
+        ]}
+        actions={(
+          <>
+            <Link className="rc-btn rc-btn--primary" style={{ textDecoration: 'none' }} to={nextAction.to}>
+              {nextAction.label}
+            </Link>
+            <button
+              className="rc-btn"
+              style={{ gap: 5 }}
+              onClick={() => navigate(`/clinical?from_project=${projectId}`)}
+            >
+              Generate Clinical Sheet
             </button>
-
+            <button className="rc-btn" onClick={startExportZip} disabled={exportJob.isRunning}>
+              {exportJob.isRunning ? `${exportJob.status?.progress ?? 0}%` : 'Export project ZIP'}
+            </button>
             {exportJob.isDone && (
-              <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={downloadZip}>⬇ Download</button>
+              <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Download ZIP</button>
             )}
-          </div>
-        </div>
-
-        {error && project && (
-          <div className="rc-error" style={{ fontSize: 12, marginTop: 8 }}>{String(error)}</div>
+          </>
         )}
-      </div>
+        aside={(
+          <InsightCard
+            eyebrow="Next recommended action"
+            title={nextAction.label}
+            body={nextAction.description}
+            tone="primary"
+            action={<Link className="rc-btn rc-btn--primary rc-btn--sm" style={{ textDecoration: 'none' }} to={nextAction.to}>Continue</Link>}
+          />
+        )}
+      />
 
-      <div className="rc-card rc-tab-scroll" style={{ padding: 10 }}>
-        <div className="rc-row" style={{ gap: 6, overflowX: 'auto', flexWrap: 'nowrap' }}>
-          <Tab to={`/projects/${projectId}/research`} label="Research" />
-          <Tab to={`/projects/${projectId}/reader`} label="Reader" />
-          <Tab to={`/projects/${projectId}/library`} label="Library" />
-          <Tab to={`/projects/${projectId}/meta`} label="Extraction" />
-          <Tab to={`/projects/${projectId}/references`} label="References" />
-          <Tab to={`/projects/${projectId}/drafts`} label="Drafts" />
-          <Tab to={`/projects/${projectId}/analysis`} label="Analysis" />
-          <Tab to={`/projects/${projectId}/screening`} label="Screening" />
-          <Tab to={`/projects/${projectId}/collaboration`} label="Team" />
-          <Tab to={`/projects/${projectId}/notes`} label="Notes" />
+      {error && project ? <div className="rc-error" style={{ fontSize: 12 }}>{String(error)}</div> : null}
+
+      <ProjectWorkflowRail projectId={projectId} counts={counts} current={stage} />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="rc-kicker" style={{ marginBottom: 0 }}>Supporting tools</div>
+        <div className="rc-support-nav">
+          <NavLink to={`/projects/${projectId}/references`} className="rc-support-pill">References</NavLink>
+          <NavLink to={`/projects/${projectId}/screening`} className="rc-support-pill">Screening</NavLink>
+          <NavLink to={`/projects/${projectId}/collaboration`} className="rc-support-pill">Team</NavLink>
+          <NavLink to={`/projects/${projectId}/notes`} className="rc-support-pill">Notes</NavLink>
         </div>
       </div>
 
-      <div className="rc-card">
-        <Outlet />
-      </div>
+      <Outlet />
     </div>
   );
 }

@@ -5,6 +5,11 @@ import { api } from '../services/api';
 import { DEMO_MODE, demoProjects, demoCounts } from '../services/demo';
 import { useConfirm } from '../ui/Dialog/useConfirm';
 import type { Project, ProjectCounts } from '../types/api';
+import {
+  getProjectNextAction,
+  getWorkflowCompletion,
+  PageHero,
+} from '../components/WorkflowPrimitives';
 
 function EmptyState({ archived }: { archived: boolean }) {
   return (
@@ -97,15 +102,21 @@ export default function ProjectsPage() {
 
   return (
     <div className="rc-page-enter" style={{ display:'flex',flexDirection:'column',gap:20 }}>
-      <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap' }}>
-        <div>
-          <h1 className="rc-page-title">Projects</h1>
-          <div className="rc-subtitle">Organize your research, libraries, extraction and writing by project.</div>
-        </div>
-        <button className="rc-btn rc-btn--primary" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? 'Cancel' : '+ New project'}
-        </button>
-      </div>
+      <PageHero
+        eyebrow="Project portfolio"
+        title="Turn every project into a visible workflow"
+        subtitle="Projects should not feel like folders. They should tell you what stage you are in, what is missing and what to do next."
+        metrics={[
+          { label: 'active', value: projects.filter(p => !p.archived).length, tone: 'primary' },
+          { label: 'archived', value: projects.filter(p => p.archived).length, tone: 'neutral' },
+          { label: 'visible cards', value: filtered.length, tone: 'success' },
+        ]}
+        actions={(
+          <button className="rc-btn rc-btn--primary" onClick={() => setShowCreate(!showCreate)}>
+            {showCreate ? 'Cancel' : '+ New project'}
+          </button>
+        )}
+      />
 
       {showCreate && (
         <div className="rc-card" style={{ borderColor:'rgba(99,102,241,0.25)',background:'rgba(99,102,241,0.02)' }}>
@@ -142,20 +153,22 @@ export default function ProjectsPage() {
       </div>
 
       {isLoading ? (
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12 }}>
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:14 }}>
           {[1,2,3,4].map(i=><div key={i} className="rc-card rc-skeleton" style={{ height:140 }}/>)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="rc-card"><EmptyState archived={tab==='archived'}/></div>
       ) : (
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:12 }}>
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:14 }}>
           {filtered.map(p => {
             const counts = countsMap[p.id];
+            const nextAction = getProjectNextAction(p.id, counts);
+            const completion = getWorkflowCompletion(counts);
             return (
-              <div key={p.id} className="rc-card rc-card--hover" style={{ display:'flex',flexDirection:'column',gap:10 }}>
+              <div key={p.id} className="rc-card rc-card--hover" style={{ display:'flex',flexDirection:'column',gap:12 }}>
                 <div style={{ display:'flex',gap:8,alignItems:'flex-start',justifyContent:'space-between' }}>
                   <div style={{ flex:1,cursor:'pointer' }} onClick={()=>navigate(`/projects/${p.id}/research`)}>
-                    <div style={{ fontWeight:750,fontSize:14,letterSpacing:'-0.02em',fontFamily:'var(--font-display)',lineHeight:1.35 }}>{p.title}</div>
+                    <div style={{ fontWeight:800,fontSize:16,letterSpacing:'-0.03em',fontFamily:'var(--font-display)',lineHeight:1.25 }}>{p.title}</div>
                     {p.clinical_area && <div className="rc-help" style={{ marginTop:3 }}>{p.clinical_area}</div>}
                   </div>
                   {!p.archived && !DEMO_MODE && (
@@ -176,6 +189,12 @@ export default function ProjectsPage() {
                     </button>
                   )}
                 </div>
+                {!p.archived && (
+                  <>
+                    <div className="rc-help">{completion}% workflow complete</div>
+                    <div className="rc-progress"><div style={{ width: `${completion}%` }} /></div>
+                  </>
+                )}
                 {counts && !p.archived && (
                   <div style={{ display:'flex',gap:12,paddingTop:10,borderTop:'1px solid var(--rc-border)',flexWrap:'wrap' }}>
                     {[['Papers',counts.papers,'#4f46e5'],['Refs',counts.references,'#d97706'],['Notes',counts.notes,'#7c3aed'],['Meta',counts.meta_studies_current,'#059669']].map(([l,v,c])=>(
@@ -187,9 +206,21 @@ export default function ProjectsPage() {
                   </div>
                 )}
                 {!p.archived && (
-                  <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={()=>navigate(`/projects/${p.id}/research`)} style={{ alignSelf:'flex-start',marginTop:2 }}>
-                    Open →
-                  </button>
+                  <div style={{ borderRadius: 14, border: '1px solid rgba(67,56,202,0.14)', background: 'var(--rc-primary-weak)', padding: '12px 14px' }}>
+                    <div className="rc-kicker" style={{ marginBottom: 4 }}>Next best action</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{nextAction.label}</div>
+                    <div className="rc-help" style={{ color: 'var(--rc-text-secondary)' }}>{nextAction.description}</div>
+                  </div>
+                )}
+                {!p.archived && (
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={()=>navigate(nextAction.to)} style={{ alignSelf:'flex-start',marginTop:2 }}>
+                      {nextAction.label}
+                    </button>
+                    <button className="rc-btn rc-btn--sm" onClick={()=>navigate(`/projects/${p.id}/research`)} style={{ alignSelf:'flex-start',marginTop:2 }}>
+                      Open workspace
+                    </button>
+                  </div>
                 )}
                 {p.archived && <span className="rc-tag rc-tag--slate" style={{ alignSelf:'flex-start' }}>Archived</span>}
               </div>

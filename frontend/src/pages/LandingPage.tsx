@@ -159,9 +159,30 @@ const heroText = {
 };
 
 const sectionTitles = {
-  en: { features: 'Everything you need for research', compare: 'Why PaperFlow?', compareSub: 'vs. cloud-based alternatives', cta: 'Ready to own your research?', ctaSub: 'Free forever. No credit card. No cloud.' },
-  es: { features: 'Todo lo que necesitas para investigar', compare: '¿Por qué PaperFlow?', compareSub: 'vs. alternativas en la nube', cta: '¿Listo para ser dueño de tu investigación?', ctaSub: 'Gratis para siempre. Sin tarjeta de crédito. Sin nube.' },
-  pt: { features: 'Tudo que você precisa para pesquisar', compare: 'Por que PaperFlow?', compareSub: 'vs. alternativas na nuvem', cta: 'Pronto para ser dono da sua pesquisa?', ctaSub: 'Grátis para sempre. Sem cartão de crédito. Sem nuvem.' },
+  en: { features: 'One guided workflow for research', compare: 'Why PaperFlow?', compareSub: 'vs. cloud-based alternatives', cta: 'Ready to own your research?', ctaSub: 'Free forever. No credit card. No cloud.' },
+  es: { features: 'Un flujo guiado para investigar', compare: '¿Por qué PaperFlow?', compareSub: 'vs. alternativas en la nube', cta: '¿Listo para ser dueño de tu investigación?', ctaSub: 'Gratis para siempre. Sin tarjeta de crédito. Sin nube.' },
+  pt: { features: 'Um fluxo guiado para pesquisar', compare: 'Por que PaperFlow?', compareSub: 'vs. alternativas na nuvem', cta: 'Pronto para ser dono da sua pesquisa?', ctaSub: 'Grátis para sempre. Sem cartão de crédito. Sem nuvem.' },
+};
+
+const workflowSteps = {
+  en: [
+    { n: '01', title: 'Search', desc: 'Start with federated search and build a shortlist of relevant studies.' },
+    { n: '02', title: 'Library', desc: 'Download, process and curate the papers you actually want to use.' },
+    { n: '03', title: 'Extract + Write', desc: 'Turn full text into structured evidence and grounded manuscript sections.' },
+    { n: '04', title: 'Analyze + Share', desc: 'Run reproducible analysis and export clinical sheets or reports.' },
+  ],
+  es: [
+    { n: '01', title: 'Search', desc: 'Empieza con búsqueda federada y arma una shortlist de estudios relevantes.' },
+    { n: '02', title: 'Library', desc: 'Descarga, procesa y organiza los papers que realmente vas a usar.' },
+    { n: '03', title: 'Extract + Write', desc: 'Convierte texto completo en evidencia estructurada y secciones redactadas.' },
+    { n: '04', title: 'Analyze + Share', desc: 'Ejecuta análisis reproducibles y exporta fichas clínicas o reportes.' },
+  ],
+  pt: [
+    { n: '01', title: 'Search', desc: 'Comece com busca federada e monte uma shortlist de estudos relevantes.' },
+    { n: '02', title: 'Library', desc: 'Baixe, processe e organize os papers que você realmente vai usar.' },
+    { n: '03', title: 'Extract + Write', desc: 'Transforme texto completo em evidência estruturada e seções redigidas.' },
+    { n: '04', title: 'Analyze + Share', desc: 'Execute análises reproduzíveis e exporte fichas clínicas ou relatórios.' },
+  ],
 };
 
 export default function LandingPage() {
@@ -169,6 +190,7 @@ export default function LandingPage() {
   const hero = heroText[locale];
   const titles = sectionTitles[locale];
   const comp = comparisons[locale];
+  const steps = workflowSteps[locale];
 
   return (
     <div style={{ background: '#0a0a12', color: 'white', minHeight: '100vh', fontFamily: "'DM Sans', sans-serif" }}>
@@ -253,13 +275,36 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 72px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 28 }}>
+          <h2 style={{ fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 900, letterSpacing: '-0.03em', margin: 0 }}>
+            {titles.features}
+          </h2>
+          <p style={{ margin: 0, maxWidth: 680, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
+            PaperFlow works best when it feels like one continuous research workspace, not a menu of disconnected AI tricks.
+          </p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          {steps.map((step) => (
+            <div key={step.n} style={{ padding: 22, borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(129,140,248,0.9)', marginBottom: 12 }}>{step.n}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 8 }}>{step.title}</div>
+              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.65 }}>{step.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 80px' }}>
-        <h2 style={{ textAlign: 'center', fontSize: 'clamp(24px, 4vw, 40px)', fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 48 }}>
-          {titles.features}
+        <h2 style={{ textAlign: 'center', fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 12 }}>
+          Supporting capabilities
         </h2>
+        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.42)', maxWidth: 620, margin: '0 auto 36px', lineHeight: 1.7 }}>
+          These are not random tools. They are the specialist surfaces that support the core search-to-writing workflow.
+        </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
-          {features.map((f, i) => (
+          {features.slice(0, 4).map((f, i) => (
             <div key={i} style={{
               padding: 28, borderRadius: 20, border: '1px solid rgba(255,255,255,0.07)',
               background: 'rgba(255,255,255,0.02)', transition: 'border-color 200ms',

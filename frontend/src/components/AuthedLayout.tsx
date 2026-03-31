@@ -51,16 +51,16 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
       </div>
 
       <nav className="rc-nav">
-        <div className="rc-nav-section">{t.nav.overview}</div>
+        <div className="rc-nav-section">Workspace</div>
         <NavItem to="/dashboard" label={t.nav.dashboard} Icon={Icons.Dashboard} onClick={onNav} />
         <NavItem to="/projects" label={t.nav.projects} Icon={Icons.Projects} onClick={onNav} />
 
-        <div className="rc-nav-section">{t.nav.tools}</div>
+        <div className="rc-nav-section">Specialized flows</div>
         <NavItem to="/clinical" label={t.nav.clinical} Icon={Icons.Clinical} onClick={onNav} />
         <NavItem to="/deep-research" label={t.nav.deepResearch} Icon={Icons.DeepResearch} onClick={onNav} />
         <NavItem to="/knowledge" label={t.nav.books} Icon={Icons.Books} onClick={onNav} />
 
-        <div className="rc-nav-section">{t.nav.system}</div>
+        <div className="rc-nav-section">Operations</div>
         <NavItem to="/jobs" label={t.nav.jobs} Icon={Icons.Jobs} onClick={onNav} />
         <NavItem to="/settings" label={t.nav.settings} Icon={Icons.Settings} onClick={onNav} />
       </nav>
