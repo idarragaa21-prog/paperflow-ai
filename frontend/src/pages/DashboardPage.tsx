@@ -8,6 +8,7 @@ import type { Project, ProjectCounts } from '../types/api';
 import {
   getProjectNextAction,
   getWorkflowCompletion,
+  getWorkflowStages,
   InsightCard,
   PageHero,
 } from '../components/WorkflowPrimitives';
@@ -185,6 +186,11 @@ export default function DashboardPage() {
   const averageCompletion = active.length
     ? Math.round(active.reduce((sum, project) => sum + getWorkflowCompletion(countsMap[project.id]), 0) / active.length)
     : 0;
+  const spotlightProject = active[0] ?? null;
+  const spotlightCounts = spotlightProject ? countsMap[spotlightProject.id] : undefined;
+  const spotlightCompletion = spotlightProject ? getWorkflowCompletion(spotlightCounts) : 0;
+  const spotlightNextAction = spotlightProject ? getProjectNextAction(spotlightProject.id, spotlightCounts) : null;
+  const spotlightStages = spotlightProject ? getWorkflowStages(spotlightProject.id, spotlightCounts).slice(0, 6) : [];
 
   return (
     <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -238,6 +244,70 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {!isLoading && spotlightProject && spotlightNextAction && (
+        <section className="rc-spotlight">
+          <div className="rc-spotlight__main">
+            <div className="rc-spotlight__eyebrow">Project spotlight</div>
+            <h2 className="rc-spotlight__title">{spotlightProject.title}</h2>
+            <p className="rc-spotlight__subtitle">
+              {spotlightProject.clinical_area
+                ? `${spotlightProject.clinical_area} · `
+                : ''}
+              This project is the clearest place to continue momentum right now. Keep the workflow moving from research to extraction, then into writing and analysis.
+            </p>
+            <div className="rc-spotlight__meta">
+              <div className="rc-spotlight__meta-item">
+                <span className="rc-spotlight__meta-value">{spotlightCompletion}%</span>
+                <span className="rc-spotlight__meta-label">Workflow complete</span>
+              </div>
+              <div className="rc-spotlight__meta-item">
+                <span className="rc-spotlight__meta-value">{spotlightCounts?.papers ?? 0}</span>
+                <span className="rc-spotlight__meta-label">Papers in scope</span>
+              </div>
+              <div className="rc-spotlight__meta-item">
+                <span className="rc-spotlight__meta-value">{spotlightCounts?.meta_studies_current ?? 0}</span>
+                <span className="rc-spotlight__meta-label">Studies extracted</span>
+              </div>
+              <div className="rc-spotlight__meta-item">
+                <span className="rc-spotlight__meta-value">{spotlightCounts?.references ?? 0}</span>
+                <span className="rc-spotlight__meta-label">References ready</span>
+              </div>
+            </div>
+            <div className="rc-progress rc-progress--md">
+              <div style={{ width: `${spotlightCompletion}%` }} />
+            </div>
+            <div className="rc-spotlight__actions">
+              <Link to={spotlightNextAction.to} className="rc-btn rc-btn--primary" style={{ textDecoration: 'none' }}>
+                {spotlightNextAction.label}
+              </Link>
+              <Link to={`/projects/${spotlightProject.id}/research`} className="rc-btn" style={{ textDecoration: 'none' }}>
+                Open project workflow
+              </Link>
+            </div>
+          </div>
+
+          <div className="rc-spotlight__side">
+            <InsightCard
+              eyebrow="Next best action"
+              title={spotlightNextAction.label}
+              body={spotlightNextAction.description}
+              tone="primary"
+            />
+            <div className="rc-stage-inline-list">
+              {spotlightStages.map((stage) => (
+                <div key={stage.key} className="rc-stage-inline-item">
+                  <div className="rc-stage-inline-item__copy">
+                    <span className="rc-stage-inline-item__title">{stage.label}</span>
+                    <span className="rc-stage-inline-item__desc">{stage.description}</span>
+                  </div>
+                  <span className="rc-stage-inline-item__metric">{stage.metricValue}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Stats */}
       {!isLoading && active.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(175px,1fr))', gap: 12 }}>
@@ -287,12 +357,13 @@ export default function DashboardPage() {
                 <div
                   key={p.id}
                   className="rc-card rc-card--hover"
-                  onClick={() => navigate(`/projects/${p.id}/research`)}
-                  style={{ display: 'flex', flexDirection: 'column', gap: 12, cursor: 'pointer' }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
-                      <div style={{ fontWeight: 750, fontSize: 16, letterSpacing: '-0.03em', fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>{p.title}</div>
+                      <Link to={`/projects/${p.id}/research`} style={{ fontWeight: 750, fontSize: 16, letterSpacing: '-0.03em', fontFamily: 'var(--font-display)', lineHeight: 1.2, textDecoration: 'none', color: 'inherit' }}>
+                        {p.title}
+                      </Link>
                       <div className="rc-help">{completion}% workflow complete</div>
                     </div>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rc-muted)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 2 }}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -313,6 +384,14 @@ export default function DashboardPage() {
                     <div className="rc-kicker" style={{ marginBottom: 4 }}>Next best action</div>
                     <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{nextAction.label}</div>
                     <div className="rc-help" style={{ color: 'var(--rc-text-secondary)' }}>{nextAction.description}</div>
+                  </div>
+                  <div className="rc-row" style={{ justifyContent: 'space-between', marginTop: 'auto', paddingTop: 4 }}>
+                    <Link to={nextAction.to} className="rc-btn rc-btn--primary rc-btn--sm" style={{ textDecoration: 'none' }}>
+                      Continue
+                    </Link>
+                    <Link to={`/projects/${p.id}/research`} className="rc-btn rc-btn--sm" style={{ textDecoration: 'none' }}>
+                      Open workflow
+                    </Link>
                   </div>
                 </div>
               );

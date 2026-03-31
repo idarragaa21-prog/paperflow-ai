@@ -76,6 +76,14 @@ export default function SearchPage() {
     (search.searchPage + 1) * SEARCH_PAGE_SIZE,
   );
   const totalPages = Math.ceil(((search.data?.results.length) || 1) / SEARCH_PAGE_SIZE);
+  const activeFilterChips = [
+    filters.yearFrom ? `From ${filters.yearFrom}` : null,
+    filters.yearTo ? `To ${filters.yearTo}` : null,
+    filters.journalFilter ? `Journal: ${filters.journalFilter}` : null,
+    filters.sourceFilter ? `Source: ${filters.sourceFilter}` : null,
+    filters.oaOnly ? 'Open access only' : null,
+  ].filter(Boolean) as string[];
+  const shortlistPreview = search.selectedPapers.slice(0, 5);
 
   function handleSearch() {
     search.runSearch(filters.buildPayload(), history.loadHistory);
@@ -152,6 +160,13 @@ export default function SearchPage() {
             )}
 
             <div className="rc-help" style={{ marginTop: 8 }}>Tip: use phrases, outcomes, populations and study types. Results ranked by relevance.</div>
+            {activeFilterChips.length > 0 && (
+              <div className="rc-filter-chips" style={{ marginTop: 12 }}>
+                {activeFilterChips.map((chip) => (
+                  <span key={chip} className="rc-filter-chip">{chip}</span>
+                ))}
+              </div>
+            )}
           </div>
 
           {search.error ? <div className="rc-error">{String(search.error)}</div> : null}
@@ -257,11 +272,48 @@ export default function SearchPage() {
               : 'Use the checkboxes on the results list to create a focused shortlist before adding papers to the project library.'}
             tone={search.selectedCount > 0 ? 'primary' : 'neutral'}
             action={projectId ? (
-              <Link className="rc-btn rc-btn--primary rc-btn--sm" style={{ textDecoration: 'none' }} to={`/projects/${projectId}/library`}>
-                Open Library
-              </Link>
+              <div className="rc-row" style={{ gap: 6 }}>
+                <button
+                  className="rc-btn rc-btn--primary rc-btn--sm"
+                  disabled={search.selectedCount === 0}
+                  onClick={() => batch.startBatchDownload(projectId, search.selectedPapers, search.setError)}
+                >
+                  Add to Library
+                </button>
+                <Link className="rc-btn rc-btn--sm" style={{ textDecoration: 'none' }} to={`/projects/${projectId}/library`}>
+                  Open Library
+                </Link>
+              </div>
             ) : undefined}
           />
+
+          {shortlistPreview.length > 0 && (
+            <div className="rc-card">
+              <div className="rc-card-title" style={{ marginBottom: 8 }}>Shortlist preview</div>
+              <div className="rc-shortlist-list">
+                {shortlistPreview.map((paper, index) => (
+                  <div key={`${paper.doi || paper.pmid || paper.title}-${index}`} className="rc-shortlist-item">
+                    <div className="rc-shortlist-item__title">{paper.title}</div>
+                    <div className="rc-shortlist-item__meta">{paper.doi || paper.pmid || 'Open-access candidate'}</div>
+                  </div>
+                ))}
+                {search.selectedCount > shortlistPreview.length ? (
+                  <div className="rc-help">+ {search.selectedCount - shortlistPreview.length} more selected</div>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {project ? (
+            <InsightCard
+              eyebrow="Project context"
+              title={project.title}
+              body={project.clinical_area
+                ? `${project.clinical_area}. Search should feed a tighter paper set into the working library, not become a dead-end list.`
+                : 'Search should feed a tighter paper set into the working library, not become a dead-end list.'}
+              tone="success"
+            />
+          ) : null}
 
           {history.searchHistory.length > 0 && (
             <div className="rc-card" style={{ padding: history.showHistory ? 14 : 10 }}>

@@ -7,6 +7,7 @@ import { Breadcrumb } from './Breadcrumb';
 import { useToast } from '../ui/Toast/ToastProvider';
 import {
   getProjectNextAction,
+  getWorkflowStages,
   getWorkflowCompletion,
   InsightCard,
   PageHero,
@@ -59,6 +60,7 @@ export default function ProjectLayout() {
   const [error, setError] = useState<string | null>(null);
   const counts = dashboard?.counts;
   const stage = currentStage(location.pathname);
+  const stageInfo = getWorkflowStages(projectId || '', counts, stage).find((item) => item.key === stage);
 
   const exportJob = useJobPolling(exportJobId, {
     onCompleted: () => toast.success('Export ready', 'ZIP is ready to download.'),
@@ -213,8 +215,16 @@ export default function ProjectLayout() {
 
       <ProjectWorkflowRail projectId={projectId} counts={counts} current={stage} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div className="rc-kicker" style={{ marginBottom: 0 }}>Supporting tools</div>
+      <div className="rc-card" style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="rc-kicker" style={{ marginBottom: 0 }}>Workspace support</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em' }}>
+            {stageInfo ? `Current stage: ${stageInfo.label}` : 'Supporting tools around the main workflow'}
+          </div>
+          <div className="rc-help" style={{ maxWidth: 640 }}>
+            {stageInfo?.description || nextAction.description}
+          </div>
+        </div>
         <div className="rc-support-nav">
           <NavLink to={`/projects/${projectId}/references`} className="rc-support-pill">References</NavLink>
           <NavLink to={`/projects/${projectId}/screening`} className="rc-support-pill">Screening</NavLink>

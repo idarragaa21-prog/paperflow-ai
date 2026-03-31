@@ -191,13 +191,14 @@ export default function LandingPage() {
   const titles = sectionTitles[locale];
   const comp = comparisons[locale];
   const steps = workflowSteps[locale];
+  const heroFeatures = features.slice(0, 3);
 
   return (
-    <div style={{ background: '#0a0a12', color: 'white', minHeight: '100vh', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ background: '#0a0a12', color: 'white', minHeight: '100vh', fontFamily: "'DM Sans', sans-serif", overflow: 'hidden' }}>
       {/* NAV */}
       <nav style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 32px', maxWidth: 1200, margin: '0 auto',
+        padding: '18px 32px', maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 2,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
@@ -223,42 +224,102 @@ export default function LandingPage() {
       </nav>
 
       {/* HERO */}
-      <section style={{ textAlign: 'center', padding: '80px 24px 60px', maxWidth: 800, margin: '0 auto', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 600, height: 600, background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 16px',
-          borderRadius: 999, border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.08)',
-          fontSize: 12, fontWeight: 600, color: 'rgba(165,160,255,0.9)', marginBottom: 28,
-        }}>{hero.badge}</div>
+      <section style={{ maxWidth: 1240, margin: '0 auto', padding: '54px 24px 56px', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: '-10% auto auto 10%', width: 520, height: 520, background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: '30% 0 auto auto', width: 460, height: 460, background: 'radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-        <h1 style={{ fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.08, margin: '0 0 20px' }}>
-          {hero.h1_1}<br />
-          <span style={{ background: 'linear-gradient(135deg, #818cf8, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            {hero.h1_2}
-          </span>
-        </h1>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 28, alignItems: 'center', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 16px',
+              borderRadius: 999, border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.08)',
+              fontSize: 12, fontWeight: 600, color: 'rgba(165,160,255,0.9)', alignSelf: 'flex-start',
+            }}>{hero.badge}</div>
 
-        <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, maxWidth: 580, margin: '0 auto 36px' }}>
-          {hero.sub}
-        </p>
+            <div style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.36)', fontWeight: 700 }}>
+              Guided workflow for literature review, writing and evidence synthesis
+            </div>
 
-        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link to="/signup" style={{
-            padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 700, textDecoration: 'none',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white',
-            boxShadow: '0 4px 24px rgba(99,102,241,0.4)',
-          }}>{hero.cta1} →</Link>
-          <a href="https://idarragaa21-prog.github.io/paperflow-ai/" target="_blank" rel="noopener" style={{
-            padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 600, textDecoration: 'none',
-            border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)',
-          }}>{hero.cta2}</a>
+            <h1 style={{ fontSize: 'clamp(38px, 6vw, 74px)', fontWeight: 900, letterSpacing: '-0.05em', lineHeight: 0.98, margin: 0, maxWidth: 760 }}>
+              {hero.h1_1}{' '}
+              <span style={{ background: 'linear-gradient(135deg, #818cf8, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                {hero.h1_2}
+              </span>
+            </h1>
+
+            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.58)', lineHeight: 1.75, maxWidth: 620, margin: 0 }}>
+              {hero.sub}
+            </p>
+
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              <Link to="/signup" style={{
+                padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 700, textDecoration: 'none',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white',
+                boxShadow: '0 14px 34px rgba(99,102,241,0.32)',
+              }}>{hero.cta1} →</Link>
+              <a href="https://idarragaa21-prog.github.io/paperflow-ai/" target="_blank" rel="noopener" style={{
+                padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 600, textDecoration: 'none',
+                border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)', background: 'rgba(255,255,255,0.03)',
+              }}>{hero.cta2}</a>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, maxWidth: 720 }}>
+              {stats.slice(0, 3).map((s, i) => (
+                <div key={i} style={{ padding: '14px 16px', borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.04em' }}>{s.value}</div>
+                  <div style={{ marginTop: 4, fontSize: 11, lineHeight: 1.6, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.38)' }}>{s.label[locale]}</div>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.28)', margin: 0 }}>{hero.trusted}</p>
+          </div>
+
+          <div style={{
+            padding: 18,
+            borderRadius: 28,
+            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.28)',
+            backdropFilter: 'blur(14px)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <div>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(129,140,248,0.86)', fontWeight: 700 }}>Workflow preview</div>
+                <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', marginTop: 6 }}>Search → Library → Reader → Extract</div>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 999, background: 'rgba(16,185,129,0.12)', color: '#6ee7b7', fontSize: 11, fontWeight: 700 }}>
+                Live workspace
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {steps.map((step, index) => (
+                <div key={step.n} style={{ display: 'grid', gridTemplateColumns: '50px 1fr auto', gap: 12, alignItems: 'center', padding: '12px 14px', borderRadius: 18, background: index === 1 ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.34)' }}>{step.n}</div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{step.title}</div>
+                    <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(255,255,255,0.5)' }}>{step.desc}</div>
+                  </div>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: index === 1 ? '#818cf8' : 'rgba(255,255,255,0.18)' }} />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 16 }}>
+              {heroFeatures.map((feature, index) => (
+                <div key={index} style={{ padding: '12px 10px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ color: feature.color, marginBottom: 10 }}>{feature.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.45 }}>{feature.title[locale]}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-
-        <p style={{ marginTop: 40, fontSize: 13, color: 'rgba(255,255,255,0.25)' }}>{hero.trusted}</p>
       </section>
 
       {/* STATS */}
-      <section style={{ maxWidth: 900, margin: '0 auto', padding: '20px 24px 60px' }}>
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '8px 24px 64px' }}>
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16,
           padding: '28px 24px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)',

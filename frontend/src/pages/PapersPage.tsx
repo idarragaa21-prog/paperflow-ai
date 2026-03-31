@@ -196,6 +196,10 @@ export default function PapersPage() {
     () => papers.filter(p => (p.processing_status || '').toLowerCase() === 'failed').length,
     [papers],
   );
+  const processingCount = useMemo(
+    () => papers.filter(p => ['processing', 'queued'].includes((p.processing_status || '').toLowerCase())).length,
+    [papers],
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -280,6 +284,9 @@ export default function PapersPage() {
 
   const errorMsg = mutError || (queryError as any)?.message;
   const totalPages = Math.ceil(filtered.length / LIB_PAGE_SIZE);
+  const selectedRows = filtered.filter((paper) => selected.has(paper.id)).slice(0, 5);
+  const selectedReadyCount = filtered.filter((paper) => selected.has(paper.id) && ['ready', 'parsed'].includes((paper.processing_status || '').toLowerCase())).length;
+  const readyRatio = papers.length > 0 ? Math.round((readyCount / papers.length) * 100) : 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -339,6 +346,8 @@ export default function PapersPage() {
 
       {errorMsg && <div className="rc-error">{String(errorMsg)}</div>}
 
+      <div className="rc-composer-shell">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* ── Upload panel ── */}
       <div className="rc-card" style={{ padding: uploadOpen ? 14 : '10px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setUploadOpen(!uploadOpen)}>
@@ -491,6 +500,68 @@ export default function PapersPage() {
           )}
         </div>
       )}
+
+        </div>
+
+        <div className="rc-workspace-rail">
+          <InsightCard
+            eyebrow="Processing lane"
+            title={`${readyRatio}% of the library is ready to use`}
+            body={hasProcessing
+              ? `${processingCount} paper(s) are still moving through the full-text pipeline. Keep Library open for curation, then move to Reader or Extraction once enough evidence is ready.`
+              : 'Use this lane to move papers from intake to “ready”, then keep only the papers that really deserve downstream attention.'}
+            tone={hasProcessing ? 'warning' : 'success'}
+            action={<button className="rc-btn rc-btn--sm" onClick={processAllPending}>Process pending</button>}
+          />
+
+          <div className="rc-card">
+            <div className="rc-card-title" style={{ marginBottom: 8 }}>Library pulse</div>
+            <div className="rc-shortlist-list">
+              <div className="rc-shortlist-item">
+                <div className="rc-shortlist-item__title">Ready for Reader</div>
+                <div className="rc-shortlist-item__meta">{readyCount} paper(s)</div>
+              </div>
+              <div className="rc-shortlist-item">
+                <div className="rc-shortlist-item__title">Pending or newly added</div>
+                <div className="rc-shortlist-item__meta">{pendingCount} paper(s)</div>
+              </div>
+              <div className="rc-shortlist-item">
+                <div className="rc-shortlist-item__title">Need intervention</div>
+                <div className="rc-shortlist-item__meta">{failedCount} failed · {processingCount} in queue</div>
+              </div>
+            </div>
+          </div>
+
+          <InsightCard
+            eyebrow="Selection"
+            title={selected.size > 0 ? `${selected.size} selected in this view` : 'No papers selected'}
+            body={selected.size > 0
+              ? `${selectedReadyCount} selected paper(s) are already ready for downstream use. Keep the shortlist tight and only carry forward what you trust.`
+              : 'Use the checkboxes to build a temporary working subset before you process, inspect or move papers downstream.'}
+            tone={selected.size > 0 ? 'primary' : 'neutral'}
+            action={(
+              <div className="rc-row" style={{ gap: 6 }}>
+                <Link className="rc-btn rc-btn--sm" style={{ textDecoration: 'none' }} to={`/projects/${projectId}/reader`}>Reader</Link>
+                <Link className="rc-btn rc-btn--sm" style={{ textDecoration: 'none' }} to={`/projects/${projectId}/meta`}>Extraction</Link>
+              </div>
+            )}
+          />
+
+          {selectedRows.length > 0 && (
+            <div className="rc-card">
+              <div className="rc-card-title" style={{ marginBottom: 8 }}>Selected preview</div>
+              <div className="rc-shortlist-list">
+                {selectedRows.map((paper) => (
+                  <div key={paper.id} className="rc-shortlist-item">
+                    <div className="rc-shortlist-item__title">{truncate(paper.title, 72)}</div>
+                    <div className="rc-shortlist-item__meta">{paper.journal || 'Journal unavailable'} · {paper.publication_year || 'Year unavailable'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
