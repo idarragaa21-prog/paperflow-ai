@@ -14,6 +14,7 @@ from app.middleware.rate_limit import limiter
 from app.models.book_index import BookIndex
 from app.models.job import Job
 from app.models.user import User
+from app.core.logger import logger
 from app.services.jobs import get_job_queue
 
 router = APIRouter(prefix="/books", tags=["books"])
@@ -69,7 +70,8 @@ async def index_book(
 
         q = get_job_queue()
         rq_job = q.enqueue(books_index_job, args=(str(job_record.id), str(book.id)), job_timeout="60m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue books_index job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()
@@ -107,7 +109,8 @@ async def scan_books_folder(
 
         q = get_job_queue()
         rq_job = q.enqueue(books_scan_folder_job, args=(str(job_record.id),), job_timeout="60m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue books_scan_folder job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()
@@ -170,7 +173,8 @@ async def reindex_book(
 
         q = get_job_queue()
         rq_job = q.enqueue(books_index_job, args=(str(job_record.id), str(b.id)), job_timeout="60m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue books_index reindex job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()
@@ -196,8 +200,8 @@ async def delete_book(
     # delete file
     try:
         storage_manager.delete_file(b.file_path)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to delete book file {}: {}", b.file_path, e)
 
     await db.delete(b)
     await db.commit()

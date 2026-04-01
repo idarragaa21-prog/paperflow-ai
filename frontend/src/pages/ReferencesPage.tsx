@@ -151,7 +151,7 @@ export default function ReferencesPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <h1 className="rc-page-title">References</h1>
         <div className="rc-subtitle">Import BibTeX or RIS, sync items from the project library and export clean citations.</div>

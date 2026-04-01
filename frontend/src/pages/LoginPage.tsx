@@ -47,25 +47,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0f0e1a' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--rc-bg)' }}>
       {/* Left panel */}
       <div className="login-left-panel" style={{
         flex: '0 0 460px',
-        background: 'linear-gradient(145deg, #13122a 0%, #1a1040 50%, #0e1628 100%)',
+        background: 'var(--rc-bg)',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '48px', borderRight: '1px solid rgba(255,255,255,0.06)',
+        padding: '48px', borderRight: '1px solid var(--rc-surface-2)',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position:'absolute',inset:0,opacity:0.6,
-          backgroundImage:'radial-gradient(circle at 20% 80%, rgba(99,102,241,0.18) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(139,92,246,0.12) 0%, transparent 50%)',
+          backgroundImage:'radial-gradient(circle at 20% 80%, var(--rc-primary-weak) 0%, transparent 60%), radial-gradient(circle at 80% 20%, var(--rc-primary-weak) 0%, transparent 50%)',
           pointerEvents:'none' }} />
 
         {/* Logo */}
         <div style={{ position:'relative',zIndex:1,display:'flex',alignItems:'center',gap:12 }}>
           <div style={{ width:40,height:40,borderRadius:12,
-            background:'linear-gradient(135deg,#6366f1,#8b5cf6)',
+            background:'var(--rc-primary)',
             display:'flex',alignItems:'center',justifyContent:'center',
-            boxShadow:'0 4px 20px rgba(99,102,241,0.4)' }}>
+            boxShadow:'0 4px 20px var(--rc-primary-weak)' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
@@ -73,24 +73,24 @@ export default function LoginPage() {
               <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
-          <span style={{ fontSize:20,fontWeight:800,color:'white',letterSpacing:'-0.03em',fontFamily:'var(--font-display)' }}>PaperFlow</span>
+          <span style={{ fontSize:20,fontWeight:800,color:'var(--rc-text)',letterSpacing:'-0.03em',fontFamily:'var(--font-display)' }}>PaperFlow</span>
         </div>
 
         {/* Illustration */}
         <div style={{ position:'relative',zIndex:1 }}>
           <svg width="300" height="240" viewBox="0 0 300 240" fill="none" style={{ display:'block',margin:'0 auto' }}>
             {[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[2,0],[2,1],[2,2],[2,3],[2,4],[2,5],[3,0],[3,1],[3,2],[3,3],[3,4],[3,5],[4,0],[4,1],[4,2],[4,3],[4,4],[4,5]].map(([r,c])=>
-              <circle key={`${r}-${c}`} cx={c*52+10} cy={r*48+10} r="1.5" fill="rgba(255,255,255,0.08)"/>
+              <circle key={`${r}-${c}`} cx={c*52+10} cy={r*48+10} r="1.5" fill="var(--rc-surface-3)"/>
             )}
-            <rect x="52" y="48" width="110" height="140" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
-            <rect x="60" y="40" width="110" height="140" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-            <rect x="68" y="32" width="110" height="140" rx="10" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.28)" strokeWidth="1"/>
-            <line x1="86" y1="64" x2="158" y2="64" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="86" y1="79" x2="158" y2="79" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="86" y1="94" x2="142" y2="94" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="86" y1="115" x2="158" y2="115" stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="86" y1="127" x2="158" y2="127" stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="86" y1="139" x2="146" y2="139" stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeLinecap="round"/>
+            <rect x="52" y="48" width="110" height="140" rx="10" fill="var(--rc-surface-2)" stroke="var(--rc-surface-3)" strokeWidth="1"/>
+            <rect x="60" y="40" width="110" height="140" rx="10" fill="var(--rc-surface-2)" stroke="var(--rc-surface-3)" strokeWidth="1"/>
+            <rect x="68" y="32" width="110" height="140" rx="10" fill="var(--rc-primary-weak)" stroke="var(--rc-primary)" strokeWidth="1"/>
+            <line x1="86" y1="64" x2="158" y2="64" stroke="var(--rc-muted)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="86" y1="79" x2="158" y2="79" stroke="var(--rc-muted)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="86" y1="94" x2="142" y2="94" stroke="var(--rc-muted)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="86" y1="115" x2="158" y2="115" stroke="var(--rc-surface-3)" strokeWidth="1" strokeLinecap="round"/>
+            <line x1="86" y1="127" x2="158" y2="127" stroke="var(--rc-surface-3)" strokeWidth="1" strokeLinecap="round"/>
+            <line x1="86" y1="139" x2="146" y2="139" stroke="var(--rc-surface-3)" strokeWidth="1" strokeLinecap="round"/>
             <circle cx="218" cy="78" r="34" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.22)" strokeWidth="1"/>
             <circle cx="218" cy="78" r="20" fill="rgba(139,92,246,0.14)" stroke="rgba(139,92,246,0.32)" strokeWidth="1"/>
             <text x="218" y="84" textAnchor="middle" fill="rgba(167,139,250,0.9)" fontSize="16">✦</text>
@@ -102,10 +102,10 @@ export default function LoginPage() {
             <text x="170" y="169" textAnchor="middle" fill="rgba(74,222,128,0.9)" fontSize="8.5" fontWeight="700">CITED</text>
           </svg>
           <div style={{ marginTop:20,textAlign:'center' }}>
-            <div style={{ fontSize:21,fontWeight:800,color:'white',letterSpacing:'-0.03em',lineHeight:1.25,fontFamily:'var(--font-display)' }}>
+            <div style={{ fontSize:21,fontWeight:800,color:'var(--rc-text)',letterSpacing:'-0.03em',lineHeight:1.25,fontFamily:'var(--font-display)' }}>
               Your personal<br/>AI research workspace
             </div>
-            <div style={{ marginTop:8,fontSize:13,color:'rgba(255,255,255,0.4)',lineHeight:1.6 }}>
+            <div style={{ marginTop:8,fontSize:13,color:'var(--rc-muted)',lineHeight:1.6 }}>
               Search, extract, analyze and write<br/>— everything local, nothing in the cloud.
             </div>
           </div>
@@ -115,21 +115,21 @@ export default function LoginPage() {
         <div style={{ position:'relative',zIndex:1,display:'flex',flexDirection:'column',gap:8 }}>
           {['AI-powered paper search & reader','Meta-analysis & data extraction','Literature drafts & references'].map(feat=>(
             <div key={feat} style={{ display:'flex',alignItems:'center',gap:10 }}>
-              <span style={{ color:'rgba(139,92,246,0.7)',fontSize:8 }}>✦</span>
-              <span style={{ fontSize:12,color:'rgba(255,255,255,0.38)',letterSpacing:'0.01em' }}>{feat}</span>
+              <span style={{ color:'var(--rc-primary)',fontSize:8 }}>✦</span>
+              <span style={{ fontSize:12,color:'var(--rc-muted)',letterSpacing:'0.01em' }}>{feat}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Right panel */}
-      <div style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'48px 32px',background:'#f7f6f2' }}>
+      <div style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'48px 32px',background:'var(--rc-bg)' }}>
         <div style={{ width:'100%',maxWidth:380 }}>
           <div style={{ marginBottom:36 }}>
-            <div style={{ fontSize:26,fontWeight:850,letterSpacing:'-0.03em',color:'#1a1929',fontFamily:'var(--font-display)' }}>
+            <div style={{ fontSize:26,fontWeight:850,letterSpacing:'-0.03em',color:'var(--rc-text)',fontFamily:'var(--font-display)' }}>
               Welcome back
             </div>
-            <div style={{ marginTop:6,fontSize:14,color:'rgba(26,25,41,0.5)' }}>Sign in to your workspace</div>
+            <div style={{ marginTop:6,fontSize:14,color:'var(--rc-muted)' }}>Sign in to your workspace</div>
           </div>
 
           <form onSubmit={onSubmit} style={{ display:'flex',flexDirection:'column',gap:16 }}>
@@ -156,7 +156,7 @@ export default function LoginPage() {
                 <button type="button" onClick={()=>setShowPw(!showPw)} style={{
                   position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
                   background:'none',border:'none',cursor:'pointer',padding:4,
-                  color:'rgba(26,25,41,0.4)',lineHeight:1 }}>
+                  color:'var(--rc-muted)',lineHeight:1 }}>
                   {showPw
                     ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -185,7 +185,7 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <div style={{ marginTop:20,textAlign:'center',fontSize:13,color:'rgba(26,25,41,0.5)' }}>
+          <div style={{ marginTop:20,textAlign:'center',fontSize:13,color:'var(--rc-muted)' }}>
             {t.auth.noAccount}{' '}
             <Link
               to={invitationToken ? `/signup?invitation_token=${encodeURIComponent(invitationToken)}${invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}` : '/signup'}
@@ -195,7 +195,7 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <div style={{ marginTop:20,paddingTop:20,borderTop:'1px solid rgba(26,25,41,0.1)',textAlign:'center',fontSize:12,color:'rgba(26,25,41,0.3)' }}>
+          <div style={{ marginTop:20,paddingTop:20,borderTop:'1px solid var(--rc-surface-3)',textAlign:'center',fontSize:12,color:'var(--rc-muted)' }}>
             {t.auth.tagline}
           </div>
         </div>

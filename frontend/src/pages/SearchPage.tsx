@@ -90,7 +90,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHero
         eyebrow="Stage 1 · Research"
         title="Research Search"

@@ -28,6 +28,7 @@ from app.services.jobs import enqueue_process_pdf, get_job_queue
 from app.services.paper_repo import SQLPaperRepository
 from app.services.paper_service import PaperDownloadService, PaperServiceError, sha256_hex
 from app.services.pdf_processor import process_paper
+from app.core.logger import logger
 from app.services.vector_index import vector_index
 
 router = APIRouter(prefix="/papers", tags=["papers"])
@@ -294,7 +295,8 @@ async def batch_download(
 
         q = get_job_queue()
         rq_job = q.enqueue(batch_download_papers_job, args=(str(job_record.id), str(payload.project_id), papers), job_timeout="60m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue batch_download_papers job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "No se pudo encolar job (Redis no disponible?)"
         await repo.db.commit()
@@ -540,7 +542,8 @@ async def process_paper_endpoint(
     # Enqueue RQ
     try:
         rq_job_id = enqueue_process_pdf(job_record.id, paper_id)
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to enqueue process_pdf job, falling back to sync processing: {}", e)
         result = await process_paper(paper_id, repo.db)
         await vector_index.index_paper(repo.db, paper_id=paper_id)
         job_record.status = "completed"
@@ -690,8 +693,8 @@ async def delete_paper(
     if paper.file_path:
         try:
             storage_manager.delete_file(paper.file_path)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to delete paper file {}: {}", paper.file_path, e)
 
     await repo.delete_paper(paper)
 

@@ -10,6 +10,7 @@ from app.api.deps import get_current_user, get_db
 from app.core.redis_conn import get_redis, redis_available
 from app.middleware.rate_limit import limiter
 from app.models.job import Job
+from app.core.logger import logger
 from app.models.user import User
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -154,14 +155,15 @@ async def cancel_job(
             rq_job = RQJob.fetch(rq_job_id, connection=redis)
             try:
                 rq_job.cancel()
-            except Exception:
+            except Exception as e:
+                logger.warning("Failed to cancel RQ job {}, attempting delete: {}", rq_job_id, e)
                 # fallback: delete from queue if possible
                 try:
                     rq_job.delete(remove_from_queue=True)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as e2:
+                    logger.warning("Failed to delete RQ job {} from queue: {}", rq_job_id, e2)
+        except Exception as e:
+            logger.warning("Failed to fetch RQ job {} for cancellation: {}", rq_job_id, e)
 
     job.status = "cancelled"
     job.error_message = "Cancelled by user"
@@ -208,7 +210,8 @@ async def get_job(
         redis = get_redis()
         try:
             rq_job = RQJob.fetch(rq_job_id, connection=redis)
-        except Exception:
+        except Exception as e:
+            logger.warning("RQ job {} not found in Redis: {}", rq_job_id, e)
             job.status = "failed"
             job.error_message = "RQ job no encontrado en Redis"
             job.completed_at = job.completed_at or datetime.now(timezone.utc)

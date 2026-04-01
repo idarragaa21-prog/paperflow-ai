@@ -143,7 +143,7 @@ export default function ScreeningPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <h1 className="rc-page-title">Screening</h1>
         <div className="rc-subtitle">Title/abstract and full-text screening with auditable reasons and lightweight PRISMA counts.</div>

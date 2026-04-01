@@ -109,7 +109,7 @@ export default function BooksPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 980 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 980 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
           <div className="rc-kicker">Workspace / Private Knowledge Sources</div>

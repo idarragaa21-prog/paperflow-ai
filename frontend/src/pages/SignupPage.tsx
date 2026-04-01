@@ -55,48 +55,48 @@ export default function SignupPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0f0e1a' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--rc-bg)' }}>
       {/* Left panel (same as login) */}
       <div className="login-left-panel" style={{
         flex: '0 0 460px',
-        background: 'linear-gradient(145deg, #13122a 0%, #1a1040 50%, #0e1628 100%)',
+        background: 'var(--rc-bg)',
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        padding: '48px', borderRight: '1px solid rgba(255,255,255,0.06)',
+        padding: '48px', borderRight: '1px solid var(--rc-surface-2)',
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.6,
-          backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(99,102,241,0.18) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(139,92,246,0.12) 0%, transparent 50%)',
+          backgroundImage: 'radial-gradient(circle at 20% 80%, var(--rc-primary-weak) 0%, transparent 60%), radial-gradient(circle at 80% 20%, var(--rc-primary-weak) 0%, transparent 50%)',
           pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12,
-              background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              background: 'var(--rc-primary)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}>
+              boxShadow: '0 4px 20px var(--rc-primary-weak)' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
               </svg>
             </div>
-            <span style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: '-0.03em', fontFamily: 'var(--font-display)' }}>PaperFlow</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--rc-text)', letterSpacing: '-0.03em', fontFamily: 'var(--font-display)' }}>PaperFlow</span>
           </div>
-          <div style={{ fontSize: 21, fontWeight: 800, color: 'white', letterSpacing: '-0.03em', lineHeight: 1.25, fontFamily: 'var(--font-display)' }}>
+          <div style={{ fontSize: 21, fontWeight: 800, color: 'var(--rc-text)', letterSpacing: '-0.03em', lineHeight: 1.25, fontFamily: 'var(--font-display)' }}>
             Your personal<br />AI research workspace
           </div>
-          <div style={{ marginTop: 8, fontSize: 13, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>
+          <div style={{ marginTop: 8, fontSize: 13, color: 'var(--rc-muted)', lineHeight: 1.6 }}>
             Search, extract, analyze and write<br />— everything local, nothing in the cloud.
           </div>
         </div>
       </div>
 
       {/* Right panel — form */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px', background: '#f7f6f2' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px', background: 'var(--rc-bg)' }}>
         <div style={{ width: '100%', maxWidth: 380 }}>
           <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 26, fontWeight: 850, letterSpacing: '-0.03em', color: '#1a1929', fontFamily: 'var(--font-display)' }}>
+            <div style={{ fontSize: 26, fontWeight: 850, letterSpacing: '-0.03em', color: 'var(--rc-text)', fontFamily: 'var(--font-display)' }}>
               {t.auth.createAccountTitle}
             </div>
-            <div style={{ marginTop: 6, fontSize: 14, color: 'rgba(26,25,41,0.5)' }}>{t.auth.createAccountSubtitle}</div>
+            <div style={{ marginTop: 6, fontSize: 14, color: 'var(--rc-muted)' }}>{t.auth.createAccountSubtitle}</div>
           </div>
 
           <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -138,7 +138,7 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: 'rgba(26,25,41,0.5)' }}>
+          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: 'var(--rc-muted)' }}>
             {t.auth.hasAccount}{' '}
             <Link
               to={invitationToken ? `/login?invitation_token=${encodeURIComponent(invitationToken)}${email ? `&email=${encodeURIComponent(email)}` : invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}` : '/login'}
@@ -148,7 +148,7 @@ export default function SignupPage() {
             </Link>
           </div>
 
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(26,25,41,0.1)', textAlign: 'center', fontSize: 12, color: 'rgba(26,25,41,0.3)' }}>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--rc-surface-3)', textAlign: 'center', fontSize: 12, color: 'var(--rc-muted)' }}>
             {t.auth.tagline}
           </div>
         </div>

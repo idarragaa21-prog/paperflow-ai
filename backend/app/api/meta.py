@@ -24,6 +24,7 @@ from app.models.meta_extractor import (
 from app.services.jobs import get_job_queue
 from app.models.meta_export import MetaExport
 from app.schemas.meta import BatchEffectPatchRequest, MetaExportListRow, MetaExportRequest
+from app.core.logger import logger
 from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/meta", tags=["meta"])
@@ -132,7 +133,8 @@ async def create_batch(
 
         q = get_job_queue()
         rq_job = q.enqueue(meta_extract_batch_job, args=(str(job_record.id), str(batch.id)), job_timeout="60m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue meta_extract_batch job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()
@@ -245,7 +247,8 @@ async def retry_item(
 
         q = get_job_queue()
         rq_job = q.enqueue(meta_extract_paper_job, args=(str(job_record.id), str(batch.id), str(item.id), str(item.paper_id)), job_timeout="30m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue meta_extract_paper retry job for item {}: {}", item_id, e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()
@@ -258,8 +261,8 @@ async def retry_item(
     # Move batch back to processing if user retries an item
     try:
         batch.status = "processing"
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to update batch status to processing: {}", e)
 
     await db.commit()
 
@@ -335,7 +338,8 @@ async def reextract_study(
 
         q = get_job_queue()
         rq_job = q.enqueue(meta_extract_paper_job, args=(str(job_record.id), str(batch_id), str(item.id), str(item.paper_id)), job_timeout="30m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue meta_extract_paper re-extract job for study {}: {}", study_id, e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()
@@ -816,7 +820,8 @@ async def export_meta_dataset(
             args=(str(job_record.id), str(project_uuid), str(batch_uuid) if batch_uuid else "", export_format),
             job_timeout="20m",
         )
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue meta_export job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()

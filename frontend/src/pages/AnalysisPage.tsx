@@ -150,7 +150,7 @@ export default function AnalysisPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHero
         eyebrow="Stage 6 · Analysis"
         title={t.analysis.title}

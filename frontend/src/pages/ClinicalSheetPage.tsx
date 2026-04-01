@@ -191,7 +191,7 @@ export default function ClinicalSheetPage() {
       ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <Breadcrumb items={breadcrumbItems} />
     <div style={{ display: 'grid', gridTemplateColumns: workspaceColumns, gap: 12, alignItems: 'start' }}>
       {outlineOpen ? <aside className="rc-card" style={{ position: 'sticky', top: 12, height: 'fit-content' }}>

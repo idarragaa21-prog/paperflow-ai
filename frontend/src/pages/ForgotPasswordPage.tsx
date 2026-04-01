@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
 
   if (step === 'done') {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f7f6f2', padding: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--rc-bg)', padding: 32 }}>
         <div style={{ maxWidth: 400, textAlign: 'center' }}>
           <div style={{ width: 64, height: 64, borderRadius: 20, margin: '0 auto 20px',
             background: 'var(--rc-success-bg)', border: '1px solid var(--rc-success-border)',
@@ -57,13 +57,13 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f7f6f2', padding: 32 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--rc-bg)', padding: 32 }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 26, fontWeight: 850, letterSpacing: '-0.03em', color: '#1a1929', fontFamily: 'var(--font-display)' }}>
+          <div style={{ fontSize: 26, fontWeight: 850, letterSpacing: '-0.03em', color: 'var(--rc-text)', fontFamily: 'var(--font-display)' }}>
             {t.auth.resetPassword}
           </div>
-          <div style={{ marginTop: 6, fontSize: 14, color: 'rgba(26,25,41,0.5)' }}>
+          <div style={{ marginTop: 6, fontSize: 14, color: 'var(--rc-muted)' }}>
             {step === 'email' ? t.auth.resetSubtitle : t.auth.codeSent}
           </div>
         </div>

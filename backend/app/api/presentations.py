@@ -15,6 +15,7 @@ from app.models.presentation import Presentation
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.presentation import CreatePresentationRequest
+from app.core.logger import logger
 from app.services.jobs import enqueue_presentation
 
 router = APIRouter(prefix="/presentations", tags=["presentations"])
@@ -79,7 +80,8 @@ async def create_presentation(
             payload.paper_ids,
             payload.num_slides,
         )
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue generate_presentation job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "No se pudo encolar job (Redis no disponible?)"
         await db.commit()
@@ -167,8 +169,8 @@ async def delete_presentation(
     if pres.file_path:
         try:
             storage_manager.delete_file(pres.file_path)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to delete presentation file {}: {}", pres.file_path, e)
 
     await db.delete(pres)
     await db.commit()

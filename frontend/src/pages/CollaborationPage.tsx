@@ -172,7 +172,7 @@ export default function CollaborationPage() {
   }
 
   return (
-    <div className="rc-product-page">
+    <div className="rc-page-enter rc-product-page">
       <div className="rc-product-page__header">
         <div>
           <div className="rc-kicker">Collaboration</div>

@@ -27,6 +27,7 @@ from app.schemas.membership import (
 )
 from app.schemas.projects import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.email import build_project_invitation_url, send_project_invitation_email
+from app.core.logger import logger
 from app.services.jobs import get_job_queue
 from app.services.permissions import list_accessible_projects, require_project_access
 
@@ -613,7 +614,8 @@ async def export_project_zip(
 
         q = get_job_queue()
         rq_job = q.enqueue(export_project_zip_job, args=(str(job_record.id), str(project_id)), job_timeout="30m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue export_project_zip job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "No se pudo encolar job (Redis no disponible?)"
         await db.commit()

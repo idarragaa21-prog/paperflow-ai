@@ -361,11 +361,8 @@ async def forgot_password(
     if delivery.sent:
         logger.info("Password reset code sent to {}", payload.email)
     else:
-        logger.info(f"[RESET CODE] {payload.email} → {code}")
-        print(f"\n{'='*50}")
-        print(f"  PASSWORD RESET CODE for {payload.email}")
-        print(f"  CODE: {code}")
-        print(f"{'='*50}\n")
+        logger.warning("Email delivery not configured; reset code generated for {} (check logs at DEBUG level)", payload.email)
+        logger.debug("[RESET CODE] {} → {}", payload.email, code)
 
     return {"ok": True, "delivery_status": delivery.status}
 

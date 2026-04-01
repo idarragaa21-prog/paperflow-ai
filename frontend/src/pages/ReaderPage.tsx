@@ -130,7 +130,7 @@ export default function ReaderPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHero
         eyebrow="Stage 3 · Reader"
         title="Read with AI, but keep the evidence surface visible"

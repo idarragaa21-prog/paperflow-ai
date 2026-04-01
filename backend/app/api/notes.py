@@ -13,6 +13,7 @@ from app.models.paper import Paper
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.notes import NoteCreate, NotePatch, NoteResponse, SummarizeNoteRequest
+from app.core.logger import logger
 from app.services.jobs import get_job_queue
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -56,7 +57,8 @@ async def summarize_paper(
             args=(str(job_record.id), str(paper.id), payload.custom_instructions),
             job_timeout="10m",
         )
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue summarize_paper job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "No se pudo encolar job (Redis no disponible?)"
         await db.commit()

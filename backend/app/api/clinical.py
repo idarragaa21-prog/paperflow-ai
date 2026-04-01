@@ -15,6 +15,7 @@ from app.models.clinical import ClinicalSheet
 from app.models.job import Job
 from app.models.project import Project
 from app.models.user import User
+from app.core.logger import logger
 from app.services.jobs import get_job_queue
 
 router = APIRouter(prefix="/clinical", tags=["clinical"])
@@ -97,7 +98,8 @@ async def query_clinical(
 
         q = get_job_queue()
         rq_job = q.enqueue(clinical_query_job, args=(str(job_record.id), str(sheet.id)), job_timeout="60m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue clinical_query job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()
@@ -182,7 +184,8 @@ async def list_sheet_versions(
     root_id = None
     try:
         root_id = (s.input_params or {}).get("root_id")
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to parse root_id from sheet {} input_params: {}", sheet_id, e)
         root_id = None
 
     if root_id:
@@ -263,7 +266,8 @@ async def update_sheet(
 
         q = get_job_queue()
         rq_job = q.enqueue(clinical_query_job, args=(str(job_record.id), str(new_sheet.id)), job_timeout="60m")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to enqueue clinical_query update job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "Job queue unavailable. Redis is required."
         await db.commit()

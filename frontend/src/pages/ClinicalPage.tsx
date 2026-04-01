@@ -138,7 +138,7 @@ export default function ClinicalPage() {
     : [{ label: 'Clinical' }];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 980 }}>
+    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 980 }}>
       <Breadcrumb items={breadcrumbItems} />
 
       <div>
