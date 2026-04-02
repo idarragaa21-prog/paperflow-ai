@@ -528,17 +528,32 @@ async def project_dashboard(
     }
 
 
+class ProjectLibraryParams:
+    def __init__(
+        self,
+        year: int | None = None,
+        author: str | None = None,
+        journal: str | None = None,
+        open_access: bool | None = None,
+        processing_status: str | None = None,
+        favorite: bool | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ):
+        self.year = year
+        self.author = author
+        self.journal = journal
+        self.open_access = open_access
+        self.processing_status = processing_status
+        self.favorite = favorite
+        self.limit = limit
+        self.offset = offset
+
+
 @router.get("/{project_id}/library")
 async def project_library(
     project_id: UUID,
-    year: int | None = None,
-    author: str | None = None,
-    journal: str | None = None,
-    open_access: bool | None = None,
-    processing_status: str | None = None,
-    favorite: bool | None = None,
-    limit: int | None = None,
-    offset: int = 0,
+    params: ProjectLibraryParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -547,22 +562,22 @@ async def project_library(
     from app.models.paper import Paper
 
     clauses = [Paper.project_id == project_id]
-    if year is not None:
-        clauses.append(Paper.publication_year == year)
-    if journal:
-        clauses.append(Paper.journal.ilike(f"%{journal.strip()}%"))
-    if processing_status:
-        clauses.append(Paper.processing_status == processing_status)
-    if open_access is not None:
-        clauses.append(Paper.is_open_access == open_access)
-    if favorite is not None:
-        clauses.append(Paper.favorite == favorite)
-    if author:
-        clauses.append(Paper.authors.ilike(f"%{author.strip()}%"))
+    if params.year is not None:
+        clauses.append(Paper.publication_year == params.year)
+    if params.journal:
+        clauses.append(Paper.journal.ilike(f"%{params.journal.strip()}%"))
+    if params.processing_status:
+        clauses.append(Paper.processing_status == params.processing_status)
+    if params.open_access is not None:
+        clauses.append(Paper.is_open_access == params.open_access)
+    if params.favorite is not None:
+        clauses.append(Paper.favorite == params.favorite)
+    if params.author:
+        clauses.append(Paper.authors.ilike(f"%{params.author.strip()}%"))
 
-    stmt = select(Paper).where(and_(*clauses)).order_by(Paper.created_at.desc()).offset(offset)
-    if limit is not None:
-        stmt = stmt.limit(limit)
+    stmt = select(Paper).where(and_(*clauses)).order_by(Paper.created_at.desc()).offset(params.offset)
+    if params.limit is not None:
+        stmt = stmt.limit(params.limit)
     q = await db.execute(stmt)
     items = q.scalars().all()
     return [

@@ -64,7 +64,8 @@ async def test_generate_deep_research_report_returns_papers_for_pubmed(monkeypat
     monkeypatch.setattr(deep_research, "search_papers_pubmed", fake_search, raising=True)
     monkeypatch.setattr(deep_research, "_generate_section", fake_generate, raising=True)
 
-    report = await deep_research.generate_deep_research_report("hombro flotante", max_papers=5)
+    params = deep_research.DeepResearchParams(query="hombro flotante", max_papers=5)
+    report = await deep_research.generate_deep_research_report(params)
 
     assert report["status"] == "completed"
     assert report["papers_analyzed"] == 1

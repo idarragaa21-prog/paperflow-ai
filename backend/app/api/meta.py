@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -683,22 +684,27 @@ async def patch_study(
     return {"ok": True}
 
 
+@dataclass
+class PatchEffectPathParams:
+    study_id: UUID
+    effect_id: UUID
+
+
 @router.patch("/studies/{study_id}/effects/{effect_id}")
 @limiter.limit("30/minute")
 async def patch_effect(
     request: Request,
-    study_id: UUID,
-    effect_id: UUID,
     payload: dict,
+    path_params: PatchEffectPathParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    study = await db.get(ExtractedStudy, study_id)
+    study = await db.get(ExtractedStudy, path_params.study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
     await _require_project_role(db, study.project_id, user, required_role="editor")
 
-    eff = await db.get(ExtractedEffectSize, effect_id)
+    eff = await db.get(ExtractedEffectSize, path_params.effect_id)
     if not eff or eff.extracted_study_id != study.id:
         raise HTTPException(status_code=404, detail="Effect not found")
 
@@ -863,22 +869,27 @@ async def download_export(
     return FileResponse(abs_path, filename=export.filename, media_type=_export_media_type(export.filename))
 
 
+@dataclass
+class RobPathParams:
+    study_id: UUID
+    rob_id: UUID
+
+
 @router.patch("/studies/{study_id}/rob/{rob_id}")
 @limiter.limit("30/minute")
 async def patch_rob(
     request: Request,
-    study_id: UUID,
-    rob_id: UUID,
     payload: dict,
+    path_params: RobPathParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    study = await db.get(ExtractedStudy, study_id)
+    study = await db.get(ExtractedStudy, path_params.study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
     await _require_project_role(db, study.project_id, user, required_role="editor")
 
-    rob = await db.get(ExtractedRiskOfBias, rob_id)
+    rob = await db.get(ExtractedRiskOfBias, path_params.rob_id)
     if not rob or rob.extracted_study_id != study.id:
         raise HTTPException(status_code=404, detail="ROB not found")
 

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
-from app.services.deep_research import generate_deep_research_report
+from app.services.deep_research import generate_deep_research_report, DeepResearchParams
 from app.services.permissions import require_project_access
 
 router = APIRouter(prefix="/research", tags=["deep-research"])
@@ -42,13 +42,14 @@ async def create_deep_research(
             raise HTTPException(status_code=400, detail="Invalid input")
         await require_project_access(db, project_id=proj_uuid, user=user, required_role="viewer")
 
-    report = await generate_deep_research_report(
+    params = DeepResearchParams(
         query=payload.query,
         max_papers=payload.max_papers,
         source_mode=payload.source_mode,
         project_id=payload.project_id,
         db=db if payload.source_mode == "project" else None,
     )
+    report = await generate_deep_research_report(params)
 
     if report.get("status") == "error":
         raise HTTPException(status_code=422, detail=report.get("error", "Report generation failed"))
