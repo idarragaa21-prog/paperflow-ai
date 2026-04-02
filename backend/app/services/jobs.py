@@ -6,6 +6,7 @@ from redis.exceptions import RedisError
 from rq import Queue
 
 from app.core.redis_conn import get_redis, redis_available
+from app.schemas.presentation import CreatePresentationRequest
 
 
 def get_job_queue() -> Queue:
@@ -28,19 +29,22 @@ def enqueue_process_pdf(job_db_id: UUID, paper_id: UUID) -> str:
 
 def enqueue_presentation(
     job_db_id: UUID,
-    project_id: UUID,
-    topic: str,
-    duration: int,
-    audience: str,
-    paper_ids: list[UUID],
-    num_slides: int,
+    params: CreatePresentationRequest,
 ) -> str:
     from app.workers.tasks import generate_presentation_job
 
     job_queue = get_job_queue()
     job = job_queue.enqueue(
         generate_presentation_job,
-        args=(str(job_db_id), str(project_id), topic, duration, audience, [str(pid) for pid in paper_ids], int(num_slides)),
+        args=(
+            str(job_db_id),
+            str(params.project_id),
+            params.topic,
+            params.duration_minutes,
+            params.audience,
+            [str(pid) for pid in params.paper_ids],
+            int(params.num_slides),
+        ),
         job_timeout="10m",
     )
     return job.id
