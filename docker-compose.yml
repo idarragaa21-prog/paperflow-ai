@@ -128,6 +128,9 @@ services:
       R_ENGINE_URL: http://r-engine:8010
       GROBID_URL: http://grobid:8070
       S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: paperflow
+      S3_SECRET_KEY: paperflow123
+      S3_BUCKET: paperflow-artifacts
       STORAGE_BACKEND: s3
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -149,6 +152,9 @@ services:
       R_ENGINE_URL: http://r-engine:8010
       GROBID_URL: http://grobid:8070
       S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: paperflow
+      S3_SECRET_KEY: paperflow123
+      S3_BUCKET: paperflow-artifacts
       STORAGE_BACKEND: s3
     command: ["python", "-m", "app.workers.worker"]
 

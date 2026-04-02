@@ -5,6 +5,15 @@ def test_normalize_doi_strips_prefix_and_lowercases():
     assert normalize_doi("https://doi.org/10.1000/ABC-123") == "10.1000/abc-123"
 
 
+def test_normalize_doi_edge_cases():
+    assert normalize_doi(None) is None
+    assert normalize_doi("") is None
+    assert normalize_doi("   ") is None
+    assert normalize_doi("http://doi.org/10.1000/XYZ") == "10.1000/xyz"
+    assert normalize_doi("https://dx.doi.org/10.1000/XYZ") == "10.1000/xyz"
+    assert normalize_doi("  10.1000/ABC-123  ") == "10.1000/abc-123"
+
+
 def test_normalize_title_collapses_whitespace_and_symbols():
     assert normalize_title("  Effects of ACL Reconstruction: a Review!  ") == "effects of acl reconstruction a review"
 

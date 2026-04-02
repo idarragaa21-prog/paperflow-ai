@@ -29,9 +29,8 @@ class Settings(BaseSettings):
 
     # Security
     # WARNING: Override this via the SECRET_KEY environment variable before deploying.
-    # A weak default is kept here only to allow local dev without any .env file.
-    # In production (ENV=production) startup will abort if this default is detected.
-    SECRET_KEY: str = "CHANGE_ME"
+    # In production (ENV=production) startup will abort if a weak secret is detected.
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -42,10 +41,10 @@ class Settings(BaseSettings):
     # Storage
     STORAGE_BASE_PATH: str = "~/PaperFlowAIData"
     STORAGE_BACKEND: str = "filesystem"  # filesystem | s3
-    S3_ENDPOINT_URL: str | None = "http://127.0.0.1:9000"
-    S3_ACCESS_KEY: str = "paperflow"
-    S3_SECRET_KEY: str = "paperflow123"
-    S3_BUCKET: str = "paperflow-artifacts"
+    S3_ENDPOINT_URL: str | None = None
+    S3_ACCESS_KEY: str | None = None
+    S3_SECRET_KEY: str | None = None
+    S3_BUCKET: str | None = None
     S3_REGION: str = "us-east-1"
     S3_FORCE_PATH_STYLE: bool = True
     S3_AUTO_CREATE_BUCKET: bool = True
@@ -259,16 +258,22 @@ class Settings(BaseSettings):
         if not parsed_app_base.scheme or not parsed_app_base.netloc:
             raise ValueError("APP_BASE_URL must be an absolute URL")
 
+        # For all environments, if S3 backend is used, require essential config
+        if self.STORAGE_BACKEND == "s3":
+            if not self.S3_ACCESS_KEY or not self.S3_SECRET_KEY or not self.S3_BUCKET or not self.S3_ENDPOINT_URL:
+                raise ValueError("S3 configuration (access key, secret key, bucket, endpoint) must be provided when STORAGE_BACKEND='s3'")
+
         if self.ENV != "production":
             return self
 
         insecure_secret = self.SECRET_KEY.startswith("DEV_ONLY") or self.SECRET_KEY == "CHANGE_ME"
-        insecure_access = self.S3_ACCESS_KEY.startswith("DEV_ONLY")
-        insecure_secret_key = self.S3_SECRET_KEY.startswith("DEV_ONLY")
+        insecure_access = (self.S3_ACCESS_KEY or "").startswith("DEV_ONLY") or self.S3_ACCESS_KEY == "paperflow"
+        insecure_secret_key = (self.S3_SECRET_KEY or "").startswith("DEV_ONLY") or self.S3_SECRET_KEY == "paperflow123"
+
         if insecure_secret:
             raise ValueError("SECRET_KEY must be set in production")
         if self.STORAGE_BACKEND == "s3" and (insecure_access or insecure_secret_key):
-            raise ValueError("S3 credentials must be set in production")
+            raise ValueError("Secure S3 credentials must be set in production (avoid defaults)")
         if not self.BACKEND_CORS_ORIGINS:
             raise ValueError("BACKEND_CORS_ORIGINS must be explicitly set in production")
         if any(origin == "*" for origin in self.BACKEND_CORS_ORIGINS):
