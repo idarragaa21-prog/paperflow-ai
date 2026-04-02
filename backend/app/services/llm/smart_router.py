@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.services.llm.model_registry import ModelRegistry, TaskType
-from app.services.llm.provider_adapters import LLMResponse, get_adapter
+from app.services.llm.provider_adapters import LLMRequest, LLMResponse, get_adapter
 
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,15 @@ class SmartRouter:
             if not model:
                 raise RuntimeError(f"model_override not found: {model_override}")
             adapter = get_adapter(model)
-            resp = await adapter.complete(prompt=prompt, system=system, temperature=temperature, max_tokens=max_tokens, json_mode=json_mode)
+            resp = await adapter.complete(
+                LLMRequest(
+                    prompt=prompt,
+                    system=system,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    json_mode=json_mode,
+                )
+            )
             self.registry.record_result(model.id, 90.0, success=True, latency_ms=resp.latency_ms)
             return resp
 
@@ -110,13 +118,21 @@ class SmartRouter:
                 logger.info(f"Routing {task.value} -> {model.id}")
 
                 resp = await asyncio.wait_for(
-                    adapter.complete(prompt=prompt, system=system, temperature=temperature, max_tokens=max_tokens, json_mode=json_mode),
+                    adapter.complete(
+                        LLMRequest(
+                            prompt=prompt,
+                            system=system,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            json_mode=json_mode,
+                        )
+                    ),
                     timeout=timeout_sec,
                 )
 
                 self.registry.record_result(model.id, 90.0, success=True, latency_ms=resp.latency_ms)
                 return resp
-            except asyncio.TimeoutError as e:
+            except asyncio.TimeoutError:
                 last_error = TimeoutError(f"{model.id} timed out after {timeout_sec:.0f}s")
                 self.registry.record_result(model.id, 0.0, success=False)
                 logger.warning(f"timeout: {model.id}")
