@@ -6,18 +6,20 @@ export function Skeleton({
   radius = 10,
   style,
   className,
+  ...props
 }: {
   width?: number | string;
   height?: number | string;
   radius?: number;
   style?: React.CSSProperties;
   className?: string;
-}) {
+} & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={['rc-skeleton', className].filter(Boolean).join(' ')}
       style={{ width, height, borderRadius: radius, ...style }}
       aria-hidden="true"
+      {...props}
     />
   );
 }

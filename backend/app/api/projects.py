@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import secrets
 from uuid import UUID
@@ -298,32 +299,37 @@ async def invite_project_member(
     )
 
 
+@dataclass
+class ProjectMemberUpdateArgs:
+    project_id: UUID
+    member_user_id: UUID
+    payload: ProjectMemberUpdateRequest
+    db: AsyncSession = Depends(get_db)
+    user: User = Depends(get_current_user)
+
+
 @router.patch("/{project_id}/members/{member_user_id}", response_model=ProjectMemberResponse)
 @limiter.limit("30/minute")
 async def update_project_member(
     request: Request,
-    project_id: UUID,
-    member_user_id: UUID,
-    payload: ProjectMemberUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    args: ProjectMemberUpdateArgs = Depends(),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    project, _ = await require_project_access(args.db, project_id=args.project_id, user=args.user, required_role="owner")
 
-    member_user = await db.get(User, member_user_id)
+    member_user = await args.db.get(User, args.member_user_id)
     if member_user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
     if member_user.id == project.user_id:
         raise HTTPException(status_code=400, detail="Project owner role cannot be changed")
 
-    membership = await _get_membership_for_user(db, project_id=project.id, user_id=member_user.id)
+    membership = await _get_membership_for_user(args.db, project_id=project.id, user_id=member_user.id)
     if membership is None:
         raise HTTPException(status_code=404, detail="Membership not found")
 
-    membership.role = payload.role
-    await db.commit()
-    await db.refresh(membership)
+    membership.role = args.payload.role
+    await args.db.commit()
+    await args.db.refresh(membership)
 
     return _member_response(project_id=project.id, user=member_user, role=membership.role, membership=membership)
 
