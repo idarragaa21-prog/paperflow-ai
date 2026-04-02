@@ -153,7 +153,10 @@ export default function LoginPage() {
                 <input className="rc-input" type={showPw?'text':'password'} value={password}
                   onChange={e=>setPassword(e.target.value)} placeholder="••••••••"
                   autoComplete="current-password" required style={{ fontSize:14,paddingRight:44 }}/>
-                <button type="button" onClick={()=>setShowPw(!showPw)} style={{
+                <button type="button" onClick={()=>setShowPw(!showPw)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
+                  title={showPw ? 'Hide password' : 'Show password'}
+                  style={{
                   position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
                   background:'none',border:'none',cursor:'pointer',padding:4,
                   color:'var(--rc-muted)',lineHeight:1 }}>

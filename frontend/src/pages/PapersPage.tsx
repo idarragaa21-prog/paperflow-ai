@@ -340,7 +340,7 @@ export default function PapersPage() {
       {hasProcessing && !dismissBanner && (
         <div className="rc-card" style={{ background: 'var(--rc-info-bg)', border: '1px solid var(--rc-info-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 13 }}>⚙️ Procesando {papers.filter(p => ['processing','queued'].includes((p.processing_status||'').toLowerCase())).length} papers... (auto-refreshing)</span>
-          <button className="rc-btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setDismissBanner(true)}>✕</button>
+          <button className="rc-btn" aria-label="Dismiss banner" title="Dismiss banner" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setDismissBanner(true)}>✕</button>
         </div>
       )}
 
