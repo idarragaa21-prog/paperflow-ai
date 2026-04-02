@@ -39,13 +39,24 @@ function() {
     ))
   }
 
-  formula_text <- paste(target, "~", paste(usable_features, collapse = " + "))
+  target_sym <- as.name(target)
+  rhs <- as.name(usable_features[[1]])
+  if (length(usable_features) > 1) {
+    for (i in 2:length(usable_features)) {
+      rhs <- call("+", rhs, as.name(usable_features[[i]]))
+    }
+  }
+  safe_formula <- as.formula(call("~", target_sym, rhs), env = parent.frame())
+
+  # For logging and summary
+  formula_text <- paste(deparse(safe_formula), collapse = " ")
+
   warnings <- list()
   model <- NULL
   if (analysis_type == "linear_regression") {
-    model <- lm(stats::as.formula(formula_text), data = df)
+    model <- lm(safe_formula, data = df)
   } else {
-    model <- glm(stats::as.formula(formula_text), data = df, family = binomial())
+    model <- glm(safe_formula, data = df, family = binomial())
   }
 
   model_summary <- summary(model)

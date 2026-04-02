@@ -755,34 +755,29 @@ def generate_presentation_job(
 
             async with async_session_maker() as db:
                 # 1) Obtener papers + resumen más reciente si existe
-                papers: list[dict[str, Any]] = []
                 paper_uuids = [UUID(pid) for pid in paper_ids]
-
-                # Batch fetch papers
                 q_papers = await db.execute(select(Paper).where(Paper.id.in_(paper_uuids)))
-                db_papers = {p.id: p for p in q_papers.scalars().all()}
+                papers_map = {p.id: p for p in q_papers.scalars().all()}
 
-                # Batch fetch notes
+                # Fetch all summary notes for these papers to avoid N+1
                 q_notes = await db.execute(
                     select(Note)
-                    .where(Note.paper_id.in_(paper_uuids), Note.note_type == "summary")
+                    .where(Note.paper_id.in_(list(papers_map.keys())), Note.note_type == "summary")
                     .order_by(Note.paper_id, Note.created_at.desc())
                 )
-                all_notes = q_notes.scalars().all()
+                notes_by_paper: dict[UUID, Note] = {}
+                for n in q_notes.scalars().all():
+                    if n.paper_id not in notes_by_paper:
+                        notes_by_paper[n.paper_id] = n
 
-                # Get latest note per paper
-                latest_notes = {}
-                for note in all_notes:
-                    if note.paper_id not in latest_notes:
-                        latest_notes[note.paper_id] = note
-
-                for pid in paper_uuids:
-                    paper = db_papers.get(pid)
+                papers: list[dict[str, Any]] = []
+                for pid in paper_ids:
+                    p_uuid = UUID(pid)
+                    paper = papers_map.get(p_uuid)
                     if not paper:
                         continue
 
-                    note = latest_notes.get(pid)
-
+                    note = notes_by_paper.get(p_uuid)
                     papers.append(
                         {
                             "id": str(paper.id),
@@ -847,14 +842,13 @@ def generate_presentation_job(
                 # M2M: avoid async lazy-loading on relationship collections (MissingGreenlet)
                 from app.models.presentation import presentation_papers
 
-                for pid in paper_ids:
-                    paper_uuid = UUID(pid)
-                    paper_obj = await db.get(Paper, paper_uuid)
-                    if not paper_obj:
-                        continue
-                    await db.execute(
-                        presentation_papers.insert().values(presentation_id=presentation.id, paper_id=paper_uuid)
-                    )
+                insert_vals = [
+                    {"presentation_id": presentation.id, "paper_id": UUID(pid)}
+                    for pid in paper_ids
+                    if UUID(pid) in papers_map
+                ]
+                if insert_vals:
+                    await db.execute(presentation_papers.insert().values(insert_vals))
 
                 await db.commit()
                 await db.refresh(presentation)
