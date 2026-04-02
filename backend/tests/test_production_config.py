@@ -9,7 +9,28 @@ from app.config import BACKEND_ENV_FILE, Settings, resolve_settings_env_file
 
 def test_settings_parse_comma_separated_cors_origins():
     settings = Settings(
+        SECRET_KEY="test",
         BACKEND_CORS_ORIGINS="https://paperflow-web.vercel.app, https://paperflow-api.onrender.com/",
+        PAPERFLOW_DISABLE_DOTENV="1",
+    )
+
+    assert settings.BACKEND_CORS_ORIGINS == [
+        "https://paperflow-web.vercel.app",
+        "https://paperflow-api.onrender.com",
+    ]
+
+
+def test_settings_parse_cors_origins_invalid_json():
+    with pytest.raises(ValueError, match="BACKEND_CORS_ORIGINS must be a JSON array or comma-separated list"):
+        Settings(
+            BACKEND_CORS_ORIGINS='[ "https://paperflow.ai"',
+            PAPERFLOW_DISABLE_DOTENV="1",
+        )
+
+
+def test_settings_parse_cors_origins_valid_json_array():
+    settings = Settings(
+        BACKEND_CORS_ORIGINS='["https://paperflow-web.vercel.app", "https://paperflow-api.onrender.com"]',
         PAPERFLOW_DISABLE_DOTENV="1",
     )
 
