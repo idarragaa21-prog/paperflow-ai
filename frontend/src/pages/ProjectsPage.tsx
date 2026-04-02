@@ -175,6 +175,7 @@ export default function ProjectsPage() {
                     <button
                       className="rc-btn rc-btn--ghost rc-btn--sm"
                       title="Archive project"
+                      aria-label="Archive project"
                       style={{ flexShrink: 0, padding: '4px 6px', color: 'var(--rc-muted)' }}
                       onClick={async () => {
                         const ok = await confirm({

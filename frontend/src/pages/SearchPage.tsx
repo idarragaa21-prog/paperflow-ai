@@ -358,7 +358,7 @@ export default function SearchPage() {
           <div className="rc-card" style={{ width: 'min(520px, 96vw)' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div data-testid="batch-trace-title" style={{ fontWeight: 800, fontFamily: 'var(--font-display)' }}>Batch OA Download</div>
-              <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => batch.setBatchModalOpen(false)}>✕</button>
+              <button className="rc-btn rc-btn--sm rc-btn--ghost" aria-label="Close" title="Close" onClick={() => batch.setBatchModalOpen(false)}>✕</button>
             </div>
             <div className="rc-help" style={{ marginBottom: 8 }}>Job: <span style={{ fontFamily: 'monospace' }}>{batch.batchJobId}</span></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
