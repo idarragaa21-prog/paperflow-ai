@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import select
@@ -213,24 +214,29 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-async def generate_deep_research_report(
-    query: str,
-    max_papers: int = 15,
-    source_mode: str = "pubmed",           # "pubmed" | "project"
-    project_id: str | None = None,
-    db: AsyncSession | None = None,
-    progress_callback: Any | None = None,
-) -> dict:
+
+@dataclass
+class DeepResearchParams:
+    query: str
+    max_papers: int = 15
+    source_mode: str = "pubmed"
+    project_id: str | None = None
+    db: AsyncSession | None = None
+    progress_callback: Any | None = None
+
+async def generate_deep_research_report(params: DeepResearchParams) -> dict:
     """Full pipeline: source papers → build context → generate report sections.
 
     Args:
-        query:             Research question / topic.
-        max_papers:        How many PubMed papers to fetch (pubmed mode only).
-        source_mode:       "pubmed" to search fresh, "project" to use project library.
-        project_id:        Required when source_mode="project".
-        db:                AsyncSession — required when source_mode="project".
-        progress_callback: Optional callable(step, percent).
+        params: DeepResearchParams instance containing all configuration and dependencies.
     """
+    query = params.query
+    max_papers = params.max_papers
+    source_mode = params.source_mode
+    project_id = params.project_id
+    db = params.db
+    progress_callback = params.progress_callback
+
     report_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc)
 
