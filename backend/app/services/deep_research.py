@@ -195,15 +195,14 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
                 from app.services.llm.provider_adapters import OllamaAdapter, LLMCompletionRequest
 
                 fallback = OllamaAdapter(settings.PAPERFLOW_CHAT_MODEL, base_url=settings.OLLAMA_BASE_URL)
-                response = await fallback.complete(
-                    LLMCompletionRequest(
-                        prompt=user,
-                        system=system,
-                        temperature=0.3,
-                        max_tokens=1500,
-                        json_mode=False,
-                    )
+                request = LLMCompletionRequest(
+                    prompt=user,
+                    system=system,
+                    temperature=0.3,
+                    max_tokens=1500,
+                    json_mode=False,
                 )
+                response = await fallback.complete(request)
                 return response.text.strip()
         else:
             # Fallback: describe the inability gracefully
