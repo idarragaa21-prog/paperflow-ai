@@ -13,6 +13,15 @@ from app.services.llm.openclaw import OpenClawProvider
 
 
 @dataclass
+class LLMRequest:
+    prompt: str
+    system: str = ""
+    temperature: float = 0.3
+    max_tokens: int = 4096
+    json_mode: bool = False
+
+
+@dataclass
 class LLMResponse:
     text: str
     model_id: str
@@ -24,14 +33,7 @@ class LLMResponse:
 
 
 class LLMAdapter(Protocol):
-    async def complete(
-        self,
-        prompt: str,
-        system: str = "",
-        temperature: float = 0.3,
-        max_tokens: int = 4096,
-        json_mode: bool = False,
-    ) -> LLMResponse: ...
+    async def complete(self, request: LLMRequest) -> LLMResponse: ...
 
     async def health_check(self) -> bool: ...
 
@@ -41,15 +43,15 @@ class OllamaAdapter:
         self.model_name = model_name
         self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-    async def complete(self, prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4096, json_mode: bool = False) -> LLMResponse:
+    async def complete(self, request: LLMRequest) -> LLMResponse:
         t0 = time.time()
         payload: dict = {
             "model": self.model_name,
-            "messages": ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}],
+            "messages": ([{"role": "system", "content": request.system}] if request.system else []) + [{"role": "user", "content": request.prompt}],
             "stream": False,
-            "options": {"temperature": temperature, "num_predict": max_tokens},
+            "options": {"temperature": request.temperature, "num_predict": request.max_tokens},
         }
-        if json_mode:
+        if request.json_mode:
             payload["format"] = "json"
 
         async with httpx.AsyncClient(timeout=300) as client:
@@ -86,7 +88,7 @@ class OpenAICompatibleAdapter:
         self.base_url = base_url.rstrip("/")
         self.api_key = os.getenv(api_key_env, "")
 
-    async def complete(self, prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4096, json_mode: bool = False) -> LLMResponse:
+    async def complete(self, request: LLMRequest) -> LLMResponse:
         if not self.api_key:
             raise RuntimeError(f"Missing API key env var for provider {self.provider}")
 
@@ -94,11 +96,11 @@ class OpenAICompatibleAdapter:
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         payload: dict = {
             "model": self.model_name,
-            "messages": ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            "messages": ([{"role": "system", "content": request.system}] if request.system else []) + [{"role": "user", "content": request.prompt}],
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
         }
-        if json_mode:
+        if request.json_mode:
             payload["response_format"] = {"type": "json_object"}
 
         async with httpx.AsyncClient(timeout=180) as client:
@@ -135,16 +137,16 @@ class OpenClawChatAdapter:
         self.model_name = model_name
         self.provider = OpenClawProvider()
 
-    async def complete(self, prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4096, json_mode: bool = False) -> LLMResponse:
+    async def complete(self, request: LLMRequest) -> LLMResponse:
         # NOTE: OpenClaw may or may not support strict JSON response_format.
         # We keep json_mode as an intent signal; upstream should still validate.
         t0 = time.time()
         r = await self.provider.chat(
             model=self.model_name or settings.OPENCLAW_MODEL,
-            system=system or "",
-            user=prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            system=request.system or "",
+            user=request.prompt,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
             retry=2,
         )
         usage = r.get("usage", {}) or {}
@@ -161,7 +163,7 @@ class OpenClawChatAdapter:
     async def health_check(self) -> bool:
         try:
             # Minimal: attempt a small completion.
-            await self.complete(prompt="ping", system="", max_tokens=8)
+            await self.complete(LLMRequest(prompt="ping", system="", max_tokens=8))
             return True
         except Exception:
             return False
@@ -173,19 +175,19 @@ class GeminiAdapter:
         self.api_key = os.getenv("GEMINI_API_KEY", "")
         self.base_url = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
 
-    async def complete(self, prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4096, json_mode: bool = False) -> LLMResponse:
+    async def complete(self, request: LLMRequest) -> LLMResponse:
         if not self.api_key:
             raise RuntimeError("Missing GEMINI_API_KEY")
 
         t0 = time.time()
         url = f"{self.base_url}/models/{self.model_name}:generateContent?key={self.api_key}"
         payload: dict = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
+            "contents": [{"parts": [{"text": request.prompt}]}],
+            "generationConfig": {"temperature": request.temperature, "maxOutputTokens": request.max_tokens},
         }
-        if system:
-            payload["systemInstruction"] = {"parts": [{"text": system}]}
-        if json_mode:
+        if request.system:
+            payload["systemInstruction"] = {"parts": [{"text": request.system}]}
+        if request.json_mode:
             payload["generationConfig"]["responseMimeType"] = "application/json"
 
         async with httpx.AsyncClient(timeout=180) as client:
