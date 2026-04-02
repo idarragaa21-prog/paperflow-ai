@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import threading
 from collections.abc import Coroutine
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
@@ -736,19 +737,22 @@ def clinical_generate_sheet_job(job_db_id: str, sheet_id: str) -> dict[str, Any]
 
 
 
-def generate_presentation_job(
-    job_db_id: str,
-    project_id: str,
-    topic: str,
-    duration: int,
-    audience: str,
-    paper_ids: list[str],
-    num_slides: int = 35,
-) -> dict[str, Any]:
+@dataclass
+class PresentationJobParams:
+    job_db_id: str
+    project_id: str
+    topic: str
+    duration: int
+    audience: str
+    paper_ids: list[str]
+    num_slides: int = 35
+
+
+def generate_presentation_job(params: PresentationJobParams) -> dict[str, Any]:
     """RQ job - SYNC wrapper"""
 
     async def _async_logic() -> dict[str, Any]:
-        job_uuid = UUID(job_db_id)
+        job_uuid = UUID(params.job_db_id)
         try:
             await job_mark_started(job_uuid)
             await job_set_progress(job_uuid, 5, status="started")
@@ -756,7 +760,7 @@ def generate_presentation_job(
             async with async_session_maker() as db:
                 # 1) Obtener papers + resumen más reciente si existe
                 papers: list[dict[str, Any]] = []
-                for pid in paper_ids:
+                for pid in params.paper_ids:
                     paper = await db.get(Paper, UUID(pid))
                     if not paper:
                         continue
@@ -789,11 +793,11 @@ def generate_presentation_job(
                 llm = llm_provider()
                 outline_result = await llm.generate_slide_outline(
                     GenerateOutlineInput(
-                        topic=topic,
-                        duration_minutes=duration,
-                        audience=audience,
+                        topic=params.topic,
+                        duration_minutes=params.duration,
+                        audience=params.audience,
                         papers=papers,
-                        num_slides=int(num_slides),
+                        num_slides=int(params.num_slides),
                     )
                 )
 
@@ -808,18 +812,18 @@ def generate_presentation_job(
                 pptx_result = await generate_presentation(
                     outline=outline_result["outline"],
                     references=references,
-                    project_id=UUID(project_id),
+                    project_id=UUID(params.project_id),
                 )
 
                 await job_set_progress(job_uuid, 90, status="progress")
 
                 # 5) Guardar en DB
                 presentation = Presentation(
-                    project_id=UUID(project_id),
-                    title=topic,
-                    topic=topic,
-                    duration_minutes=duration,
-                    audience=audience,
+                    project_id=UUID(params.project_id),
+                    title=params.topic,
+                    topic=params.topic,
+                    duration_minutes=params.duration,
+                    audience=params.audience,
                     filename=pptx_result["filename"],
                     file_path=pptx_result["file_path"],
                     outline=outline_result["outline"],
@@ -833,7 +837,7 @@ def generate_presentation_job(
                 # M2M: avoid async lazy-loading on relationship collections (MissingGreenlet)
                 from app.models.presentation import presentation_papers
 
-                for pid in paper_ids:
+                for pid in params.paper_ids:
                     paper_uuid = UUID(pid)
                     paper_obj = await db.get(Paper, paper_uuid)
                     if not paper_obj:
