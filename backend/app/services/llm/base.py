@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.services.llm.schemas import GenerateOutlineInput
 
 
 class LLMProvider(ABC):
@@ -17,11 +20,7 @@ class LLMProvider(ABC):
     @abstractmethod
     async def generate_slide_outline(
         self,
-        topic: str,
-        duration_minutes: int,
-        audience: str,
-        papers: list[dict[str, Any]] | None = None,
-        num_slides: int | None = None,
+        input_data: GenerateOutlineInput,
     ) -> dict[str, Any]:
         pass
 
