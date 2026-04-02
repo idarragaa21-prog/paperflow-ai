@@ -47,7 +47,7 @@ type InsightCardProps = {
   tone?: 'primary' | 'success' | 'warning' | 'neutral';
 };
 
-const EMPTY_COUNTS: WorkflowCounts = {
+export const EMPTY_COUNTS: WorkflowCounts = {
   papers: 0,
   notes: 0,
   references: 0,
