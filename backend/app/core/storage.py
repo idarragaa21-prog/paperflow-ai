@@ -115,12 +115,16 @@ class StorageManager:
     def _save_s3(self, *, relative_path: str, data: bytes) -> Dict[str, Any]:
         key = self._sanitize_relative_key(relative_path)
         self.ensure_bucket()
-        self._s3().put_object(
-            Bucket=settings.S3_BUCKET,
-            Key=key,
-            Body=data,
-            ContentLength=len(data),
-        )
+        try:
+            self._s3().put_object(
+                Bucket=settings.S3_BUCKET,
+                Key=key,
+                Body=data,
+                ContentLength=len(data),
+            )
+        except Exception as exc:
+            logger.error(f"Failed to upload {key} to S3: {exc}")
+            raise RuntimeError(f"Storage upload failed: {exc}") from exc
         return {
             "file_path": key,
             "size_kb": len(data) // 1024,
