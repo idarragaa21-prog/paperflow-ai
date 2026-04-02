@@ -39,7 +39,7 @@ async def create_deep_research(
         try:
             proj_uuid = UUID(payload.project_id)
         except ValueError:
-            raise HTTPException(status_code=400, detail="project_id inválido")
+            raise HTTPException(status_code=400, detail="Invalid input")
         await require_project_access(db, project_id=proj_uuid, user=user, required_role="viewer")
 
     report = await generate_deep_research_report(
