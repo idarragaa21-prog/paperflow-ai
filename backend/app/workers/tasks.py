@@ -756,18 +756,32 @@ def generate_presentation_job(
             async with async_session_maker() as db:
                 # 1) Obtener papers + resumen más reciente si existe
                 papers: list[dict[str, Any]] = []
-                for pid in paper_ids:
-                    paper = await db.get(Paper, UUID(pid))
+                paper_uuids = [UUID(pid) for pid in paper_ids]
+
+                # Batch fetch papers
+                q_papers = await db.execute(select(Paper).where(Paper.id.in_(paper_uuids)))
+                db_papers = {p.id: p for p in q_papers.scalars().all()}
+
+                # Batch fetch notes
+                q_notes = await db.execute(
+                    select(Note)
+                    .where(Note.paper_id.in_(paper_uuids), Note.note_type == "summary")
+                    .order_by(Note.paper_id, Note.created_at.desc())
+                )
+                all_notes = q_notes.scalars().all()
+
+                # Get latest note per paper
+                latest_notes = {}
+                for note in all_notes:
+                    if note.paper_id not in latest_notes:
+                        latest_notes[note.paper_id] = note
+
+                for pid in paper_uuids:
+                    paper = db_papers.get(pid)
                     if not paper:
                         continue
 
-                    q = await db.execute(
-                        select(Note)
-                        .where(Note.paper_id == paper.id, Note.note_type == "summary")
-                        .order_by(Note.created_at.desc())
-                        .limit(1)
-                    )
-                    note = q.scalar_one_or_none()
+                    note = latest_notes.get(pid)
 
                     papers.append(
                         {
