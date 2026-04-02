@@ -755,20 +755,29 @@ def generate_presentation_job(
 
             async with async_session_maker() as db:
                 # 1) Obtener papers + resumen más reciente si existe
+                paper_uuids = [UUID(pid) for pid in paper_ids]
+                q_papers = await db.execute(select(Paper).where(Paper.id.in_(paper_uuids)))
+                papers_map = {p.id: p for p in q_papers.scalars().all()}
+
+                # Fetch all summary notes for these papers to avoid N+1
+                q_notes = await db.execute(
+                    select(Note)
+                    .where(Note.paper_id.in_(list(papers_map.keys())), Note.note_type == "summary")
+                    .order_by(Note.paper_id, Note.created_at.desc())
+                )
+                notes_by_paper: dict[UUID, Note] = {}
+                for n in q_notes.scalars().all():
+                    if n.paper_id not in notes_by_paper:
+                        notes_by_paper[n.paper_id] = n
+
                 papers: list[dict[str, Any]] = []
                 for pid in paper_ids:
-                    paper = await db.get(Paper, UUID(pid))
+                    p_uuid = UUID(pid)
+                    paper = papers_map.get(p_uuid)
                     if not paper:
                         continue
 
-                    q = await db.execute(
-                        select(Note)
-                        .where(Note.paper_id == paper.id, Note.note_type == "summary")
-                        .order_by(Note.created_at.desc())
-                        .limit(1)
-                    )
-                    note = q.scalar_one_or_none()
-
+                    note = notes_by_paper.get(p_uuid)
                     papers.append(
                         {
                             "id": str(paper.id),
@@ -829,14 +838,13 @@ def generate_presentation_job(
                 # M2M: avoid async lazy-loading on relationship collections (MissingGreenlet)
                 from app.models.presentation import presentation_papers
 
-                for pid in paper_ids:
-                    paper_uuid = UUID(pid)
-                    paper_obj = await db.get(Paper, paper_uuid)
-                    if not paper_obj:
-                        continue
-                    await db.execute(
-                        presentation_papers.insert().values(presentation_id=presentation.id, paper_id=paper_uuid)
-                    )
+                insert_vals = [
+                    {"presentation_id": presentation.id, "paper_id": UUID(pid)}
+                    for pid in paper_ids
+                    if UUID(pid) in papers_map
+                ]
+                if insert_vals:
+                    await db.execute(presentation_papers.insert().values(insert_vals))
 
                 await db.commit()
                 await db.refresh(presentation)
