@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.config import settings
 from app.schemas.presentation_outline import PresentationOutline, outline_warnings
 from app.services.llm.base import LLMProvider
+
+if TYPE_CHECKING:
+    from app.services.llm.schemas import GenerateOutlineInput
 from app.services.llm.openclaw import OpenClawProvider
 
 
@@ -75,12 +78,14 @@ class EnsembleLLMProvider(LLMProvider):
 
     async def generate_slide_outline(
         self,
-        topic: str,
-        duration_minutes: int,
-        audience: str,
-        papers: list[dict[str, Any]] | None = None,
-        num_slides: int | None = None,
+        input_data: GenerateOutlineInput,
     ) -> dict[str, Any]:
+        topic = input_data.topic
+        duration_minutes = input_data.duration_minutes
+        audience = input_data.audience
+        papers = input_data.papers
+        num_slides = input_data.num_slides
+
         if settings.LLM_PROVIDER != "openclaw":
             raise RuntimeError(
                 "LLM_STRATEGY=ensemble requiere LLM_PROVIDER=openclaw (necesita Claude+OpenAI+Gemini)."

@@ -784,13 +784,17 @@ def generate_presentation_job(
                 await job_set_progress(job_uuid, 20, status="progress")
 
                 # 2) Outline con LLM
+                from app.services.llm.schemas import GenerateOutlineInput
+
                 llm = llm_provider()
                 outline_result = await llm.generate_slide_outline(
-                    topic=topic,
-                    duration_minutes=duration,
-                    audience=audience,
-                    papers=papers,
-                    num_slides=int(num_slides),
+                    GenerateOutlineInput(
+                        topic=topic,
+                        duration_minutes=duration,
+                        audience=audience,
+                        papers=papers,
+                        num_slides=int(num_slides),
+                    )
                 )
 
                 await job_set_progress(job_uuid, 55, status="progress")
