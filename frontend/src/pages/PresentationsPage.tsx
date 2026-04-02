@@ -121,46 +121,46 @@ export default function PresentationsPage() {
         </button>
       </div>
 
-      {error ? <div className=”rc-danger”>{String(error)}</div> : null}
+      {error ? <div className="rc-danger">{String(error)}</div> : null}
 
       {initialLoading && (
-        <div className=”rc-page-skeleton”>
-          <div className=”rc-skeleton-card” style={{ height: 120 }}>
+        <div className="rc-page-skeleton">
+          <div className="rc-skeleton-card" style={{ height: 120 }}>
             {[65, 50, 40].map((w, i) => (
-              <div key={i} className=”rc-skeleton-line” style={{ width: `${w}%`, marginBottom: 8 }} />
+              <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, marginBottom: 8 }} />
             ))}
           </div>
-          <div className=”rc-skeleton-card” style={{ height: 80 }}>
+          <div className="rc-skeleton-card" style={{ height: 80 }}>
             {[75, 55].map((w, i) => (
-              <div key={i} className=”rc-skeleton-line” style={{ width: `${w}%`, marginBottom: 8 }} />
+              <div key={i} className="rc-skeleton-line" style={{ width: `${w}%`, marginBottom: 8 }} />
             ))}
           </div>
         </div>
       )}
 
       {!initialLoading && (<>
-      <div className=”rc-card”>
-        <div className=”rc-card-title”>Generate deck</div>
+      <div className="rc-card">
+        <div className="rc-card-title">Generate deck</div>
 
-        <div className=”rc-grid2”>
+        <div className="rc-grid2">
           <div>
             <div style={{ fontSize: 12, opacity: 0.8 }}>Topic</div>
-            <input className=”rc-input” value={topic} onChange={(e) => setTopic(e.target.value)} style={{ width: '100%' }} placeholder=”e.g. ACL reconstruction: HT vs BPTB” />
+            <input className="rc-input" value={topic} onChange={(e) => setTopic(e.target.value)} style={{ width: '100%' }} placeholder="e.g. ACL reconstruction: HT vs BPTB" />
           </div>
           <div>
             <div style={{ fontSize: 12, opacity: 0.8 }}>Audience</div>
-            <select className=”rc-input” value={audience} onChange={(e) => setAudience(e.target.value as any)} style={{ width: '100%' }}>
-              <option value=”universidad”>universidad</option>
-              <option value=”palestra”>palestra</option>
+            <select className="rc-input" value={audience} onChange={(e) => setAudience(e.target.value as any)} style={{ width: '100%' }}>
+              <option value="universidad">universidad</option>
+              <option value="palestra">palestra</option>
             </select>
           </div>
           <div>
             <div style={{ fontSize: 12, opacity: 0.8 }}>Duration (min)</div>
-            <input className=”rc-input” type=”number” value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value))} style={{ width: '100%' }} />
+            <input className="rc-input" type="number" value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value))} style={{ width: '100%' }} />
           </div>
           <div>
             <div style={{ fontSize: 12, opacity: 0.8 }}># Slides (20–50)</div>
-            <input className=”rc-input” type=”number” min={20} max={50} value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} style={{ width: '100%' }} />
+            <input className="rc-input" type="number" min={20} max={50} value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} style={{ width: '100%' }} />
           </div>
         </div>
 
@@ -170,7 +170,7 @@ export default function PresentationsPage() {
           {papers.map((p) => (
             <label key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <input
-                type=”checkbox”
+                type="checkbox"
                 checked={Boolean(selectedPaperIds[p.id])}
                 onChange={(e) => setSelectedPaperIds((s) => ({ ...s, [p.id]: e.target.checked }))}
                 style={{ marginTop: 3 }}
@@ -180,11 +180,11 @@ export default function PresentationsPage() {
           ))}
           {papers.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--rc-muted)' }}>
-              <svg width=”48” height=”48” viewBox=”0 0 48 48” fill=”none” style={{ margin: '0 auto 10px', display: 'block' }}>
-                <rect x=”6” y=”8” width=”28” height=”34” rx=”4” fill=”rgba(99,102,241,0.07)” stroke=”rgba(99,102,241,0.2)” strokeWidth=”1.5”/>
-                <line x1=”12” y1=”18” x2=”28” y2=”18” stroke=”rgba(99,102,241,0.25)” strokeWidth=”1.5” strokeLinecap=”round”/>
-                <line x1=”12” y1=”24” x2=”28” y2=”24” stroke=”rgba(99,102,241,0.25)” strokeWidth=”1.5” strokeLinecap=”round”/>
-                <line x1=”12” y1=”30” x2=”22” y2=”30” stroke=”rgba(99,102,241,0.15)” strokeWidth=”1.5” strokeLinecap=”round”/>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ margin: '0 auto 10px', display: 'block' }}>
+                <rect x="6" y="8" width="28" height="34" rx="4" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5"/>
+                <line x1="12" y1="18" x2="28" y2="18" stroke="rgba(99,102,241,0.25)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="12" y1="24" x2="28" y2="24" stroke="rgba(99,102,241,0.25)" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="12" y1="30" x2="22" y2="30" stroke="rgba(99,102,241,0.15)" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
               <div style={{ fontSize: 13, fontWeight: 600 }}>No papers in this project yet</div>
               <div style={{ fontSize: 12, marginTop: 3 }}>Add papers to the library first</div>
@@ -193,11 +193,11 @@ export default function PresentationsPage() {
         </div>
 
         <div style={{ height: 12 }} />
-        <button className=”rc-btn rc-btn--primary” disabled={generating} onClick={generate}>
+        <button className="rc-btn rc-btn--primary" disabled={generating} onClick={generate}>
           {generating ? 'Enqueueing…' : 'Generate'}
         </button>
         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 8 }}>
-          Tip: for a “non-generic” deck, select &gt;=3 key papers (RCT + meta-analysis if possible).
+          Tip: for a “non-generic" deck, select &gt;=3 key papers (RCT + meta-analysis if possible).
         </div>
       </div>
 
@@ -205,26 +205,26 @@ export default function PresentationsPage() {
         <div style={{ fontWeight: 850 }}>Decks</div>
         {presentations.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <svg width=”72” height=”72” viewBox=”0 0 72 72” fill=”none” style={{ margin: '0 auto 14px', display: 'block' }}>
-              <rect x=”6” y=”14” width=”60” height=”40” rx=”5” fill=”rgba(99,102,241,0.07)” stroke=”rgba(99,102,241,0.2)” strokeWidth=”1.5”/>
-              <rect x=”12” y=”20” width=”48” height=”28” rx=”3” fill=”rgba(99,102,241,0.05)” stroke=”rgba(99,102,241,0.15)” strokeWidth=”1”/>
-              <line x1=”20” y1=”28” x2=”52” y2=”28” stroke=”rgba(99,102,241,0.3)” strokeWidth=”1.5” strokeLinecap=”round”/>
-              <line x1=”20” y1=”34” x2=”52” y2=”34” stroke=”rgba(99,102,241,0.2)” strokeWidth=”1.5” strokeLinecap=”round”/>
-              <line x1=”20” y1=”40” x2=”40” y2=”40” stroke=”rgba(99,102,241,0.15)” strokeWidth=”1.5” strokeLinecap=”round”/>
-              <line x1=”30” y1=”54” x2=”42” y2=”54” stroke=”rgba(99,102,241,0.2)” strokeWidth=”1.5” strokeLinecap=”round”/>
-              <line x1=”36” y1=”54” x2=”36” y2=”60” stroke=”rgba(99,102,241,0.2)” strokeWidth=”1.5” strokeLinecap=”round”/>
+            <svg width="72" height="72" viewBox="0 0 72 72" fill="none" style={{ margin: '0 auto 14px', display: 'block' }}>
+              <rect x="6" y="14" width="60" height="40" rx="5" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5"/>
+              <rect x="12" y="20" width="48" height="28" rx="3" fill="rgba(99,102,241,0.05)" stroke="rgba(99,102,241,0.15)" strokeWidth="1"/>
+              <line x1="20" y1="28" x2="52" y2="28" stroke="rgba(99,102,241,0.3)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="20" y1="34" x2="52" y2="34" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="20" y1="40" x2="40" y2="40" stroke="rgba(99,102,241,0.15)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="30" y1="54" x2="42" y2="54" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="36" y1="54" x2="36" y2="60" stroke="rgba(99,102,241,0.2)" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
             <div style={{ fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>No presentations yet</div>
             <div style={{ fontSize: 13, color: 'var(--rc-muted)', marginTop: 5 }}>Select papers and generate your first presentation</div>
           </div>
         ) : null}
         {presentations.map((p) => (
-          <div key={p.id} className=”rc-card” style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div key={p.id} className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontWeight: 750 }}>{p.title}</div>
             <div style={{ fontSize: 12, opacity: 0.8 }}>
               {p.topic} · {p.audience} · {p.duration_minutes} min · {p.filename}
             </div>
-            <div className=”rc-row”>
+            <div className="rc-row">
               <button onClick={() => downloadPresentation(p)}>Download PPTX</button>
             </div>
           </div>

@@ -47,13 +47,6 @@ type InsightCardProps = {
   tone?: 'primary' | 'success' | 'warning' | 'neutral';
 };
 
-const EMPTY_COUNTS: WorkflowCounts = {
-  papers: 0,
-  notes: 0,
-  references: 0,
-  meta_studies_current: 0,
-  presentations: 0,
-};
 
 const TONE_CLASS: Record<NonNullable<PageHeroMetric['tone']>, string> = {
   primary: 'rc-metric-card--primary',
