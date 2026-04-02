@@ -71,15 +71,7 @@ async def create_presentation(
 
     # Encolar
     try:
-        rq_job_id = enqueue_presentation(
-            job_record.id,
-            payload.project_id,
-            payload.topic,
-            payload.duration_minutes,
-            payload.audience,
-            payload.paper_ids,
-            payload.num_slides,
-        )
+        rq_job_id = enqueue_presentation(job_record.id, payload)
     except Exception as e:
         logger.error("Failed to enqueue generate_presentation job: {}", e)
         job_record.status = "failed"
