@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
@@ -39,6 +40,13 @@ def _infer_export_format(filename: str) -> str:
     return Path(lower_name).suffix.lstrip(".") or "unknown"
 
 
+@dataclass
+class BatchCreateParams:
+    project_id: UUID = Form(...)
+    title: str | None = Form(default=None)
+    files: list[UploadFile] = File(...)
+
+
 def _export_media_type(filename: str) -> str:
     export_format = _infer_export_format(filename)
     if export_format == "xlsx":
@@ -63,22 +71,20 @@ async def _require_project_role(
 @limiter.limit("3/minute")
 async def create_batch(
     request: Request,
-    project_id: UUID = Form(...),
-    title: str | None = Form(default=None),
-    files: list[UploadFile] = File(...),
+    params: BatchCreateParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project_role(db, project_id, user, required_role="editor")
+    await _require_project_role(db, params.project_id, user, required_role="editor")
 
-    batch = MetaExtractionBatch(user_id=user.id, project_id=project_id, title=title, status="created")
+    batch = MetaExtractionBatch(user_id=user.id, project_id=params.project_id, title=params.title, status="created")
     db.add(batch)
     await db.commit()
     await db.refresh(batch)
 
     # Save PDFs as Papers and create items
     created_items: list[str] = []
-    for f in files:
+    for f in params.files:
         content = await f.read()
         if not storage_manager.validate_pdf(content):
             raise HTTPException(status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}")
@@ -86,13 +92,13 @@ async def create_batch(
         # Dedup by hash within project
         content_hash = storage_manager._calculate_hash(content)
         existing = await db.execute(
-            select(Paper).where(Paper.project_id == project_id).where(Paper.content_hash == content_hash).limit(1)
+            select(Paper).where(Paper.project_id == params.project_id).where(Paper.content_hash == content_hash).limit(1)
         )
         paper = existing.scalars().first()
         if not paper:
-            saved = await storage_manager.save_paper_bytes(data=content, project_id=project_id, suggested_filename=f.filename)
+            saved = await storage_manager.save_paper_bytes(data=content, project_id=params.project_id, suggested_filename=f.filename)
             paper = Paper(
-                project_id=project_id,
+                project_id=params.project_id,
                 search_result_id=None,
                 title=f.filename or "Paper",
                 authors=None,
