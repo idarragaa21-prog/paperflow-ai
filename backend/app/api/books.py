@@ -127,21 +127,25 @@ async def list_books(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    q = await db.execute(select(BookIndex).where(BookIndex.user_id == user.id).order_by(BookIndex.created_at.desc()))
-    rows = q.scalars().all()
-    return [
-        {
-            "id": str(b.id),
-            "filename": b.filename,
-            "file_path": b.file_path,
-            "title": b.title,
-            "total_pages": b.total_pages,
-            "chapters_count": len(b.chapters or []),
-            "indexed_at": b.indexed_at.isoformat() if b.indexed_at else None,
-            "created_at": b.created_at.isoformat() if b.created_at else None,
-        }
-        for b in rows
-    ]
+    try:
+        q = await db.execute(select(BookIndex).where(BookIndex.user_id == user.id).order_by(BookIndex.created_at.desc()))
+        rows = q.scalars().all()
+        return [
+            {
+                "id": str(b.id),
+                "filename": b.filename,
+                "file_path": b.file_path,
+                "title": b.title,
+                "total_pages": b.total_pages,
+                "chapters_count": len(b.chapters or []),
+                "indexed_at": b.indexed_at.isoformat() if b.indexed_at else None,
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+            for b in rows
+        ]
+    except Exception as e:
+        logger.error("Failed to fetch books for user {}: {}", user.id, e)
+        raise HTTPException(status_code=500, detail="Failed to fetch books")
 
 
 @router.post("/{book_id}/reindex")
