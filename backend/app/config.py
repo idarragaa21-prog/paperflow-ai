@@ -29,9 +29,8 @@ class Settings(BaseSettings):
 
     # Security
     # WARNING: Override this via the SECRET_KEY environment variable before deploying.
-    # A weak default is kept here only to allow local dev without any .env file.
-    # In production (ENV=production) startup will abort if this default is detected.
-    SECRET_KEY: str = "CHANGE_ME"
+    # In production (ENV=production) startup will abort if a weak secret is detected.
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
