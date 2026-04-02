@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import secrets
 from uuid import UUID
@@ -298,32 +299,37 @@ async def invite_project_member(
     )
 
 
+@dataclass
+class ProjectMemberUpdateArgs:
+    project_id: UUID
+    member_user_id: UUID
+    payload: ProjectMemberUpdateRequest
+    db: AsyncSession = Depends(get_db)
+    user: User = Depends(get_current_user)
+
+
 @router.patch("/{project_id}/members/{member_user_id}", response_model=ProjectMemberResponse)
 @limiter.limit("30/minute")
 async def update_project_member(
     request: Request,
-    project_id: UUID,
-    member_user_id: UUID,
-    payload: ProjectMemberUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    args: ProjectMemberUpdateArgs = Depends(),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    project, _ = await require_project_access(args.db, project_id=args.project_id, user=args.user, required_role="owner")
 
-    member_user = await db.get(User, member_user_id)
+    member_user = await args.db.get(User, args.member_user_id)
     if member_user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
     if member_user.id == project.user_id:
         raise HTTPException(status_code=400, detail="Project owner role cannot be changed")
 
-    membership = await _get_membership_for_user(db, project_id=project.id, user_id=member_user.id)
+    membership = await _get_membership_for_user(args.db, project_id=project.id, user_id=member_user.id)
     if membership is None:
         raise HTTPException(status_code=404, detail="Membership not found")
 
-    membership.role = payload.role
-    await db.commit()
-    await db.refresh(membership)
+    membership.role = args.payload.role
+    await args.db.commit()
+    await args.db.refresh(membership)
 
     return _member_response(project_id=project.id, user=member_user, role=membership.role, membership=membership)
 
@@ -522,17 +528,32 @@ async def project_dashboard(
     }
 
 
+class ProjectLibraryParams:
+    def __init__(
+        self,
+        year: int | None = None,
+        author: str | None = None,
+        journal: str | None = None,
+        open_access: bool | None = None,
+        processing_status: str | None = None,
+        favorite: bool | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ):
+        self.year = year
+        self.author = author
+        self.journal = journal
+        self.open_access = open_access
+        self.processing_status = processing_status
+        self.favorite = favorite
+        self.limit = limit
+        self.offset = offset
+
+
 @router.get("/{project_id}/library")
 async def project_library(
     project_id: UUID,
-    year: int | None = None,
-    author: str | None = None,
-    journal: str | None = None,
-    open_access: bool | None = None,
-    processing_status: str | None = None,
-    favorite: bool | None = None,
-    limit: int | None = None,
-    offset: int = 0,
+    params: ProjectLibraryParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -541,22 +562,22 @@ async def project_library(
     from app.models.paper import Paper
 
     clauses = [Paper.project_id == project_id]
-    if year is not None:
-        clauses.append(Paper.publication_year == year)
-    if journal:
-        clauses.append(Paper.journal.ilike(f"%{journal.strip()}%"))
-    if processing_status:
-        clauses.append(Paper.processing_status == processing_status)
-    if open_access is not None:
-        clauses.append(Paper.is_open_access == open_access)
-    if favorite is not None:
-        clauses.append(Paper.favorite == favorite)
-    if author:
-        clauses.append(Paper.authors.ilike(f"%{author.strip()}%"))
+    if params.year is not None:
+        clauses.append(Paper.publication_year == params.year)
+    if params.journal:
+        clauses.append(Paper.journal.ilike(f"%{params.journal.strip()}%"))
+    if params.processing_status:
+        clauses.append(Paper.processing_status == params.processing_status)
+    if params.open_access is not None:
+        clauses.append(Paper.is_open_access == params.open_access)
+    if params.favorite is not None:
+        clauses.append(Paper.favorite == params.favorite)
+    if params.author:
+        clauses.append(Paper.authors.ilike(f"%{params.author.strip()}%"))
 
-    stmt = select(Paper).where(and_(*clauses)).order_by(Paper.created_at.desc()).offset(offset)
-    if limit is not None:
-        stmt = stmt.limit(limit)
+    stmt = select(Paper).where(and_(*clauses)).order_by(Paper.created_at.desc()).offset(params.offset)
+    if params.limit is not None:
+        stmt = stmt.limit(params.limit)
     q = await db.execute(stmt)
     items = q.scalars().all()
     return [

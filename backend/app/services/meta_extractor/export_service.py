@@ -192,6 +192,23 @@ async def build_export_payload(
         papers_result = await db.execute(select(Paper).where(Paper.id.in_(paper_ids)))
         paper_map = {p.id: p for p in papers_result.scalars().all()}
 
+    study_ids = [s.id for s in studies]
+    effects_by_study: dict[UUID, list[ExtractedEffectSize]] = defaultdict(list)
+    robs_by_study: dict[UUID, list[ExtractedRiskOfBias]] = defaultdict(list)
+
+    if study_ids:
+        effects_result = await db.execute(
+            select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id.in_(study_ids))
+        )
+        for effect in effects_result.scalars().all():
+            effects_by_study[effect.extracted_study_id].append(effect)
+
+        robs_result = await db.execute(
+            select(ExtractedRiskOfBias).where(ExtractedRiskOfBias.extracted_study_id.in_(study_ids))
+        )
+        for rob in robs_result.scalars().all():
+            robs_by_study[rob.extracted_study_id].append(rob)
+
     for s in studies:
         sj = s.study_json or {}
         paper = paper_map.get(s.paper_id)
@@ -319,8 +336,7 @@ async def build_export_payload(
             raw_effects_by_fallback[_effect_fallback_key_from_payload(raw_effect)].append((idx, raw_effect))
 
         used_raw_effect_indexes: set[int] = set()
-        qeff = await db.execute(select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == s.id))
-        db_effects = qeff.scalars().all()
+        db_effects = effects_by_study.get(s.id, [])
         for e in db_effects:
             raw_effect = _claim_first_unused(raw_effects_by_key[_effect_key_from_model(e)], used_raw_effect_indexes)
             if raw_effect is None:
@@ -380,8 +396,7 @@ async def build_export_payload(
             raw_robs_by_key[_rob_key_from_payload(raw_rob)].append((idx, raw_rob))
 
         used_raw_rob_indexes: set[int] = set()
-        qrob = await db.execute(select(ExtractedRiskOfBias).where(ExtractedRiskOfBias.extracted_study_id == s.id))
-        db_robs = qrob.scalars().all()
+        db_robs = robs_by_study.get(s.id, [])
         for r in db_robs:
             raw_rob = _claim_first_unused(raw_robs_by_key[_rob_key_from_model(r)], used_raw_rob_indexes)
             row = _raw_rob_row(study_id=s.id, raw=raw_rob or {}, rob_id=str(r.id))

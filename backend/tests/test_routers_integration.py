@@ -615,6 +615,18 @@ class TestProjectInvitations:
 
 @pytest.mark.asyncio
 class TestDeepResearchAccess:
+    async def test_deep_research_invalid_project_id(self, authed_client: AsyncClient):
+        response = await authed_client.post(
+            "/research/deep",
+            json={
+                "query": "test query",
+                "source_mode": "project",
+                "project_id": "invalid-uuid-string"
+            }
+        )
+        assert response.status_code == 400
+        assert response.json() == {"detail": "Invalid input"}
+
     async def test_viewer_can_generate_project_mode_deep_research(self, db_session: AsyncSession):
         owner = User(
             id=uuid.uuid4(),

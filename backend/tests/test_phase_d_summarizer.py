@@ -8,6 +8,7 @@ import pytest
 from app.models.note import Note
 from app.models.paper import Paper
 from app.services import summarizer
+from app.services.summarizer import parse_summary_markdown
 
 
 class FakeSession:
@@ -80,3 +81,59 @@ async def test_summary_creates_note(monkeypatch):
     assert notes[0].paper_id == paper_id
     assert notes[0].note_type == "summary"
     assert notes[0].llm_model == "mock-model"
+
+
+def test_parse_summary_markdown_empty():
+    assert parse_summary_markdown("") == {}
+    assert parse_summary_markdown(None) == {}
+
+
+def test_parse_summary_markdown_no_headings():
+    text = "Just some text\nwithout any headings."
+    expected = {"Resumen": "Just some text\nwithout any headings."}
+    assert parse_summary_markdown(text) == expected
+
+
+def test_parse_summary_markdown_h2_headings():
+    text = "## Objective\nTo test the code.\n## Results\nIt works."
+    expected = {
+        "Objective": "To test the code.",
+        "Results": "It works."
+    }
+    assert parse_summary_markdown(text) == expected
+
+
+def test_parse_summary_markdown_bold_headings():
+    text = "**Objective**\nTo test the code.\n**Results**\nIt works."
+    expected = {
+        "Objective": "To test the code.",
+        "Results": "It works."
+    }
+    assert parse_summary_markdown(text) == expected
+
+
+def test_parse_summary_markdown_mixed_headings():
+    text = "Introductory text.\n## Method\nDid some stuff.\n**Conclusion**\nIt is good."
+    expected = {
+        "Resumen": "Introductory text.",
+        "Method": "Did some stuff.",
+        "Conclusion": "It is good."
+    }
+    assert parse_summary_markdown(text) == expected
+
+
+def test_parse_summary_markdown_ignores_empty_sections():
+    text = "## Empty Section\n\n## Next Section\nHas content."
+    expected = {
+        "Next Section": "Has content."
+    }
+    assert parse_summary_markdown(text) == expected
+
+
+def test_parse_summary_markdown_windows_line_endings():
+    text = "## First\r\nContent\r\n## Second\r\nMore content"
+    expected = {
+        "First": "Content",
+        "Second": "More content"
+    }
+    assert parse_summary_markdown(text) == expected
