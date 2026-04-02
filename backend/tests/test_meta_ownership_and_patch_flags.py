@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
@@ -60,20 +61,22 @@ class FakeStudy:
         self.updated_at = datetime.utcnow()
 
 
+@dataclass
+class FakeSessionConfig:
+    batch: FakeBatch | None = None
+    project: FakeProject | None = None
+    study: FakeStudy | None = None
+    effect: FakeEffect | None = None
+    rob: FakeROB | None = None
+
+
 class FakeSession:
-    def __init__(
-        self,
-        batch: FakeBatch | None,
-        project: FakeProject | None,
-        study: FakeStudy | None,
-        effect: FakeEffect | None,
-        rob: FakeROB | None,
-    ):
-        self._batch = batch
-        self._project = project
-        self._study = study
-        self._effect = effect
-        self._rob = rob
+    def __init__(self, config: FakeSessionConfig):
+        self._batch = config.batch
+        self._project = config.project
+        self._study = config.study
+        self._effect = config.effect
+        self._rob = config.rob
 
     async def get(self, model, obj_id):
         name = getattr(model, "__name__", "")
@@ -123,7 +126,7 @@ async def test_ownership_check_meta_batch_denies(monkeypatch):
     batch = FakeBatch(batch_id, user_b, project_id)
     project = FakeProject(project_id, user_b)
 
-    db = FakeSession(batch=batch, project=project, study=None, effect=None, rob=None)
+    db = FakeSession(config=FakeSessionConfig(batch=batch, project=project, study=None, effect=None, rob=None))
 
     async def get_db_override():
         yield db
@@ -162,7 +165,7 @@ async def test_patch_effect_marks_manually_edited(monkeypatch):
     study = FakeStudy(study_id, project_id, paper_id)
     eff = FakeEffect(effect_id, study_id)
 
-    db = FakeSession(batch=None, project=project, study=study, effect=eff, rob=None)
+    db = FakeSession(config=FakeSessionConfig(batch=None, project=project, study=study, effect=eff, rob=None))
 
     async def get_db_override():
         yield db
@@ -208,7 +211,7 @@ async def test_patch_rob_marks_manually_edited(monkeypatch):
     study = FakeStudy(study_id, project_id, paper_id)
     rob = FakeROB(rob_id, study_id)
 
-    db = FakeSession(batch=None, project=project, study=study, effect=None, rob=rob)
+    db = FakeSession(config=FakeSessionConfig(batch=None, project=project, study=study, effect=None, rob=rob))
 
     async def get_db_override():
         yield db
