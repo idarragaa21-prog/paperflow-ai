@@ -7,6 +7,8 @@ from rq.job import Job as RQJob
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from dataclasses import dataclass
+
 from app.core.redis_conn import get_redis, redis_available
 from app.middleware.rate_limit import limiter
 from app.models.job import Job
@@ -102,28 +104,33 @@ def retry_job_record(current_job: Job) -> str:
     return str(rq_job_id)
 
 
+@dataclass
+class JobFilters:
+    status: str | None = None
+    job_type: str | None = None
+    limit: int = 50
+    offset: int = 0
+
+
 @router.get("")
 @limiter.limit("60/minute")
 async def list_jobs(
     request: Request,
-    status: str | None = None,
-    job_type: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
+    filters: JobFilters = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    limit = max(1, min(200, int(limit)))
-    offset = max(0, int(offset))
+    limit = max(1, min(200, int(filters.limit)))
+    offset = max(0, int(filters.offset))
 
     # DB query first
     from sqlalchemy import select
 
     stmt = select(Job).where(Job.user_id == user.id)
-    if status:
-        stmt = stmt.where(Job.status == status)
-    if job_type:
-        stmt = stmt.where(Job.job_type == job_type)
+    if filters.status:
+        stmt = stmt.where(Job.status == filters.status)
+    if filters.job_type:
+        stmt = stmt.where(Job.job_type == filters.job_type)
     stmt = stmt.order_by(Job.created_at.desc()).limit(limit).offset(offset)
 
     q = await db.execute(stmt)
