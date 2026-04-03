@@ -382,7 +382,7 @@ class TestPubmedPostProcessing:
 
 
 # ─────────────────────────────────────────────
-# 10. DOWNLOAD — oa_url-only papers (Bug #1 fix)
+# 10. DOWNLOAD — oa_url-only papers (Regression test for Bug #1)
 # ─────────────────────────────────────────────
 
 class TestDownloadOAUrlOnly:
