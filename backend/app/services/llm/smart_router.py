@@ -85,7 +85,6 @@ class SmartRouter:
             if not model:
                 raise RuntimeError(f"model_override not found: {model_override}")
             adapter = get_adapter(model)
-            request = CompletionRequest(
             request = LLMCompletionRequest(
                 prompt=prompt,
                 system=system,
@@ -118,7 +117,6 @@ class SmartRouter:
                 self.rate_limiter.record_call(provider_name)
                 logger.info(f"Routing {task.value} -> {model.id}")
 
-                request = CompletionRequest(
                 request = LLMCompletionRequest(
                     prompt=prompt,
                     system=system,

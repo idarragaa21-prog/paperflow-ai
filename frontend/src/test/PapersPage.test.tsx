@@ -144,9 +144,9 @@ describe('PapersPage — render', () => {
   it('renders all paper titles', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Total knee arthroplasty outcomes')).toBeInTheDocument();
-      expect(screen.getByText('Rotator cuff repair long-term follow-up')).toBeInTheDocument();
-      expect(screen.getByText('ACL graft failure risk factors')).toBeInTheDocument();
+      expect(screen.getAllByText('Total knee arthroplasty outcomes')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('Rotator cuff repair long-term follow-up')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('ACL graft failure risk factors')[0]).toBeInTheDocument();
     });
   });
 });
@@ -193,34 +193,34 @@ describe('PapersPage — status filter', () => {
   it('shows all papers with "all" filter (default)', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Total knee arthroplasty outcomes')).toBeInTheDocument();
-      expect(screen.getByText('Rotator cuff repair long-term follow-up')).toBeInTheDocument();
-      expect(screen.getByText('ACL graft failure risk factors')).toBeInTheDocument();
+      expect(screen.getAllByText('Total knee arthroplasty outcomes')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('Rotator cuff repair long-term follow-up')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('ACL graft failure risk factors')[0]).toBeInTheDocument();
     });
   });
 
   it('filters to only ready papers when "ready" filter selected', async () => {
     renderPage();
-    await waitFor(() => screen.getByText('Total knee arthroplasty outcomes'));
+    await waitFor(() => screen.getAllByText('Total knee arthroplasty outcomes')[0]);
 
     const filterSelect = screen.getByRole('combobox');
     fireEvent.change(filterSelect, { target: { value: 'ready' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Total knee arthroplasty outcomes')).toBeInTheDocument();
+      expect(screen.getAllByText('Total knee arthroplasty outcomes')[0]).toBeInTheDocument();
       expect(screen.queryByText('ACL graft failure risk factors')).not.toBeInTheDocument();
     });
   });
 
   it('filters to only failed papers when "failed" filter selected', async () => {
     renderPage();
-    await waitFor(() => screen.getByText('ACL graft failure risk factors'));
+    await waitFor(() => screen.getAllByText('ACL graft failure risk factors')[0]);
 
     const filterSelect = screen.getByRole('combobox');
     fireEvent.change(filterSelect, { target: { value: 'failed' } });
 
     await waitFor(() => {
-      expect(screen.getByText('ACL graft failure risk factors')).toBeInTheDocument();
+      expect(screen.getAllByText('ACL graft failure risk factors')[0]).toBeInTheDocument();
       expect(screen.queryByText('Total knee arthroplasty outcomes')).not.toBeInTheDocument();
     });
   });
@@ -233,13 +233,13 @@ describe('PapersPage — search', () => {
 
   it('filters papers by title text search', async () => {
     renderPage();
-    await waitFor(() => screen.getByText('Total knee arthroplasty outcomes'));
+    await waitFor(() => screen.getAllByText('Total knee arthroplasty outcomes')[0]);
 
     const searchInput = screen.getByPlaceholderText(/Buscar título/i);
     fireEvent.change(searchInput, { target: { value: 'ACL' } });
 
     await waitFor(() => {
-      expect(screen.getByText('ACL graft failure risk factors')).toBeInTheDocument();
+      expect(screen.getAllByText('ACL graft failure risk factors')[0]).toBeInTheDocument();
       expect(screen.queryByText('Total knee arthroplasty outcomes')).not.toBeInTheDocument();
     });
   });
