@@ -34,6 +34,7 @@ export default function DraftsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [syncWarning, setSyncWarning] = useState(false);
 
   // Inline editing state
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -42,13 +43,20 @@ export default function DraftsPage() {
   const load = useCallback(async () => {
     if (!projectId) return;
     try {
-      const [draftResponse, evidenceResponse] = await Promise.all([
+      const [draftResponse, evidenceResponse, dashResponse, refResponse] = await Promise.all([
         api.get('/drafts', { params: { project_id: projectId } }),
         api.get('/evidence/tables', { params: { project_id: projectId } }),
+        api.get(`/projects/${projectId}/dashboard`),
+        api.get('/references', { params: { project_id: projectId } }),
       ]);
       const nextDrafts = draftResponse.data as Draft[];
       setDrafts(nextDrafts);
       setTables(evidenceResponse.data as EvidenceTable[]);
+
+      const papersCount = dashResponse.data?.counts?.papers || 0;
+      const referencesCount = refResponse.data?.length || 0;
+      setSyncWarning(papersCount > referencesCount);
+
       if (!selectedDraft && nextDrafts[0]) {
         setSelectedDraft(nextDrafts[0].id);
       }
@@ -102,6 +110,20 @@ export default function DraftsPage() {
       await load();
     } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to enrich draft with clinical evidence'); }
     finally { setBusy(false); }
+  }
+
+  async function syncReferences() {
+    if (!projectId) return;
+    setBusy(true); setError(null);
+    try {
+      const r = await api.post('/references/sync-from-library', null, { params: { project_id: projectId } });
+      const created = (r.data as any)?.created || 0;
+      toast.success('Referencias Sincronizadas', `Se sincronizaron ${created} referencias desde la Library.`);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Error sincronizando referencias.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   // Inline edit
@@ -204,11 +226,15 @@ ${sections}
           </div>
           <button className="rc-btn rc-btn--primary" data-testid="draft-create-button" onClick={createDraft} disabled={busy}>Create draft</button>
           <button className="rc-btn" data-testid="draft-build-evidence-button" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
+          <button className={`rc-btn ${syncWarning ? 'rc-btn--warning' : ''}`} style={syncWarning ? { background: 'rgba(245,158,11,0.1)', color: '#d97706', borderColor: 'rgba(245,158,11,0.4)' } : undefined} onClick={syncReferences} disabled={busy}>🔗 {syncWarning ? '⚠ Sincronizar Referencias Pendientes' : 'Sincronizar Referencias'}</button>
         </div>
       </div>
 
       <div className="rc-card">
         <div className="rc-card-title">Generate section</div>
+        <div className="rc-help" style={{ marginBottom: 12 }}>
+          La IA redactará la sección basándose en las tablas de evidencia disponibles y las referencias sincronizadas en el proyecto.
+        </div>
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Draft</div>

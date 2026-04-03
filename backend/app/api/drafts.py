@@ -253,3 +253,64 @@ async def list_evidence_tables(
         EvidenceTableResponse(id=item.id, title=item.title, table_json=item.table_json, confidence=item.confidence)
         for item in result.scalars().all()
     ]
+
+
+from pydantic import BaseModel
+
+class SectionFromChatRequest(BaseModel):
+    heading: str
+    content: str
+    citations: list[dict] = []
+
+@router.post("/drafts/{draft_id}/sections/from-chat", response_model=DraftResponse)
+async def generate_draft_section_from_chat(
+    draft_id: UUID,
+    payload: SectionFromChatRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    stmt = (
+        select(Draft)
+        .where(Draft.id == draft_id)
+        .options(selectinload(Draft.sections).selectinload(DraftSection.citations))
+    )
+    result = await db.execute(stmt)
+    draft = result.scalars().first()
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    project, _ = await require_project_access(db, project_id=draft.project_id, user=user, required_role="editor")
+
+    # Create the section
+    pos = len(draft.sections) * 10
+    new_section = DraftSection(
+        draft_id=draft.id,
+        heading=payload.heading,
+        content=payload.content,
+        position=pos,
+        generated_with_model="chat",
+        confidence=1.0,
+    )
+    db.add(new_section)
+    await db.commit()
+    await db.refresh(new_section)
+
+    # Add citations if any
+    from app.models.draft import DraftCitation
+    for i, c in enumerate(payload.citations):
+        cit = DraftCitation(
+            draft_section_id=new_section.id,
+            marker=f"[{i+1}]",
+            quoted_text=c.get("quoted_text", ""),
+            locator=c.get("locator"),
+            reference_item_id=None, # Will be resolved later if needed
+            paper_citation_span_id=None,
+            confidence=1.0,
+        )
+        db.add(cit)
+
+    await db.commit()
+
+    refreshed = await db.execute(
+        select(Draft).where(Draft.id == draft.id).options(selectinload(Draft.sections).selectinload(DraftSection.citations))
+    )
+    return _draft_to_response(refreshed.scalars().first())

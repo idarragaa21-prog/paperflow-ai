@@ -5,8 +5,9 @@ import StudyViewer from '../components/meta/StudyViewer';
 import { downloadBlob } from '../components/meta/exportUtils';
 import { api } from '../services/api';
 import { useJobPolling } from '../hooks/useJobPolling';
-import { useToast } from '../ui/Toast/ToastProvider';
 import { EmptyState } from '../components/EmptyState';
+import { Link } from 'react-router-dom';
+import { useToast } from '../ui/Toast/ToastProvider';
 import SectionErrorBoundary from '../components/SectionErrorBoundary';
 import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
@@ -43,6 +44,21 @@ type ExportFormat = 'xlsx' | 'csv';
 
 export default function MetaPage() {
   const { projectId } = useParams();
+  const [buildingEvidence, setBuildingEvidence] = useState(false);
+
+  async function buildEvidenceTable() {
+    if (!projectId) return;
+    setBuildingEvidence(true);
+    try {
+      await api.get('/evidence/tables', { params: { project_id: projectId, build: true } });
+      toast.success('Tabla construida', 'Tabla de evidencia generada exitosamente.');
+    } catch (e: any) {
+      toast.error('Error', e?.response?.data?.detail || 'No se pudo construir la tabla de evidencia.');
+    } finally {
+      setBuildingEvidence(false);
+    }
+  }
+
   const toast = useToast();
 
   const [batches, setBatches] = useState<BatchRow[]>([]);
@@ -247,13 +263,29 @@ export default function MetaPage() {
       <PageHero
         eyebrow="Stage 4 · Extraction"
         title="Convert processed papers into reviewable structured evidence"
-        subtitle="Move from raw PDFs to batches, extraction status, study review and export. The workspace is still powerful, but now more explicitly organized by stage."
+        subtitle="Move from raw PDFs to batches, extraction status, study review and export. The workspace is still powerful, but now explicitly organized by stage."
         metrics={[
           { label: 'batches', value: batches.length, tone: 'primary' },
           { label: 'running items', value: runningItems.length, tone: 'warning' },
           { label: 'studies', value: studies.length, tone: 'success' },
           { label: 'exports', value: exportsList.length, tone: 'neutral' },
         ]}
+        actions={
+          studies.length > 0 ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="rc-btn rc-btn--primary"
+                disabled={buildingEvidence}
+                onClick={buildEvidenceTable}
+              >
+                {buildingEvidence ? 'Construyendo...' : 'Construir Tabla de Evidencia'}
+              </button>
+              <Link to={`/projects/${projectId}/drafts`} className="rc-btn rc-btn--primary" style={{ textDecoration: 'none' }}>
+                Ir a Borradores
+              </Link>
+            </div>
+          ) : undefined
+        }
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>

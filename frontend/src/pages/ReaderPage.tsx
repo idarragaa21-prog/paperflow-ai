@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { EmptyState } from '../components/EmptyState';
+import { useToast } from '../ui/Toast/ToastProvider';
 import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
 type PaperOption = {
@@ -73,6 +74,39 @@ export default function ReaderPage() {
   const [error, setError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+    const toast = useToast();
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [selectedDraftId, setSelectedDraftId] = useState('');
+  const [savingResult, setSavingResult] = useState<ChatResult | null>(null);
+
+  useEffect(() => {
+    if (projectId) {
+      api.get('/drafts', { params: { project_id: projectId } })
+        .then(r => setDrafts(r.data))
+        .catch(e => console.error('Failed to load drafts:', e));
+    }
+  }, [projectId]);
+
+  async function saveToDraft() {
+    if (!savingResult || !selectedDraftId) return;
+    try {
+      await api.post(`/drafts/${selectedDraftId}/sections/from-chat`, {
+        heading: 'Chat Synthesis',
+        content: savingResult.answer,
+        citations: savingResult.citations.map(c => ({
+          quoted_text: c.quoted_text,
+          locator: c.locator,
+          paper_id: c.paper_id
+        }))
+      });
+      toast.success('Guardado', 'Respuesta guardada en el borrador seleccionado.');
+      setSaveModalOpen(false);
+      setSavingResult(null);
+    } catch (e: any) {
+      toast.error('Error', e?.response?.data?.detail || 'No se pudo guardar en borradores.');
+    }
+  }
   const selectedPaper = papers.find(p => p.id === paperId);
   const selectedStatus = selectedPaper?.processing_status || '';
   const isProject = paperId === 'project';
@@ -238,7 +272,7 @@ export default function ReaderPage() {
                 </div>
               )}
               {history.map((item, i) => (
-                <ChatBubble key={i} item={item} />
+                <ChatBubble key={i} item={item} onSave={(r) => { setSavingResult(r); setSaveModalOpen(true); }} />
               ))}
               {loading && (
                 <div style={{ alignSelf: 'flex-start', background: 'var(--rc-bg)', padding: '10px 16px', borderRadius: 14 }}>
@@ -319,11 +353,33 @@ export default function ReaderPage() {
           </div>
         </div>
       )}
+      {saveModalOpen && savingResult && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="rc-card" style={{ width: 400, padding: 20 }}>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 12 }}>Guardar en Borrador</div>
+            {drafts.length === 0 ? (
+              <div className="rc-help" style={{ marginBottom: 16 }}>No hay borradores en este proyecto. Ve a la sección de Drafts para crear uno primero.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                <div className="rc-kicker">Selecciona un borrador destino</div>
+                <select className="rc-input" value={selectedDraftId} onChange={e => setSelectedDraftId(e.target.value)}>
+                  <option value="">Seleccionar...</option>
+                  {drafts.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="rc-row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+              <button className="rc-btn" onClick={() => setSaveModalOpen(false)}>Cancelar</button>
+              <button className="rc-btn rc-btn--primary" disabled={!selectedDraftId || drafts.length === 0} onClick={saveToDraft}>Guardar respuesta</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ChatBubble({ item }: { item: HistoryItem }) {
+function ChatBubble({ item, onSave }: { item: HistoryItem, onSave?: (r: ChatResult) => void }) {
   const [showCitations, setShowCitations] = useState(false);
 
   if (item.role === 'user') {
@@ -348,6 +404,11 @@ function ChatBubble({ item }: { item: HistoryItem }) {
           {r.citations.length > 0 && (
             <button className="rc-btn" style={{ padding: '2px 8px', fontSize: 10 }} onClick={() => setShowCitations(!showCitations)}>
               {showCitations ? 'Hide' : 'Show'} {r.citations.length} citation{r.citations.length !== 1 ? 's' : ''}
+            </button>
+          )}
+          {onSave && (
+            <button className="rc-btn rc-btn--primary" style={{ padding: '2px 8px', fontSize: 10 }} onClick={() => onSave(r)}>
+              Guardar en Drafts
             </button>
           )}
         </div>

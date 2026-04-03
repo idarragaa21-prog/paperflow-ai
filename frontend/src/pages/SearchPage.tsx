@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
@@ -43,8 +43,7 @@ function batchStatusClass(status: BatchDownloadTraceItem['final_status']) {
 
 export default function SearchPage() {
   const { projectId } = useParams();
-  const navigate = useNavigate();
-  const toast = useToast();
+    const toast = useToast();
   const search = useSearch(projectId);
   const [synthesis, setSynthesis] = useState<{ answer?: string, loading?: boolean, error?: string | null }>({});
 
@@ -137,10 +136,9 @@ export default function SearchPage() {
         });
       }
 
-      toast.success('Guardado en Borradores', 'La síntesis ha sido convertida en un borrador.');
-      navigate(`/projects/${projectId}/drafts`);
+      toast.success('Guardado en Borradores', 'La síntesis ha sido convertida en un borrador. Revisa la página de Borradores.');
     } catch (e: any) {
-      toast.error('Error al guardar', e?.response?.data?.detail || 'No se pudo guardar la síntesis.');
+      toast.error('Error al guardar', e?.response?.data?.detail || 'El servidor no pudo procesar la solicitud de guardado de síntesis.');
     }
   }
 
@@ -525,14 +523,24 @@ export default function SearchPage() {
               </>
             )}
             {batch.batchJob?.status === 'completed' && projectId && (
-              <Link
-                to={`/projects/${projectId}/library`}
-                className="rc-btn rc-btn--primary rc-btn--sm"
-                style={{ textDecoration: 'none' }}
-                onClick={() => batch.setBatchModalOpen(false)}
-              >
-                View in Library →
-              </Link>
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                <Link
+                  to={`/projects/${projectId}/library`}
+                  className="rc-btn rc-btn--primary rc-btn--sm"
+                  style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
+                  onClick={() => batch.setBatchModalOpen(false)}
+                >
+                  📚 Ir a Library
+                </Link>
+                <Link
+                  to={`/projects/${projectId}/reader`}
+                  className="rc-btn rc-btn--sm"
+                  style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
+                  onClick={() => batch.setBatchModalOpen(false)}
+                >
+                  📖 Ir a Reader
+                </Link>
+              </div>
             )}
             <div style={{ marginTop: 10 }}>
               <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={batch.cancelBatch}>Cancel job</button>
