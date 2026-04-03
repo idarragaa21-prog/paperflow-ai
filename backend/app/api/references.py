@@ -169,3 +169,54 @@ async def export_references(
     body = export_bibtex(payload) if format == "bibtex" else export_ris(payload)
     media_type = "application/x-bibtex" if format == "bibtex" else "application/x-research-info-systems"
     return PlainTextResponse(body, media_type=media_type)
+
+@router.post("/sync-paper/{paper_id}")
+@limiter.limit("10/minute")
+async def sync_single_paper_reference(
+    request: Request,
+    paper_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    # Get paper
+    paper_q = await db.execute(select(Paper).where(Paper.id == paper_id))
+    paper = paper_q.scalars().first()
+    if not paper:
+        return {"created": 0}
+
+    await require_project_access(db, project_id=paper.project_id, user=user, required_role="editor")
+
+    ref_q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == paper.project_id).where(ReferenceItem.paper_id == paper.id))
+    if ref_q.scalars().first():
+        return {"created": 0}
+
+    db.add(
+        ReferenceItem(
+            project_id=paper.project_id,
+            paper_id=paper.id,
+            source_format="paper_library",
+            citation_key=(paper.doi or paper.pmid or str(paper.id).split("-")[0]),
+            title=paper.title,
+            authors=[part.strip() for part in (paper.authors or "").split(";") if part.strip()] if paper.authors else None,
+            journal=paper.journal,
+            publication_year=paper.publication_year,
+            doi=paper.doi,
+            pmid=paper.pmid,
+            pmcid=paper.pmcid,
+            abstract_text=paper.abstract_text,
+            language=paper.language,
+            raw_payload={"paper_id": str(paper.id), "source_provider": paper.source_provider},
+        )
+    )
+
+    await db.commit()
+    await log_audit(
+        db,
+        user=user,
+        action="create",
+        entity_type="reference_sync",
+        entity_id=paper.project_id,
+        details={"created": 1, "paper_id": str(paper.id)},
+        request=request,
+    )
+    return {"created": 1}

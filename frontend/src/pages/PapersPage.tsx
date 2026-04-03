@@ -65,10 +65,10 @@ function formatDate(value?: string | null) {
 
 function statusTag(status?: string) {
   const s = (status || 'uploaded').toLowerCase();
-  if (s === 'ready' || s === 'parsed') return { cls: 'rc-badge rc-badge--success', label: 'Ready' };
-  if (s === 'processing' || s === 'queued') return { cls: 'rc-badge rc-badge--info', label: 'Processing' };
-  if (s === 'failed') return { cls: 'rc-badge rc-badge--danger', label: 'Failed' };
-  return { cls: 'rc-badge', label: 'Pending' };
+  if (s === 'ready' || s === 'parsed') return { cls: 'rc-badge rc-badge--success', label: 'Ready', style: { background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.25)', fontWeight: 800 } };
+  if (s === 'processing' || s === 'queued') return { cls: 'rc-badge rc-badge--info', label: 'Processing', style: { background: 'rgba(59,130,246,0.1)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.25)', fontWeight: 600 } };
+  if (s === 'failed') return { cls: 'rc-badge rc-badge--danger', label: 'Failed', style: { background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.25)', fontWeight: 600 } };
+  return { cls: 'rc-badge', label: 'Pending', style: { background: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', fontWeight: 600 } };
 }
 
 function matchesFilter(p: PaperRow, f: StatusFilter): boolean {
@@ -132,7 +132,7 @@ export default function PapersPage() {
       setUploadFile(null);
       invalidate();
     },
-    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Error al subir'),
+    onError: (e: any) => { toast.error('Error al subir', e?.response?.data?.detail || 'El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.'); setMutError(e?.response?.data?.detail || 'Error al subir'); },
   });
 
   const downloadOAMut = useMutation({
@@ -147,7 +147,7 @@ export default function PapersPage() {
       setDoi(''); setPmid('');
       invalidate();
     },
-    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Descarga fallida'),
+    onError: (e: any) => { toast.error('Error al descargar', e?.response?.data?.detail || 'El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.'); setMutError(e?.response?.data?.detail || 'Descarga fallida'); },
   });
 
   const processMut = useMutation({
@@ -157,7 +157,7 @@ export default function PapersPage() {
       toast.success('Encolado', p ? `Procesando: ${truncate(p.title, 30)}` : 'Encolado');
       invalidate();
     },
-    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Error al procesar'),
+    onError: (e: any) => { toast.error('Error al procesar', e?.response?.data?.detail || 'El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.'); setMutError(e?.response?.data?.detail || 'Error al procesar'); },
   });
 
   const favoriteMut = useMutation({
@@ -438,7 +438,7 @@ export default function PapersPage() {
                         {[p.journal, p.publication_year].filter(Boolean).join(' · ') || '—'}
                       </td>
                       <td style={{ padding: '8px 6px' }}>
-                        <span className={st.cls} style={{ fontSize: 11 }}>
+                        <span className={st.cls} style={{ fontSize: 11, ...st.style }}>
                           {st.label === 'Processing' && <span style={{ display: 'inline-block', width: 8, height: 8, border: '2px solid rgba(59,130,246,0.4)', borderTopColor: 'rgba(59,130,246,1)', borderRadius: '50%', animation: 'spin .8s linear infinite', marginRight: 4 }} />}
                           {st.label}
                         </span>
@@ -449,6 +449,24 @@ export default function PapersPage() {
                       <td style={{ padding: '8px 6px' }}>
                         <div className="rc-row" style={{ gap: 4, flexWrap: 'wrap' }}>
                           {!isReady && <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => processMut.mutate(p.id)}>Process</button>}
+                          {isReady && (
+                            <>
+                              <Link className="rc-btn rc-btn--primary" style={{ padding: '4px 8px', fontSize: 11, textDecoration: 'none' }} to={`/projects/${projectId}/reader?paper_id=${p.id}`}>📖 Read</Link>
+                              <Link className="rc-btn rc-btn--primary" style={{ padding: '4px 8px', fontSize: 11, textDecoration: 'none' }} to={`/projects/${projectId}/meta?paper_id=${p.id}`}>⚡ Extract</Link>
+                              <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => {
+                                try {
+                                  const r = await api.post(`/references/sync-paper/${p.id}`);
+                                  if ((r.data as any)?.created > 0) {
+                                    toast.success('Sincronizado', 'Referencia creada en el proyecto.');
+                                  } else {
+                                    toast.info('Ya existe', 'Este paper ya está en Referencias.');
+                                  }
+                                } catch (e: any) {
+                                  toast.error('Error', e?.response?.data?.detail || 'No se pudo sincronizar a Referencias.');
+                                }
+                              }}>🔗 to References</button>
+                            </>
+                          )}
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => downloadFile(p)}>Download</button>
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => void toggleTrace(p)}>
                             {traceState[p.id]?.expanded ? 'Hide trace' : 'Trace'}
