@@ -16,6 +16,7 @@ from app.services.cache import cache
 from app.services.llm.factory import llm_provider
 from app.config import settings
 from app.services.federated_search import (
+    _metadata_score,
     _passes_filters,
     _record_key,
     _relevance_score,
@@ -65,7 +66,7 @@ def _postprocess_pubmed(
     for item in filtered:
         item["relevance_score"] = _relevance_score(item, query)
 
-    filtered.sort(key=lambda x: x["relevance_score"], reverse=True)
+    filtered.sort(key=lambda x: (x["relevance_score"], _metadata_score(x)), reverse=True)
     return filtered
 
 
