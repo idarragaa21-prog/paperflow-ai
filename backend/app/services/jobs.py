@@ -45,6 +45,15 @@ def enqueue_presentation(
     )
     job = job_queue.enqueue(
         generate_presentation_job,
+        args=(
+            str(job_db_id),
+            str(params.project_id),
+            params.topic,
+            params.duration_minutes,
+            params.audience,
+            [str(pid) for pid in params.paper_ids],
+            int(params.num_slides),
+        ),
         args=(task_params,),
         job_timeout="10m",
     )

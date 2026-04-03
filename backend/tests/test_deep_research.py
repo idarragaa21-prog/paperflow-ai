@@ -88,6 +88,7 @@ async def test_generate_section_falls_back_to_ollama_when_primary_chat_fails(mon
             self.model_name = model_name
             self.base_url = base_url
 
+        async def complete(self, request):
         async def complete(self, request, **kwargs):
             class Response:
                 text = "Recovered section from Ollama"
