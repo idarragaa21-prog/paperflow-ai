@@ -41,3 +41,4 @@ tmp/
 Thumbs.db
 venv/
 backend/venv/
+node_modules/

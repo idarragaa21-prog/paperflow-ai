@@ -55,3 +55,12 @@ class SearchRecordResponse(BaseModel):
     source: str
     results_count: int | None
     executed_at: Any | None
+
+
+class SearchSynthesizeRequest(BaseModel):
+    query: str
+    papers: list[PaperMetadata]
+
+
+class SearchSynthesizeResponse(BaseModel):
+    answer: str
