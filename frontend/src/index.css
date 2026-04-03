@@ -996,3 +996,145 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
 .rc-banner--success { background: var(--rc-success-bg); border-color: var(--rc-success-border); color: var(--rc-success); }
 .rc-banner--warning { background: var(--rc-warning-bg); border-color: var(--rc-warning-border); color: var(--rc-warning); }
 .rc-banner--danger  { background: var(--rc-danger-bg);  border-color: var(--rc-danger-border);  color: var(--rc-danger); }
+
+/* --- PREMIUM SAAS EXTENSIONS (PHASE 3) --- */
+
+/* Glassmorphism */
+.rc-glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+[data-theme="dark"] .rc-glass {
+  background: rgba(24, 24, 27, 0.65);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* DataGrid (Premium Table) */
+.rc-datagrid-container {
+  border-radius: var(--rc-r-lg);
+  border: 1px solid var(--rc-border);
+  overflow: hidden;
+  box-shadow: var(--rc-shadow-md);
+  background: var(--rc-surface);
+}
+.rc-datagrid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+.rc-datagrid th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 14px 16px;
+  background: var(--rc-surface-2);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rc-text);
+  border-bottom: 2px solid var(--rc-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.rc-datagrid td {
+  padding: 16px;
+  border-bottom: 1px solid var(--rc-border);
+  vertical-align: top;
+  transition: background 0.2s ease;
+}
+.rc-datagrid tbody tr:hover td {
+  background: var(--rc-surface-2);
+}
+.rc-datagrid tbody tr.selected td {
+  background: var(--rc-primary-weak);
+}
+
+/* RoB Visual Badges */
+.rc-rob-bar {
+  height: 6px;
+  width: 100%;
+  background: var(--rc-surface-3);
+  border-radius: var(--rc-r-full);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.rc-rob-fill {
+  height: 100%;
+  border-radius: var(--rc-r-full);
+}
+.rc-rob-low { background: var(--rc-success); }
+.rc-rob-medium { background: var(--rc-warning); }
+.rc-rob-high { background: var(--rc-danger); }
+
+/* Premium Editor Canvas */
+.rc-editor-canvas {
+  background: var(--rc-surface);
+  border: 1px solid var(--rc-border);
+  border-radius: var(--rc-r-lg);
+  box-shadow: var(--rc-shadow-sm);
+  padding: 40px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--rc-text);
+}
+.rc-editor-textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  resize: vertical;
+  font-family: 'Georgia', serif;
+  font-size: 17px;
+  line-height: 1.8;
+  color: var(--rc-text);
+  padding: 0;
+  margin-top: 10px;
+  min-height: 250px;
+}
+.rc-editor-textarea::placeholder {
+  color: var(--rc-muted);
+  font-style: italic;
+}
+
+/* Citation Chip Hover */
+.rc-cite-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  margin: 0 2px;
+  border-radius: 4px;
+  background: var(--rc-primary-weak);
+  color: var(--rc-primary);
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.rc-cite-chip:hover {
+  background: var(--rc-primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: var(--rc-shadow-sm);
+}
+
+/* Custom Scrollbar for sidebars */
+.rc-scroll-y {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rc-border-strong) transparent;
+}
+.rc-scroll-y::-webkit-scrollbar {
+  width: 6px;
+}
+.rc-scroll-y::-webkit-scrollbar-thumb {
+  background: var(--rc-border-strong);
+  border-radius: 10px;
+}
+

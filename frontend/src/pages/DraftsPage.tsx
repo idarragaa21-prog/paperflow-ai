@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Draft, DraftSection } from '../types/api';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { EmptyState } from '../components/EmptyState';
@@ -28,6 +28,10 @@ export default function DraftsPage() {
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [tables, setTables] = useState<EvidenceTable[]>([]);
+  const [searchParams] = useSearchParams();
+  const paramStudies = searchParams.get('studies');
+  const [extractionIds, setExtractionIds] = useState<string[]>(paramStudies ? paramStudies.split(',') : []);
+
   const [title, setTitle] = useState('Narrative synthesis');
   const [heading, setHeading] = useState('Introduction');
   const [selectedDraft, setSelectedDraft] = useState<string>('');
@@ -77,7 +81,7 @@ export default function DraftsPage() {
     if (!selectedDraft || !heading.trim()) return;
     setBusy(true); setError(null);
     try {
-      await api.post(`/drafts/${selectedDraft}/generate-section`, { heading, paper_ids: [], extraction_record_ids: [] });
+      await api.post(`/drafts/${selectedDraft}/generate-section`, { heading, paper_ids: [], extraction_record_ids: extractionIds });
       await load();
     } catch (e: any) { setError(e?.response?.data?.detail || 'Failed to generate section'); }
     finally { setBusy(false); }
@@ -226,6 +230,11 @@ ${sections}
         <div className="rc-card-title">Generate section</div>
         <div className="rc-help" style={{ marginBottom: 12 }}>
           La IA redactará la sección basándose en las tablas de evidencia disponibles y las referencias sincronizadas en el proyecto.
+          {extractionIds.length > 0 && (
+            <div style={{ marginTop: 6, padding: '6px 12px', background: 'rgba(79, 70, 229, 0.1)', color: '#4f46e5', borderRadius: 6, fontWeight: 600, display: 'inline-block' }}>
+              Incluyendo contexto de {extractionIds.length} estudio(s) pre-seleccionado(s).
+            </div>
+          )}
         </div>
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
@@ -271,77 +280,108 @@ ${sections}
             </div>
           </div>
         </div>
-        <div className="rc-card">
-          <div className="rc-card-title">Draft contents</div>
-
+        <div className="rc-editor-canvas" style={{ padding: '40px 60px' }}>
           {drafts.length === 0 ? (
             <EmptyState variant="notes" title="No drafts yet" description="Create a draft above and generate AI-powered sections from your paper references." />
           ) : null}
 
           {drafts.map(draft => (
-            <div key={draft.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                <div style={{ fontWeight: 800 }}>{draft.title} &middot; {draft.status} &middot; v{draft.version}</div>
-                <div className="rc-row" style={{ gap: 4 }}>
-                  <button className="rc-btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => copyFullDraft(draft)}>Copy full draft</button>
-                  <button className="rc-btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => exportHTML(draft)}>Export .html</button>
+            <div key={draft.id} style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, borderBottom: '1px solid var(--rc-border)', paddingBottom: 20 }}>
+                <div>
+                  <h1 style={{ fontSize: 32, fontWeight: 900, margin: 0, fontFamily: 'var(--font-display)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>{draft.title}</h1>
+                  <div style={{ color: 'var(--rc-muted)', fontSize: 13, marginTop: 8 }}>
+                    <span className="rc-status-dot rc-status-dot--ready" style={{ marginRight: 12 }}><span className="rc-status-dot__dot"></span>{draft.status}</span>
+                    Version {draft.version}
+                  </div>
+                </div>
+                <div className="rc-row" style={{ gap: 8 }}>
+                  <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={() => copyFullDraft(draft)}>Copy Markdown</button>
+                  <button className="rc-btn rc-btn--sm" onClick={() => exportHTML(draft)}>Export HTML</button>
                 </div>
               </div>
 
               {draft.sections.length === 0 && (
-                <div className="rc-help">No sections yet. Use "Generate section" above to add content.</div>
+                <div className="rc-help" style={{ textAlign: 'center', margin: '40px 0', fontSize: 14 }}>
+                  This draft is currently empty. Use the "Generate section" tools above to add content.
+                </div>
               )}
 
               {draft.sections
                 .sort((a, b) => a.position - b.position)
                 .map(section => (
-                <div key={section.id} className="rc-card" style={{ padding: 12 }}>
-                  <div className="rc-kicker">{section.heading}</div>
+                <div key={section.id} style={{ position: 'relative', padding: '16px 0' }} className="rc-editor-section">
+                  <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 12px 0', fontFamily: 'var(--font-display)' }}>{section.heading}</h2>
 
                   {editingSection === section.id ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <textarea
-                        className="rc-input"
-                        style={{ minHeight: 120, width: '100%', fontSize: 13 }}
+                        className="rc-editor-textarea"
                         value={editContent}
                         onChange={e => setEditContent(e.target.value)}
+                        placeholder="Start writing..."
+                        autoFocus
                       />
-                      <div className="rc-row" style={{ gap: 6 }}>
-                        <button className="rc-btn rc-btn--primary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => saveEdit(draft.id, section.id)}>Save</button>
-                        <button className="rc-btn" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setEditingSection(null)}>Cancel</button>
+                      <div className="rc-row" style={{ gap: 8, marginTop: 12 }}>
+                        <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={() => saveEdit(draft.id, section.id)}>Save Changes</button>
+                        <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={() => setEditingSection(null)}>Cancel</button>
                       </div>
                     </div>
                   ) : (
                     <div
-                      style={{ whiteSpace: 'pre-wrap', cursor: 'pointer', padding: '4px 0', borderRadius: 6 }}
+                      style={{ 
+                        whiteSpace: 'pre-wrap', 
+                        cursor: 'text', 
+                        fontSize: 17, 
+                        lineHeight: 1.8, 
+                        fontFamily: 'Georgia, serif',
+                        color: 'var(--rc-text)'
+                      }}
                       onClick={() => startEdit(section)}
-                      title="Click to edit"
+                      title="Click to edit section"
                     >
-                      {section.content || <span className="rc-muted">Empty section. Click to edit.</span>}
+                      {section.content || <span className="rc-muted" style={{ fontStyle: 'italic' }}>Empty section. Click to start typing.</span>}
                     </div>
                   )}
 
-                  <div className="rc-help" style={{ marginTop: 6 }}>
-                    Citations: {section.citations.map(c => c.marker).join(', ') || 'none'}
-                  </div>
+                  {section.citations.length > 0 && (
+                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--rc-border)' }}>
+                      {section.citations.map(c => (
+                         <span key={c.marker} className="rc-cite-chip" title="View Source">
+                           {c.marker}
+                         </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           ))}
         </div>
 
-        <div className="rc-card">
-          <div className="rc-card-title">Evidence tables</div>
-          <div className="rc-help" style={{ marginBottom: 10 }}>
-            Keep the evidence surface visible while you write so the draft stays grounded and citations remain actionable.
-          </div>
-          {tables.length === 0 ? <div className="rc-muted">No evidence tables yet.</div> : null}
-          {tables.map(table => (
-            <div key={table.id} className="rc-card" style={{ padding: 12, marginBottom: 10 }}>
-              <div style={{ fontWeight: 800 }}>{table.title}</div>
-              <div className="rc-help">Rows: {table.table_json?.count ?? 0} &middot; confidence {table.confidence.toFixed(2)}</div>
+        <div className="rc-scroll-y" style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 18, maxHeight: 'calc(100vh - 120px)' }}>
+          <div className="rc-card rc-glass" style={{ border: '1px solid rgba(79, 70, 229, 0.15)', boxShadow: '0 8px 30px rgba(0,0,0,0.04)' }}>
+            <div className="rc-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              📚 Evidence Tables
             </div>
-          ))}
+            <div className="rc-help" style={{ marginBottom: 16, lineHeight: 1.5 }}>
+              Use these available matrices to ground your AI generation. Evidence stays visible while you review the draft.
+            </div>
+            {tables.length === 0 ? <div className="rc-muted" style={{ fontSize: 13 }}>No active evidence tables.</div> : null}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {tables.map(table => (
+                <div key={table.id} className="rc-card" style={{ padding: '12px 14px', background: 'var(--rc-surface-2)', border: 'none' }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{table.title}</div>
+                  <div className="rc-row" style={{ justifyContent: 'space-between' }}>
+                    <span className="rc-help">Entries: {table.table_json?.count ?? 0}</span>
+                    <span className="rc-badge rc-tag--success" style={{ padding: '2px 6px', fontSize: 10 }}>
+                      {(table.confidence * 100).toFixed(0)}% Match
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
       )}

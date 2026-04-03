@@ -268,89 +268,104 @@ export default function DeepResearchPage() {
 
       {/* ── Report ── */}
       {report && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div 
+          className="print-report-container"
+          style={{ 
+            display: 'flex', flexDirection: 'column', gap: 24, 
+            background: '#ffffff', 
+            color: '#111827', 
+            padding: '40px 48px', 
+            borderRadius: 12, 
+            boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+            fontFamily: '"Merriweather", "Georgia", serif',
+            position: 'relative'
+          }}
+        >
+          <button 
+            className="rc-btn"
+            style={{ position: 'absolute', top: 20, right: 20, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', fontSize: 13, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontFamily: '"Inter", "system-ui", sans-serif' }}
+            onClick={() => window.print()}
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+            Print Report
+          </button>
+          
           {/* Header */}
-          <div className="rc-card" style={{ padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em' }}>
-                {report.query}
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 12, color: 'var(--rc-muted)', flexWrap: 'wrap' }}>
-                <span>{report.papers_analyzed} {isEs ? 'papers analizados' : 'papers analyzed'}</span>
-                <span>{isEs ? 'Generado en' : 'Generated in'} {report.metadata.duration_seconds.toFixed(1)}s</span>
-                <span style={{ fontWeight: 600, color: report.source_mode === 'project_library' ? '#059669' : '#2563eb' }}>
-                  {report.source_mode === 'project_library'
-                    ? `📚 ${isEs ? 'Biblioteca del proyecto' : 'Project library'}`
-                    : '🌐 PubMed'}
-                </span>
-              </div>
+          <div style={{ paddingBottom: 20, borderBottom: '2px solid #e5e7eb' }}>
+            <div style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontSize: 12, fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+              {isEs ? 'Reporte Clínico Sintetizado' : 'Synthesized Clinical Report'}
             </div>
-            <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700,
-              background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' }}>
-              ✓ {report.status}
-            </span>
+            <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 16 }}>
+              {report.query}
+            </div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 13, color: '#6b7280', flexWrap: 'wrap', fontFamily: '"Inter", "system-ui", sans-serif', alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg>
+                {report.papers_analyzed} {isEs ? 'papers analizados' : 'papers analyzed'}
+              </span>
+              <span>•</span>
+              <span>{isEs ? 'Generado en' : 'Generated in'} {report.metadata.duration_seconds.toFixed(1)}s</span>
+              <span>•</span>
+              <span style={{ fontWeight: 600, color: report.source_mode === 'project_library' ? '#059669' : '#2563eb' }}>
+                {report.source_mode === 'project_library'
+                  ? `📚 ${isEs ? 'Biblioteca del proyecto' : 'Project library'}`
+                  : '🌐 PubMed'}
+              </span>
+              <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                background: '#d1fae5', color: '#065f46', marginLeft: 'auto' }}>
+                ✓ {report.status}
+              </span>
+            </div>
           </div>
 
           {/* Sections */}
-          {report.sections.map(section => (
-            <div key={section.key} className="rc-card" style={{ padding: 24 }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
-                letterSpacing: '-0.02em', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--rc-border)' }}>
-                {section.title}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {report.sections.map(section => (
+              <div key={section.key}>
+                <h3 style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontWeight: 800, fontSize: 18, color: '#1f2937',
+                  marginBottom: 12 }}>
+                  {section.title}
+                </h3>
+                <div style={{ fontSize: 15, lineHeight: 1.8, color: '#374151', whiteSpace: 'pre-wrap' }}>
+                  {section.content}
+                </div>
               </div>
-              <div style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--rc-text-secondary)', whiteSpace: 'pre-wrap' }}>
-                {section.content}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           {/* Source papers */}
-          <div className="rc-card" style={{ padding: 20 }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15,
-              marginBottom: 14, letterSpacing: '-0.02em' }}>
-              {isEs ? 'Papers fuente' : 'Source Papers'} ({report.papers.length})
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ marginTop: 24, paddingTop: 24, borderTop: '2px solid #e5e7eb' }}>
+            <h3 style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontWeight: 800, fontSize: 16, color: '#1f2937',
+              marginBottom: 16 }}>
+              {isEs ? 'Referencias y Evidencia' : 'References & Evidence'} ({report.papers.length})
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {report.papers.map((p, i) => (
                 <div key={p.pmid || i}
-                  style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--rc-surface-2)',
-                    cursor: p.abstract ? 'pointer' : 'default' }}
-                  onClick={() => p.abstract && setExpandedPaper(expandedPaper === (p.pmid || String(i)) ? null : (p.pmid || String(i)))}
+                  style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}
                 >
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6,
-                      background: 'rgba(99,102,241,0.08)', color: '#6366f1',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, fontWeight: 700 }}>{i + 1}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                        <div style={{ fontWeight: 650, fontSize: 13, lineHeight: 1.4, flex: 1 }}>{p.title}</div>
-                        <SourceBadge source={p.source} hasFullText={p.has_full_text} />
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--rc-muted)', marginTop: 3 }}>
-                        {p.authors} — {p.journal} ({p.year})
+                  <span style={{ fontWeight: 700, fontSize: 14, color: '#9ca3af', minWidth: 24 }}>[{i + 1}]</span>
+                  <div style={{ flex: 1, fontFamily: '"Inter", "system-ui", sans-serif' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#111827', lineHeight: 1.5 }}>{p.title}</div>
+                    <div style={{ fontSize: 13, color: '#4b5563', marginTop: 4 }}>
+                      {p.authors} — <span style={{ fontStyle: 'italic' }}>{p.journal}</span> ({p.year})
+                    </div>
+                    {(p.pmid || p.doi) && (
+                      <div style={{ marginTop: 4, fontSize: 12 }}>
                         {p.pmid && (
                           <a href={`https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`} target="_blank" rel="noopener"
-                            style={{ marginLeft: 8, color: '#2563eb', fontSize: 11 }}
-                            onClick={e => e.stopPropagation()}>
-                            PubMed ↗
+                            style={{ color: '#4f46e5', textDecoration: 'none', marginRight: 12, fontWeight: 500 }}>
+                            PMID: {p.pmid}
                           </a>
                         )}
-                        {p.doi && !p.pmid && (
+                        {p.doi && (
                           <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noopener"
-                            style={{ marginLeft: 8, color: '#6366f1', fontSize: 11 }}
-                            onClick={e => e.stopPropagation()}>
-                            DOI ↗
+                            style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 500 }}>
+                            DOI: {p.doi}
                           </a>
                         )}
                       </div>
-                      {expandedPaper === (p.pmid || String(i)) && p.abstract && (
-                        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--rc-text-secondary)',
-                          lineHeight: 1.6, borderTop: '1px solid var(--rc-border)', paddingTop: 8 }}>
-                          {p.abstract}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}

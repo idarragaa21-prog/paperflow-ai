@@ -187,6 +187,7 @@ const workflowSteps = {
 
 export default function LandingPage() {
   const { locale } = useI18n();
+  const isEs = locale === 'es';
   const hero = heroText[locale];
   const titles = sectionTitles[locale];
   const comp = comparisons[locale];
@@ -409,6 +410,84 @@ export default function LandingPage() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
                 <span style={{ color: '#10b981', fontSize: 14 }}>✓</span> {row.us}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* DEEP RESEARCH SHOWCASE */}
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 80px' }}>
+        <div style={{ 
+          padding: 40, 
+          borderRadius: 24, 
+          background: 'radial-gradient(ellipse at center, rgba(30,30,45,0.95), rgba(15,15,25,1))',
+          border: '1px solid rgba(99,102,241,0.2)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{ position: 'absolute', top: -50, right: -50, width: 300, height: 300, background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontSize: 12, fontWeight: 'bold', border: '1px solid rgba(99,102,241,0.3)' }}>
+              {isEs ? 'NUEVO PROCESO AUTOMATIZADO' : 'NEW AUTOMATIC WORKFLOW'}
+            </div>
+            <h2 style={{ fontSize: 'clamp(28px, 5vw, 42px)', fontWeight: 900, margin: 0 }}>
+              {isEs ? 'Investigación Profunda (Deep Research)' : 'Deep Research'}
+            </h2>
+            <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)', maxWidth: 640, lineHeight: 1.6, margin: 0 }}>
+              {isEs 
+                ? 'Ingresa tu pregunta. La IA buscará los papers más relevantes en tu biblioteca, extraerá sus metodologías, cruzará los hallazgos y redactará un reporte final clínico listo para imprimir.' 
+                : 'Enter your question. AI will search the most relevant papers in your library, extract methodologies, cross-reference findings, and write a final print-ready clinical report.'
+              }
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0px 24px 80px' }}>
+        <h2 style={{ textAlign: 'center', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 24 }}>
+          {isEs ? 'Por qué lo amamos' : 'Loved by researchers'}
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+          {[
+            {
+              quote: isEs ? "La capacidad de extraer metodologías y convertirlas en fichas estructuradas es magia pura." : "The ability to extract methodologies and turn them into structured clinical sheets is pure magic.",
+              author: "Dr. L. Fernandez",
+              role: isEs ? "Cirujano Ortopédico" : "Orthopedic Surgeon",
+              color: "#6366f1"
+            },
+            {
+              quote: isEs ? "La búsqueda sintetizada con IA eliminó las horas interminables de lectura superficial." : "The AI-synthesized search eliminated endless hours of superficial reading.",
+              author: "Dr. Mateo Silva",
+              role: isEs ? "Investigador Clínico" : "Clinical Researcher",
+              color: "#10b981"
+            },
+            {
+              quote: isEs ? "Todo 100% privado en mi máquina local. Esto cambia la forma en que confío en las herramientas IA." : "Everything 100% private on my local machine. This changes how I trust AI tools.",
+              author: "Dr. A. Castillo",
+              role: isEs ? "Médico Residente" : "Medical Resident",
+              color: "#f59e0b"
+            }
+          ].map((t, i) => (
+            <div key={i} style={{ padding: 24, borderRadius: 20, background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 12, color: '#f59e0b' }}>
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+              </div>
+              <p style={{ fontSize: 14, lineHeight: 1.6, fontStyle: 'italic', color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>"{t.quote}"</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13, color: 'white' }}>
+                  {t.author.charAt(4)}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: 13 }}>{t.author}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{t.role}</div>
+                </div>
               </div>
             </div>
           ))}

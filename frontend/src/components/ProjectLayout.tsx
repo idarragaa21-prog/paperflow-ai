@@ -226,6 +226,7 @@ export default function ProjectLayout() {
           </div>
         </div>
         <div className="rc-support-nav">
+          <NavLink to={`/projects/${projectId}/literature-review`} className="rc-support-pill">Compare Literature</NavLink>
           <NavLink to={`/projects/${projectId}/references`} className="rc-support-pill">References</NavLink>
           <NavLink to={`/projects/${projectId}/screening`} className="rc-support-pill">Screening</NavLink>
           <NavLink to={`/projects/${projectId}/collaboration`} className="rc-support-pill">Team</NavLink>

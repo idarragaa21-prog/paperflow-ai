@@ -32,6 +32,7 @@ const ClinicalPage = lazy(() => import('./pages/ClinicalPage'));
 const ClinicalSheetPage = lazy(() => import('./pages/ClinicalSheetPage'));
 const BooksPage = lazy(() => import('./pages/BooksPage'));
 const DeepResearchPage = lazy(() => import('./pages/DeepResearchPage'));
+const LiteratureReviewPage = lazy(() => import('./pages/LiteratureReviewPage'));
 
 function PageLoader() {
   return (
@@ -81,6 +82,7 @@ export default function App() {
                 <Route path="notes" element={<NotesPage />} />
                 <Route path="presentations" element={<PresentationsPage />} />
                 <Route path="meta" element={<MetaPage />} />
+                <Route path="literature-review" element={<LiteratureReviewPage />} />
                 <Route path="references" element={<ReferencesPage />} />
                 <Route path="drafts" element={<DraftsPage />} />
                 <Route path="analysis" element={<AnalysisPage />} />

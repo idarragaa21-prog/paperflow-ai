@@ -269,19 +269,40 @@ export default function SearchPage() {
               )}
 
               {!search.loading && search.data.results.length > 0 && (
-                <div className="rc-card" style={{ padding: 16, background: 'var(--rc-surface-2)', border: '1px solid var(--rc-primary-weak)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <div className="rc-card" style={{ 
+                  padding: 24, 
+                  background: 'linear-gradient(145deg, rgba(99,102,241,0.08), rgba(139,92,246,0.03))', 
+                  border: '1px solid rgba(99,102,241,0.3)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.15)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--rc-primary)', marginBottom: 2 }}>
-                        ✨ AI Search (Búsqueda Inteligente)
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 900, fontSize: 18, marginBottom: 6 }}>
+                        <span style={{ 
+                          background: 'linear-gradient(135deg, #818cf8, #c084fc)', 
+                          WebkitBackgroundClip: 'text', 
+                          WebkitTextFillColor: 'transparent',
+                          letterSpacing: '-0.02em',
+                        }}>
+                          ✨ Síntesis IA (Deep Search)
+                        </span>
                       </div>
-                      <div className="rc-help">
-                        Obtén una respuesta sintetizada respaldada por los mejores {Math.min(search.data.results.length, 10)} resultados.
+                      <div className="rc-help" style={{ color: 'var(--rc-text-secondary)', fontSize: 14, lineHeight: 1.5, maxWidth: 540 }}>
+                        Extrae automáticamente las metodologías y hallazgos clave de los mejores {Math.min(search.data.results.length, 10)} resultados para generar un resumen clínico respaldado.
                       </div>
                     </div>
                     {!synthesis.answer && !synthesis.loading && (
                       <button
-                        className="rc-btn rc-btn--primary"
+                        className="rc-btn"
+                        style={{
+                          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                          color: '#fff',
+                          border: 'none',
+                          fontWeight: 'bold',
+                          padding: '12px 24px',
+                          fontSize: 14,
+                          boxShadow: '0 8px 20px rgba(99,102,241,0.35)'
+                        }}
                         onClick={synthesizeResults}
                       >
                         Sintetizar Evidencia con IA
