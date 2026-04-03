@@ -1,6 +1,7 @@
-import { Fragment, useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import PaperTableRow from '../components/PaperTableRow';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useConfirm } from '../ui/Dialog/useConfirm';
@@ -11,15 +12,6 @@ import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 type StatusFilter = 'all' | 'ready' | 'processing' | 'pending' | 'failed';
 
 const LIB_PAGE_SIZE = 25;
-const SOURCE_LABELS: Record<string, string> = {
-  pubmed: 'PubMed',
-  europepmc: 'Europe PMC',
-  doaj: 'DOAJ',
-  unpaywall: 'Unpaywall',
-  doi_content_negotiation: 'DOI direct',
-  manual_upload: 'Carga manual',
-  user_provided_oa: 'OA provista',
-};
 
 type PaperTraceState = {
   expanded: boolean;
@@ -37,17 +29,6 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 function truncate(s: string, max: number) { return s.length > max ? s.slice(0, max) + '…' : s; }
-
-function providerLabel(source?: string | null) {
-  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
-}
-
-function traceStatusLabel(status: PaperDownloadTrace['final_status']) {
-  if (status === 'downloaded') return 'Descargado';
-  if (status === 'existing') return 'Ya existía';
-  if (status === 'unavailable') return 'No disponible';
-  return 'Fallido';
-}
 
 function errorDetail(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
@@ -212,7 +193,7 @@ export default function PapersPage() {
 
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
   function toggleAll() { setSelected(allSelected ? new Set() : new Set(filtered.map(p => p.id))); }
-  function toggleOne(id: string) {
+  const toggleOne = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -222,47 +203,60 @@ export default function PapersPage() {
       }
       return next;
     });
-  }
+  }, []);
 
-  function patchTraceState(id: string, patch: Partial<PaperTraceState>) {
-    setTraceState((prev) => ({ ...prev, [id]: { ...(prev[id] || { expanded: false }), ...patch } }));
-  }
-
-  async function downloadFile(p: PaperRow) {
+  const downloadFile = useCallback(async (p: PaperRow) => {
     try {
       const r = await api.get(`/papers/${p.id}/download`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, p.filename || 'paper.pdf');
     } catch (e: any) { setMutError(e?.response?.data?.detail || 'Error descargando archivo'); }
-  }
+  }, []);
 
-  async function deleteWithConfirm(p: PaperRow) {
+  const deleteWithConfirm = useCallback(async (p: PaperRow) => {
     const ok = await confirm({ title: '¿Eliminar paper?', body: p.title, confirmText: 'Eliminar', danger: true });
     if (!ok) return;
     deleteMut.mutate(p.id);
-  }
+  }, [confirm, deleteMut]);
 
-  async function toggleTrace(p: PaperRow) {
-    const current = traceState[p.id];
-    if (current?.expanded) {
-      patchTraceState(p.id, { expanded: false });
-      return;
-    }
+  const toggleTrace = useCallback((p: PaperRow) => {
+    setTraceState(prev => {
+      const current = prev[p.id];
+      const isExpanded = current?.expanded || false;
 
-    patchTraceState(p.id, { expanded: true });
-    if (current?.trace || current?.loading) return;
+      // Only close if it was expanded
+      if (isExpanded) {
+        return { ...prev, [p.id]: { ...(prev[p.id] || { expanded: false }), expanded: false } };
+      }
 
-    patchTraceState(p.id, { loading: true, error: null });
-    try {
-      const response = await api.get(`/papers/${p.id}`);
-      const detail = response.data as PaperDetailResponse;
-      patchTraceState(p.id, { loading: false, trace: detail.download_trace || null });
-    } catch (error: unknown) {
-      patchTraceState(p.id, {
-        loading: false,
-        error: errorDetail(error, 'No se pudo cargar la traza de descarga'),
-      });
-    }
-  }
+      // If already has trace or is loading, just expand it
+      if (current?.trace || current?.loading) {
+        return { ...prev, [p.id]: { ...(prev[p.id] || { expanded: false }), expanded: true } };
+      }
+
+      // Start fetching process
+      (async () => {
+        try {
+          const response = await api.get(`/papers/${p.id}`);
+          const detail = response.data as PaperDetailResponse;
+          setTraceState(prev2 => ({
+            ...prev2,
+            [p.id]: { ...(prev2[p.id] || { expanded: false }), loading: false, trace: detail.download_trace || null }
+          }));
+        } catch (error: unknown) {
+          setTraceState(prev2 => ({
+            ...prev2,
+            [p.id]: {
+              ...(prev2[p.id] || { expanded: false }),
+              loading: false,
+              error: errorDetail(error, 'No se pudo cargar la traza de descarga'),
+            }
+          }));
+        }
+      })();
+
+      return { ...prev, [p.id]: { ...(prev[p.id] || { expanded: false }), expanded: true, loading: true, error: null } };
+    });
+  }, []);
 
   async function processAllPending() {
     if (processingAllRef.current) return;
@@ -423,6 +417,23 @@ export default function PapersPage() {
               </tr>
             </thead>
             <tbody>
+              {filtered.slice(libPage * LIB_PAGE_SIZE, (libPage + 1) * LIB_PAGE_SIZE).map(p => (
+                <PaperTableRow
+                  key={p.id}
+                  p={p}
+                  isSelected={selected.has(p.id)}
+                  isExpanded={traceState[p.id]?.expanded ?? false}
+                  isLoadingTrace={traceState[p.id]?.loading ?? false}
+                  traceError={traceState[p.id]?.error ?? null}
+                  traceData={traceState[p.id]?.trace}
+                  onToggleOne={toggleOne}
+                  onProcessMutate={processMut.mutate}
+                  onDownloadFile={downloadFile}
+                  onToggleTrace={toggleTrace}
+                  onFavoriteMutate={favoriteMut.mutate}
+                  onDeleteWithConfirm={deleteWithConfirm}
+                />
+              ))}
               {filtered.slice(libPage * LIB_PAGE_SIZE, (libPage + 1) * LIB_PAGE_SIZE).map(p => {
                 const st = statusTag(p.processing_status);
                 const isReady = ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase());
