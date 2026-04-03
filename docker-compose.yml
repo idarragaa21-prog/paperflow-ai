@@ -78,6 +78,7 @@ services:
     image: lfoppiano/grobid:0.8.1
     container_name: paperflow-grobid
     platform: linux/amd64
+    init: true
     # The upstream image starts via `tini -s`, which fails on some arm64/QEMU dev hosts.
     # Running the service entrypoint directly keeps the container portable across local setups.
     entrypoint: ["./grobid-service/bin/grobid-service"]
@@ -128,6 +129,9 @@ services:
       R_ENGINE_URL: http://r-engine:8010
       GROBID_URL: http://grobid:8070
       S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: paperflow
+      S3_SECRET_KEY: paperflow123
+      S3_BUCKET: paperflow-artifacts
       STORAGE_BACKEND: s3
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -149,6 +153,9 @@ services:
       R_ENGINE_URL: http://r-engine:8010
       GROBID_URL: http://grobid:8070
       S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: paperflow
+      S3_SECRET_KEY: paperflow123
+      S3_BUCKET: paperflow-artifacts
       STORAGE_BACKEND: s3
     command: ["python", "-m", "app.workers.worker"]
 

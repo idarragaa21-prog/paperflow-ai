@@ -39,3 +39,6 @@ tmp/
 # OS
 .DS_Store
 Thumbs.db
+venv/
+backend/venv/
+node_modules/

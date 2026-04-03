@@ -92,6 +92,21 @@ async def batch_download_papers(
 
     total = max(len(papers), 1)
     repo_db = getattr(repo, "db", None)
+
+    # Pre-fetch duplicates for the whole batch
+    all_pmids = [it.get("pmid") for it in papers if it.get("pmid")]
+    all_dois = [it.get("doi") for it in papers if it.get("doi")]
+
+    existing_duplicates = []
+    if hasattr(repo, "find_duplicates_by_identifiers_batch"):
+        existing_duplicates = await repo.find_duplicates_by_identifiers_batch(
+            project_id=project_id, pmids=all_pmids, dois=all_dois
+        )
+
+    # Map for O(1) lookups
+    dup_by_pmid = {p.pmid: p for p in existing_duplicates if p.pmid}
+    dup_by_doi = {p.doi: p for p in existing_duplicates if p.doi}
+
     for idx, it in enumerate(papers):
         pmid = (it.get("pmid") or None)
         pmcid = (it.get("pmcid") or None)
@@ -114,7 +129,14 @@ async def batch_download_papers(
         )
 
         try:
-            dup = await repo.find_duplicate_by_identifiers(project_id=project_id, pmid=pmid, doi=doi)
+            dup = None
+            if pmid and pmid in dup_by_pmid:
+                dup = dup_by_pmid[pmid]
+            elif doi and doi in dup_by_doi:
+                dup = dup_by_doi[doi]
+            elif hasattr(repo, "find_duplicate_by_identifiers") and not hasattr(repo, "find_duplicates_by_identifiers_batch"):
+                dup = await repo.find_duplicate_by_identifiers(project_id=project_id, pmid=pmid, doi=doi)
+
             if dup:
                 trace.update(
                     paper_id=str(dup.id),

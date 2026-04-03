@@ -64,7 +64,8 @@ async def test_generate_deep_research_report_returns_papers_for_pubmed(monkeypat
     monkeypatch.setattr(deep_research, "search_papers_pubmed", fake_search, raising=True)
     monkeypatch.setattr(deep_research, "_generate_section", fake_generate, raising=True)
 
-    report = await deep_research.generate_deep_research_report("hombro flotante", max_papers=5)
+    params = deep_research.DeepResearchParams(query="hombro flotante", max_papers=5)
+    report = await deep_research.generate_deep_research_report(params)
 
     assert report["status"] == "completed"
     assert report["papers_analyzed"] == 1
@@ -87,11 +88,11 @@ async def test_generate_section_falls_back_to_ollama_when_primary_chat_fails(mon
             self.model_name = model_name
             self.base_url = base_url
 
-        async def complete(self, prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4096, json_mode: bool = False):
+        async def complete(self, request, **kwargs):
             class Response:
                 text = "Recovered section from Ollama"
 
-            assert "floating shoulder" in prompt.lower()
+            assert "floating shoulder" in request.prompt.lower()
             return Response()
 
     monkeypatch.setattr(llm_factory, "llm_provider", lambda: BrokenProvider(), raising=True)

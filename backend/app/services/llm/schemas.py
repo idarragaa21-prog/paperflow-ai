@@ -105,3 +105,11 @@ class OutlineResponse(BaseModel):
     outline: PresentationOutline
     usage: dict[str, Any]
     model: str
+
+
+class GenerateOutlineInput(BaseModel):
+    topic: str
+    duration_minutes: int
+    audience: str
+    papers: list[dict[str, Any]] | None = None
+    num_slides: int | None = None

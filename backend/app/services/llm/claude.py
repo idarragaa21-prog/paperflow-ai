@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from anthropic import AsyncAnthropic
 
 from app.config import settings
 from app.core.logger import logger
 from app.services.llm.base import LLMProvider
+
+if TYPE_CHECKING:
+    from app.services.llm.schemas import GenerateOutlineInput
 
 _NOT_IMPLEMENTED_MSG = (
     "direct-Claude mode does not implement this method. "
@@ -64,12 +67,14 @@ class ClaudeProvider(LLMProvider):
 
     async def generate_slide_outline(
         self,
-        topic: str,
-        duration_minutes: int,
-        audience: str,
-        papers: list[dict[str, Any]] | None = None,
-        num_slides: int | None = None,
+        input_data: GenerateOutlineInput,
     ) -> dict[str, Any]:
+        topic = input_data.topic
+        duration_minutes = input_data.duration_minutes
+        audience = input_data.audience
+        papers = input_data.papers
+        num_slides = input_data.num_slides
+
         from app.config import settings as _s
         import json
 

@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -39,6 +41,13 @@ def _infer_export_format(filename: str) -> str:
     return Path(lower_name).suffix.lstrip(".") or "unknown"
 
 
+@dataclass
+class BatchCreateParams:
+    project_id: UUID = Form(...)
+    title: str | None = Form(default=None)
+    files: list[UploadFile] = File(...)
+
+
 def _export_media_type(filename: str) -> str:
     export_format = _infer_export_format(filename)
     if export_format == "xlsx":
@@ -63,22 +72,20 @@ async def _require_project_role(
 @limiter.limit("3/minute")
 async def create_batch(
     request: Request,
-    project_id: UUID = Form(...),
-    title: str | None = Form(default=None),
-    files: list[UploadFile] = File(...),
+    params: BatchCreateParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project_role(db, project_id, user, required_role="editor")
+    await _require_project_role(db, params.project_id, user, required_role="editor")
 
-    batch = MetaExtractionBatch(user_id=user.id, project_id=project_id, title=title, status="created")
+    batch = MetaExtractionBatch(user_id=user.id, project_id=params.project_id, title=params.title, status="created")
     db.add(batch)
     await db.commit()
     await db.refresh(batch)
 
     # Save PDFs as Papers and create items
     created_items: list[str] = []
-    for f in files:
+    for f in params.files:
         content = await f.read()
         if not storage_manager.validate_pdf(content):
             raise HTTPException(status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}")
@@ -86,13 +93,13 @@ async def create_batch(
         # Dedup by hash within project
         content_hash = storage_manager._calculate_hash(content)
         existing = await db.execute(
-            select(Paper).where(Paper.project_id == project_id).where(Paper.content_hash == content_hash).limit(1)
+            select(Paper).where(Paper.project_id == params.project_id).where(Paper.content_hash == content_hash).limit(1)
         )
         paper = existing.scalars().first()
         if not paper:
-            saved = await storage_manager.save_paper_bytes(data=content, project_id=project_id, suggested_filename=f.filename)
+            saved = await storage_manager.save_paper_bytes(data=content, project_id=params.project_id, suggested_filename=f.filename)
             paper = Paper(
-                project_id=project_id,
+                project_id=params.project_id,
                 search_result_id=None,
                 title=f.filename or "Paper",
                 authors=None,
@@ -136,9 +143,9 @@ async def create_batch(
     except Exception as e:
         logger.error("Failed to enqueue meta_extract_batch job: {}", e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
@@ -250,9 +257,9 @@ async def retry_item(
     except Exception as e:
         logger.error("Failed to enqueue meta_extract_paper retry job for item {}: {}", item_id, e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     item.status = "queued"
@@ -341,9 +348,9 @@ async def reextract_study(
     except Exception as e:
         logger.error("Failed to enqueue meta_extract_paper re-extract job for study {}: {}", study_id, e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
@@ -677,22 +684,27 @@ async def patch_study(
     return {"ok": True}
 
 
+@dataclass
+class PatchEffectPathParams:
+    study_id: UUID
+    effect_id: UUID
+
+
 @router.patch("/studies/{study_id}/effects/{effect_id}")
 @limiter.limit("30/minute")
 async def patch_effect(
     request: Request,
-    study_id: UUID,
-    effect_id: UUID,
     payload: dict,
+    path_params: PatchEffectPathParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    study = await db.get(ExtractedStudy, study_id)
+    study = await db.get(ExtractedStudy, path_params.study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
     await _require_project_role(db, study.project_id, user, required_role="editor")
 
-    eff = await db.get(ExtractedEffectSize, effect_id)
+    eff = await db.get(ExtractedEffectSize, path_params.effect_id)
     if not eff or eff.extracted_study_id != study.id:
         raise HTTPException(status_code=404, detail="Effect not found")
 
@@ -823,9 +835,9 @@ async def export_meta_dataset(
     except Exception as e:
         logger.error("Failed to enqueue meta_export job: {}", e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
@@ -857,22 +869,27 @@ async def download_export(
     return FileResponse(abs_path, filename=export.filename, media_type=_export_media_type(export.filename))
 
 
+@dataclass
+class RobPathParams:
+    study_id: UUID
+    rob_id: UUID
+
+
 @router.patch("/studies/{study_id}/rob/{rob_id}")
 @limiter.limit("30/minute")
 async def patch_rob(
     request: Request,
-    study_id: UUID,
-    rob_id: UUID,
     payload: dict,
+    path_params: RobPathParams = Depends(),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    study = await db.get(ExtractedStudy, study_id)
+    study = await db.get(ExtractedStudy, path_params.study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
     await _require_project_role(db, study.project_id, user, required_role="editor")
 
-    rob = await db.get(ExtractedRiskOfBias, rob_id)
+    rob = await db.get(ExtractedRiskOfBias, path_params.rob_id)
     if not rob or rob.extracted_study_id != study.id:
         raise HTTPException(status_code=404, detail="ROB not found")
 
