@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -293,11 +293,8 @@ async def delete_sheet(
 
     # delete all versions with same root_id (best-effort)
     root_id = (s.input_params or {}).get("root_id") or str(s.id)
-    stmt = select(ClinicalSheet).where(ClinicalSheet.user_id == user.id).where(ClinicalSheet.input_params["root_id"].astext == str(root_id))
-    q = await db.execute(stmt)
-    rows = q.scalars().all()
-    for r in rows:
-        await db.delete(r)
+    stmt = delete(ClinicalSheet).where(ClinicalSheet.user_id == user.id).where(ClinicalSheet.input_params["root_id"].astext == str(root_id))
+    await db.execute(stmt)
     await db.commit()
     return {"ok": True}
 

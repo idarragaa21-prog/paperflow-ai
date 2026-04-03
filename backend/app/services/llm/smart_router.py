@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.services.llm.model_registry import ModelRegistry, TaskType
-from app.services.llm.provider_adapters import LLMResponse, get_adapter, LLMRequest
+from app.services.llm.provider_adapters import LLMResponse, get_adapter, LLMCompletionRequest
 
 
 logger = logging.getLogger(__name__)
@@ -84,8 +84,14 @@ class SmartRouter:
             if not model:
                 raise RuntimeError(f"model_override not found: {model_override}")
             adapter = get_adapter(model)
-            req = LLMRequest(prompt=prompt, system=system, temperature=temperature, max_tokens=max_tokens, json_mode=json_mode)
-            resp = await adapter.complete(req)
+            request = LLMCompletionRequest(
+                prompt=prompt,
+                system=system,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                json_mode=json_mode,
+            )
+            resp = await adapter.complete(request)
             self.registry.record_result(model.id, 90.0, success=True, latency_ms=resp.latency_ms)
             return resp
 
@@ -110,9 +116,16 @@ class SmartRouter:
                 self.rate_limiter.record_call(provider_name)
                 logger.info(f"Routing {task.value} -> {model.id}")
 
-                req = LLMRequest(prompt=prompt, system=system, temperature=temperature, max_tokens=max_tokens, json_mode=json_mode)
+                request = LLMCompletionRequest(
+                    prompt=prompt,
+                    system=system,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    json_mode=json_mode,
+                )
+
                 resp = await asyncio.wait_for(
-                    adapter.complete(req),
+                    adapter.complete(request),
                     timeout=timeout_sec,
                 )
 

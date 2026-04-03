@@ -13,15 +13,6 @@ from app.services.llm.openclaw import OpenClawProvider
 
 
 @dataclass
-class LLMRequest:
-    prompt: str
-    system: str = ""
-    temperature: float = 0.3
-    max_tokens: int = 4096
-    json_mode: bool = False
-
-
-@dataclass
 class LLMResponse:
     text: str
     model_id: str
@@ -32,8 +23,17 @@ class LLMResponse:
     raw_response: Optional[dict] = None
 
 
+@dataclass
+class LLMCompletionRequest:
+    prompt: str
+    system: str = ""
+    temperature: float = 0.3
+    max_tokens: int = 4096
+    json_mode: bool = False
+
+
 class LLMAdapter(Protocol):
-    async def complete(self, request: LLMRequest) -> LLMResponse: ...
+    async def complete(self, request: LLMCompletionRequest) -> LLMResponse: ...
 
     async def health_check(self) -> bool: ...
 
@@ -43,7 +43,7 @@ class OllamaAdapter:
         self.model_name = model_name
         self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def complete(self, request: LLMCompletionRequest) -> LLMResponse:
         t0 = time.time()
         payload: dict = {
             "model": self.model_name,
@@ -88,7 +88,7 @@ class OpenAICompatibleAdapter:
         self.base_url = base_url.rstrip("/")
         self.api_key = os.getenv(api_key_env, "")
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def complete(self, request: LLMCompletionRequest) -> LLMResponse:
         if not self.api_key:
             raise RuntimeError(f"Missing API key env var for provider {self.provider}")
 
@@ -137,9 +137,9 @@ class OpenClawChatAdapter:
         self.model_name = model_name
         self.provider = OpenClawProvider()
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def complete(self, request: LLMCompletionRequest) -> LLMResponse:
         # NOTE: OpenClaw may or may not support strict JSON response_format.
-        # We keep request.json_mode as an intent signal; upstream should still validate.
+        # We keep json_mode as an intent signal; upstream should still validate.
         t0 = time.time()
         r = await self.provider.chat(
             model=self.model_name or settings.OPENCLAW_MODEL,
@@ -163,7 +163,7 @@ class OpenClawChatAdapter:
     async def health_check(self) -> bool:
         try:
             # Minimal: attempt a small completion.
-            await self.complete(LLMRequest(prompt="ping", system="", max_tokens=8))
+            await self.complete(LLMCompletionRequest(prompt="ping", system="", max_tokens=8))
             return True
         except Exception:
             return False
@@ -175,7 +175,7 @@ class GeminiAdapter:
         self.api_key = os.getenv("GEMINI_API_KEY", "")
         self.base_url = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
 
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def complete(self, request: LLMCompletionRequest) -> LLMResponse:
         if not self.api_key:
             raise RuntimeError("Missing GEMINI_API_KEY")
 

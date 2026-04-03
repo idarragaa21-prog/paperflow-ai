@@ -59,16 +59,25 @@ async def _collect_project_papers(db: AsyncSession, project_id, topic: str, *, m
 
     scored.sort(key=lambda x: (x[0], x[1].downloaded_at or x[1].created_at), reverse=True)
 
-    out: list[dict[str, Any]] = []
-    for s, p, sr in scored[:max_papers]:
-        # attach most recent summary note if exists
+    top_papers = scored[:max_papers]
+    paper_ids = [p.id for s, p, sr in top_papers]
+
+    # fetch all summary notes for the top papers in one go
+    notes_by_paper = {}
+    if paper_ids:
         qn = await db.execute(
             select(Note)
-            .where(Note.paper_id == p.id, Note.note_type == "summary")
-            .order_by(Note.created_at.desc())
-            .limit(1)
+            .where(Note.paper_id.in_(paper_ids), Note.note_type == "summary")
+            .order_by(Note.paper_id, Note.created_at.desc())
         )
-        note = qn.scalar_one_or_none()
+        notes = qn.scalars().all()
+        for note in notes:
+            if note.paper_id not in notes_by_paper:
+                notes_by_paper[note.paper_id] = note
+
+    out: list[dict[str, Any]] = []
+    for s, p, sr in top_papers:
+        note = notes_by_paper.get(p.id)
 
         ft = (p.full_text_extracted or "").strip()
         out.append(
