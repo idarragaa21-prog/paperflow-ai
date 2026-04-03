@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcORFrom2x2, TwoByTwo } from './effectMath';
+import { calcORFrom2x2, type TwoByTwo } from './effectMath';
 
 describe('calcORFrom2x2', () => {
   it('calculates OR correctly for standard inputs', () => {
