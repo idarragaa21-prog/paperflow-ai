@@ -78,6 +78,7 @@ services:
     image: lfoppiano/grobid:0.8.1
     container_name: paperflow-grobid
     platform: linux/amd64
+    init: true
     # The upstream image starts via `tini -s`, which fails on some arm64/QEMU dev hosts.
     # Running the service entrypoint directly keeps the container portable across local setups.
     entrypoint: ["./grobid-service/bin/grobid-service"]

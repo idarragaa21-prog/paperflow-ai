@@ -22,6 +22,6 @@ pkill -f "app.workers.worker" 2>/dev/null || true
 # Docker services
 echo -e "${CYAN}Parando Docker...${NC}"
 cd "$REPO_DIR"
-docker compose stop postgres redis qdrant minio grobid r-engine
+docker compose down
 
 echo -e "${GREEN}[✓]${NC} Todo parado."
