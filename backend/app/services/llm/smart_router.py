@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from app.services.llm.model_registry import ModelRegistry, TaskType
 from app.services.llm.provider_adapters import LLMResponse, get_adapter, CompletionRequest
+from app.services.llm.provider_adapters import LLMResponse, get_adapter, LLMCompletionRequest
 
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ class SmartRouter:
                 raise RuntimeError(f"model_override not found: {model_override}")
             adapter = get_adapter(model)
             request = CompletionRequest(
+            request = LLMCompletionRequest(
                 prompt=prompt,
                 system=system,
                 temperature=temperature,
@@ -117,6 +119,7 @@ class SmartRouter:
                 logger.info(f"Routing {task.value} -> {model.id}")
 
                 request = CompletionRequest(
+                request = LLMCompletionRequest(
                     prompt=prompt,
                     system=system,
                     temperature=temperature,

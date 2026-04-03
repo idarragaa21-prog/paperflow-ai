@@ -298,9 +298,9 @@ async def batch_download(
     except Exception as e:
         logger.error("Failed to enqueue batch_download_papers job: {}", e)
         job_record.status = "failed"
-        job_record.error_message = "No se pudo encolar job (Redis no disponible?)"
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await repo.db.commit()
-        raise HTTPException(status_code=503, detail="No se pudo encolar job")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     await repo.db.commit()

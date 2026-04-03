@@ -104,6 +104,20 @@ export default function DraftsPage() {
     finally { setBusy(false); }
   }
 
+  async function syncReferences() {
+    if (!projectId) return;
+    setBusy(true); setError(null);
+    try {
+      const r = await api.post('/references/sync-from-library', null, { params: { project_id: projectId } });
+      const created = (r.data as any)?.created || 0;
+      toast.success('Referencias Sincronizadas', `Se sincronizaron ${created} referencias desde la Library.`);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Error sincronizando referencias.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Inline edit
   function startEdit(section: DraftSection) {
     setEditingSection(section.id);
@@ -204,11 +218,15 @@ ${sections}
           </div>
           <button className="rc-btn rc-btn--primary" data-testid="draft-create-button" onClick={createDraft} disabled={busy}>Create draft</button>
           <button className="rc-btn" data-testid="draft-build-evidence-button" onClick={buildEvidence} disabled={busy}>Build evidence table</button>
+          <button className="rc-btn" onClick={syncReferences} disabled={busy}>🔗 Sincronizar Referencias</button>
         </div>
       </div>
 
       <div className="rc-card">
         <div className="rc-card-title">Generate section</div>
+        <div className="rc-help" style={{ marginBottom: 12 }}>
+          La IA redactará la sección basándose en las tablas de evidencia disponibles y las referencias sincronizadas en el proyecto.
+        </div>
         <div className="rc-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 240 }}>
             <div className="rc-kicker">Draft</div>

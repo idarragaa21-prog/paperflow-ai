@@ -197,6 +197,11 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
 
                 fallback = OllamaAdapter(settings.PAPERFLOW_CHAT_MODEL, base_url=settings.OLLAMA_BASE_URL)
                 req = CompletionRequest(
+                from app.services.llm.provider_adapters import OllamaAdapter
+                from app.services.llm.provider_adapters import LLMCompletionRequest
+
+                fallback = OllamaAdapter(settings.PAPERFLOW_CHAT_MODEL, base_url=settings.OLLAMA_BASE_URL)
+                request = LLMCompletionRequest(
                     prompt=user,
                     system=system,
                     temperature=0.3,
@@ -204,6 +209,7 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
                     json_mode=False,
                 )
                 response = await fallback.complete(req)
+                response = await fallback.complete(request)
                 return response.text.strip()
         else:
             # Fallback: describe the inability gracefully

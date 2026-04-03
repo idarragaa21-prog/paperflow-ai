@@ -43,7 +43,7 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
   return (
     <>
       <div className="rc-brand">
-        <div className="rc-brand-logo">
+        <div className="rc-brand-logo" style={{ background: 'var(--rc-primary)', boxShadow: 'none', borderRadius: '8px' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -51,34 +51,32 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
         </div>
-        <div>
-          <div className="rc-brand-title">PaperFlow</div>
-          <div className="rc-brand-sub">{t.nav.brandSub}</div>
+        <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.03em', color: 'var(--rc-text)', fontFamily: 'var(--font-display)' }}>
+          PaperFlow
         </div>
       </div>
 
-      <nav className="rc-nav" role="navigation" aria-label="Main navigation">
-        <div className="rc-nav-section">Workspace</div>
+      <nav className="rc-nav-list">
         <NavItem to="/dashboard" label={t.nav.dashboard} Icon={Icons.Dashboard} onClick={onNav} />
         <NavItem to="/projects" label={t.nav.projects} Icon={Icons.Projects} onClick={onNav} />
-
-        <div className="rc-nav-section">Specialized flows</div>
         <NavItem to="/clinical" label={t.nav.clinical} Icon={Icons.Clinical} onClick={onNav} />
-        <NavItem to="/deep-research" label={t.nav.deepResearch} Icon={Icons.DeepResearch} onClick={onNav} />
-        <NavItem to="/knowledge" label={t.nav.books} Icon={Icons.Books} onClick={onNav} />
-
-        <div className="rc-nav-section">Operations</div>
+        <NavItem to="/deep-research" label="Deep Research" Icon={Icons.DeepResearch} onClick={onNav} />
+        <NavItem to="/knowledge" label="Books & PDF" Icon={Icons.Books} onClick={onNav} />
         <NavItem to="/jobs" label={t.nav.jobs} Icon={Icons.Jobs} onClick={onNav} />
-        <NavItem to="/settings" label={t.nav.settings} Icon={Icons.Settings} onClick={onNav} />
       </nav>
 
-      <div className="rc-sidebar-footer">
-        <div className="rc-user-row">
-          <div className="rc-avatar">{initials}</div>
-          <span className="rc-user-email">{user?.email || ''}</span>
-          <button className="rc-logout-btn" onClick={onLogout} title={t.auth.signOut} aria-label="Sign out"><Icons.LogOut /></button>
+      <div style={{ marginTop: 'auto' }}>
+        <nav className="rc-nav-list" style={{ marginBottom: 12 }}>
+          <NavItem to="/settings" label={t.nav.settings} Icon={Icons.Settings} onClick={onNav} />
+        </nav>
+        <div className="rc-user-card" style={{ borderTop: '1px solid var(--rc-border)', paddingTop: 16 }}>
+          <div className="rc-avatar-btn" style={{ background: 'var(--rc-surface-2)', color: 'var(--rc-text)' }}>{initials}</div>
+          <span className="rc-user-email" style={{ color: 'var(--rc-text-secondary)', fontWeight: 500 }}>{user?.email || ''}</span>
+          <button className="rc-logout-btn" onClick={onLogout} title={t.auth.signOut} aria-label="Sign out" style={{ color: 'var(--rc-muted)' }}>
+            <Icons.LogOut />
+          </button>
         </div>
-        <div style={{ padding:'2px 10px 4px',fontSize:10,color:'rgba(255,255,255,0.2)',letterSpacing:'0.03em' }}>
+        <div style={{ padding:'8px 10px 4px',fontSize:10,color:'var(--rc-muted)',letterSpacing:'0.03em' }}>
           {t.nav.localFirst}
         </div>
       </div>

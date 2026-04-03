@@ -3,7 +3,6 @@ import type { FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useI18n } from '../i18n';
-import { DEMO_MODE } from '../services/demo';
 import type { Project } from '../types/api';
 
 type Section = { key: string; title: string; content: string };
@@ -17,26 +16,6 @@ type Report = {
   sections: Section[]; papers: Paper[];
   papers_analyzed: number; source_mode?: string;
   metadata: { duration_seconds: number; source?: string; project_id?: string };
-};
-
-// ── Demo fixture ──────────────────────────────────────────────────────────────
-const demoReport: Report = {
-  id: 'demo', query: 'distal radius fracture outcomes in elderly patients',
-  status: 'completed', papers_analyzed: 12, source_mode: 'pubmed',
-  metadata: { duration_seconds: 45.2, source: 'pubmed' },
-  papers: [
-    { pmid: '38901234', title: 'Functional outcomes after volar locking plate fixation in patients over 65', authors: 'Johnson A et al.', journal: 'J Hand Surg', year: '2023', abstract: '' },
-    { pmid: '38765432', title: 'Conservative vs surgical management: a systematic review', authors: 'Chen X, Rodriguez M', journal: 'Bone Joint J', year: '2022', abstract: '' },
-    { pmid: '38654321', title: 'Patient-reported outcomes in distal radius fracture treatment', authors: 'Davis K et al.', journal: 'Clin Orthop', year: '2023', abstract: '' },
-  ],
-  sections: [
-    { key: 'overview', title: 'Research Overview', content: 'This deep research report analyzes 12 papers on functional outcomes following distal radius fracture treatment in elderly patients (≥65 years).' },
-    { key: 'key_findings', title: 'Key Findings', content: 'Volar locking plate demonstrates superior radiographic outcomes but similar functional results at 12 months compared to cast immobilization [1][2].' },
-    { key: 'methodology', title: 'Methodology Trends', content: 'Most studies employed retrospective cohort designs (7/12), with 3 RCTs and 2 systematic reviews.' },
-    { key: 'consensus', title: 'Consensus & Controversies', content: 'Strong consensus exists around volar locking plates for unstable fractures. Controversy persists for extra-articular fractures with acceptable alignment.' },
-    { key: 'gaps', title: 'Research Gaps', content: 'Key gaps: (1) Lack of cost-effectiveness analyses. (2) Insufficient data for patients >80 years. (3) Need for standardized PROMs.' },
-    { key: 'conclusion', title: 'Conclusion', content: 'Current evidence supports individualized management. Surgical fixation offers better radiographic outcomes; functional results are similar to conservative treatment at 12 months.' },
-  ],
 };
 
 // ── Source badge ──────────────────────────────────────────────────────────────
@@ -101,16 +80,11 @@ export default function DeepResearchPage() {
     setLoading(true);
     setReport(null);
     try {
-      if (DEMO_MODE) {
-        await new Promise(r => setTimeout(r, 2000));
-        setReport({ ...demoReport, query });
-      } else {
-        const payload: any = { query, source_mode: sourceMode };
-        if (sourceMode === 'pubmed') payload.max_papers = 15;
-        if (sourceMode === 'project') payload.project_id = projectId;
-        const r = await api.post('/research/deep', payload);
-        setReport(r.data);
-      }
+      const payload: any = { query, source_mode: sourceMode };
+      if (sourceMode === 'pubmed') payload.max_papers = 15;
+      if (sourceMode === 'project') payload.project_id = projectId;
+      const r = await api.post('/research/deep', payload);
+      setReport(r.data);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to generate report');
     } finally { setLoading(false); }

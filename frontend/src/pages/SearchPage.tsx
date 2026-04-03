@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { useToast } from '../ui/Toast/ToastProvider';
 import { useSearch } from '../hooks/useSearch';
 import { useSearchFilters } from '../hooks/useSearchFilters';
 import { useSearchHistory } from '../hooks/useSearchHistory';
@@ -41,7 +43,10 @@ function batchStatusClass(status: BatchDownloadTraceItem['final_status']) {
 
 export default function SearchPage() {
   const { projectId } = useParams();
+    const toast = useToast();
   const search = useSearch(projectId);
+  const [synthesis, setSynthesis] = useState<{ answer?: string, loading?: boolean, error?: string | null }>({});
+
   const filters = useSearchFilters();
   const batch = useBatchDownload();
   const history = useSearchHistory({
@@ -86,7 +91,55 @@ export default function SearchPage() {
   const shortlistPreview = search.selectedPapers.slice(0, 5);
 
   function handleSearch() {
+    setSynthesis({});
     search.runSearch(filters.buildPayload(), history.loadHistory);
+  }
+
+  async function synthesizeResults() {
+    if (!search.data?.results.length) return;
+    setSynthesis({ loading: true, error: null });
+    try {
+      const response = await api.post('/search/synthesize', {
+        query: search.query,
+        papers: search.data.results.slice(0, 10),
+      });
+      setSynthesis({ answer: response.data.answer, loading: false });
+    } catch (e: any) {
+      setSynthesis({ error: e?.response?.data?.detail || 'Failed to synthesize search results.', loading: false });
+    }
+  }
+
+  async function saveSynthesisToDraft() {
+    if (!projectId || !synthesis.answer) return;
+    try {
+      // Create new draft
+      const draftRes = await api.post('/drafts', {
+        project_id: projectId,
+        title: search.query || 'Búsqueda Sistematizada',
+      });
+      const draftId = draftRes.data.id;
+
+      // Generate a new empty section with the title "AI Synthesis"
+      const sectionRes = await api.post(`/drafts/${draftId}/generate-section`, {
+        heading: 'AI Synthesis',
+        paper_ids: [],
+        extraction_record_ids: [],
+      });
+
+      // Find the newly generated section
+      const targetSectionId = sectionRes.data.sections?.[sectionRes.data.sections.length - 1]?.id;
+
+      // Patch its content with the actual AI synthesis
+      if (targetSectionId) {
+        await api.patch(`/drafts/${draftId}/sections/${targetSectionId}`, {
+          content: synthesis.answer
+        });
+      }
+
+      toast.success('Guardado en Borradores', 'La síntesis ha sido convertida en un borrador. Revisa la página de Borradores.');
+    } catch (e: any) {
+      toast.error('Error al guardar', e?.response?.data?.detail || 'El servidor no pudo procesar la solicitud de guardado de síntesis.');
+    }
   }
 
   return (
@@ -212,6 +265,55 @@ export default function SearchPage() {
                   <Skeleton height={14} width="40%" />
                   <div style={{ height: 10 }} />
                   <SkeletonLines lines={6} lineHeight={12} lastLineWidth="60%" />
+                </div>
+              )}
+
+              {!search.loading && search.data.results.length > 0 && (
+                <div className="rc-card" style={{ padding: 16, background: 'var(--rc-surface-2)', border: '1px solid var(--rc-primary-weak)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--rc-primary)', marginBottom: 2 }}>
+                        ✨ AI Search (Búsqueda Inteligente)
+                      </div>
+                      <div className="rc-help">
+                        Obtén una respuesta sintetizada respaldada por los mejores {Math.min(search.data.results.length, 10)} resultados.
+                      </div>
+                    </div>
+                    {!synthesis.answer && !synthesis.loading && (
+                      <button
+                        className="rc-btn rc-btn--primary"
+                        onClick={synthesizeResults}
+                      >
+                        Sintetizar Evidencia con IA
+                      </button>
+                    )}
+                  </div>
+
+                  {synthesis.loading && (
+                    <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--rc-primary)', fontWeight: 600, fontSize: 13 }}>
+                      <span className="rc-spinner" style={{ width: 14, height: 14, borderTopColor: 'currentColor' }} />
+                      Analizando papers y redactando respuesta...
+                    </div>
+                  )}
+
+                  {synthesis.error && (
+                    <div className="rc-error" style={{ marginTop: 14 }}>{synthesis.error}</div>
+                  )}
+
+                  {synthesis.answer && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6, color: 'var(--rc-text)' }}>
+                        {synthesis.answer}
+                      </div>
+                      {projectId && (
+                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                          <button className="rc-btn rc-btn--sm" onClick={saveSynthesisToDraft} style={{ fontWeight: 600 }}>
+                            📝 Guardar síntesis en Borradores
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -358,7 +460,7 @@ export default function SearchPage() {
           <div className="rc-card" style={{ width: 'min(520px, 96vw)' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div data-testid="batch-trace-title" style={{ fontWeight: 800, fontFamily: 'var(--font-display)' }}>Batch OA Download</div>
-              <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => batch.setBatchModalOpen(false)}>✕</button>
+              <button className="rc-btn rc-btn--sm rc-btn--ghost" aria-label="Close" title="Close" onClick={() => batch.setBatchModalOpen(false)}>✕</button>
             </div>
             <div className="rc-help" style={{ marginBottom: 8 }}>Job: <span style={{ fontFamily: 'monospace' }}>{batch.batchJobId}</span></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -421,14 +523,24 @@ export default function SearchPage() {
               </>
             )}
             {batch.batchJob?.status === 'completed' && projectId && (
-              <Link
-                to={`/projects/${projectId}/library`}
-                className="rc-btn rc-btn--primary rc-btn--sm"
-                style={{ textDecoration: 'none' }}
-                onClick={() => batch.setBatchModalOpen(false)}
-              >
-                View in Library →
-              </Link>
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                <Link
+                  to={`/projects/${projectId}/library`}
+                  className="rc-btn rc-btn--primary rc-btn--sm"
+                  style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
+                  onClick={() => batch.setBatchModalOpen(false)}
+                >
+                  📚 Ir a Library
+                </Link>
+                <Link
+                  to={`/projects/${projectId}/reader`}
+                  className="rc-btn rc-btn--sm"
+                  style={{ textDecoration: 'none', flex: 1, textAlign: 'center' }}
+                  onClick={() => batch.setBatchModalOpen(false)}
+                >
+                  📖 Ir a Reader
+                </Link>
+              </div>
             )}
             <div style={{ marginTop: 10 }}>
               <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={batch.cancelBatch}>Cancel job</button>

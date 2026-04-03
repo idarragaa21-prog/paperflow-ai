@@ -300,7 +300,7 @@ class TestTitleNormalization:
 
 
 # ─────────────────────────────────────────────
-# 8. CACHE KEY — internal whitespace normalization (Bug #4 fix)
+# 8. CACHE KEY — internal whitespace normalization
 # ─────────────────────────────────────────────
 
 class TestCacheKeyWhitespace:
@@ -382,7 +382,7 @@ class TestPubmedPostProcessing:
 
 
 # ─────────────────────────────────────────────
-# 10. DOWNLOAD — oa_url-only papers (Bug #1 fix)
+# 10. DOWNLOAD — oa_url-only papers (Regression test for Bug #1)
 # ─────────────────────────────────────────────
 
 class TestDownloadOAUrlOnly:

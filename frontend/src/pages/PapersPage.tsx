@@ -1,6 +1,7 @@
-import { Fragment, useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import PaperTableRow from '../components/PaperTableRow';
 import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useConfirm } from '../ui/Dialog/useConfirm';
@@ -11,15 +12,6 @@ import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 type StatusFilter = 'all' | 'ready' | 'processing' | 'pending' | 'failed';
 
 const LIB_PAGE_SIZE = 25;
-const SOURCE_LABELS: Record<string, string> = {
-  pubmed: 'PubMed',
-  europepmc: 'Europe PMC',
-  doaj: 'DOAJ',
-  unpaywall: 'Unpaywall',
-  doi_content_negotiation: 'DOI direct',
-  manual_upload: 'Carga manual',
-  user_provided_oa: 'OA provista',
-};
 
 type PaperTraceState = {
   expanded: boolean;
@@ -38,17 +30,6 @@ function downloadBlob(blob: Blob, filename: string) {
 
 function truncate(s: string, max: number) { return s.length > max ? s.slice(0, max) + '…' : s; }
 
-function providerLabel(source?: string | null) {
-  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
-}
-
-function traceStatusLabel(status: PaperDownloadTrace['final_status']) {
-  if (status === 'downloaded') return 'Descargado';
-  if (status === 'existing') return 'Ya existía';
-  if (status === 'unavailable') return 'No disponible';
-  return 'Fallido';
-}
-
 function errorDetail(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'response' in error) {
     const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail;
@@ -65,10 +46,10 @@ function formatDate(value?: string | null) {
 
 function statusTag(status?: string) {
   const s = (status || 'uploaded').toLowerCase();
-  if (s === 'ready' || s === 'parsed') return { cls: 'rc-badge rc-badge--success', label: 'Ready' };
-  if (s === 'processing' || s === 'queued') return { cls: 'rc-badge rc-badge--info', label: 'Processing' };
-  if (s === 'failed') return { cls: 'rc-badge rc-badge--danger', label: 'Failed' };
-  return { cls: 'rc-badge', label: 'Pending' };
+  if (s === 'ready' || s === 'parsed') return { cls: 'rc-badge rc-badge--success', label: 'Ready', style: { background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.25)', fontWeight: 800 } };
+  if (s === 'processing' || s === 'queued') return { cls: 'rc-badge rc-badge--info', label: 'Processing', style: { background: 'rgba(59,130,246,0.1)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.25)', fontWeight: 600 } };
+  if (s === 'failed') return { cls: 'rc-badge rc-badge--danger', label: 'Failed', style: { background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.25)', fontWeight: 600 } };
+  return { cls: 'rc-badge', label: 'Pending', style: { background: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', fontWeight: 600 } };
 }
 
 function matchesFilter(p: PaperRow, f: StatusFilter): boolean {
@@ -132,7 +113,7 @@ export default function PapersPage() {
       setUploadFile(null);
       invalidate();
     },
-    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Error al subir'),
+    onError: (e: any) => { toast.error('Error al subir', e?.response?.data?.detail || 'El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.'); setMutError(e?.response?.data?.detail || 'Error al subir'); },
   });
 
   const downloadOAMut = useMutation({
@@ -147,7 +128,7 @@ export default function PapersPage() {
       setDoi(''); setPmid('');
       invalidate();
     },
-    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Descarga fallida'),
+    onError: (e: any) => { toast.error('Error al descargar', e?.response?.data?.detail || 'El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.'); setMutError(e?.response?.data?.detail || 'Descarga fallida'); },
   });
 
   const processMut = useMutation({
@@ -157,7 +138,7 @@ export default function PapersPage() {
       toast.success('Encolado', p ? `Procesando: ${truncate(p.title, 30)}` : 'Encolado');
       invalidate();
     },
-    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Error al procesar'),
+    onError: (e: any) => { toast.error('Error al procesar', e?.response?.data?.detail || 'El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.'); setMutError(e?.response?.data?.detail || 'Error al procesar'); },
   });
 
   const favoriteMut = useMutation({
@@ -212,7 +193,7 @@ export default function PapersPage() {
 
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
   function toggleAll() { setSelected(allSelected ? new Set() : new Set(filtered.map(p => p.id))); }
-  function toggleOne(id: string) {
+  const toggleOne = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -222,47 +203,60 @@ export default function PapersPage() {
       }
       return next;
     });
-  }
+  }, []);
 
-  function patchTraceState(id: string, patch: Partial<PaperTraceState>) {
-    setTraceState((prev) => ({ ...prev, [id]: { ...(prev[id] || { expanded: false }), ...patch } }));
-  }
-
-  async function downloadFile(p: PaperRow) {
+  const downloadFile = useCallback(async (p: PaperRow) => {
     try {
       const r = await api.get(`/papers/${p.id}/download`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, p.filename || 'paper.pdf');
     } catch (e: any) { setMutError(e?.response?.data?.detail || 'Error descargando archivo'); }
-  }
+  }, []);
 
-  async function deleteWithConfirm(p: PaperRow) {
+  const deleteWithConfirm = useCallback(async (p: PaperRow) => {
     const ok = await confirm({ title: '¿Eliminar paper?', body: p.title, confirmText: 'Eliminar', danger: true });
     if (!ok) return;
     deleteMut.mutate(p.id);
-  }
+  }, [confirm, deleteMut]);
 
-  async function toggleTrace(p: PaperRow) {
-    const current = traceState[p.id];
-    if (current?.expanded) {
-      patchTraceState(p.id, { expanded: false });
-      return;
-    }
+  const toggleTrace = useCallback((p: PaperRow) => {
+    setTraceState(prev => {
+      const current = prev[p.id];
+      const isExpanded = current?.expanded || false;
 
-    patchTraceState(p.id, { expanded: true });
-    if (current?.trace || current?.loading) return;
+      // Only close if it was expanded
+      if (isExpanded) {
+        return { ...prev, [p.id]: { ...(prev[p.id] || { expanded: false }), expanded: false } };
+      }
 
-    patchTraceState(p.id, { loading: true, error: null });
-    try {
-      const response = await api.get(`/papers/${p.id}`);
-      const detail = response.data as PaperDetailResponse;
-      patchTraceState(p.id, { loading: false, trace: detail.download_trace || null });
-    } catch (error: unknown) {
-      patchTraceState(p.id, {
-        loading: false,
-        error: errorDetail(error, 'No se pudo cargar la traza de descarga'),
-      });
-    }
-  }
+      // If already has trace or is loading, just expand it
+      if (current?.trace || current?.loading) {
+        return { ...prev, [p.id]: { ...(prev[p.id] || { expanded: false }), expanded: true } };
+      }
+
+      // Start fetching process
+      (async () => {
+        try {
+          const response = await api.get(`/papers/${p.id}`);
+          const detail = response.data as PaperDetailResponse;
+          setTraceState(prev2 => ({
+            ...prev2,
+            [p.id]: { ...(prev2[p.id] || { expanded: false }), loading: false, trace: detail.download_trace || null }
+          }));
+        } catch (error: unknown) {
+          setTraceState(prev2 => ({
+            ...prev2,
+            [p.id]: {
+              ...(prev2[p.id] || { expanded: false }),
+              loading: false,
+              error: errorDetail(error, 'No se pudo cargar la traza de descarga'),
+            }
+          }));
+        }
+      })();
+
+      return { ...prev, [p.id]: { ...(prev[p.id] || { expanded: false }), expanded: true, loading: true, error: null } };
+    });
+  }, []);
 
   async function processAllPending() {
     if (processingAllRef.current) return;
@@ -340,7 +334,7 @@ export default function PapersPage() {
       {hasProcessing && !dismissBanner && (
         <div className="rc-card" style={{ background: 'var(--rc-info-bg)', border: '1px solid var(--rc-info-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 13 }}>⚙️ Procesando {papers.filter(p => ['processing','queued'].includes((p.processing_status||'').toLowerCase())).length} papers... (auto-refreshing)</span>
-          <button className="rc-btn" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setDismissBanner(true)}>✕</button>
+          <button className="rc-btn" aria-label="Dismiss banner" title="Dismiss banner" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setDismissBanner(true)}>✕</button>
         </div>
       )}
 
@@ -423,6 +417,23 @@ export default function PapersPage() {
               </tr>
             </thead>
             <tbody>
+              {filtered.slice(libPage * LIB_PAGE_SIZE, (libPage + 1) * LIB_PAGE_SIZE).map(p => (
+                <PaperTableRow
+                  key={p.id}
+                  p={p}
+                  isSelected={selected.has(p.id)}
+                  isExpanded={traceState[p.id]?.expanded ?? false}
+                  isLoadingTrace={traceState[p.id]?.loading ?? false}
+                  traceError={traceState[p.id]?.error ?? null}
+                  traceData={traceState[p.id]?.trace}
+                  onToggleOne={toggleOne}
+                  onProcessMutate={processMut.mutate}
+                  onDownloadFile={downloadFile}
+                  onToggleTrace={toggleTrace}
+                  onFavoriteMutate={favoriteMut.mutate}
+                  onDeleteWithConfirm={deleteWithConfirm}
+                />
+              ))}
               {filtered.slice(libPage * LIB_PAGE_SIZE, (libPage + 1) * LIB_PAGE_SIZE).map(p => {
                 const st = statusTag(p.processing_status);
                 const isReady = ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase());
@@ -438,7 +449,7 @@ export default function PapersPage() {
                         {[p.journal, p.publication_year].filter(Boolean).join(' · ') || '—'}
                       </td>
                       <td style={{ padding: '8px 6px' }}>
-                        <span className={st.cls} style={{ fontSize: 11 }}>
+                        <span className={st.cls} style={{ fontSize: 11, ...st.style }}>
                           {st.label === 'Processing' && <span style={{ display: 'inline-block', width: 8, height: 8, border: '2px solid rgba(59,130,246,0.4)', borderTopColor: 'rgba(59,130,246,1)', borderRadius: '50%', animation: 'spin .8s linear infinite', marginRight: 4 }} />}
                           {st.label}
                         </span>
@@ -449,6 +460,24 @@ export default function PapersPage() {
                       <td style={{ padding: '8px 6px' }}>
                         <div className="rc-row" style={{ gap: 4, flexWrap: 'wrap' }}>
                           {!isReady && <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => processMut.mutate(p.id)}>Process</button>}
+                          {isReady && (
+                            <>
+                              <Link className="rc-btn rc-btn--primary" style={{ padding: '4px 8px', fontSize: 11, textDecoration: 'none' }} to={`/projects/${projectId}/reader?paper_id=${p.id}`}>📖 Read</Link>
+                              <Link className="rc-btn rc-btn--primary" style={{ padding: '4px 8px', fontSize: 11, textDecoration: 'none' }} to={`/projects/${projectId}/meta?paper_id=${p.id}`}>⚡ Extract</Link>
+                              <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => {
+                                try {
+                                  const r = await api.post(`/references/sync-paper/${p.id}`);
+                                  if ((r.data as any)?.created > 0) {
+                                    toast.success('Sincronizado', 'Referencia creada en el proyecto.');
+                                  } else {
+                                    toast.info('Ya existe', 'Este paper ya está en Referencias.');
+                                  }
+                                } catch (e: any) {
+                                  toast.error('Error', e?.response?.data?.detail || 'No se pudo sincronizar a Referencias.');
+                                }
+                              }}>🔗 to References</button>
+                            </>
+                          )}
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => downloadFile(p)}>Download</button>
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => void toggleTrace(p)}>
                             {traceState[p.id]?.expanded ? 'Hide trace' : 'Trace'}
