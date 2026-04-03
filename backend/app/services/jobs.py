@@ -31,20 +31,21 @@ def enqueue_presentation(
     job_db_id: UUID,
     params: CreatePresentationRequest,
 ) -> str:
-    from app.workers.tasks import generate_presentation_job
+    from app.workers.tasks import generate_presentation_job, GeneratePresentationParams
 
     job_queue = get_job_queue()
+    task_params = GeneratePresentationParams(
+        job_db_id=str(job_db_id),
+        project_id=str(params.project_id),
+        topic=params.topic,
+        duration=params.duration_minutes,
+        audience=params.audience,
+        paper_ids=[str(pid) for pid in params.paper_ids],
+        num_slides=int(params.num_slides),
+    )
     job = job_queue.enqueue(
         generate_presentation_job,
-        args=(
-            str(job_db_id),
-            str(params.project_id),
-            params.topic,
-            params.duration_minutes,
-            params.audience,
-            [str(pid) for pid in params.paper_ids],
-            int(params.num_slides),
-        ),
+        args=(task_params,),
         job_timeout="10m",
     )
     return job.id
