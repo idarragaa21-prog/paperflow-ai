@@ -300,7 +300,7 @@ class TestTitleNormalization:
 
 
 # ─────────────────────────────────────────────
-# 8. CACHE KEY — internal whitespace normalization (Bug #4 fix)
+# 8. CACHE KEY — internal whitespace normalization
 # ─────────────────────────────────────────────
 
 class TestCacheKeyWhitespace:
