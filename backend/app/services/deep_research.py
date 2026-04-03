@@ -193,7 +193,8 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
                 return (r.get("content") or "").strip()
             except Exception as primary_exc:
                 logger.warning(f"Deep Research primary chat provider failed, falling back to Ollama: {primary_exc}")
-                from app.services.llm.provider_adapters import OllamaAdapter, LLMCompletionRequest
+                from app.services.llm.provider_adapters import OllamaAdapter
+                from app.services.llm.provider_adapters import LLMCompletionRequest
 
                 fallback = OllamaAdapter(settings.PAPERFLOW_CHAT_MODEL, base_url=settings.OLLAMA_BASE_URL)
                 request = LLMCompletionRequest(
