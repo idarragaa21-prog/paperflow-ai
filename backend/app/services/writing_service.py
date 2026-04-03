@@ -5,7 +5,7 @@ import re
 from types import SimpleNamespace
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -70,6 +70,24 @@ async def generate_section(
         records_stmt = records_stmt.where(ExtractionRecord.paper_id.in_(paper_ids))
     extraction_records = (await db.execute(records_stmt)).scalars().all()
 
+    # Pre-fetch spans for all papers to avoid N+1 query
+    unique_paper_ids = {r.paper_id for r in extraction_records if r.paper_id}
+    span_by_paper = {}
+    if unique_paper_ids:
+        subq = (
+            select(
+                PaperCitationSpan.id,
+                func.row_number().over(
+                    partition_by=PaperCitationSpan.paper_id,
+                    order_by=PaperCitationSpan.created_at.asc()
+                ).label("rn")
+            )
+            .where(PaperCitationSpan.paper_id.in_(list(unique_paper_ids)))
+        ).subquery()
+        spans_stmt = select(PaperCitationSpan).join(subq, PaperCitationSpan.id == subq.c.id).where(subq.c.rn == 1)
+        spans_result = await db.execute(spans_stmt)
+        span_by_paper = {s.paper_id: s for s in spans_result.scalars().all()}
+
     lines: list[str] = []
     citations_payload: list[tuple[str, ReferenceItem | None, PaperCitationSpan | None]] = []
     marker_counter = 1
@@ -84,15 +102,7 @@ async def generate_section(
         lines.append(f"{title} was identified as a {design}. Key findings indicate that {result}. The reported conclusion was that {conclusion} {marker}")
 
         reference = reference_by_paper.get(record.paper_id) if record.paper_id else None
-        span = None
-        if record.paper_id:
-            span_q = await db.execute(
-                select(PaperCitationSpan)
-                .where(PaperCitationSpan.paper_id == record.paper_id)
-                .order_by(PaperCitationSpan.created_at.asc())
-                .limit(1)
-            )
-            span = span_q.scalars().first()
+        span = span_by_paper.get(record.paper_id) if record.paper_id else None
         citations_payload.append((marker, reference, span))
 
     content = "\n\n".join(lines) if lines else f"{heading} is ready for authoring. Add papers or extraction records to generate grounded prose."
