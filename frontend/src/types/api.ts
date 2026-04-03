@@ -205,6 +205,10 @@ export type SearchResponse = {
   warnings?: string[];
 };
 
+export type SearchSynthesizeResponse = {
+  answer: string;
+};
+
 export type BatchDownloadTraceItem = {
   title: string;
   pmid?: string | null;
