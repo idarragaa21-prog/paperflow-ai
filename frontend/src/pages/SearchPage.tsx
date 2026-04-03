@@ -271,30 +271,44 @@ export default function SearchPage() {
               )}
 
               {!search.loading && search.data.results.length > 0 && (
-                <div className="rc-card" style={{ padding: 16, background: 'var(--rc-surface-2)', border: '1px solid var(--rc-primary-weak)' }}>
+                <div className="rc-card" style={{
+                  padding: 24,
+                  background: 'linear-gradient(135deg, rgba(234, 240, 255, 0.5) 0%, rgba(245, 247, 255, 1) 100%)',
+                  border: '1px solid #c7d2fe',
+                  boxShadow: '0 4px 14px 0 rgba(199, 210, 254, 0.3)',
+                  borderRadius: 12
+                }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--rc-primary)', marginBottom: 2 }}>
-                        ✨ AI Search (Búsqueda Inteligente)
+                      <div style={{ fontWeight: 800, fontSize: 18, color: '#312e81', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 20 }}>✨</span> AI Search
                       </div>
-                      <div className="rc-help">
-                        Obtén una respuesta sintetizada respaldada por los mejores {Math.min(search.data.results.length, 10)} resultados.
+                      <div style={{ fontSize: 14, color: '#4f46e5', fontWeight: 500 }}>
+                        Síntesis profunda basada en los mejores {Math.min(search.data.results.length, 10)} resultados.
                       </div>
                     </div>
                     {!synthesis.answer && !synthesis.loading && (
                       <button
                         className="rc-btn rc-btn--primary"
                         onClick={synthesizeResults}
+                        style={{
+                          background: 'linear-gradient(to right, #4f46e5, #4338ca)',
+                          border: 'none',
+                          boxShadow: '0 2px 8px rgba(79, 70, 229, 0.4)',
+                          padding: '10px 20px',
+                          fontWeight: 600,
+                          borderRadius: 8
+                        }}
                       >
-                        Sintetizar Evidencia con IA
+                        Generar Respuesta con IA
                       </button>
                     )}
                   </div>
 
                   {synthesis.loading && (
-                    <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--rc-primary)', fontWeight: 600, fontSize: 13 }}>
-                      <span className="rc-spinner" style={{ width: 14, height: 14, borderTopColor: 'currentColor' }} />
-                      Analizando papers y redactando respuesta...
+                    <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10, color: '#4338ca', fontWeight: 600, fontSize: 14, background: 'rgba(255,255,255,0.6)', padding: '12px 16px', borderRadius: 8 }}>
+                      <span className="rc-spinner" style={{ width: 16, height: 16, borderTopColor: 'currentColor' }} />
+                      Analizando literatura y redactando respuesta médica...
                     </div>
                   )}
 
@@ -303,13 +317,20 @@ export default function SearchPage() {
                   )}
 
                   {synthesis.answer && (
-                    <div style={{ marginTop: 16 }}>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6, color: 'var(--rc-text)' }}>
+                    <div style={{
+                      marginTop: 24,
+                      background: '#ffffff',
+                      padding: 24,
+                      borderRadius: 8,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                      border: '1px solid #e0e7ff'
+                    }}>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.7, color: '#334155' }}>
                         {synthesis.answer}
                       </div>
                       {projectId && (
-                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                          <button className="rc-btn rc-btn--sm" onClick={saveSynthesisToDraft} style={{ fontWeight: 600 }}>
+                        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+                          <button className="rc-btn rc-btn--sm" onClick={saveSynthesisToDraft} style={{ fontWeight: 600, color: '#4f46e5', borderColor: '#4f46e5', background: 'transparent' }}>
                             📝 Guardar síntesis en Borradores
                           </button>
                         </div>

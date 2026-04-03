@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StudyRow } from '../types/api';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import StudyViewer from '../components/meta/StudyViewer';
 import { downloadBlob } from '../components/meta/exportUtils';
 import { api } from '../services/api';
@@ -43,7 +43,9 @@ type ExportFormat = 'xlsx' | 'csv';
 
 export default function MetaPage() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
+  const [drafting, setDrafting] = useState(false);
 
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -123,6 +125,31 @@ export default function MetaPage() {
       setError(e?.response?.data?.detail || 'Failed to load studies');
     }
   }, [projectId, selectedBatchId]);
+
+  async function createDraftFromStudies() {
+    if (!projectId || studies.length === 0) return;
+    setDrafting(true);
+    try {
+      const draftRes = await api.post('/drafts', {
+        project_id: projectId,
+        title: 'Extraction Summary',
+      });
+      const draftId = draftRes.data.id;
+
+      await api.post(`/drafts/${draftId}/generate-section`, {
+        heading: 'Extracted Evidence',
+        paper_ids: [],
+        extraction_record_ids: studies.map(s => s.id),
+      });
+
+      toast.success('Borrador creado', 'La evidencia extraída se envió a un nuevo borrador.');
+      navigate(`/projects/${projectId}/drafts`);
+    } catch (e: any) {
+      toast.error('Error al crear borrador', e?.response?.data?.detail || 'Falló la creación.');
+    } finally {
+      setDrafting(false);
+    }
+  }
 
   const loadExports = useCallback(async () => {
     if (!projectId) return;
@@ -427,9 +454,14 @@ export default function MetaPage() {
         <div className="rc-card">
           <div className="rc-workspace-grid" style={{ gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)' }}>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                 <div className="rc-card-title" style={{ marginBottom: 0 }}>Studies</div>
-                <button className="rc-btn" onClick={loadStudies}>Refresh</button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="rc-btn rc-btn--primary" onClick={createDraftFromStudies} disabled={drafting || studies.length === 0}>
+                    {drafting ? 'Creating Draft...' : '📝 Send to Draft'}
+                  </button>
+                  <button className="rc-btn" onClick={loadStudies}>Refresh</button>
+                </div>
               </div>
               <div style={{ height: 10 }} />
               {studies.length === 0 ? <div className="rc-muted">No studies (yet).</div> : null}
