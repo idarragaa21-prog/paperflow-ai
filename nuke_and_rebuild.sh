@@ -48,11 +48,6 @@ echo -e "${YELLOW}[1/7] Destruyendo TODOS los contenedores y volúmenes Docker..
 # Parar y borrar contenedores del proyecto (forzado)
 docker compose down -v --remove-orphans 2>/dev/null || true
 
-# Borrar contenedores huérfanos por nombre (el bug del grobid)
-for container in paperflow-grobid paperflow-postgres paperflow-redis paperflow-qdrant paperflow-minio paperflow-r-engine paperflow-celery-worker; do
-    docker rm -f "$container" 2>/dev/null || true
-done
-
 # Borrar volúmenes del proyecto
 for vol in $(docker volume ls -q --filter "name=paperflow" 2>/dev/null); do
     docker volume rm -f "$vol" 2>/dev/null || true
