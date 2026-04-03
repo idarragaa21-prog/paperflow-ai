@@ -143,9 +143,9 @@ async def create_batch(
     except Exception as e:
         logger.error("Failed to enqueue meta_extract_batch job: {}", e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
@@ -257,9 +257,9 @@ async def retry_item(
     except Exception as e:
         logger.error("Failed to enqueue meta_extract_paper retry job for item {}: {}", item_id, e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     item.status = "queued"
@@ -348,9 +348,9 @@ async def reextract_study(
     except Exception as e:
         logger.error("Failed to enqueue meta_extract_paper re-extract job for study {}: {}", study_id, e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
@@ -835,9 +835,9 @@ async def export_meta_dataset(
     except Exception as e:
         logger.error("Failed to enqueue meta_export job: {}", e)
         job_record.status = "failed"
-        job_record.error_message = "Job queue unavailable. Redis is required."
+        job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="Job queue unavailable. Redis is required.")
+        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
