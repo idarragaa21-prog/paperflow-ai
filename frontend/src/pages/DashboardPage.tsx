@@ -15,11 +15,13 @@ import {
 
 function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
   return (
-    <div className="rc-card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
+    <div className="rc-card rc-card--hover" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '24px' }}>
+      <div style={{ width: 48, height: 48, borderRadius: '12px', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {icon}
+      </div>
       <div>
-        <div style={{ fontSize: 24, fontWeight: 850, letterSpacing: '-0.04em', fontFamily: 'var(--font-display)', lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: 12, color: 'var(--rc-muted)', marginTop: 3 }}>{label}</div>
+        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-display)', lineHeight: 1, color: 'var(--rc-text)' }}>{value}</div>
+        <div style={{ fontSize: 13, color: 'var(--rc-text-secondary)', marginTop: 4, fontWeight: 500 }}>{label}</div>
       </div>
     </div>
   );
