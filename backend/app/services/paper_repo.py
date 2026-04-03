@@ -20,6 +20,10 @@ class PaperRepository(Protocol):
         self, *, project_id: UUID, pmid: str | None, doi: str | None
     ) -> Paper | None: ...
 
+    async def find_duplicates_by_identifiers_batch(
+        self, *, project_id: UUID, pmids: list[str], dois: list[str]
+    ) -> list[Paper]: ...
+
     async def find_duplicate_by_hash(self, *, project_id: UUID, content_hash: str) -> Paper | None: ...
 
     async def create_paper(self, paper: Paper) -> Paper: ...
@@ -51,6 +55,21 @@ class SQLPaperRepository:
 
         q = await self.db.execute(select(Paper).where(Paper.project_id == project_id).where(or_(*clauses)))
         return q.scalars().first()
+
+    async def find_duplicates_by_identifiers_batch(
+        self, *, project_id: UUID, pmids: list[str], dois: list[str]
+    ) -> list[Paper]:
+        if not pmids and not dois:
+            return []
+
+        clauses = []
+        if pmids:
+            clauses.append(Paper.pmid.in_(pmids))
+        if dois:
+            clauses.append(Paper.doi.in_(dois))
+
+        q = await self.db.execute(select(Paper).where(Paper.project_id == project_id).where(or_(*clauses)))
+        return list(q.scalars().all())
 
     async def find_duplicate_by_hash(self, *, project_id: UUID, content_hash: str) -> Paper | None:
         q = await self.db.execute(
