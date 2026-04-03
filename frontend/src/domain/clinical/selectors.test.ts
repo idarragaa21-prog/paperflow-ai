@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deriveToc, slugify } from './selectors';
-import { ClinicalSheetDetail } from './types';
+import type { ClinicalSheetDetail } from './types';
 
 describe('slugify', () => {
   it('should handle empty or undefined strings', () => {
