@@ -105,13 +105,21 @@ async def sync_references_from_library(
     user: User = Depends(get_current_user),
 ):
     await require_project_access(db, project_id=project_id, user=user, required_role="editor")
+
+    # Pre-fetch existing reference paper IDs to avoid N+1 query problem
+    existing_refs_q = await db.execute(
+        select(ReferenceItem.paper_id).where(ReferenceItem.project_id == project_id)
+    )
+    existing_paper_ids = {ref_id for ref_id in existing_refs_q.scalars().all() if ref_id is not None}
+
     papers_q = await db.execute(select(Paper).where(Paper.project_id == project_id))
     papers = papers_q.scalars().all()
+
     created = 0
     for paper in papers:
-        ref_q = await db.execute(select(ReferenceItem).where(ReferenceItem.project_id == project_id).where(ReferenceItem.paper_id == paper.id))
-        if ref_q.scalars().first():
+        if paper.id in existing_paper_ids:
             continue
+
         db.add(
             ReferenceItem(
                 project_id=project_id,
