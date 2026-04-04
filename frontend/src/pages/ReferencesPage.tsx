@@ -120,7 +120,7 @@ export default function ReferencesPage() {
       const res = await api.post(`/references/${r.id}/summarize`);
       setSummaries(prev => ({ ...prev, [r.id]: String((res.data as any)?.summary || 'Resumen generado.') }));
       setSummarizing(prev => ({ ...prev, [r.id]: false }));
-    } catch (e) {
+    } catch {
       // Mock de la UI SaaS para mostrar cómo se ve el bit de análisis
       setTimeout(() => {
         setSummaries(prev => ({ 

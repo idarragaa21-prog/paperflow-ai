@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import DOMPurify from 'dompurify';
+import { useEffect, useMemo, useState } from 'react';
 
 type Props = {
   code: string;
@@ -29,7 +30,7 @@ function fallbackCode(kind: 'mindmap' | 'flowchart'): string {
 }
 
 export default function MermaidBlock({ code }: Props) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [svgHtml, setSvgHtml] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [usedFallback, setUsedFallback] = useState(false);
 
@@ -74,8 +75,7 @@ export default function MermaidBlock({ code }: Props) {
     async function run() {
       setError(null);
       setUsedFallback(false);
-      if (!hostRef.current) return;
-      hostRef.current.innerHTML = '';
+      setSvgHtml('');
       if (!normalized) return;
 
       try {
@@ -110,15 +110,15 @@ export default function MermaidBlock({ code }: Props) {
           const isBad2 = !svg2.trim() || svg2.includes('Syntax error in text') || svg2.includes('Parse error');
           if (isBad2) {
             setError('Mermaid parse error (fallback also failed).');
-            hostRef.current.innerHTML = '';
+            setSvgHtml('');
             return;
           }
           setUsedFallback(true);
-          hostRef.current.innerHTML = svg2;
+          setSvgHtml(DOMPurify.sanitize(svg2));
           return;
         }
 
-        hostRef.current.innerHTML = svg;
+        setSvgHtml(DOMPurify.sanitize(svg));
       } catch (e: any) {
         if (!alive) return;
         setError(String(e?.message || e));
@@ -140,7 +140,7 @@ export default function MermaidBlock({ code }: Props) {
           <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11, opacity: 0.85 }}>{normalized}</pre>
         </div>
       ) : null}
-      <div ref={hostRef} />
+      <div dangerouslySetInnerHTML={{ __html: svgHtml }} />
     </div>
   );
 }
