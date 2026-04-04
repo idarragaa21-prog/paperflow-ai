@@ -1,21 +1,21 @@
 :root {
-  --font-display: 'Bricolage Grotesque', 'Georgia', serif;
-  --font-body: 'DM Sans', 'Helvetica Neue', sans-serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-body: 'Lora', 'Georgia', serif;
 
-  --rc-bg: #fafafa;
+  --rc-bg: #f8fafc;
   --rc-surface: #ffffff;
-  --rc-surface-2: #f4f4f5;
-  --rc-surface-3: #e4e4e7;
-  --rc-text: #18181b;
-  --rc-text-secondary: #52525b;
-  --rc-muted: #71717a;
-  --rc-border: #e4e4e7;
-  --rc-border-strong: #d4d4d8;
+  --rc-surface-2: #f1f5f9;
+  --rc-surface-3: #e2e8f0;
+  --rc-text: #0f172a;
+  --rc-text-secondary: #475569;
+  --rc-muted: #64748b;
+  --rc-border: #e2e8f0;
+  --rc-border-strong: #cbd5e1;
 
-  --rc-primary: #4f46e5;
-  --rc-primary-hover: #4338ca;
-  --rc-primary-weak: #e0e7ff;
-  --rc-primary-weak-hover: #c7d2fe;
+  --rc-primary: #3b82f6;
+  --rc-primary-hover: #2563eb;
+  --rc-primary-weak: #eff6ff;
+  --rc-primary-weak-hover: #dbeafe;
 
   --rc-success: #16a34a;
   --rc-success-bg: #dcfce7;
@@ -31,8 +31,8 @@
   --rc-info-border: #bfdbfe;
 
   --rc-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --rc-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --rc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --rc-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --rc-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
   --rc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
   --rc-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 
@@ -46,20 +46,20 @@
 
 /* ── Dark Mode ── */
 [data-theme="dark"] {
-  --rc-bg: #09090b;
-  --rc-surface: #18181b;
-  --rc-surface-2: #27272a;
-  --rc-surface-3: #3f3f46;
-  --rc-text: #fafafa;
-  --rc-text-secondary: #a1a1aa;
-  --rc-muted: #71717a;
-  --rc-border: #27272a;
-  --rc-border-strong: #3f3f46;
+  --rc-bg: #0f172a;
+  --rc-surface: #1e293b;
+  --rc-surface-2: #334155;
+  --rc-surface-3: #475569;
+  --rc-text: #f8fafc;
+  --rc-text-secondary: #cbd5e1;
+  --rc-muted: #64748b;
+  --rc-border: #334155;
+  --rc-border-strong: #475569;
 
-  --rc-primary: #6366f1;
-  --rc-primary-hover: #818cf8;
-  --rc-primary-weak: rgba(99, 102, 241, 0.15);
-  --rc-primary-weak-hover: rgba(99, 102, 241, 0.25);
+  --rc-primary: #3b82f6;
+  --rc-primary-hover: #60a5fa;
+  --rc-primary-weak: rgba(59, 130, 246, 0.15);
+  --rc-primary-weak-hover: rgba(59, 130, 246, 0.25);
 
   --rc-success: #4ade80;
   --rc-success-bg: rgba(74, 222, 128, 0.15);
@@ -128,7 +128,7 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
 .rc-input, .rc-select, .rc-textarea {
   width: 100%;
   padding: 10px 14px;
-  border-radius: var(--rc-r-md);
+  border-radius: var(--rc-r-sm);
   border: 1px solid var(--rc-border-strong);
   background: var(--rc-surface);
   color: var(--rc-text);
@@ -155,7 +155,7 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: var(--rc-r-md);
+  border-radius: var(--rc-r-sm);
   border: 1px solid var(--rc-border-strong);
   padding: 9px 16px;
   font-size: 14px;
@@ -228,7 +228,7 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
 .rc-card {
   background: var(--rc-surface);
   border: 1px solid var(--rc-border);
-  border-radius: var(--rc-r-lg);
+  border-radius: var(--rc-r-md);
   padding: 20px;
   box-shadow: var(--rc-shadow-sm);
   transition: all 200ms ease;
@@ -988,7 +988,7 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: var(--rc-r-md);
+  border-radius: var(--rc-r-sm);
   font-size: 13px;
   border: 1px solid;
 }
@@ -1013,7 +1013,7 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
 
 /* DataGrid (Premium Table) */
 .rc-datagrid-container {
-  border-radius: var(--rc-r-lg);
+  border-radius: var(--rc-r-md);
   border: 1px solid var(--rc-border);
   overflow: hidden;
   box-shadow: var(--rc-shadow-md);
@@ -1073,7 +1073,7 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
 .rc-editor-canvas {
   background: var(--rc-surface);
   border: 1px solid var(--rc-border);
-  border-radius: var(--rc-r-lg);
+  border-radius: var(--rc-r-md);
   box-shadow: var(--rc-shadow-sm);
   padding: 40px;
   font-family: var(--font-display);
