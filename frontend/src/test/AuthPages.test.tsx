@@ -78,7 +78,7 @@ describe('Auth pages', () => {
 
     await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
 
     await waitFor(() => {
       expect(screen.getByText('Dashboard Home')).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('Auth pages', () => {
 
     await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'wrong-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
 
     await waitFor(() => {
       expect(screen.getByText('Credenciales inválidas')).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe('Auth pages', () => {
 
     expect(screen.getByDisplayValue('invitee@example.com')).toBeInTheDocument();
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
 
     await waitFor(() => {
       expect(screen.getByText('Invitation landing')).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe('Auth pages', () => {
 
     expect(screen.getByDisplayValue('invitee@example.com')).toBeInTheDocument();
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
 
     await waitFor(() => {
       expect(screen.getByText('Project Research')).toBeInTheDocument();
