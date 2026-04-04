@@ -30,7 +30,7 @@ export default function DraftsPage() {
   const [tables, setTables] = useState<EvidenceTable[]>([]);
   const [searchParams] = useSearchParams();
   const paramStudies = searchParams.get('studies');
-  const [extractionIds, setExtractionIds] = useState<string[]>(paramStudies ? paramStudies.split(',') : []);
+  const [extractionIds] = useState<string[]>(paramStudies ? paramStudies.split(',') : []);
 
   const [title, setTitle] = useState('Narrative synthesis');
   const [heading, setHeading] = useState('Introduction');
