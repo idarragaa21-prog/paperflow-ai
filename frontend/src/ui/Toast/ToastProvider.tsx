@@ -82,7 +82,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   </button>
                 ) : null}
               </div>
-              <button className="rc-btn rc-btn--ghost" onClick={() => remove(t.id)} aria-label="Dismiss">
+              <button className="rc-btn rc-btn--ghost" onClick={() => remove(t.id)} aria-label="Dismiss" title="Dismiss">
                 ×
               </button>
             </div>

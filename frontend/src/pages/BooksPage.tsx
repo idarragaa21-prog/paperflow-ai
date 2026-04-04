@@ -118,7 +118,7 @@ export default function BooksPage() {
             Index internal PDFs and reference books into your private knowledge layer.
           </div>
         </div>
-        <button onClick={load} disabled={loading}>
+        <button className="rc-btn" onClick={load} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
@@ -133,7 +133,7 @@ export default function BooksPage() {
       <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10, padding: 12 }}>
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Index knowledge sources from the server BOOKS folder (recommended)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button onClick={scanFolder} disabled={Boolean(scanJobId)}>
+          <button className="rc-btn rc-btn--primary" onClick={scanFolder} disabled={Boolean(scanJobId)}>
             {scanJobId ? 'Scanning…' : 'Scan BOOKS folder + index'}
           </button>
           {scanJob.status ? (
@@ -152,7 +152,7 @@ export default function BooksPage() {
         <div style={{ fontWeight: 800, marginBottom: 8 }}>Upload a private source (optional)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <button onClick={upload} disabled={!file || uploading}>
+          <button className="rc-btn rc-btn--primary" onClick={upload} disabled={!file || uploading}>
             {uploading ? 'Uploading…' : 'Upload + index'}
           </button>
         </div>
@@ -194,8 +194,8 @@ export default function BooksPage() {
               chapters: {b.chapters_count} · indexed_at: {b.indexed_at || '—'}
             </div>
             <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={() => reindex(b)}>Re-index</button>
-              <button onClick={() => del(b)} style={{ background: 'rgba(220,38,38,0.15)' }}>
+              <button className="rc-btn rc-btn--sm" onClick={() => reindex(b)}>Re-index</button>
+              <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => del(b)} style={{ color: 'var(--rc-danger)', borderColor: 'rgba(220,38,38,0.25)' }}>
                 Delete
               </button>
             </div>

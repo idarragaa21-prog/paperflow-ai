@@ -47,7 +47,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             <div style={{ fontWeight: 950, fontSize: 16 }}>{pending.opts.title}</div>
             {pending.opts.body ? <div className="rc-help" style={{ marginTop: 8 }}>{pending.opts.body}</div> : null}
             <div className="rc-row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
-              <button className="rc-btn" onClick={() => close(false)}>{pending.opts.cancelText || 'Cancel'}</button>
+              <button className="rc-btn" autoFocus onClick={() => close(false)}>{pending.opts.cancelText || 'Cancel'}</button>
               <button
                 className={pending.opts.danger ? 'rc-btn rc-btn--ghost' : 'rc-btn rc-btn--primary'}
                 onClick={() => close(true)}
