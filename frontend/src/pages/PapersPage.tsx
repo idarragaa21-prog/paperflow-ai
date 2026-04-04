@@ -21,6 +21,29 @@ type PaperTraceState = {
   trace?: PaperDownloadTrace | null;
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  unpaywall: 'Unpaywall',
+  europe_pmc: 'Europe PMC',
+  crossref: 'Crossref',
+  openalex: 'OpenAlex',
+  core: 'CORE',
+  semantic_scholar: 'Semantic Scholar',
+  pubmed_central: 'PMC (PubMed)',
+  doaj: 'DOAJ',
+  arxiv: 'arXiv',
+};
+
+function providerLabel(source?: string | null) {
+  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
+}
+
+function traceStatusLabel(status?: string | null) {
+  if (status === 'downloaded') return 'Descargado';
+  if (status === 'existing') return 'Ya existía';
+  if (status === 'unavailable') return 'No disponible';
+  return 'Fallido';
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');

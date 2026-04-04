@@ -18,26 +18,6 @@ type Report = {
   metadata: { duration_seconds: number; source?: string; project_id?: string };
 };
 
-// ── Source badge ──────────────────────────────────────────────────────────────
-function SourceBadge({ source, hasFullText }: { source?: string; hasFullText?: boolean }) {
-  if (source === 'project_library') {
-    return (
-      <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-        background: hasFullText ? 'rgba(16,185,129,0.1)' : 'rgba(99,102,241,0.1)',
-        color: hasFullText ? '#059669' : '#6366f1',
-        border: `1px solid ${hasFullText ? 'rgba(16,185,129,0.25)' : 'rgba(99,102,241,0.2)'}` }}>
-        {hasFullText ? '📄 full text' : '📋 abstract'}
-      </span>
-    );
-  }
-  return (
-    <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-      background: 'rgba(59,130,246,0.08)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.2)' }}>
-      PubMed
-    </span>
-  );
-}
-
 export default function DeepResearchPage() {
   const { locale } = useI18n();
   const [query, setQuery] = useState('');
@@ -46,7 +26,6 @@ export default function DeepResearchPage() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [expandedPaper, setExpandedPaper] = useState<string | null>(null);
 
   // ── Projects list for selector ────────────────────────────────────────────
   const { data: projects = [] } = useQuery<Pick<Project, 'id' | 'title'>[]>({
