@@ -47,94 +47,85 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--rc-bg)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--rc-bg)', fontFamily: 'var(--font-sans)' }}>
       {/* Left panel */}
       <div className="login-left-panel" style={{
-        flex: '0 0 460px',
-        background: 'var(--rc-bg)',
+        flex: '0 0 45%',
+        maxWidth: '560px',
+        background: 'linear-gradient(145deg, var(--rc-surface-2) 0%, var(--rc-bg) 100%)',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '48px', borderRight: '1px solid var(--rc-surface-2)',
+        padding: '64px', borderRight: '1px solid var(--rc-surface-3)',
         position: 'relative', overflow: 'hidden',
       }}>
-        <div style={{ position:'absolute',inset:0,opacity:0.6,
-          backgroundImage:'radial-gradient(circle at 20% 80%, var(--rc-primary-weak) 0%, transparent 60%), radial-gradient(circle at 80% 20%, var(--rc-primary-weak) 0%, transparent 50%)',
+        {/* Decorative background glow */}
+        <div style={{ position:'absolute',inset:0,opacity:0.8,
+          backgroundImage:'radial-gradient(circle at 10% 90%, rgba(79, 70, 229, 0.15) 0%, transparent 50%), radial-gradient(circle at 90% 10%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)',
           pointerEvents:'none' }} />
 
         {/* Logo */}
-        <div style={{ position:'relative',zIndex:1,display:'flex',alignItems:'center',gap:12 }}>
-          <div style={{ width:40,height:40,borderRadius:12,
-            background:'var(--rc-primary)',
+        <div style={{ position:'relative',zIndex:1,display:'flex',alignItems:'center',gap:16 }}>
+          <div style={{ width:48,height:48,borderRadius:14,
+            background:'linear-gradient(135deg, var(--rc-primary) 0%, var(--rc-primary-hover) 100%)',
             display:'flex',alignItems:'center',justifyContent:'center',
-            boxShadow:'0 4px 20px var(--rc-primary-weak)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            boxShadow:'0 8px 30px var(--rc-primary-weak)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
               <line x1="16" y1="13" x2="8" y2="13"/>
               <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
-          <span style={{ fontSize:20,fontWeight:800,color:'var(--rc-text)',letterSpacing:'-0.03em',fontFamily:'var(--font-display)' }}>PaperFlow</span>
+          <span style={{ fontSize:26,fontWeight:900,color:'var(--rc-text)',letterSpacing:'-0.03em',fontFamily:'var(--font-display)' }}>PaperFlow</span>
         </div>
 
-        {/* Illustration */}
-        <div style={{ position:'relative',zIndex:1 }}>
-          <svg width="300" height="240" viewBox="0 0 300 240" fill="none" style={{ display:'block',margin:'0 auto' }}>
-            {[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[2,0],[2,1],[2,2],[2,3],[2,4],[2,5],[3,0],[3,1],[3,2],[3,3],[3,4],[3,5],[4,0],[4,1],[4,2],[4,3],[4,4],[4,5]].map(([r,c])=>
-              <circle key={`${r}-${c}`} cx={c*52+10} cy={r*48+10} r="1.5" fill="var(--rc-surface-3)"/>
-            )}
-            <rect x="52" y="48" width="110" height="140" rx="10" fill="var(--rc-surface-2)" stroke="var(--rc-surface-3)" strokeWidth="1"/>
-            <rect x="60" y="40" width="110" height="140" rx="10" fill="var(--rc-surface-2)" stroke="var(--rc-surface-3)" strokeWidth="1"/>
-            <rect x="68" y="32" width="110" height="140" rx="10" fill="var(--rc-primary-weak)" stroke="var(--rc-primary)" strokeWidth="1"/>
-            <line x1="86" y1="64" x2="158" y2="64" stroke="var(--rc-muted)" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="86" y1="79" x2="158" y2="79" stroke="var(--rc-muted)" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="86" y1="94" x2="142" y2="94" stroke="var(--rc-muted)" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="86" y1="115" x2="158" y2="115" stroke="var(--rc-surface-3)" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="86" y1="127" x2="158" y2="127" stroke="var(--rc-surface-3)" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="86" y1="139" x2="146" y2="139" stroke="var(--rc-surface-3)" strokeWidth="1" strokeLinecap="round"/>
-            <circle cx="218" cy="78" r="34" fill="rgba(139,92,246,0.1)" stroke="rgba(139,92,246,0.22)" strokeWidth="1"/>
-            <circle cx="218" cy="78" r="20" fill="rgba(139,92,246,0.14)" stroke="rgba(139,92,246,0.32)" strokeWidth="1"/>
-            <text x="218" y="84" textAnchor="middle" fill="rgba(167,139,250,0.9)" fontSize="16">✦</text>
-            <line x1="194" y1="78" x2="178" y2="88" stroke="rgba(139,92,246,0.3)" strokeWidth="1" strokeDasharray="3 3"/>
-            <line x1="218" y1="112" x2="192" y2="138" stroke="rgba(99,102,241,0.3)" strokeWidth="1" strokeDasharray="3 3"/>
-            <rect x="80" y="158" width="58" height="16" rx="8" fill="rgba(99,102,241,0.18)" stroke="rgba(99,102,241,0.32)" strokeWidth="1"/>
-            <text x="109" y="169" textAnchor="middle" fill="rgba(129,140,248,0.9)" fontSize="8.5" fontWeight="700">READY</text>
-            <rect x="146" y="158" width="48" height="16" rx="8" fill="rgba(21,128,61,0.18)" stroke="rgba(21,128,61,0.32)" strokeWidth="1"/>
-            <text x="170" y="169" textAnchor="middle" fill="rgba(74,222,128,0.9)" fontSize="8.5" fontWeight="700">CITED</text>
-          </svg>
-          <div style={{ marginTop:20,textAlign:'center' }}>
-            <div style={{ fontSize:21,fontWeight:800,color:'var(--rc-text)',letterSpacing:'-0.03em',lineHeight:1.25,fontFamily:'var(--font-display)' }}>
-              Your personal<br/>AI research workspace
-            </div>
-            <div style={{ marginTop:8,fontSize:13,color:'var(--rc-muted)',lineHeight:1.6 }}>
-              Search, extract, analyze and write<br/>— everything local, nothing in the cloud.
-            </div>
+        {/* Illustration & Value Prop */}
+        <div style={{ position:'relative',zIndex:1, marginTop: '20vh' }}>
+          <div style={{ fontSize:36,fontWeight:900,color:'var(--rc-text)',letterSpacing:'-0.04em',lineHeight:1.15,fontFamily:'var(--font-display)' }}>
+            Your personal <br/>
+            <span style={{ color: 'var(--rc-primary)' }}>AI research workspace</span>
+          </div>
+          <p style={{ marginTop:16,fontSize:16,color:'var(--rc-muted)',lineHeight:1.6, maxWidth: 360 }}>
+            Search, extract, analyze, and draft your scientific manuscripts in one cohesive, secure environment.
+          </p>
+
+          {/* Feature Badges */}
+          <div style={{ display:'flex',flexDirection:'column',gap:14, marginTop: 40 }}>
+            {[
+              { icon: '🔍', text: 'AI-powered Literature Search' },
+              { icon: '📊', text: 'Automated Matrix Extraction' },
+              { icon: '📝', text: 'Evidence-grounded Drafting Canvas' }
+            ].map((feat, i) =>(
+              <div key={i} style={{ display:'flex',alignItems:'center',gap:12, padding: '12px 16px', background: 'var(--rc-surface-2)', borderRadius: 12, border: '1px solid var(--rc-border)', width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                <span style={{ fontSize:18 }}>{feat.icon}</span>
+                <span style={{ fontSize:14,color:'var(--rc-text-secondary)',fontWeight:600 }}>{feat.text}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Features */}
-        <div style={{ position:'relative',zIndex:1,display:'flex',flexDirection:'column',gap:8 }}>
-          {['AI-powered paper search & reader','Meta-analysis & data extraction','Literature drafts & references'].map(feat=>(
-            <div key={feat} style={{ display:'flex',alignItems:'center',gap:10 }}>
-              <span style={{ color:'var(--rc-primary)',fontSize:8 }}>✦</span>
-              <span style={{ fontSize:12,color:'var(--rc-muted)',letterSpacing:'0.01em' }}>{feat}</span>
-            </div>
-          ))}
+        {/* Footer info left panel */}
+        <div style={{ position:'relative',zIndex:1, fontSize: 13, color:'var(--rc-muted)', fontWeight:500 }}>
+          © {new Date().getFullYear()} PaperFlow AI. All rights reserved.
         </div>
       </div>
 
       {/* Right panel */}
       <div style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'48px 32px',background:'var(--rc-bg)' }}>
-        <div style={{ width:'100%',maxWidth:380 }}>
-          <div style={{ marginBottom:36 }}>
-            <div style={{ fontSize:26,fontWeight:850,letterSpacing:'-0.03em',color:'var(--rc-text)',fontFamily:'var(--font-display)' }}>
+        
+        <div className="rc-card rc-glass" style={{ width:'100%',maxWidth:420, padding: '48px', border: '1px solid rgba(79, 70, 229, 0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.05)', borderRadius: 24, position: 'relative', overflow: 'hidden' }}>
+          {/* Subtle glow inside card */}
+          <div style={{ position:'absolute', top: -50, right: -50, width: 150, height: 150, background: 'var(--rc-primary-weak)', filter: 'blur(60px)', borderRadius: '50%', pointerEvents:'none' }} />
+
+          <div style={{ marginBottom:40 }}>
+            <h1 style={{ fontSize:32,fontWeight:900,letterSpacing:'-0.03em',color:'var(--rc-text)',fontFamily:'var(--font-display)', margin: 0 }}>
               Welcome back
-            </div>
-            <div style={{ marginTop:6,fontSize:14,color:'var(--rc-muted)' }}>Sign in to your workspace</div>
+            </h1>
+            <p style={{ marginTop:8,fontSize:15,color:'var(--rc-text-secondary)' }}>Sign in to continue your research.</p>
           </div>
 
-          <form onSubmit={onSubmit} style={{ display:'flex',flexDirection:'column',gap:16 }}>
+          <form onSubmit={onSubmit} style={{ display:'flex',flexDirection:'column',gap:24, position: 'relative', zIndex: 1 }}>
             {hasInvitationContext ? (
-              <div style={{ padding:'10px 14px',borderRadius:10,background:'rgba(99,102,241,0.08)',border:'1px solid rgba(99,102,241,0.18)',color:'#4338ca',fontSize:13 }}>
+              <div style={{ padding:'14px 16px',borderRadius:12,background:'rgba(99,102,241,0.08)',border:'1px solid rgba(99,102,241,0.2)',color:'#4f46e5',fontSize:14, fontWeight:600 }}>
                 {invitedAfterSignup
                   ? acceptedProjectId
                     ? 'Account created. Sign in to open your shared project.'
@@ -142,69 +133,76 @@ export default function LoginPage() {
                   : 'Sign in with the invited email to accept this project invitation.'}
               </div>
             ) : null}
-            <div>
-              <div className="rc-kicker">Email</div>
+            
+            <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+              <label style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Email address</label>
               <input className="rc-input" type="email" value={email} onChange={e=>setEmail(e.target.value)}
-                placeholder="you@example.com" autoComplete="email" autoFocus required style={{ fontSize:14 }}/>
+                placeholder="you@example.com" autoComplete="email" autoFocus required 
+                style={{ fontSize:15, padding: '14px 16px', borderRadius: 12, backgroundColor: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', transition: 'all 0.2s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}
+              />
             </div>
-            <div>
-              <div className="rc-kicker">Password</div>
+            
+            <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Password</label>
+                <Link to="/forgot-password" style={{ fontSize:13,color:'var(--rc-primary)', fontWeight:600 }}>Forgot password?</Link>
+              </div>
               <div style={{ position:'relative' }}>
                 <input className="rc-input" type={showPw?'text':'password'} value={password}
                   onChange={e=>setPassword(e.target.value)} placeholder="••••••••"
-                  autoComplete="current-password" required style={{ fontSize:14,paddingRight:44 }}/>
+                  autoComplete="current-password" required 
+                  style={{ fontSize:15, padding: '14px 16px', paddingRight:48, borderRadius: 12, backgroundColor: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', width: '100%', transition: 'all 0.2s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}
+                />
                 <button type="button" onClick={()=>setShowPw(!showPw)}
                   aria-label={showPw ? 'Hide password' : 'Show password'}
                   title={showPw ? 'Hide password' : 'Show password'}
                   style={{
-                  position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
+                  position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',
                   background:'none',border:'none',cursor:'pointer',padding:4,
-                  color:'var(--rc-muted)',lineHeight:1 }}>
+                  color:'var(--rc-muted)',lineHeight:1, transition: 'color 0.2s' }}>
                   {showPw
-                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   }
                 </button>
               </div>
             </div>
 
             {error && (
-              <div style={{ padding:'10px 14px',borderRadius:10,background:'rgba(185,28,28,0.08)',border:'1px solid rgba(185,28,28,0.18)',color:'#b91c1c',fontSize:13 }}>
+              <div style={{ padding:'12px 16px',borderRadius:12,background:'rgba(239, 68, 68,0.08)',border:'1px solid rgba(239, 68, 68,0.2)',color:'#dc2626',fontSize:14, fontWeight:500 }}>
                 {error}
               </div>
             )}
 
             <button type="submit" className="rc-btn rc-btn--primary" disabled={loading||!email||!password}
-              style={{ width:'100%',padding:'11px 16px',fontSize:14,marginTop:4,borderRadius:12 }}>
+              style={{ width:'100%',padding:'14px 16px',fontSize:15,marginTop:8,borderRadius:12, fontWeight:800, letterSpacing: '0.01em', boxShadow: '0 4px 14px var(--rc-primary-weak)', border: 'none' }}>
               {loading
-                ? <span style={{ display:'flex',alignItems:'center',gap:8,justifyContent:'center' }}>
-                    <span className="rc-spinner" style={{ borderTopColor:'white',width:14,height:14 }}/>{t.auth.signingIn}
+                ? <span style={{ display:'flex',alignItems:'center',gap:10,justifyContent:'center' }}>
+                    <span className="rc-spinner" style={{ borderTopColor:'white',width:16,height:16 }}/>{t.auth.signingIn}
                   </span>
-                : `${t.auth.signIn} →`}
+                : `Sign In to Workspace`}
             </button>
-
-            <div style={{ display:'flex',justifyContent:'center',marginTop:10 }}>
-              <Link to="/forgot-password" style={{ fontSize:12,color:'var(--rc-primary)' }}>{t.auth.forgotPassword}</Link>
-            </div>
           </form>
 
-          <div style={{ marginTop:20,textAlign:'center',fontSize:13,color:'var(--rc-muted)' }}>
+          <div style={{ marginTop:32,textAlign:'center',fontSize:14,color:'var(--rc-text-secondary)', position: 'relative', zIndex: 1 }}>
             {t.auth.noAccount}{' '}
             <Link
               to={invitationToken ? `/signup?invitation_token=${encodeURIComponent(invitationToken)}${invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}` : '/signup'}
-              style={{ fontWeight:700 }}
+              style={{ fontWeight:800, color: 'var(--rc-text)', position: 'relative' }}
+              className="rc-link-highlight"
             >
               {t.auth.signUp}
             </Link>
           </div>
-
-          <div style={{ marginTop:20,paddingTop:20,borderTop:'1px solid var(--rc-surface-3)',textAlign:'center',fontSize:12,color:'var(--rc-muted)' }}>
-            {t.auth.tagline}
-          </div>
         </div>
       </div>
 
-      <style>{`.login-left-panel { display: flex !important; } @media(max-width:780px){.login-left-panel{display:none!important}}`}</style>
+      <style>{`
+        .login-left-panel { display: flex !important; } 
+        @media(max-width:960px){.login-left-panel{display:none!important}}
+        .rc-input:focus { border-color: var(--rc-primary) !important; box-shadow: 0 0 0 3px rgba(79,70,229,0.15) !important; }
+        .rc-link-highlight:hover { color: var(--rc-primary) !important; text-decoration: underline; }
+      `}</style>
     </div>
   );
 }
