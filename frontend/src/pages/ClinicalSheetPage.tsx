@@ -10,6 +10,7 @@ import { enqueueClinicalUpdate } from '../services/clinical';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useConfirm } from '../ui/Dialog/useConfirm';
 import { Breadcrumb } from '../components/Breadcrumb';
+import { useI18n } from '../i18n';
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
@@ -37,6 +38,8 @@ export default function ClinicalSheetPage() {
   const fromProject = searchParams.get('from_project');
   const toast = useToast();
   const confirm = useConfirm();
+  const { locale } = useI18n();
+  const isEs = locale === 'es';
 
   const vm = useClinicalSheet(sheetId);
 
@@ -246,8 +249,16 @@ export default function ClinicalSheetPage() {
 
         <div style={{ height: 12 }} />
 
+
         <div className="rc-card">
-          {vm.sheet?.format_version === 'clinical_pro_v1' && vm.sheet?.content_json ? (
+          {vm.sheet?.input_params?.status === 'generating' || vm.sheet?.content_markdown === '_Generating…_' ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--rc-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <SkeletonLines lines={10} lineHeight={12} lastLineWidth="45%" />
+              <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--rc-text)' }}>
+                {isEs ? 'Generando…' : 'Generating…'}
+              </div>
+            </div>
+          ) : vm.sheet?.format_version === 'clinical_pro_v1' && vm.sheet?.content_json ? (
             <ClinicalProViewer pro={vm.sheet.content_json} />
           ) : (
             <ReactMarkdown

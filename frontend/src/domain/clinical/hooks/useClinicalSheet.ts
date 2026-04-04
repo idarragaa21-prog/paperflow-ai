@@ -43,9 +43,20 @@ export function useClinicalSheet(sheetId: string | undefined): {
     }
   }, [sheetId]);
 
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (sheet?.input_params?.status === 'generating') {
+      const timer = setTimeout(() => {
+        void refresh();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [sheet, refresh]);
+
 
   const toc = useMemo(() => deriveToc(sheet), [sheet]);
   const evidenceSummary = useMemo(() => deriveEvidenceSummary(sheet), [sheet]);

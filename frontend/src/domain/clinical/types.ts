@@ -18,6 +18,7 @@ export type EvidenceSummary = {
 };
 
 export type ClinicalSheetDetail = {
+  input_params?: any;
   id: string;
   project_id?: string | null;
   topic: string;
