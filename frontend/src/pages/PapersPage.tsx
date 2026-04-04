@@ -14,28 +14,6 @@ type StatusFilter = 'all' | 'ready' | 'processing' | 'pending' | 'failed';
 
 const LIB_PAGE_SIZE = 25;
 
-function providerLabel(source?: string | null) {
-  if (!source) return 'Unknown';
-  if (source === 'unpaywall') return 'Unpaywall';
-  if (source === 'openalex') return 'OpenAlex';
-  if (source === 'core_ac') return 'CORE';
-  if (source === 'semantic_scholar') return 'Semantic Scholar';
-  if (source === 'crossref') return 'Crossref';
-  if (source === 'europe_pmc') return 'Europe PMC';
-  if (source === 'doaj') return 'DOAJ';
-  if (source === 'biorxiv') return 'Europe PMC';
-  return source.charAt(0).toUpperCase() + source.slice(1);
-}
-
-function traceStatusLabel(status: string) {
-  switch (status) {
-    case 'success': return 'Éxito';
-    case 'ignored': return 'Ignorado (no OA)';
-    case 'failed': return 'Fallido';
-    default: return status;
-  }
-}
-
 type PaperTraceState = {
   expanded: boolean;
   loading?: boolean;

@@ -295,17 +295,28 @@ export default function SearchPage() {
                       <button
                         className="rc-btn"
                         style={{
-                          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                          background: 'linear-gradient(135deg, #4f46e5 0%, #8b5cf6 50%, #ec4899 100%)',
                           color: '#fff',
                           border: 'none',
-                          fontWeight: 'bold',
-                          padding: '12px 24px',
-                          fontSize: 14,
-                          boxShadow: '0 8px 20px rgba(99,102,241,0.35)'
+                          fontWeight: 800,
+                          padding: '14px 28px',
+                          fontSize: 15,
+                          borderRadius: '999px',
+                          boxShadow: '0 10px 25px -5px rgba(139,92,246,0.5)',
+                          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 15px 30px -5px rgba(139,92,246,0.6)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(139,92,246,0.5)';
                         }}
                         onClick={synthesizeResults}
                       >
-                        Sintetizar Evidencia con IA
+                        ✨ AI Search (Sintetizar Evidencia)
                       </button>
                     )}
                   </div>

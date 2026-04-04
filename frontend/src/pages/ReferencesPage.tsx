@@ -292,30 +292,45 @@ export default function ReferencesPage() {
                     {r.journal && <em>{r.journal}</em>}.
                     
                     {summaries[r.id] && (
-                      <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(79, 70, 229, 0.06)', borderRadius: 6, color: '#4f46e5', fontSize: 12, lineHeight: 1.5, borderLeft: '3px solid rgba(79, 70, 229, 0.4)' }}>
-                        {summaries[r.id]}
+                      <div style={{ marginTop: 12, padding: '12px 16px', background: 'linear-gradient(to right, rgba(99, 102, 241, 0.05), rgba(168, 85, 247, 0.05))', borderRadius: 8, color: '#374151', fontSize: 13, lineHeight: 1.6, borderLeft: '4px solid #8b5cf6', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                        <div style={{ fontWeight: 700, color: '#6d28d9', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>✨</span> AI Abstract Summary
+                        </div>
+                        {summaries[r.id].replace('✨ AI Summary: ', '')}
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: '8px 6px' }}>
+                  <td style={{ padding: '8px 6px', verticalAlign: 'top' }}>
                     {r.source_format ? <span className="rc-badge" style={{ fontSize: 11 }}>{r.source_format}</span> : '\u2014'}
                   </td>
-                  <td style={{ padding: '8px 6px' }}>
+                  <td style={{ padding: '8px 6px', verticalAlign: 'top' }}>
                     {r.paper_id ? (
-                      <Link to={`/projects/${projectId}/library`} style={{ fontSize: 11 }}>View</Link>
+                      <Link to={`/projects/${projectId}/library`} style={{ fontSize: 11, color: 'var(--rc-primary)', fontWeight: 600 }}>View PDF</Link>
                     ) : <span className="rc-help">{'\u2014'}</span>}
                   </td>
-                  <td style={{ padding: '8px 6px' }}>
-                    <div className="rc-row" style={{ gap: 4, flexWrap: 'wrap' }}>
-                      <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => copyAPA(r)}>Copy APA</button>
-                      <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => downloadBib(r)}>BibTeX</button>
+                  <td style={{ padding: '8px 6px', verticalAlign: 'top' }}>
+                    <div className="rc-row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                      <button className="rc-btn" style={{ padding: '6px 10px', fontSize: 11 }} onClick={() => copyAPA(r)}>Copy APA</button>
+                      <button className="rc-btn" style={{ padding: '6px 10px', fontSize: 11 }} onClick={() => downloadBib(r)}>BibTeX</button>
                       <button 
-                        className="rc-btn rc-btn--primary" 
-                        style={{ padding: '4px 8px', fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }} 
+                        className="rc-btn"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          color: '#fff',
+                          background: 'linear-gradient(135deg, #4f46e5 0%, #ec4899 100%)',
+                          border: 'none',
+                          boxShadow: '0 4px 10px rgba(236, 72, 153, 0.3)',
+                          cursor: summarizing[r.id] ? 'wait' : 'pointer',
+                          transition: 'transform 0.2s'
+                        }}
+                        onMouseEnter={(e) => { if(!summarizing[r.id]) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
                         onClick={() => summarizeReference(r)}
                         disabled={summarizing[r.id]}
                       >
-                        {summarizing[r.id] ? '...' : '✨ Summarize'}
+                        {summarizing[r.id] ? '⏳ Processing...' : '✨ AI Summarize'}
                       </button>
                     </div>
                   </td>
