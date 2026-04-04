@@ -1,0 +1,3 @@
+## 2025-04-04 - [Fix N+1 query in reference sync]
+**Learning:** Iterating through related records via `scalars().all()` and then making sequential SQLAlchemy queries per loop iteration creates an N+1 performance bottleneck.
+**Action:** When a sync or bulk import loop needs to check for existing database records, execute a single query *before* the loop to pre-fetch the required identifying fields into a Python `set` (e.g. `existing_paper_ids = {ref_id for ref_id in query.scalars().all()}`). This enables O(1) in-memory lookups during the loop and eliminates redundant database calls.
