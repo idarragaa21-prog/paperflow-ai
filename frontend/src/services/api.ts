@@ -36,7 +36,9 @@ function resolveBaseUrl(): string {
     );
   }
 
-  return 'http://127.0.0.1:8000';
+  // In development, use empty string so all requests go through Vite's proxy
+  // on the same origin (localhost:5173). This prevents cookie/SameSite issues.
+  return '';
 }
 
 const API_BASE_URL = resolveBaseUrl();
