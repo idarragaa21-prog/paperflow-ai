@@ -18,6 +18,7 @@ type Report = {
   metadata: { duration_seconds: number; source?: string; project_id?: string };
 };
 
+// ── Source badge ──────────────────────────────────────────────────────────────
 export default function DeepResearchPage() {
   const { locale } = useI18n();
   const [query, setQuery] = useState('');
@@ -26,6 +27,7 @@ export default function DeepResearchPage() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
+
 
   // ── Projects list for selector ────────────────────────────────────────────
   const { data: projects = [] } = useQuery<Pick<Project, 'id' | 'title'>[]>({

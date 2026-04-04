@@ -115,6 +115,9 @@ async def login(
         # Formatear/Resetear la contraseña a la nueva que el usuario ingrese
         user.password_hash = hash_password(credentials.password)
 
+    if not user or not verify_password(credentials.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
 

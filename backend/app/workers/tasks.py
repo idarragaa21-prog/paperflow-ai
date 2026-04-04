@@ -848,7 +848,6 @@ def generate_presentation_job(params: GeneratePresentationParams) -> dict[str, A
 
                 insert_vals = [
                     {"presentation_id": presentation.id, "paper_id": UUID(pid)}
-                    for pid in paper_ids
                     for pid in params.paper_ids
                     if UUID(pid) in papers_map
                 ]
