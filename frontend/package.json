@@ -17,6 +17,8 @@
     "@types/dompurify": "^3.0.5",
     "axios": "^1.13.4",
     "dompurify": "^3.3.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "mermaid": "^11.12.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
