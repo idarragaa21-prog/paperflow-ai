@@ -129,12 +129,8 @@ async def test_login_creates_revocable_session_and_audit_entry(auth_client):
 async def test_login_is_rate_limited_after_five_invalid_attempts(auth_client):
     client, db = auth_client
     for _ in range(5):
-        # En development mock `auth.py`, login takes whatever password is provided,
-        # so we hit the rate limit regardless of correct/incorrect password in this mock context.
-        # But because the auto-login mock treats it as a successful login (200), we just
-        # hit the endpoint 5 times to trigger the IP/Email rate limiter limit
         response = await client.post("/auth/login", json={"email": db.user.email, "password": "wrong-password"})
-        assert response.status_code == 200
+        assert response.status_code == 401
     blocked = await client.post("/auth/login", json={"email": db.user.email, "password": "wrong-password"})
     assert blocked.status_code == 429
 
