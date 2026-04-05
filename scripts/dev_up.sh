@@ -90,7 +90,9 @@ copy_if_missing "$FRONTEND_DIR/.env.example" "$FRONTEND_DIR/.env"
 echo "[dev_up] starting infrastructure with docker compose..."
 (cd "$ROOT_DIR" && docker compose up -d --remove-orphans postgres redis qdrant minio minio-init grobid r-engine)
 
-wait_for_url "http://127.0.0.1:8010/health" "r-engine"
+if ! wait_for_url "http://127.0.0.1:8010/health" "r-engine"; then
+  echo "[dev_up] r-engine is still not ready; continuing because analysis can run in degraded local mode"
+fi
 if [[ "$SKIP_GROBID_WAIT" == "1" ]]; then
   echo "[dev_up] skipping grobid wait because PAPERFLOW_SKIP_GROBID_WAIT=1"
 else

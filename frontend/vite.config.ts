@@ -1,5 +1,48 @@
 import { defineConfig } from 'vitest/config'
+import type { ProxyOptions } from 'vite'
 import react from '@vitejs/plugin-react'
+
+const API_TARGET = 'http://127.0.0.1:8000';
+const apiPrefixes = [
+  '/auth',
+  '/health',
+  '/papers',
+  '/projects',
+  '/search',
+  '/drafts',
+  '/analysis',
+  '/meta',
+  '/chat',
+  '/references',
+  '/notes',
+  '/extraction',
+  '/screening',
+  '/clinical',
+  '/jobs',
+  '/billing',
+  '/presentations',
+  '/books',
+  '/research',
+];
+
+function proxyWithHtmlBypass(target: string): ProxyOptions {
+  return {
+    target,
+    changeOrigin: true,
+    bypass(req) {
+      const accept = req.headers?.accept || '';
+      const isDocumentRequest = req.method === 'GET' && accept.includes('text/html');
+      if (isDocumentRequest) {
+        return req.url;
+      }
+      return undefined;
+    },
+  };
+}
+
+const proxy = Object.fromEntries(
+  apiPrefixes.map((prefix) => [prefix, proxyWithHtmlBypass(API_TARGET)]),
+);
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -7,27 +50,7 @@ export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
   server: {
     port: 5173,
-    proxy: {
-      '/auth': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/health': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/papers': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/projects': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/search': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/drafts': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/analysis': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/meta': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/chat': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/references': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/notes': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/extraction': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/screening': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/clinical': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/jobs': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/billing': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/presentations': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/books': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/research': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-    },
+    proxy,
   },
   test: {
     globals: true,

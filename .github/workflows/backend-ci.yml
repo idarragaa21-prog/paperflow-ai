@@ -16,6 +16,7 @@ jobs:
   test:
     name: pytest
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     services:
       postgres:
@@ -60,6 +61,7 @@ jobs:
       - name: Run tests
         working-directory: backend
         env:
+          PAPERFLOW_DISABLE_DOTENV: "1"
           ENV: test
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/paperflow_ai_test
           REDIS_URL: redis://localhost:6379/0
@@ -70,5 +72,5 @@ jobs:
           OCR_ENABLED: "false"
           RATE_LIMIT_ENABLED: "false"
           LLM_PROVIDER: openclaw
-        run: |
-          python -m pytest -q --tb=short
+          PYTEST_FILE_TIMEOUT_SECONDS: "300"
+        run: python scripts/ci_run_pytest_files.py

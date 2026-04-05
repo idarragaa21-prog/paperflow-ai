@@ -84,6 +84,7 @@ async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
 async def setup_db():
     await _init_db()
     yield
+    await _engine.dispose()
 
 
 @pytest_asyncio.fixture
@@ -154,15 +155,12 @@ class TestAuthLogin:
         assert "access_token" in r.cookies
 
     async def test_login_wrong_password_returns_401(self, client: AsyncClient, test_user: User):
-        # NOTE: Due to the auto-dev user mock in auth.py, this will actually succeed
-        # and update the password. Asserting 200.
         r = await client.post("/auth/login", json={"email": test_user.email, "password": "wrongpassword"})
-        assert r.status_code == 200
+        assert r.status_code == 401
 
     async def test_login_unknown_email_returns_401(self, client: AsyncClient):
-        # NOTE: Due to the auto-dev user mock in auth.py, this will auto-create the user
         r = await client.post("/auth/login", json={"email": "nobody@test.com", "password": "any"})
-        assert r.status_code == 200
+        assert r.status_code == 401
 
     async def test_login_missing_fields_returns_422(self, client: AsyncClient):
         r = await client.post("/auth/login", json={"email": "only@email.com"})

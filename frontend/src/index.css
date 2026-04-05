@@ -2,64 +2,64 @@
   --font-display: 'Bricolage Grotesque', 'Georgia', serif;
   --font-body: 'DM Sans', 'Helvetica Neue', sans-serif;
 
-  --rc-bg: #fafafa;
+  --rc-bg: #f6f8fd;
   --rc-surface: #ffffff;
-  --rc-surface-2: #f4f4f5;
-  --rc-surface-3: #e4e4e7;
-  --rc-text: #18181b;
-  --rc-text-secondary: #52525b;
-  --rc-muted: #71717a;
-  --rc-border: #e4e4e7;
-  --rc-border-strong: #d4d4d8;
+  --rc-surface-2: #eef3fb;
+  --rc-surface-3: #dbe3f1;
+  --rc-text: #0f172a;
+  --rc-text-secondary: #334155;
+  --rc-muted: #64748b;
+  --rc-border: #d8e2f0;
+  --rc-border-strong: #b8c6d8;
 
-  --rc-primary: #4f46e5;
-  --rc-primary-hover: #4338ca;
-  --rc-primary-weak: #e0e7ff;
-  --rc-primary-weak-hover: #c7d2fe;
+  --rc-primary: #4456da;
+  --rc-primary-hover: #3347c0;
+  --rc-primary-weak: #dbe4ff;
+  --rc-primary-weak-hover: #c6d3ff;
 
-  --rc-success: #16a34a;
-  --rc-success-bg: #dcfce7;
-  --rc-success-border: #bbf7d0;
-  --rc-danger: #dc2626;
+  --rc-success: #15803d;
+  --rc-success-bg: #def7e8;
+  --rc-success-border: #bce9cf;
+  --rc-danger: #b91c1c;
   --rc-danger-bg: #fee2e2;
   --rc-danger-border: #fecaca;
-  --rc-warning: #d97706;
-  --rc-warning-bg: #fef3c7;
-  --rc-warning-border: #fde68a;
-  --rc-info: #2563eb;
+  --rc-warning: #b45309;
+  --rc-warning-bg: #ffedd5;
+  --rc-warning-border: #fed7aa;
+  --rc-info: #1d4ed8;
   --rc-info-bg: #dbeafe;
   --rc-info-border: #bfdbfe;
 
-  --rc-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --rc-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --rc-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --rc-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --rc-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --rc-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --rc-shadow-sm: 0 6px 14px rgba(15, 23, 42, 0.06);
+  --rc-shadow-md: 0 12px 24px rgba(15, 23, 42, 0.08);
+  --rc-shadow-lg: 0 18px 36px rgba(15, 23, 42, 0.11);
+  --rc-shadow-xl: 0 26px 48px rgba(15, 23, 42, 0.14);
 
-  --rc-r-sm: 6px;
-  --rc-r-md: 8px;
-  --rc-r-lg: 12px;
-  --rc-r-xl: 16px;
+  --rc-r-sm: 7px;
+  --rc-r-md: 10px;
+  --rc-r-lg: 14px;
+  --rc-r-xl: 20px;
   --rc-r-full: 9999px;
 }
 
 
 /* ── Dark Mode ── */
 [data-theme="dark"] {
-  --rc-bg: #09090b;
-  --rc-surface: #18181b;
-  --rc-surface-2: #27272a;
-  --rc-surface-3: #3f3f46;
-  --rc-text: #fafafa;
-  --rc-text-secondary: #a1a1aa;
-  --rc-muted: #71717a;
-  --rc-border: #27272a;
-  --rc-border-strong: #3f3f46;
+  --rc-bg: #090d16;
+  --rc-surface: #111827;
+  --rc-surface-2: #1f2937;
+  --rc-surface-3: #334155;
+  --rc-text: #f8fafc;
+  --rc-text-secondary: #cbd5e1;
+  --rc-muted: #94a3b8;
+  --rc-border: #1f2937;
+  --rc-border-strong: #334155;
 
-  --rc-primary: #6366f1;
-  --rc-primary-hover: #818cf8;
-  --rc-primary-weak: rgba(99, 102, 241, 0.15);
-  --rc-primary-weak-hover: rgba(99, 102, 241, 0.25);
+  --rc-primary: #7c8dff;
+  --rc-primary-hover: #9aa8ff;
+  --rc-primary-weak: rgba(124, 141, 255, 0.2);
+  --rc-primary-weak-hover: rgba(124, 141, 255, 0.28);
 
   --rc-success: #4ade80;
   --rc-success-bg: rgba(74, 222, 128, 0.15);
@@ -74,11 +74,11 @@
   --rc-info-bg: rgba(96, 165, 250, 0.15);
   --rc-info-border: rgba(96, 165, 250, 0.25);
 
-  --rc-shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
-  --rc-shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
-  --rc-shadow-md: 0 4px 6px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
-  --rc-shadow-lg: 0 10px 15px rgba(0,0,0,0.5), 0 4px 6px rgba(0,0,0,0.3);
-  --rc-shadow-xl: 0 20px 25px rgba(0,0,0,0.6), 0 8px 10px rgba(0,0,0,0.4);
+  --rc-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.42);
+  --rc-shadow-sm: 0 8px 16px rgba(0, 0, 0, 0.24);
+  --rc-shadow-md: 0 12px 24px rgba(0, 0, 0, 0.32);
+  --rc-shadow-lg: 0 18px 34px rgba(0, 0, 0, 0.36);
+  --rc-shadow-xl: 0 24px 42px rgba(0, 0, 0, 0.42);
 }
 
 [data-theme="dark"] .rc-input,
@@ -98,7 +98,7 @@
 
 html {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.55;
   font-weight: 400;
   color: var(--rc-text);
@@ -113,7 +113,9 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: var(--rc-bg);
+  background:
+    radial-gradient(circle at 8% -15%, rgba(68, 86, 218, 0.1), transparent 36%),
+    var(--rc-bg);
 }
 
 a {
@@ -156,35 +158,36 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
   justify-content: center;
   gap: 8px;
   border-radius: var(--rc-r-md);
-  border: 1px solid var(--rc-border-strong);
-  padding: 9px 16px;
-  font-size: 14px;
+  border: 1px solid var(--rc-border);
+  padding: 9px 15px;
+  font-size: 13px;
   font-weight: 600;
   font-family: var(--font-body);
   background: var(--rc-surface);
   color: var(--rc-text);
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: all 170ms ease;
   white-space: nowrap;
   line-height: 1;
   text-decoration: none;
   box-shadow: var(--rc-shadow-xs);
 }
 .rc-btn:hover {
-  background: var(--rc-surface-2);
-  border-color: var(--rc-muted);
+  background: color-mix(in srgb, var(--rc-surface) 88%, var(--rc-primary) 4%);
+  border-color: var(--rc-border-strong);
   text-decoration: none;
+  transform: translateY(-1px);
 }
-.rc-btn:active { transform: translateY(1px); box-shadow: none; }
+.rc-btn:active { transform: translateY(0); box-shadow: none; }
 .rc-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .rc-btn--primary {
-  background: var(--rc-primary);
+  background: linear-gradient(135deg, var(--rc-primary), color-mix(in srgb, var(--rc-primary) 62%, #0f9b86 38%));
   color: white;
   border-color: var(--rc-primary);
   box-shadow: var(--rc-shadow-sm);
 }
 .rc-btn--primary:hover {
-  background: var(--rc-primary-hover);
+  background: linear-gradient(135deg, var(--rc-primary-hover), color-mix(in srgb, var(--rc-primary-hover) 62%, #0f9b86 38%));
   border-color: var(--rc-primary-hover);
   box-shadow: var(--rc-shadow-md);
   color: white;
@@ -229,7 +232,7 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
   background: var(--rc-surface);
   border: 1px solid var(--rc-border);
   border-radius: var(--rc-r-lg);
-  padding: 20px;
+  padding: 18px;
   box-shadow: var(--rc-shadow-sm);
   transition: all 200ms ease;
 }
