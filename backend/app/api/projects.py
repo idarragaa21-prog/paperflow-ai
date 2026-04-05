@@ -508,22 +508,27 @@ async def project_dashboard(
     from app.models.presentation import Presentation
     from app.models.reference_item import ReferenceItem
 
-    qp = await db.execute(select(func.count()).select_from(Paper).where(Paper.project_id == project_id))
-    qn = await db.execute(select(func.count()).select_from(Note).where(Note.project_id == project_id))
-    qpr = await db.execute(select(func.count()).select_from(Presentation).where(Presentation.project_id == project_id))
-    qs = await db.execute(
-        select(func.count()).select_from(ExtractedStudy).where(ExtractedStudy.project_id == project_id).where(ExtractedStudy.is_current == True)  # noqa
+    from sqlalchemy import union_all, literal
+
+    # Run queries concurrently using a single batch query to reduce database round-trips
+    stmt = union_all(
+        select(literal("papers"), func.count()).select_from(Paper).where(Paper.project_id == project_id),
+        select(literal("notes"), func.count()).select_from(Note).where(Note.project_id == project_id),
+        select(literal("presentations"), func.count()).select_from(Presentation).where(Presentation.project_id == project_id),
+        select(literal("meta_studies_current"), func.count()).select_from(ExtractedStudy).where(ExtractedStudy.project_id == project_id).where(ExtractedStudy.is_current == True),
+        select(literal("references"), func.count()).select_from(ReferenceItem).where(ReferenceItem.project_id == project_id),
     )
-    qr = await db.execute(select(func.count()).select_from(ReferenceItem).where(ReferenceItem.project_id == project_id))
+    result = await db.execute(stmt)
+    counts_map = dict(result.all())
 
     return {
         "project_id": str(project_id),
         "counts": {
-            "papers": int(qp.scalar() or 0),
-            "notes": int(qn.scalar() or 0),
-            "presentations": int(qpr.scalar() or 0),
-            "meta_studies_current": int(qs.scalar() or 0),
-            "references": int(qr.scalar() or 0),
+            "papers": int(counts_map.get("papers", 0)),
+            "notes": int(counts_map.get("notes", 0)),
+            "presentations": int(counts_map.get("presentations", 0)),
+            "meta_studies_current": int(counts_map.get("meta_studies_current", 0)),
+            "references": int(counts_map.get("references", 0)),
         },
     }
 
