@@ -256,6 +256,62 @@ async def generate_clinical_pro_output(
 
         out = dict(obj)
 
+        # Core required fields: coerce legacy/partial outputs into the current schema.
+        out["title"] = str(out.get("title") or out.get("topic") or topic).strip() or str(topic)
+
+        sections = _ensure_list(out.get("sections"))
+        fixed_sections = []
+        for idx, section in enumerate(sections):
+            if not isinstance(section, dict):
+                continue
+            section_id = str(section.get("id") or f"section_{idx + 1}").strip() or f"section_{idx + 1}"
+            section_title = str(section.get("title") or section.get("heading") or f"Section {idx + 1}").strip() or f"Section {idx + 1}"
+            section_content = section.get("content_markdown")
+            if not isinstance(section_content, str) or not section_content.strip():
+                section_content = section.get("content") or section.get("body") or section.get("text") or ""
+            fixed_sections.append(
+                {
+                    "id": section_id,
+                    "title": section_title,
+                    "content_markdown": str(section_content).strip(),
+                }
+            )
+
+        if not fixed_sections:
+            summary = str(out.get("summary") or "No structured content available.").strip()
+            fixed_sections.append(
+                {
+                    "id": "summary",
+                    "title": "Summary",
+                    "content_markdown": summary or "No structured content available.",
+                }
+            )
+        out["sections"] = fixed_sections
+
+        # tables
+        tables = _ensure_list(out.get("tables"))
+        fixed_tables = []
+        for idx, table in enumerate(tables):
+            if not isinstance(table, dict):
+                continue
+            raw_columns = _ensure_list(table.get("columns"))
+            raw_rows = _ensure_list(table.get("rows"))
+            columns = [str(c) for c in raw_columns if str(c).strip()]
+            rows: list[list[Any]] = []
+            for row in raw_rows:
+                if isinstance(row, list):
+                    rows.append(row)
+                elif isinstance(row, tuple):
+                    rows.append(list(row))
+            fixed_tables.append(
+                {
+                    "title": str(table.get("title") or f"Table {idx + 1}"),
+                    "columns": columns,
+                    "rows": rows,
+                }
+            )
+        out["tables"] = fixed_tables
+
         # charts
         charts = _ensure_list(out.get("charts"))
         fixed_charts = []
@@ -266,8 +322,27 @@ async def generate_clinical_pro_output(
             ch2["type"] = _norm_chart_type(ch2.get("type"))
             if not isinstance(ch2.get("data"), dict):
                 ch2["data"] = {}
+            if ch2.get("note") is not None and not isinstance(ch2.get("note"), str):
+                ch2["note"] = str(ch2.get("note"))
             fixed_charts.append(ch2)
         out["charts"] = fixed_charts
+
+        # mermaid
+        mermaid = _ensure_list(out.get("mermaid"))
+        fixed_mermaid = []
+        for idx, block in enumerate(mermaid):
+            if not isinstance(block, dict):
+                continue
+            code = str(block.get("code") or "").strip()
+            if not code:
+                continue
+            fixed_mermaid.append(
+                {
+                    "title": str(block.get("title") or f"Diagram {idx + 1}"),
+                    "code": code,
+                }
+            )
+        out["mermaid"] = fixed_mermaid
 
         # evidence_map
         em = _ensure_list(out.get("evidence_map"))
@@ -276,9 +351,13 @@ async def generate_clinical_pro_output(
             if not isinstance(row, dict):
                 continue
             r2 = dict(row)
+            r2["question"] = str(r2.get("question") or "N/A")
+            r2["conclusion"] = str(r2.get("conclusion") or "No conclusion provided.")
             r2["strength"] = _norm_strength(r2.get("strength"))
             kp = r2.get("key_papers")
             r2["key_papers"] = [str(x) for x in (_ensure_list(kp)) if str(x).strip()]
+            if r2.get("limitations") is not None and not isinstance(r2.get("limitations"), str):
+                r2["limitations"] = str(r2.get("limitations"))
             fixed_em.append(r2)
         out["evidence_map"] = fixed_em
 
@@ -302,10 +381,12 @@ async def generate_clinical_pro_output(
         rv = out.get("references_vancouver")
         if isinstance(rv, str):
             out["references_vancouver"] = [x.strip() for x in rv.split("\n") if x.strip()]
+        elif isinstance(rv, list):
+            out["references_vancouver"] = [str(x).strip() for x in rv if str(x).strip()]
+        else:
+            out["references_vancouver"] = []
 
         return out
-
-    await prog(74, "schema_validate")
 
     # Local schema validation (normalize first; keep schema strict)
     candidate = _normalize_candidate(rev_json)
@@ -328,6 +409,26 @@ async def generate_clinical_pro_output(
         usage["passes"].append({"name": "schema_repair", "model": rr.get("model"), "usage": rr.get("usage"), "latency_ms": rr.get("latency_ms")})
         repaired = _safe_json_loads(rr.get("content") or "")
         repaired2 = _normalize_candidate(repaired)
-        out = ClinicalProOutput.model_validate(repaired2)
+        try:
+            out = ClinicalProOutput.model_validate(repaired2)
+        except Exception as e2:
+            warnings.append(f"Schema repair still invalid; using safe fallback output: {e2}")
+            fallback = {
+                "title": str(repaired2.get("title") or topic),
+                "sections": [
+                    {
+                        "id": "summary",
+                        "title": "Summary",
+                        "content_markdown": str(repaired2.get("summary") or "Unable to produce structured clinical output."),
+                    }
+                ],
+                "tables": [],
+                "charts": [],
+                "mermaid": [],
+                "evidence_map": [],
+                "references_vancouver": [],
+                "quality": {"evidence_strength": "low", "gaps": ["schema_repair_failed"]},
+            }
+            out = ClinicalProOutput.model_validate(fallback)
 
     return out, usage, warnings

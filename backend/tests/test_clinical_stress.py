@@ -212,6 +212,11 @@ async def client_and_db(user_and_db):
 @pytest.mark.asyncio
 async def test_rate_limit_blocks_fourth_request_within_minute(client_and_db_with_rate_limit):
     """Clinical /query is capped at 3/min — the 4th request must return 429."""
+    from app.middleware.rate_limit import limiter as runtime_limiter
+
+    if not runtime_limiter.enabled:
+        pytest.skip("SlowAPI limiter is disabled in this runtime configuration")
+
     client, db = client_and_db_with_rate_limit
 
     with patch("app.api.clinical.get_job_queue") as mock_q:

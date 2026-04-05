@@ -281,8 +281,8 @@ async def test_csrf_mutation_with_correct_token_passes(owner_client):
 @pytest.mark.asyncio
 async def test_expired_access_token_returns_401(fake_db, two_users):
     """Requests with a JWT whose exp is in the past must be rejected."""
-    import jwt as pyjwt
     from datetime import datetime, timezone, timedelta
+    from jose import jwt as jose_jwt
     from app.config import settings
 
     db, _ = fake_db
@@ -293,7 +293,7 @@ async def test_expired_access_token_returns_401(fake_db, two_users):
         "type": "access",
         "exp": datetime.now(timezone.utc) - timedelta(minutes=30),
     }
-    expired_token = pyjwt.encode(expired_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    expired_token = jose_jwt.encode(expired_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     app = _build_app(db, owner)
     # Remove the current_user override so middleware actually validates the token
