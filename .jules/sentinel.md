@@ -7,3 +7,8 @@
 **Vulnerability:** The login API in `backend/app/api/auth.py` was explicitly taking the provided password and overwriting the database hash for existing users (`user.password_hash = hash_password(credentials.password)`). This meant ANY password would log you into ANY account.
 **Learning:** Development backdoors (like automatically creating users or bypassing password checks for ease of local testing) MUST be rigorously removed or strictly isolated behind environment flags (`if ENV != "production"`). They should never make it into the main production route path.
 **Prevention:** Never overwrite an authentication secret during a login verification path. Ensure all auth attempts run through `verify_password()`. Write robust, automated integration tests that explicitly try to login with a bad password to prevent these kinds of backdoors from reaching production.
+
+## 2024-05-24 - Authentication Backdoor Removed
+**Vulnerability:** The `/login` endpoint was overwriting the password hash of any existing user with the password provided during the login attempt, effectively bypassing authentication for any account. It also created new accounts for non-existent users automatically.
+**Learning:** Development backdoors that bypass authentication (e.g., overwriting password hashes with user input or automatically creating users for easy login) must be rigorously removed or strictly isolated behind environment flags. Never overwrite an authentication secret during the login verification path.
+**Prevention:** Ensure strict separation between registration and login flows. Never modify a user's password during a login attempt. Review authentication logic for debugging or development artifacts before committing to production.
