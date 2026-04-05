@@ -118,10 +118,22 @@ class FakeDB:
         pass
 
 
-def _build_app(user: User, db: FakeDB) -> FastAPI:
+def _build_app(user: User, db: FakeDB, enable_rate_limit: bool = False) -> FastAPI:
     app = FastAPI()
     app.add_middleware(AuthMiddleware)
     app.add_middleware(CSRFMiddleware)
+
+    # Add rate limiting middleware if requested for test
+    if enable_rate_limit:
+        from slowapi import _rate_limit_exceeded_handler
+        from slowapi.errors import RateLimitExceeded
+        from slowapi.middleware import SlowAPIMiddleware
+        from app.middleware.rate_limit import limiter
+
+        app.state.limiter = limiter
+        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+        app.add_middleware(SlowAPIMiddleware)
+
     app.include_router(clinical_router)
 
     async def _db():
@@ -151,6 +163,39 @@ def user_and_db():
 
 
 @pytest_asyncio.fixture
+async def client_and_db_with_rate_limit(user_and_db):
+    """Client with rate limiting enabled for testing rate limit behavior."""
+    user, db = user_and_db
+
+    # Create a test-specific limiter that uses memory storage and is enabled
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
+    from app.middleware.rate_limit import rate_limit_key
+
+    test_limiter = Limiter(
+        key_func=rate_limit_key,
+        storage_uri="memory://",
+        enabled=True,
+    )
+
+    # Create app with rate limiting middleware
+    app = _build_app(user, db, enable_rate_limit=False)
+
+    # Manually add rate limiting middleware with test limiter
+    app.state.limiter = test_limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+
+    token = create_access_token(user.id)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        client.cookies.set("access_token", token, path="/")
+        client.cookies.set("csrf_token", "test-csrf", path="/")
+        yield client, db
+
+
+@pytest_asyncio.fixture
 async def client_and_db(user_and_db):
     user, db = user_and_db
     app = _build_app(user, db)
@@ -165,9 +210,9 @@ async def client_and_db(user_and_db):
 # ── 1. Rate Limiting ──────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_rate_limit_blocks_fourth_request_within_minute(client_and_db):
+async def test_rate_limit_blocks_fourth_request_within_minute(client_and_db_with_rate_limit):
     """Clinical /query is capped at 3/min — the 4th request must return 429."""
-    client, db = client_and_db
+    client, db = client_and_db_with_rate_limit
 
     with patch("app.api.clinical.get_job_queue") as mock_q:
         mock_q.return_value.enqueue = MagicMock(return_value=MagicMock(id="rq-job-id"))
