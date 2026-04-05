@@ -13,6 +13,7 @@ jobs:
   backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       PAPERFLOW_DISABLE_DOTENV: "1"
     defaults:
@@ -57,7 +58,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run tests
-        run: pytest -q --tb=short -x
+        run: python scripts/ci_run_pytest_files.py
         env:
           DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/paperflow_test"
           SECRET_KEY: "ci-test-secret"
@@ -68,6 +69,7 @@ jobs:
           RATE_LIMIT_ENABLED: "false"
           LLM_PROVIDER: "openclaw"
           OCR_ENABLED: "false"
+          PYTEST_FILE_TIMEOUT_SECONDS: "300"
 
   frontend:
     name: Frontend Build & Test

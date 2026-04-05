@@ -84,6 +84,7 @@ async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
 async def setup_db():
     await _init_db()
     yield
+    await _engine.dispose()
 
 
 @pytest_asyncio.fixture
