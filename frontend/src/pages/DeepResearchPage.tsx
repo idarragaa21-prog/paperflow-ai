@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
@@ -27,7 +27,9 @@ export default function DeepResearchPage() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // ── Projects list for selector ────────────────────────────────────────────
   const { data: projects = [] } = useQuery<Pick<Project, 'id' | 'title'>[]>({
@@ -69,6 +71,47 @@ export default function DeepResearchPage() {
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to generate report');
     } finally { setLoading(false); }
+  }
+
+  async function handleDownloadPdf() {
+    if (!reportRef.current || !report) return;
+    setDownloadingPdf(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const imgH = (canvas.height * imgW) / canvas.width;
+
+      // Multi-page: slice canvas into page-height chunks
+      const margin = 0;
+      let yOffset = 0;
+      while (yOffset < imgH) {
+        if (yOffset > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', margin, margin - yOffset, imgW - margin * 2, imgH);
+        yOffset += pageH - margin * 2;
+      }
+
+      const safeName = report.query.slice(0, 40).replace(/[^a-z0-9\s-]/gi, '').trim().replace(/\s+/g, '-');
+      pdf.save(`deep-research-${safeName || 'report'}.pdf`);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setDownloadingPdf(false);
+    }
   }
 
   const selectedProject = projects.find(p => p.id === projectId);
@@ -249,109 +292,135 @@ export default function DeepResearchPage() {
 
       {/* ── Report ── */}
       {report && (
-        <div 
-          className="print-report-container"
-          style={{ 
-            display: 'flex', flexDirection: 'column', gap: 24, 
-            background: '#ffffff', 
-            color: '#111827', 
-            padding: '40px 48px', 
-            borderRadius: 12, 
-            boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-            fontFamily: '"Merriweather", "Georgia", serif',
-            position: 'relative'
-          }}
-        >
-          <button 
-            className="rc-btn"
-            style={{ position: 'absolute', top: 20, right: 20, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', fontSize: 13, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontFamily: '"Inter", "system-ui", sans-serif' }}
-            onClick={() => window.print()}
-            aria-label="Print Report"
-            title="Print Report"
+        <div>
+          {/* Export action bar (not included in PDF capture) */}
+          <div className="deep-research-export-bar" style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end' }}>
+            <button
+              className="rc-btn"
+              style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', fontSize: 13, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontFamily: '"Inter", "system-ui", sans-serif' }}
+              onClick={() => window.print()}
+              aria-label="Print Report"
+              title="Print Report"
+            >
+              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+              {isEs ? 'Imprimir' : 'Print'}
+            </button>
+            <button
+              className="rc-btn rc-btn--primary"
+              style={{ fontSize: 13, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              aria-label="Download PDF"
+              title="Download PDF"
+            >
+              {downloadingPdf ? (
+                <>
+                  <span className="rc-spinner" style={{ width: 13, height: 13, borderTopColor: 'white' }} />
+                  {isEs ? 'Exportando…' : 'Exporting…'}
+                </>
+              ) : (
+                <>
+                  <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  {isEs ? 'Descargar PDF' : 'Download PDF'}
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Report container — this is what gets captured for PDF */}
+          <div
+            ref={reportRef}
+            className="print-report-container"
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 24,
+              background: '#ffffff',
+              color: '#111827',
+              padding: '40px 48px',
+              borderRadius: 12,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              fontFamily: '"Merriweather", "Georgia", serif',
+            }}
           >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-            Print Report
-          </button>
-          
-          {/* Header */}
-          <div style={{ paddingBottom: 20, borderBottom: '2px solid #e5e7eb' }}>
-            <div style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontSize: 12, fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-              {isEs ? 'Reporte Clínico Sintetizado' : 'Synthesized Clinical Report'}
-            </div>
-            <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 16 }}>
-              {report.query}
-            </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: 13, color: '#6b7280', flexWrap: 'wrap', fontFamily: '"Inter", "system-ui", sans-serif', alignItems: 'center' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg>
-                {report.papers_analyzed} {isEs ? 'papers analizados' : 'papers analyzed'}
-              </span>
-              <span>•</span>
-              <span>{isEs ? 'Generado en' : 'Generated in'} {report.metadata.duration_seconds.toFixed(1)}s</span>
-              <span>•</span>
-              <span style={{ fontWeight: 600, color: report.source_mode === 'project_library' ? '#059669' : '#2563eb' }}>
-                {report.source_mode === 'project_library'
-                  ? `📚 ${isEs ? 'Biblioteca del proyecto' : 'Project library'}`
-                  : '🌐 PubMed'}
-              </span>
-              <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700,
-                background: '#d1fae5', color: '#065f46', marginLeft: 'auto' }}>
-                ✓ {report.status}
-              </span>
-            </div>
-          </div>
-
-          {/* Sections */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-            {report.sections.map(section => (
-              <div key={section.key}>
-                <h3 style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontWeight: 800, fontSize: 18, color: '#1f2937',
-                  marginBottom: 12 }}>
-                  {section.title}
-                </h3>
-                <div style={{ fontSize: 15, lineHeight: 1.8, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                  {section.content}
-                </div>
+            {/* Header */}
+            <div style={{ paddingBottom: 20, borderBottom: '2px solid #e5e7eb' }}>
+              <div style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontSize: 12, fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                {isEs ? 'Reporte Clínico Sintetizado' : 'Synthesized Clinical Report'}
               </div>
-            ))}
-          </div>
+              <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 16 }}>
+                {report.query}
+              </div>
+              <div style={{ display: 'flex', gap: 16, fontSize: 13, color: '#6b7280', flexWrap: 'wrap', fontFamily: '"Inter", "system-ui", sans-serif', alignItems: 'center' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg>
+                  {report.papers_analyzed} {isEs ? 'papers analizados' : 'papers analyzed'}
+                </span>
+                <span>•</span>
+                <span>{isEs ? 'Generado en' : 'Generated in'} {report.metadata.duration_seconds.toFixed(1)}s</span>
+                <span>•</span>
+                <span style={{ fontWeight: 600, color: report.source_mode === 'project_library' ? '#059669' : '#2563eb' }}>
+                  {report.source_mode === 'project_library'
+                    ? `📚 ${isEs ? 'Biblioteca del proyecto' : 'Project library'}`
+                    : '🌐 PubMed'}
+                </span>
+                <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                  background: '#d1fae5', color: '#065f46', marginLeft: 'auto' }}>
+                  ✓ {report.status}
+                </span>
+              </div>
+            </div>
 
-          {/* Source papers */}
-          <div style={{ marginTop: 24, paddingTop: 24, borderTop: '2px solid #e5e7eb' }}>
-            <h3 style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontWeight: 800, fontSize: 16, color: '#1f2937',
-              marginBottom: 16 }}>
-              {isEs ? 'Referencias y Evidencia' : 'References & Evidence'} ({report.papers.length})
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {report.papers.map((p, i) => (
-                <div key={p.pmid || i}
-                  style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}
-                >
-                  <span style={{ fontWeight: 700, fontSize: 14, color: '#9ca3af', minWidth: 24 }}>[{i + 1}]</span>
-                  <div style={{ flex: 1, fontFamily: '"Inter", "system-ui", sans-serif' }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: '#111827', lineHeight: 1.5 }}>{p.title}</div>
-                    <div style={{ fontSize: 13, color: '#4b5563', marginTop: 4 }}>
-                      {p.authors} — <span style={{ fontStyle: 'italic' }}>{p.journal}</span> ({p.year})
-                    </div>
-                    {(p.pmid || p.doi) && (
-                      <div style={{ marginTop: 4, fontSize: 12 }}>
-                        {p.pmid && (
-                          <a href={`https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`} target="_blank" rel="noopener"
-                            style={{ color: '#4f46e5', textDecoration: 'none', marginRight: 12, fontWeight: 500 }}>
-                            PMID: {p.pmid}
-                          </a>
-                        )}
-                        {p.doi && (
-                          <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noopener"
-                            style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 500 }}>
-                            DOI: {p.doi}
-                          </a>
-                        )}
-                      </div>
-                    )}
+            {/* Sections */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+              {report.sections.map(section => (
+                <div key={section.key}>
+                  <h3 style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontWeight: 800, fontSize: 18, color: '#1f2937',
+                    marginBottom: 12 }}>
+                    {section.title}
+                  </h3>
+                  <div style={{ fontSize: 15, lineHeight: 1.8, color: '#374151', whiteSpace: 'pre-wrap' }}>
+                    {section.content}
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Source papers */}
+            <div style={{ marginTop: 24, paddingTop: 24, borderTop: '2px solid #e5e7eb' }}>
+              <h3 style={{ fontFamily: '"Inter", "system-ui", sans-serif', fontWeight: 800, fontSize: 16, color: '#1f2937',
+                marginBottom: 16 }}>
+                {isEs ? 'Referencias y Evidencia' : 'References & Evidence'} ({report.papers.length})
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {report.papers.map((p, i) => (
+                  <div key={p.pmid || i}
+                    style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: 14, color: '#9ca3af', minWidth: 24 }}>[{i + 1}]</span>
+                    <div style={{ flex: 1, fontFamily: '"Inter", "system-ui", sans-serif' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#111827', lineHeight: 1.5 }}>{p.title}</div>
+                      <div style={{ fontSize: 13, color: '#4b5563', marginTop: 4 }}>
+                        {p.authors} — <span style={{ fontStyle: 'italic' }}>{p.journal}</span> ({p.year})
+                      </div>
+                      {(p.pmid || p.doi) && (
+                        <div style={{ marginTop: 4, fontSize: 12 }}>
+                          {p.pmid && (
+                            <a href={`https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`} target="_blank" rel="noopener"
+                              style={{ color: '#4f46e5', textDecoration: 'none', marginRight: 12, fontWeight: 500 }}>
+                              PMID: {p.pmid}
+                            </a>
+                          )}
+                          {p.doi && (
+                            <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noopener"
+                              style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: 500 }}>
+                              DOI: {p.doi}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
