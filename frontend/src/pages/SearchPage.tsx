@@ -173,8 +173,9 @@ export default function SearchPage() {
             <div className="rc-card-title">Build your query</div>
             <div className="rc-row" style={{ alignItems: 'flex-end' }}>
               <div style={{ flex: 1, minWidth: 260 }}>
-                <div className="rc-kicker">Research question</div>
+                <label htmlFor="search-query" className="rc-kicker" style={{ display: 'block' }}>Research question</label>
                 <input
+                  id="search-query"
                   className="rc-input"
                   data-testid="search-query-input"
                   value={search.query}
@@ -184,8 +185,8 @@ export default function SearchPage() {
                 />
               </div>
               <div style={{ width: 110 }}>
-                <div className="rc-kicker">Max results</div>
-                <input className="rc-input" type="number" value={search.maxResults} min={1} max={100} onChange={(e) => search.setMaxResults(Number(e.target.value))} />
+                <label htmlFor="search-max-results" className="rc-kicker" style={{ display: 'block' }}>Max results</label>
+                <input id="search-max-results" className="rc-input" type="number" value={search.maxResults} min={1} max={100} onChange={(e) => search.setMaxResults(Number(e.target.value))} />
               </div>
               <button className="rc-btn rc-btn--primary" data-testid="search-submit-button" disabled={!search.canSearch || search.loading} onClick={handleSearch}>
                 {search.loading ? 'Searching…' : 'Search'}
@@ -194,12 +195,12 @@ export default function SearchPage() {
 
             {filters.showFilters && (
               <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
-                <div style={{ width: 100 }}><div className="rc-kicker">Year from</div><input className="rc-input" data-testid="search-year-from-input" type="number" value={filters.yearFrom} min={1900} max={2030} placeholder="2018" onChange={(e) => filters.setYearFrom(e.target.value)} /></div>
-                <div style={{ width: 100 }}><div className="rc-kicker">Year to</div><input className="rc-input" data-testid="search-year-to-input" type="number" value={filters.yearTo} min={1900} max={2030} placeholder="2025" onChange={(e) => filters.setYearTo(e.target.value)} /></div>
-                <div style={{ width: 180 }}><div className="rc-kicker">Journal</div><input className="rc-input" value={filters.journalFilter} placeholder="e.g. Lancet" onChange={(e) => filters.setJournalFilter(e.target.value)} /></div>
+                <div style={{ width: 100 }}><label htmlFor="search-year-from" className="rc-kicker" style={{ display: 'block' }}>Year from</label><input id="search-year-from" className="rc-input" data-testid="search-year-from-input" type="number" value={filters.yearFrom} min={1900} max={2030} placeholder="2018" onChange={(e) => filters.setYearFrom(e.target.value)} /></div>
+                <div style={{ width: 100 }}><label htmlFor="search-year-to" className="rc-kicker" style={{ display: 'block' }}>Year to</label><input id="search-year-to" className="rc-input" data-testid="search-year-to-input" type="number" value={filters.yearTo} min={1900} max={2030} placeholder="2025" onChange={(e) => filters.setYearTo(e.target.value)} /></div>
+                <div style={{ width: 180 }}><label htmlFor="search-journal" className="rc-kicker" style={{ display: 'block' }}>Journal</label><input id="search-journal" className="rc-input" value={filters.journalFilter} placeholder="e.g. Lancet" onChange={(e) => filters.setJournalFilter(e.target.value)} /></div>
                 <div style={{ width: 140 }}>
-                  <div className="rc-kicker">Source</div>
-                  <select className="rc-input" value={filters.sourceFilter} onChange={(e) => filters.setSourceFilter(e.target.value)} style={{ height: 36 }}>
+                  <label htmlFor="search-source" className="rc-kicker" style={{ display: 'block' }}>Source</label>
+                  <select id="search-source" className="rc-input" value={filters.sourceFilter} onChange={(e) => filters.setSourceFilter(e.target.value)} style={{ height: 36 }}>
                     <option value="">All sources</option>
                     <option value="pubmed">PubMed</option>
                     <option value="europepmc">Europe PMC</option>
