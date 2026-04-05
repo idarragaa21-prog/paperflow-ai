@@ -1138,3 +1138,69 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
   border-radius: 10px;
 }
 
+
+
+/* ── Print / PDF Export ──────────────────────────────────────────────────────
+   Applied when the user clicks "Print" (window.print()).
+   The PDF download via html2canvas captures the DOM directly — these rules
+   only affect the browser print dialog. ─────────────────────────────────── */
+@media print {
+  /* Hide all chrome except the report */
+  body > *:not(.rc-page-enter),
+  .rc-sidebar,
+  .rc-topbar,
+  .rc-nav,
+  .deep-research-export-bar,
+  .rc-btn,
+  form,
+  .rc-card:not(.print-report-container) {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #111827;
+    font-size: 11pt;
+    line-height: 1.6;
+  }
+
+  .print-report-container {
+    display: block !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    color: #111827 !important;
+    font-family: "Merriweather", "Georgia", serif !important;
+    font-size: 11pt !important;
+  }
+
+  /* Force page breaks before each section */
+  .print-report-container h3 {
+    page-break-before: auto;
+    page-break-after: avoid;
+  }
+
+  /* Avoid breaking inside reference items */
+  .print-report-container > div > div {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure links print as text + URL */
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #6b7280;
+  }
+
+  /* But suppress link expansion for internal hash links */
+  a[href^="#"]::after {
+    content: "";
+  }
+
+  @page {
+    margin: 20mm 18mm;
+    size: A4 portrait;
+  }
+}
