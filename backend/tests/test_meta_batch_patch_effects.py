@@ -90,7 +90,9 @@ class FakeSession:
         sql = str(stmt)
         if "FROM project_memberships" in sql:
             return FakeResult([])
-        raise AssertionError("execute() should not be called")
+        if "FROM extracted_effect_sizes" in sql:
+            return FakeResult(list(self._effects.values()))
+        raise AssertionError(f"execute() should not be called with stmt: {sql}")
 
 
 @pytest.mark.asyncio
