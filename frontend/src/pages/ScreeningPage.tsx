@@ -20,7 +20,7 @@ function PrismaFlowDiagram({ counts }: { counts: Record<string, number> }) {
     const included = counts.included ?? 0;
     const excluded = identified - screened;
     const notEligible = screened - eligible;
-    const excluded_ft = eligible - included;
+    const excludedFullText = eligible - included;
 
     const diagram = `flowchart TD
     A["📚 Records identified<br/><b>${identified}</b>"] --> B["🔍 Records screened<br/><b>${screened}</b>"]
@@ -28,7 +28,7 @@ function PrismaFlowDiagram({ counts }: { counts: Record<string, number> }) {
     B --> C["📄 Full-text assessed<br/>for eligibility<br/><b>${eligible}</b>"]
     B --> B1["❌ Records excluded<br/><b>${notEligible < 0 ? 0 : notEligible}</b>"]
     C --> D["✅ Studies included<br/>in synthesis<br/><b>${included}</b>"]
-    C --> C1["❌ Full-text excluded<br/><b>${excluded_ft < 0 ? 0 : excluded_ft}</b>"]
+    C --> C1["❌ Full-text excluded<br/><b>${excludedFullText < 0 ? 0 : excludedFullText}</b>"]
     style D fill:#dcfce7,stroke:#16a34a,color:#166534
     style A fill:#dbeafe,stroke:#2563eb,color:#1e40af
     style B fill:#ede9fe,stroke:#7c3aed,color:#4c1d95

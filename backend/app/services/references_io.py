@@ -83,8 +83,13 @@ def _extract_bibtex_fields(block: str) -> dict[str, str]:
                 j += 1
             value = content[i:j]
             i = j
-        # Strip inner brace wrappers used for case protection, e.g. {The}
-        clean_value = re.sub(r"\{([^{}]*)\}", r"\1", value).strip()
+        # Strip inner brace wrappers used for case protection, e.g. {The} or {{The} Great}
+        # Apply repeatedly until no more single-level wrappers remain.
+        prev = None
+        clean_value = value.strip()
+        while prev != clean_value:
+            prev = clean_value
+            clean_value = re.sub(r"\{([^{}]*)\}", r"\1", clean_value)
         if field_name and clean_value:
             fields[field_name] = clean_value
     return fields

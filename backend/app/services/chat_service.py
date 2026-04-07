@@ -58,8 +58,11 @@ def _compose_grounded_answer(question: str, retrieved: list[dict], *, max_citati
                     snippets.append(snippet)
             if snippets:
                 answer = " ".join(snippets[:max_citations]).strip()
-                # Signal low confidence through the score
-                confidence = min(0.45, 0.10 + (0.07 * len(weak_hits)))
+                # Weak-hit confidence: base + small boost per hit, capped well below strong threshold.
+                _BASE_WEAK_CONFIDENCE = 0.10
+                _WEAK_HIT_BOOST = 0.07
+                _MAX_WEAK_CONFIDENCE = 0.45
+                confidence = min(_MAX_WEAK_CONFIDENCE, _BASE_WEAK_CONFIDENCE + (_WEAK_HIT_BOOST * len(weak_hits)))
                 return answer, confidence, "low_grounding"
         return (
             "No hay soporte documental suficiente para responder en modo evidence-based. Amplia la selección o procesa mejor el PDF.",

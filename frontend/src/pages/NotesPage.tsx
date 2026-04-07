@@ -22,6 +22,9 @@ type NoteDetail = {
   llm_model?: string | null;
 };
 
+/** Maximum length (chars) used when slugifying a note title into a filename (M15). */
+const MAX_NOTE_FILENAME_LENGTH = 40;
+
 function formatDate(value?: string | null) {
   if (!value) return 'Hora desconocida';
   const date = new Date(value);
@@ -196,7 +199,7 @@ export default function NotesPage() {
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
-                      a.download = `${selected.title.slice(0, 40).replace(/[^a-z0-9]+/gi, '-')}.md`;
+                      a.download = `${selected.title.slice(0, MAX_NOTE_FILENAME_LENGTH).replace(/[^a-z0-9]+/gi, '-')}.md`;
                       a.click();
                       URL.revokeObjectURL(url);
                     }}

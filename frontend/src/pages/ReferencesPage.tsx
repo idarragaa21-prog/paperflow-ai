@@ -41,7 +41,7 @@ function buildIEEE(r: ReferenceRow, index: number): string {
   const initials = r.authors.slice(0, 6).map(a => {
     const parts = a.trim().split(/\s+/);
     const last = parts[parts.length - 1] || a;
-    const inits = parts.slice(0, -1).map(p => `${p[0] || ''}.`).join(' ');
+    const inits = parts.slice(0, -1).map(p => (p.length > 0 ? `${p[0]}.` : '')).join(' ');
     return inits ? `${inits} ${last}` : last;
   }).join(', ');
   const authorsStr = r.authors.length > 6 ? `${initials} et al.` : initials || 'Unknown';
