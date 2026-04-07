@@ -106,23 +106,23 @@ export default function SignupPage() {
               </div>
             ) : null}
             <div>
-              <div className="rc-kicker">{t.auth.fullName}</div>
-              <input className="rc-input" type="text" value={fullName} onChange={e => setFullName(e.target.value)}
+              <label htmlFor="signup-fullname" className="rc-kicker" style={{ display: 'block' }}>{t.auth.fullName}</label>
+              <input id="signup-fullname" className="rc-input" type="text" value={fullName} onChange={e => setFullName(e.target.value)}
                 placeholder={t.auth.fullNamePlaceholder} autoComplete="name" style={{ fontSize: 14 }} />
             </div>
             <div>
-              <div className="rc-kicker">{t.auth.email}</div>
-              <input className="rc-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
+              <label htmlFor="signup-email" className="rc-kicker" style={{ display: 'block' }}>{t.auth.email}</label>
+              <input id="signup-email" className="rc-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
                 placeholder={t.auth.emailPlaceholder} autoComplete="email" autoFocus required style={{ fontSize: 14 }} />
             </div>
             <div>
-              <div className="rc-kicker">{t.auth.password}</div>
-              <input className="rc-input" type="password" value={password} onChange={e => setPassword(e.target.value)}
+              <label htmlFor="signup-password" className="rc-kicker" style={{ display: 'block' }}>{t.auth.password}</label>
+              <input id="signup-password" className="rc-input" type="password" value={password} onChange={e => setPassword(e.target.value)}
                 placeholder={t.auth.passwordPlaceholder} autoComplete="new-password" required style={{ fontSize: 14 }} />
             </div>
             <div>
-              <div className="rc-kicker">{t.auth.confirmPassword}</div>
-              <input className="rc-input" type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
+              <label htmlFor="signup-confirm-password" className="rc-kicker" style={{ display: 'block' }}>{t.auth.confirmPassword}</label>
+              <input id="signup-confirm-password" className="rc-input" type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
                 placeholder={t.auth.passwordPlaceholder} autoComplete="new-password" required style={{ fontSize: 14 }} />
             </div>
 

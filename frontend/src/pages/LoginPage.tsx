@@ -135,8 +135,8 @@ export default function LoginPage() {
             ) : null}
             
             <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-              <label style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Email address</label>
-              <input className="rc-input" type="email" value={email} onChange={e=>setEmail(e.target.value)}
+              <label htmlFor="login-email" style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Email address</label>
+              <input id="login-email" className="rc-input" type="email" value={email} onChange={e=>setEmail(e.target.value)}
                 placeholder="you@example.com" autoComplete="email" autoFocus required 
                 style={{ fontSize:15, padding: '14px 16px', borderRadius: 12, backgroundColor: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', transition: 'all 0.2s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}
               />
@@ -144,11 +144,11 @@ export default function LoginPage() {
             
             <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Password</label>
+                <label htmlFor="login-password" style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Password</label>
                 <Link to="/forgot-password" style={{ fontSize:13,color:'var(--rc-primary)', fontWeight:600 }}>Forgot password?</Link>
               </div>
               <div style={{ position:'relative' }}>
-                <input className="rc-input" type={showPw?'text':'password'} value={password}
+                <input id="login-password" className="rc-input" type={showPw?'text':'password'} value={password}
                   onChange={e=>setPassword(e.target.value)} placeholder="••••••••"
                   autoComplete="current-password" required 
                   style={{ fontSize:15, padding: '14px 16px', paddingRight:48, borderRadius: 12, backgroundColor: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', width: '100%', transition: 'all 0.2s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}
