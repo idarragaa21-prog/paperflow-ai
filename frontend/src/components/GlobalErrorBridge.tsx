@@ -16,8 +16,7 @@ export function GlobalErrorBridge() {
 
   useEffect(() => {
     if (notifications.length === 0) return;
-    const [n, ...rest] = notifications;
-    void rest; // consumed below
+    const [n] = notifications;
     toast.push({ kind: n.kind, title: n.title, message: n.message });
     removeNotification(n.id);
   }, [notifications, toast, removeNotification]);

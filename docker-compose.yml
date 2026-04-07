@@ -136,6 +136,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     healthcheck:
+      # Requires curl in the backend container image (included in the Dockerfile).
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health >/dev/null"]
       interval: 15s
       timeout: 5s

@@ -19,7 +19,7 @@ from app.core.logger import logger
 class _StructuredFormatter(logging.Formatter):
     """Emit stdlib log records in the same structured format as loguru."""
 
-    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+    def format(self, record: logging.LogRecord) -> str:
         level = record.levelname.ljust(8)
         name = record.name
         msg = super().format(record)
