@@ -739,8 +739,18 @@ async def patch_effects_batch(
     await _require_project_role(db, study.project_id, user, required_role="editor")
 
     updated = 0
+    # Optimize N+1 query: fetch all affected effects in one query
+    upd_ids = [upd.id for upd in payload.updates]
+    if upd_ids:
+        effs_q = await db.execute(
+            select(ExtractedEffectSize).where(ExtractedEffectSize.id.in_(upd_ids))
+        )
+        effs_dict = {e.id: e for e in effs_q.scalars().all()}
+    else:
+        effs_dict = {}
+
     for upd in payload.updates:
-        eff = await db.get(ExtractedEffectSize, upd.id)
+        eff = effs_dict.get(upd.id)
         if not eff or eff.extracted_study_id != study.id:
             raise HTTPException(status_code=404, detail=f"Effect not found: {upd.id}")
 
