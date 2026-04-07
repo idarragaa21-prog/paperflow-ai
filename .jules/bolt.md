@@ -1,0 +1,3 @@
+## 2025-04-06 - Pre-fetch identifiers for N+1 query loop prevention in imports
+**Learning:** During batch operations (like importing lists of parsed references), executing `SELECT` queries inside a loop to check for duplicates creates severe N+1 database performance bottlenecks.
+**Action:** Use an initial bulk query to fetch existing identifiers for the scope into memory using Python `set`s. Perform O(1) in-memory deduplication lookups during the loop, reducing database queries from N to 1. Ensure the sets are updated dynamically with newly inserted items to deduplicate within the batch itself.
