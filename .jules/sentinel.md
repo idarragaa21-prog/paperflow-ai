@@ -12,3 +12,7 @@
 **Vulnerability:** The `/login` endpoint was overwriting the password hash of any existing user with the password provided during the login attempt, effectively bypassing authentication for any account. It also created new accounts for non-existent users automatically.
 **Learning:** Development backdoors that bypass authentication (e.g., overwriting password hashes with user input or automatically creating users for easy login) must be rigorously removed or strictly isolated behind environment flags. Never overwrite an authentication secret during the login verification path.
 **Prevention:** Ensure strict separation between registration and login flows. Never modify a user's password during a login attempt. Review authentication logic for debugging or development artifacts before committing to production.
+## 2024-05-18 - Prevent brute force attacks on password reset
+**Vulnerability:** The password reset flow (both requesting a code and using the code to reset the password) lacked rate limiting. An attacker could request a 6-digit code and then execute a brute-force attack to guess the 1,000,000 possibilities within the 15-minute validity window.
+**Learning:** Even if tokens have a short lifespan, a small search space (like a 6-digit code) makes brute-forcing viable if the endpoint is not strictly rate-limited.
+**Prevention:** Apply rate limiting to all authentication-related endpoints, including both the generation and verification of reset tokens, to prevent automated guessing attacks.

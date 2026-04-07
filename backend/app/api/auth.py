@@ -344,10 +344,22 @@ async def register(
 
 @router.post("/forgot-password")
 async def forgot_password(
+    request: Request,
     payload: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     import secrets
+
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        auth_rate_limit.hit("forgot_pw_ip", client_ip, limit=5, window_seconds=3600)
+        auth_rate_limit.hit("forgot_pw_email", payload.email, limit=3, window_seconds=3600)
+    except auth_rate_limit.AuthRateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
 
     q = await db.execute(select(User).where(User.email == payload.email).limit(1))
     user = q.scalar_one_or_none()
@@ -372,9 +384,21 @@ async def forgot_password(
 
 @router.post("/reset-password")
 async def reset_password(
+    request: Request,
     payload: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        auth_rate_limit.hit("reset_pw_ip", client_ip, limit=10, window_seconds=900)
+        auth_rate_limit.hit("reset_pw_email", payload.email, limit=5, window_seconds=900)
+    except auth_rate_limit.AuthRateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
+
     stored_code = get_reset_code(payload.email)
     if not stored_code or stored_code != payload.code:
         raise HTTPException(status_code=400, detail="Invalid or expired reset code")
