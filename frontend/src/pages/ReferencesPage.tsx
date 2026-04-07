@@ -13,6 +13,54 @@ function buildAPA(r: ReferenceRow): string {
   return `${authorsStr} ${year}. ${title}. ${journal}.`.replace(/\.\./g, '.').trim();
 }
 
+/** M6 – Vancouver style: numbered, surname initials */
+function buildVancouver(r: ReferenceRow, index: number): string {
+  const authorsStr = r.authors.length > 0
+    ? r.authors.slice(0, 6).join(', ') + (r.authors.length > 6 ? ', et al' : '')
+    : 'Unknown';
+  const title = r.title || 'Untitled';
+  const journal = r.journal || '';
+  const year = r.publication_year || 'n.d.';
+  const doi = r.doi ? ` doi:${r.doi}` : '';
+  return `${index}. ${authorsStr}. ${title}. ${journal}. ${year};${doi}`.replace(/\.\s*\./g, '.').trim();
+}
+
+/** M6 – MLA style */
+function buildMLA(r: ReferenceRow): string {
+  const first = r.authors[0] || 'Unknown';
+  const rest = r.authors.slice(1).join(', ');
+  const authorsStr = rest ? `${first}, et al` : first;
+  const title = `"${r.title || 'Untitled'}"`;
+  const journal = r.journal ? `*${r.journal}*` : '';
+  const year = r.publication_year ? String(r.publication_year) : 'n.d.';
+  return `${authorsStr}. ${title} ${journal}, ${year}.`.replace(/\s{2,}/g, ' ').trim();
+}
+
+/** M6 – IEEE style */
+function buildIEEE(r: ReferenceRow, index: number): string {
+  const initials = r.authors.slice(0, 6).map(a => {
+    const parts = a.trim().split(/\s+/);
+    const last = parts[parts.length - 1] || a;
+    const inits = parts.slice(0, -1).map(p => (p.length > 0 ? `${p[0]}.` : '')).join(' ');
+    return inits ? `${inits} ${last}` : last;
+  }).join(', ');
+  const authorsStr = r.authors.length > 6 ? `${initials} et al.` : initials || 'Unknown';
+  const title = `"${r.title || 'Untitled'},"`;
+  const journal = r.journal ? `*${r.journal}*` : '';
+  const year = r.publication_year ? String(r.publication_year) : 'n.d.';
+  const doi = r.doi ? `, doi: ${r.doi}` : '';
+  return `[${index}] ${authorsStr}, ${title} ${journal}, ${year}${doi}.`.replace(/\s{2,}/g, ' ').trim();
+}
+
+/** M6 – Chicago author-date style */
+function buildChicago(r: ReferenceRow): string {
+  const authorsStr = r.authors.length > 0 ? r.authors.join(', ') : 'Unknown';
+  const year = r.publication_year ? String(r.publication_year) : 'n.d.';
+  const title = r.title || 'Untitled';
+  const journal = r.journal ? `*${r.journal}*` : '';
+  return `${authorsStr}. ${year}. "${title}." ${journal}.`.replace(/\s{2,}/g, ' ').trim();
+}
+
 function buildBibTeX(r: ReferenceRow): string {
   const key = r.citation_key || r.doi || r.pmid || r.id.split('-')[0];
   const authors = r.authors.length > 0 ? r.authors.join(' and ') : '';
@@ -46,6 +94,9 @@ export default function ReferencesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+
+  // M6: Active citation style selector
+  const [citationStyle, setCitationStyle] = useState<'apa' | 'vancouver' | 'mla' | 'ieee' | 'chicago'>('apa');
 
   // AI Summarization state
   const [summaries, setSummaries] = useState<Record<string, string>>({});
@@ -84,9 +135,19 @@ export default function ReferencesPage() {
     );
   }, [items, search]);
 
-  function copyAPA(r: ReferenceRow) {
-    navigator.clipboard.writeText(buildAPA(r));
-    toast.success('\u2713 Copied', 'APA citation copied to clipboard.');
+  function buildCitation(r: ReferenceRow, index: number): string {
+    switch (citationStyle) {
+      case 'vancouver': return buildVancouver(r, index + 1);
+      case 'mla': return buildMLA(r);
+      case 'ieee': return buildIEEE(r, index + 1);
+      case 'chicago': return buildChicago(r);
+      default: return buildAPA(r);
+    }
+  }
+
+  function copyCitation(r: ReferenceRow, index: number) {
+    navigator.clipboard.writeText(buildCitation(r, index));
+    toast.success('\u2713 Copied', `${citationStyle.toUpperCase()} citation copied to clipboard.`);
   }
 
   function downloadBib(r: ReferenceRow) {
@@ -186,6 +247,28 @@ export default function ReferencesPage() {
         <button className="rc-btn" onClick={syncFromLibrary}>Sync from Library</button>
         <button className="rc-btn rc-btn--primary" onClick={exportAllBibTeX}>Export all as BibTeX</button>
         <button className="rc-btn" onClick={() => exportServer('ris')}>Export RIS</button>
+      </div>
+
+      {/* M6: Citation style picker */}
+      <div className="rc-card" style={{ padding: '10px 14px' }}>
+        <div className="rc-kicker" style={{ marginBottom: 8 }}>Citation Style</div>
+        <div className="rc-row" style={{ gap: 6, flexWrap: 'wrap' }}>
+          {(['apa', 'vancouver', 'mla', 'ieee', 'chicago'] as const).map(style => (
+            <button
+              key={style}
+              className={`rc-btn${citationStyle === style ? ' rc-btn--primary' : ''}`}
+              style={{ padding: '5px 12px', fontSize: 12, fontWeight: 600 }}
+              onClick={() => setCitationStyle(style)}
+            >
+              {style.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        {citationStyle !== 'apa' && filtered.length > 0 && (
+          <div className="rc-help" style={{ marginTop: 8 }}>
+            Preview: <em>{buildCitation(filtered[0], 0)}</em>
+          </div>
+        )}
       </div>
 
       {error && <div className="rc-error">{error}</div>}
@@ -310,7 +393,9 @@ export default function ReferencesPage() {
                   </td>
                   <td style={{ padding: '8px 6px', verticalAlign: 'top' }}>
                     <div className="rc-row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                      <button className="rc-btn" style={{ padding: '6px 10px', fontSize: 11 }} onClick={() => copyAPA(r)}>Copy APA</button>
+                      <button className="rc-btn" style={{ padding: '6px 10px', fontSize: 11 }} onClick={() => copyCitation(r, filtered.indexOf(r))}>
+                        Copy {citationStyle.toUpperCase()}
+                      </button>
                       <button className="rc-btn" style={{ padding: '6px 10px', fontSize: 11 }} onClick={() => downloadBib(r)}>BibTeX</button>
                       <button 
                         className="rc-btn"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -7,6 +7,52 @@ import type { MembershipRole, ProjectMember } from '../types/api';
 type Batch = { id: string; title: string; stage: string; status: string };
 type Reason = { id: string; code: string; label: string };
 type Paper = { id: string; title: string };
+
+// M9: PRISMA diagram rendered via mermaid
+function PrismaFlowDiagram({ counts }: { counts: Record<string, number> }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || Object.keys(counts).length === 0) return;
+    const identified = counts.identified ?? counts.total ?? 0;
+    const screened = counts.screened ?? counts.title_abstract ?? 0;
+    const eligible = counts.eligible ?? counts.full_text ?? 0;
+    const included = counts.included ?? 0;
+    const excluded = identified - screened;
+    const notEligible = screened - eligible;
+    const excludedFullText = eligible - included;
+
+    const diagram = `flowchart TD
+    A["📚 Records identified<br/><b>${identified}</b>"] --> B["🔍 Records screened<br/><b>${screened}</b>"]
+    A --> A1["❌ Records excluded<br/>(deduplication)<br/><b>${excluded < 0 ? 0 : excluded}</b>"]
+    B --> C["📄 Full-text assessed<br/>for eligibility<br/><b>${eligible}</b>"]
+    B --> B1["❌ Records excluded<br/><b>${notEligible < 0 ? 0 : notEligible}</b>"]
+    C --> D["✅ Studies included<br/>in synthesis<br/><b>${included}</b>"]
+    C --> C1["❌ Full-text excluded<br/><b>${excludedFullText < 0 ? 0 : excludedFullText}</b>"]
+    style D fill:#dcfce7,stroke:#16a34a,color:#166534
+    style A fill:#dbeafe,stroke:#2563eb,color:#1e40af
+    style B fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+    style C fill:#fef3c7,stroke:#d97706,color:#92400e`;
+
+    import('mermaid').then(mod => {
+      const mermaid = mod.default;
+      mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+      const id = `prisma-${Date.now()}`;
+      mermaid.render(id, diagram).then(({ svg }) => {
+        if (containerRef.current) containerRef.current.innerHTML = svg;
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [counts]);
+
+  if (Object.keys(counts).length === 0) return null;
+
+  return (
+    <div>
+      <div className="rc-card-title" style={{ marginBottom: 12 }}>PRISMA Flow Diagram</div>
+      <div ref={containerRef} style={{ minHeight: 200, display: 'flex', justifyContent: 'center' }} />
+    </div>
+  );
+}
 
 export default function ScreeningPage() {
   const { projectId } = useParams();
@@ -273,6 +319,11 @@ export default function ScreeningPage() {
           {Object.entries(prisma).map(([key, value]) => (
             <div key={key} className="rc-help">{key}: {value}</div>
           ))}
+          {Object.keys(prisma).length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <PrismaFlowDiagram counts={prisma} />
+            </div>
+          )}
         </div>
       </div>
     </div>

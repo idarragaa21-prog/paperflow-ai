@@ -62,9 +62,19 @@ class Settings(BaseSettings):
     CLINICAL_LLM_PROVIDER: str = "claude"  # claude | openai
     PROJECT_DEFAULT_RUNTIME_MODE: str = "local_only"
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    # Task-specific model selection (M19).
+    # Use a general-purpose model for chat/synthesis and a separate one for writing
+    # so that the writing model can be swapped for a fine-tuned academic model without
+    # affecting chat quality.  All default to qwen2.5-coder:7b so existing setups
+    # continue to work; operators can override per task via env vars.
     PAPERFLOW_CHAT_MODEL: str = "qwen2.5-coder:7b"
     PAPERFLOW_EXTRACTION_MODEL: str = "qwen2.5-coder:7b"
     PAPERFLOW_WRITING_MODEL: str = "qwen2.5-coder:7b"
+    # Deep-research reports benefit from a model with longer context / better synthesis.
+    # Defaults to the same chat model; override to e.g. llama3:8b for better summaries.
+    PAPERFLOW_RESEARCH_MODEL: str = "qwen2.5-coder:7b"
+    # Summarisation model – ideally a model that produces clean structured markdown.
+    PAPERFLOW_SUMMARIZATION_MODEL: str = "qwen2.5-coder:7b"
     PAPERFLOW_EMBEDDING_MODEL: str = "nomic-embed-text:latest"
     QDRANT_URL: str = "http://127.0.0.1:6333"
     QDRANT_COLLECTION_PREFIX: str = "paperflow"

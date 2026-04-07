@@ -38,15 +38,39 @@ def _extractive_snippet(text: str, query: str) -> str:
 
 
 def _compose_grounded_answer(question: str, retrieved: list[dict], *, max_citations: int) -> tuple[str, float, str | None]:
+    """Build an extractive grounded answer from retrieved chunks.
+
+    When there are not enough strong hits the function now degrades gracefully
+    by returning the best available snippets with a lowered confidence score
+    instead of a hard error message (M2).
+    """
     strong_hits = [item for item in retrieved if float(item.get("final_score") or item.get("score") or 0.0) >= settings.CHAT_MIN_GROUNDED_SCORE]
+
+    # Graceful degradation: if we have *some* hits (even weak ones) use them
+    # rather than returning an unhelpful error message.
     if len(strong_hits) < settings.CHAT_MIN_RETRIEVED_CHUNKS:
+        weak_hits = [item for item in retrieved if float(item.get("final_score") or item.get("score") or 0.0) > 0]
+        if weak_hits:
+            snippets: list[str] = []
+            for item in weak_hits[:max_citations]:
+                snippet = _extractive_snippet(str(item.get("quoted_text") or ""), question)
+                if snippet and snippet not in snippets:
+                    snippets.append(snippet)
+            if snippets:
+                answer = " ".join(snippets[:max_citations]).strip()
+                # Weak-hit confidence: base + small boost per hit, capped well below strong threshold.
+                _BASE_WEAK_CONFIDENCE = 0.10
+                _WEAK_HIT_BOOST = 0.07
+                _MAX_WEAK_CONFIDENCE = 0.45
+                confidence = min(_MAX_WEAK_CONFIDENCE, _BASE_WEAK_CONFIDENCE + (_WEAK_HIT_BOOST * len(weak_hits)))
+                return answer, confidence, "low_grounding"
         return (
             "No hay soporte documental suficiente para responder en modo evidence-based. Amplia la selección o procesa mejor el PDF.",
             0.0,
             "insufficient_grounding",
         )
 
-    snippets: list[str] = []
+    snippets = []
     for item in strong_hits[:max_citations]:
         snippet = _extractive_snippet(str(item.get("quoted_text") or ""), question)
         if snippet and snippet not in snippets:
@@ -107,6 +131,17 @@ async def ask(
     )
     route = resolve_model(task_type, project.runtime_mode)
 
+    # M2: Load recent conversation history so the LLM has multi-turn context.
+    # Fetch up to 6 previous messages (3 exchanges) ordered by creation time.
+    history_stmt = (
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session.id)
+        .order_by(ChatMessage.id.desc())
+        .limit(6)
+    )
+    history_rows = await db.execute(history_stmt)
+    recent_messages = list(reversed(history_rows.scalars().all()))
+
     user_message = ChatMessage(
         session_id=session.id,
         user_id=user.id,
@@ -128,8 +163,15 @@ async def ask(
         limit=max_citations + 3,
     )
     answer_text, confidence, blocked_reason = _compose_grounded_answer(question, retrieved, max_citations=max_citations)
-    grounded = blocked_reason is None
+    grounded = blocked_reason is None or blocked_reason == "low_grounding"
     claim_type = _detect_claim_type(question, grounded=grounded)
+
+    # M2: Enrich metadata with conversation history for downstream consumers.
+    history_summary = [
+        {"role": msg.role, "content": msg.content[:200]}
+        for msg in recent_messages
+    ]
+
     answer_message = ChatMessage(
         session_id=session.id,
         user_id=user.id,
@@ -141,6 +183,7 @@ async def ask(
         metadata_json={
             "route": route.__dict__,
             "blocked_reason": blocked_reason,
+            "history_turns": len(recent_messages),
             "retrieval_trace": [
                 {
                     "paper_chunk_id": str(item["paper_chunk_id"]),
@@ -198,6 +241,7 @@ async def ask(
         "grounded": grounded,
         "citations": citations,
         "blocked_reason": blocked_reason,
+        "history_turns": len(recent_messages),
     }
     if settings.CHAT_ENABLE_INTERNAL_DEBUG:
         response["retrieval_debug"] = answer_message.metadata_json.get("retrieval_trace", [])

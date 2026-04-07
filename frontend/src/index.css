@@ -1226,3 +1226,49 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
 .rc-ai-search-btn {
   animation: rc-ai-btn-pulse 2s ease-in-out infinite;
 }
+
+/* ── Markdown body (M5, M15) ─────────────────────────────────────────────── */
+.rc-markdown-body { color: var(--rc-text); }
+.rc-markdown-body h1, .rc-markdown-body h2, .rc-markdown-body h3 {
+  font-family: var(--font-display);
+  margin-top: 1.4em;
+  margin-bottom: 0.4em;
+}
+.rc-markdown-body h1 { font-size: 1.5em; }
+.rc-markdown-body h2 { font-size: 1.25em; }
+.rc-markdown-body h3 { font-size: 1.1em; }
+.rc-markdown-body p { margin: 0.6em 0; line-height: 1.75; }
+.rc-markdown-body ul, .rc-markdown-body ol { padding-left: 1.5em; margin: 0.5em 0; }
+.rc-markdown-body li { margin-bottom: 0.25em; }
+.rc-markdown-body code {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.87em;
+  background: rgba(99,102,241,0.08);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.rc-markdown-body pre {
+  background: var(--rc-surface-2);
+  border: 1px solid var(--rc-border);
+  border-radius: var(--rc-r-md);
+  padding: 14px 18px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.rc-markdown-body pre code { background: none; padding: 0; }
+.rc-markdown-body blockquote {
+  border-left: 3px solid var(--rc-primary);
+  padding-left: 1em;
+  margin-left: 0;
+  color: var(--rc-muted);
+  font-style: italic;
+}
+.rc-markdown-body table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.rc-markdown-body th, .rc-markdown-body td {
+  border: 1px solid var(--rc-border);
+  padding: 6px 10px;
+  text-align: left;
+}
+.rc-markdown-body th { background: var(--rc-surface-2); font-weight: 700; }
+.rc-markdown-body a { color: var(--rc-primary); }

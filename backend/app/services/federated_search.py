@@ -287,6 +287,64 @@ async def _search_doaj(query: str, max_results: int) -> list[dict[str, Any]]:
     return results
 
 
+async def _search_semantic_scholar(query: str, max_results: int) -> list[dict[str, Any]]:
+    """Search Semantic Scholar Academic Graph API (no key required for basic use, M4)."""
+    url = "https://api.semanticscholar.org/graph/v1/paper/search"
+    fields = "paperId,title,abstract,authors,year,journal,externalIds,openAccessPdf,isOpenAccess"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(
+                url,
+                params={"query": query, "limit": min(max_results, 100), "fields": fields},
+                headers={"User-Agent": "PaperFlowAI/1.0 (academic research tool)"},
+            )
+            response.raise_for_status()
+    except Exception as exc:
+        logger.warning(f"Semantic Scholar search failed: {exc}")
+        return []
+
+    data = response.json() or {}
+    hits = data.get("data") or []
+    results: list[dict[str, Any]] = []
+    for item in hits:
+        external_ids = item.get("externalIds") or {}
+        doi = external_ids.get("DOI") or None
+        pmid = str(external_ids.get("PubMed") or "").strip() or None
+        authors = [
+            str((a or {}).get("name") or "").strip()
+            for a in (item.get("authors") or [])
+            if str((a or {}).get("name") or "").strip()
+        ]
+        oa_pdf = (item.get("openAccessPdf") or {}).get("url") or None
+        journal_info = item.get("journal") or {}
+        journal = str(journal_info.get("name") or "").strip() or None
+        year = item.get("year") or None
+        if year is not None:
+            try:
+                year = int(year)
+            except (ValueError, TypeError):
+                year = None
+        results.append(
+            enrich_search_result(
+                {
+                    "pmid": pmid,
+                    "pmcid": None,
+                    "doi": doi,
+                    "title": str(item.get("title") or "").strip() or "Untitled paper",
+                    "authors": authors,
+                    "journal": journal,
+                    "pub_year": year,
+                    "abstract": str(item.get("abstract") or "").strip() or None,
+                    "source": "semantic_scholar",
+                    "language": None,
+                    "is_open_access": bool(item.get("isOpenAccess")),
+                    "oa_url": oa_pdf,
+                }
+            )
+        )
+    return results
+
+
 def _relevance_score(item: dict[str, Any], query: str) -> float:
     score = 0.0
     query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
@@ -330,11 +388,13 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
 
     europe_results: list[dict[str, Any]] = []
     doaj_results: list[dict[str, Any]] = []
-    provider_status: dict[str, str] = {"pubmed": "ok", "europepmc": "ok", "doaj": "ok"}
+    semantic_results: list[dict[str, Any]] = []
+    provider_status: dict[str, str] = {"pubmed": "ok", "europepmc": "ok", "doaj": "ok", "semantic_scholar": "ok"}
     warnings: list[str] = []
     results_or_errors = await asyncio.gather(
         _search_europe_pmc(query, max_results=max_results, filters=filters),
         _search_doaj(query, max_results=max_results),
+        _search_semantic_scholar(query, max_results=max_results),
         return_exceptions=True,
     )
     if isinstance(results_or_errors[0], Exception):
@@ -352,9 +412,15 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
         if filters and (filters.year_from or filters.year_to):
             provider_status["doaj"] = "filtered_server_side"
             warnings.append("DOAJ se filtro por ano en el servidor")
+    if isinstance(results_or_errors[2], Exception):
+        logger.warning(f"Federated search Semantic Scholar failure: {results_or_errors[2]}")
+        provider_status["semantic_scholar"] = "error"
+        warnings.append("Semantic Scholar no respondió")
+    else:
+        semantic_results = results_or_errors[2]
 
     deduped: OrderedDict[str, list[dict[str, Any]]] = OrderedDict()
-    for item in [*pubmed_results, *europe_results, *doaj_results]:
+    for item in [*pubmed_results, *europe_results, *doaj_results, *semantic_results]:
         if not _passes_filters(item, filters):
             continue
         if _should_drop_yearless_result(item, filters):
@@ -376,7 +442,7 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
         "results": results,
         "query_translation": pubmed.get("query_translation"),
         "cached": False,
-        "sources": ["pubmed", "europepmc", "doaj"],
+        "sources": ["pubmed", "europepmc", "doaj", "semantic_scholar"],
         "partial_success": any(status != "ok" for status in provider_status.values()),
         "provider_status": provider_status,
         "warnings": warnings,

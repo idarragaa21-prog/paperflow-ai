@@ -122,8 +122,8 @@ const highlights: Highlight[] = [
     value: { en: '200M+', es: '200M+', pt: '200M+' },
   },
   {
-    label: { en: 'Endpoints in platform', es: 'Endpoints en plataforma', pt: 'Endpoints na plataforma' },
-    value: { en: '105+', es: '105+', pt: '105+' },
+    label: { en: 'Search sources', es: 'Fuentes de búsqueda', pt: 'Fontes de busca' },
+    value: { en: '4', es: '4', pt: '4' },
   },
   {
     label: { en: 'Data exported to cloud', es: 'Datos exportados a nube', pt: 'Dados exportados para nuvem' },
@@ -140,9 +140,9 @@ const features: Feature[] = [
     kicker: { en: '01. Discovery', es: '01. Descubrimiento', pt: '01. Descoberta' },
     title: { en: 'Search and shortlist evidence quickly', es: 'Busca y prioriza evidencia rápido', pt: 'Busque e priorize evidência rápido' },
     body: {
-      en: 'Federated search across PubMed and partners with relevance signals, OA traceability and project-scoped save actions.',
-      es: 'Búsqueda federada en PubMed y socios con señales de relevancia, trazabilidad OA y guardado por proyecto.',
-      pt: 'Busca federada em PubMed e parceiros com sinais de relevância, rastreabilidade OA e salvamento por projeto.',
+      en: 'Federated search across PubMed, Europe PMC, DOAJ and Semantic Scholar with relevance signals, OA traceability and project-scoped save actions.',
+      es: 'Búsqueda federada en PubMed, Europe PMC, DOAJ y Semantic Scholar con señales de relevancia, trazabilidad OA y guardado por proyecto.',
+      pt: 'Busca federada em PubMed, Europe PMC, DOAJ e Semantic Scholar com sinais de relevância, rastreabilidade OA e salvamento por projeto.',
     },
     points: {
       en: ['Query refinement in-context', 'Batch download traceability', 'Project-aware deduplication'],
@@ -452,6 +452,111 @@ export default function LandingPage() {
                   <span>{entry.role[locale]}</span>
                 </div>
               </article>
+            ))}
+          </div>
+        </section>
+
+        {/* M11: Pricing / tiers comparison (open-source, transparent) */}
+        <section id="pricing" style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto' }}>
+          <div className="landing-section-head">
+            <h2>{locale === 'es' ? 'Modelo de acceso' : locale === 'pt' ? 'Modelo de acesso' : 'Access model'}</h2>
+            <p>
+              {locale === 'es'
+                ? 'PaperFlow AI es open-source. Elige entre auto-hospedaje gratuito o una instancia gestionada.'
+                : locale === 'pt'
+                  ? 'PaperFlow AI é open-source. Escolha entre auto-hospedagem gratuita ou instância gerenciada.'
+                  : 'PaperFlow AI is open-source. Choose between free self-hosting or a managed cloud instance.'}
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginTop: 32 }}>
+            {[
+              {
+                name: { en: 'Self-hosted', es: 'Auto-hospedado', pt: 'Auto-hospedado' },
+                price: { en: 'Free', es: 'Gratis', pt: 'Grátis' },
+                badge: { en: 'Open Source', es: 'Open Source', pt: 'Open Source' },
+                features: {
+                  en: ['Full source code on GitHub', 'Local-first / privacy-first', 'Ollama LLM integration', 'All modules included', 'Community support'],
+                  es: ['Código fuente completo en GitHub', 'Local-first / privacy-first', 'Integración con Ollama', 'Todos los módulos incluidos', 'Soporte comunitario'],
+                  pt: ['Código completo no GitHub', 'Local-first / privacy-first', 'Integração com Ollama', 'Todos os módulos incluídos', 'Suporte da comunidade'],
+                },
+                cta: { en: 'Clone on GitHub', es: 'Clonar en GitHub', pt: 'Clonar no GitHub' },
+                href: 'https://github.com/idarragaa21-prog/paperflow-ai',
+                primary: false,
+              },
+              {
+                name: { en: 'Cloud', es: 'Nube', pt: 'Nuvem' },
+                price: { en: 'Coming soon', es: 'Próximamente', pt: 'Em breve' },
+                badge: { en: 'Managed', es: 'Gestionado', pt: 'Gerenciado' },
+                features: {
+                  en: ['Hosted on private infrastructure', 'Automatic updates', 'HTTPS + SSO ready', 'Priority support', 'Custom models / fine-tuning'],
+                  es: ['Hospedado en infraestructura privada', 'Actualizaciones automáticas', 'HTTPS + SSO listo', 'Soporte prioritario', 'Modelos personalizados / fine-tuning'],
+                  pt: ['Hospedado em infraestrutura privada', 'Atualizações automáticas', 'HTTPS + SSO pronto', 'Suporte prioritário', 'Modelos personalizados / fine-tuning'],
+                },
+                cta: { en: 'Get notified', es: 'Recibir aviso', pt: 'Receber aviso' },
+                href: '/signup',
+                primary: true,
+              },
+            ].map(tier => (
+              <div
+                key={tier.name.en}
+                style={{
+                  background: tier.primary ? 'linear-gradient(145deg, rgba(79,70,229,0.06), rgba(139,92,246,0.04))' : 'var(--rc-surface)',
+                  border: tier.primary ? '2px solid rgba(79,70,229,0.35)' : '1px solid var(--rc-border)',
+                  borderRadius: 16,
+                  padding: '28px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16,
+                  position: 'relative' as const,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--rc-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                      {tier.name[locale]}
+                    </div>
+                    <div style={{ fontSize: 32, fontWeight: 900, fontFamily: 'var(--font-display)', marginTop: 4 }}>
+                      {tier.price[locale]}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 99,
+                    background: tier.primary ? 'rgba(79,70,229,0.12)' : 'rgba(16,185,129,0.1)',
+                    color: tier.primary ? '#4f46e5' : '#059669',
+                  }}>
+                    {tier.badge[locale]}
+                  </span>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {tier.features[locale].map((f: string) => (
+                    <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+                      <span style={{ color: '#22c55e', flexShrink: 0 }}>✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={tier.href}
+                  style={{
+                    display: 'block',
+                    textAlign: 'center' as const,
+                    padding: '10px 0',
+                    borderRadius: 10,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    background: tier.primary ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' : 'transparent',
+                    color: tier.primary ? '#fff' : 'var(--rc-primary)',
+                    border: tier.primary ? 'none' : '1px solid var(--rc-primary)',
+                    textDecoration: 'none',
+                    marginTop: 'auto' as const,
+                  }}
+                >
+                  {tier.cta[locale]}
+                </a>
+              </div>
             ))}
           </div>
         </section>

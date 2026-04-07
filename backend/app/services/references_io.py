@@ -14,6 +14,87 @@ def _split_authors(raw: str | None) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
+def _extract_bibtex_fields(block: str) -> dict[str, str]:
+    """Extract BibTeX fields from a single entry block.
+
+    The simple regex approach fails for fields with nested braces (e.g.
+    ``title = {{The} Great Study}``).  This parser walks the block character by
+    character so it handles arbitrary nesting correctly (M14).
+    """
+    fields: dict[str, str] = {}
+    # Skip the header line (@type{key,)
+    start = block.find(",", block.find("{"))
+    if start == -1:
+        return fields
+    content = block[start + 1:]
+
+    i = 0
+    n = len(content)
+    while i < n:
+        # Skip whitespace / commas between fields
+        while i < n and content[i] in " \t\r\n,":
+            i += 1
+        if i >= n:
+            break
+        # Read field name
+        name_start = i
+        while i < n and content[i] not in "= \t\r\n":
+            i += 1
+        field_name = content[name_start:i].strip().lower()
+        if not field_name:
+            break
+        # Skip whitespace and '='
+        while i < n and content[i] in " \t\r\n":
+            i += 1
+        if i >= n or content[i] != "=":
+            break
+        i += 1  # consume '='
+        while i < n and content[i] in " \t\r\n":
+            i += 1
+        if i >= n:
+            break
+        # Read value: can be {…}, "…", or bare number
+        value = ""
+        if content[i] == "{":
+            depth = 0
+            j = i
+            while j < n:
+                if content[j] == "{":
+                    depth += 1
+                elif content[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        value = content[i + 1:j]
+                        i = j + 1
+                        break
+                j += 1
+            else:
+                i = n
+        elif content[i] == '"':
+            j = i + 1
+            while j < n and content[j] != '"':
+                j += 1
+            value = content[i + 1:j]
+            i = j + 1
+        else:
+            # bare number or token (no braces/quotes)
+            j = i
+            while j < n and content[j] not in " \t\r\n,}":
+                j += 1
+            value = content[i:j]
+            i = j
+        # Strip inner brace wrappers used for case protection, e.g. {The} or {{The} Great}
+        # Apply repeatedly until no more single-level wrappers remain.
+        prev = None
+        clean_value = value.strip()
+        while prev != clean_value:
+            prev = clean_value
+            clean_value = re.sub(r"\{([^{}]*)\}", r"\1", clean_value)
+        if field_name and clean_value:
+            fields[field_name] = clean_value
+    return fields
+
+
 def parse_bibtex_entries(content: str) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for block in re.split(r"(?=@\w+\{)", content):
@@ -25,7 +106,7 @@ def parse_bibtex_entries(content: str) -> list[dict[str, Any]]:
             continue
         entry_type = header_match.group(1).strip().lower()
         citation_key = header_match.group(2).strip()
-        fields = dict(re.findall(r"(\w+)\s*=\s*[{\"]([^\"{}]+)[}\"]", block, re.IGNORECASE))
+        fields = _extract_bibtex_fields(block)
         title = fields.get("title", "").strip()
         if not title:
             continue
