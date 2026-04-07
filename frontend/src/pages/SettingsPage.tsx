@@ -421,6 +421,7 @@ export default function SettingsPage() {
               <div className="rc-muted">No service data. Click Refresh to check.</div>
             ) : null}
             {services.length > 0 ? (
+              <div style={{ overflowX: 'auto' }}>
               <table className="rc-table">
                 <thead>
                   <tr>
@@ -448,6 +449,7 @@ export default function SettingsPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : null}
           </div>
 
@@ -533,6 +535,7 @@ export default function SettingsPage() {
                   {billingSummary.models.length === 0 ? (
                     <div className="rc-muted">No model usage captured yet.</div>
                   ) : (
+                    <div style={{ overflowX: 'auto' }}>
                     <table className="rc-table">
                       <thead>
                         <tr>
@@ -555,6 +558,7 @@ export default function SettingsPage() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   )}
                 </div>
 

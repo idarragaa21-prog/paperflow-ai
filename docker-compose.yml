@@ -135,6 +135,13 @@ services:
       STORAGE_BACKEND: s3
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      # Requires curl in the backend container image (included in the Dockerfile).
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   worker:
     build:
@@ -143,7 +150,7 @@ services:
     profiles: ["full"]
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     env_file:
       - ./backend/.env
     environment:
@@ -158,6 +165,12 @@ services:
       S3_BUCKET: paperflow-artifacts
       STORAGE_BACKEND: s3
     command: ["python", "-m", "app.workers.worker"]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import redis, os; r=redis.from_url(os.environ['REDIS_URL']); r.ping()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
 
 volumes:
   paperflow_pgdata:
