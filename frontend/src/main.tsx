@@ -7,6 +7,7 @@ import { ToastProvider } from './ui/Toast/ToastProvider'
 import { ConfirmProvider } from './ui/Dialog/useConfirm'
 import { I18nProvider } from './i18n'
 import { ThemeProvider } from './components/ThemeProvider'
+import { GlobalErrorBridge } from './components/GlobalErrorBridge'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <I18nProvider>
           <ToastProvider>
+            <GlobalErrorBridge />
             <ConfirmProvider>
               <App />
             </ConfirmProvider>

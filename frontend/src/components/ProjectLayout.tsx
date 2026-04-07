@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { useJobPolling } from '../hooks/useJobPolling';
 import { Breadcrumb } from './Breadcrumb';
 import { useToast } from '../ui/Toast/ToastProvider';
+import { useProjectStore } from '../store/projectStore';
 import {
   getProjectNextAction,
   getWorkflowStages,
@@ -54,6 +55,7 @@ export default function ProjectLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
+  const setActiveProjectId = useProjectStore((s) => s.setActiveProjectId);
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -61,6 +63,11 @@ export default function ProjectLayout() {
   const counts = dashboard?.counts;
   const stage = currentStage(location.pathname);
   const stageInfo = getWorkflowStages(projectId || '', counts, stage).find((item) => item.key === stage);
+
+  useEffect(() => {
+    setActiveProjectId(projectId ?? null);
+    return () => setActiveProjectId(null);
+  }, [projectId, setActiveProjectId]);
 
   const exportJob = useJobPolling(exportJobId, {
     onCompleted: () => toast.success('Export ready', 'ZIP is ready to download.'),

@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { getCookie } from './cookies';
+import { useUiStore } from '../store/uiStore';
 
 const PRODUCTION_API_SENTINEL = '__REQUIRE_EXPLICIT_API_BASE_URL__';
 
@@ -98,6 +99,17 @@ api.interceptors.response.use(
         // refresh failed -> propagate original 401
         return Promise.reject(error);
       }
+    }
+
+    // Global error notifications for non-auth, non-retry errors
+    const { pushNotification } = useUiStore.getState();
+    if (status === 403) {
+      pushNotification({ kind: 'error', title: 'Access denied', message: 'You do not have permission to perform this action.' });
+    } else if (status === 429) {
+      pushNotification({ kind: 'error', title: 'Rate limit reached', message: 'Too many requests. Please wait a moment and try again.' });
+    } else if (status != null && status >= 500) {
+      const detail = (error.response?.data as { detail?: string } | undefined)?.detail;
+      pushNotification({ kind: 'error', title: 'Server error', message: detail || 'An unexpected server error occurred.' });
     }
 
     return Promise.reject(error);

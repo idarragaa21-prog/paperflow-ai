@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { useConfirm } from '../ui/Dialog/useConfirm';
 import { Skeleton, SkeletonLines } from '../ui/Skeleton/Skeleton';
+import { usePapersStore } from '../store/papersStore';
 import type { PaperDetailResponse, PaperDownloadTrace, PaperRow } from '../types/api';
 import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
 
@@ -92,9 +93,27 @@ export default function PapersPage() {
   const confirm = useConfirm();
   const qc = useQueryClient();
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const searchQuery = usePapersStore((s) => s.searchQuery);
+  const setSearchQuery = usePapersStore((s) => s.setSearchQuery);
+  const statusFilter = usePapersStore((s) => s.statusFilter);
+  const setStatusFilter = usePapersStore((s) => s.setStatusFilter);
+  const selectedIds = usePapersStore((s) => s.selectedIds);
+  const toggleSelected = usePapersStore((s) => s.toggleSelected);
+  const selectAll = usePapersStore((s) => s.selectAll);
+  const clearSelection = usePapersStore((s) => s.clearSelection);
+  const isSelected = usePapersStore((s) => s.isSelected);
+
+  // Reset filter/selection when the project changes
+  useEffect(() => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    clearSelection();
+  }, [projectId, setSearchQuery, setStatusFilter, clearSelection]);
+
+  const search = searchQuery;
+  const setSearch = setSearchQuery;
+  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
+
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadTab, setUploadTab] = useState<'upload' | 'doi'>('upload');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -215,19 +234,17 @@ export default function PapersPage() {
     });
   }, [papers, search, statusFilter]);
 
-  const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
-  function toggleAll() { setSelected(allSelected ? new Set() : new Set(filtered.map(p => p.id))); }
+  const allSelected = filtered.length > 0 && filtered.every(p => isSelected(p.id));
+  function toggleAll() {
+    if (allSelected) {
+      clearSelection();
+    } else {
+      selectAll(filtered.map(p => p.id));
+    }
+  }
   const toggleOne = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
+    toggleSelected(id);
+  }, [toggleSelected]);
 
   const downloadFile = useCallback(async (p: PaperRow) => {
     try {
