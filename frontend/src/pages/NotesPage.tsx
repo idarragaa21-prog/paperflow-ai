@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type NoteListRow = {
   id: string;
@@ -184,10 +186,41 @@ export default function NotesPage() {
                     {selected.paper_id ? ` · paper ${selected.paper_id}` : ''}
                   </div>
                 </div>
-                <span className="rc-badge rc-badge--info">Nota abierta</span>
+                <div className="rc-row" style={{ gap: 8 }}>
+                  {/* M15: Export note as plain text */}
+                  <button
+                    className="rc-btn rc-btn--sm rc-btn--ghost"
+                    title="Export note as .md"
+                    onClick={() => {
+                      const blob = new Blob([selected.content], { type: 'text/markdown;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${selected.title.slice(0, 40).replace(/[^a-z0-9]+/gi, '-')}.md`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    ↓ Export .md
+                  </button>
+                  <span className="rc-badge rc-badge--info">Nota abierta</span>
+                </div>
               </div>
 
-              <pre className="rc-code-block">{selected.content}</pre>
+              {/* M15: Render Markdown instead of raw <pre> */}
+              <div
+                className="rc-markdown-body"
+                style={{
+                  fontSize: 15,
+                  lineHeight: 1.75,
+                  color: 'var(--rc-text)',
+                  overflowWrap: 'break-word',
+                }}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {selected.content}
+                </ReactMarkdown>
+              </div>
             </div>
           ) : (
             <div className="rc-empty-state">

@@ -5,6 +5,8 @@ import { api } from '../services/api';
 import { useToast } from '../ui/Toast/ToastProvider';
 import { EmptyState } from '../components/EmptyState';
 import { InsightCard, PageHero } from '../components/WorkflowPrimitives';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type EvidenceTable = {
   id: string;
@@ -42,6 +44,8 @@ export default function DraftsPage() {
   // Inline editing state
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  // M5: Markdown preview toggle in editor
+  const [previewMode, setPreviewMode] = useState(false);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -315,32 +319,60 @@ ${sections}
 
                   {editingSection === section.id ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <textarea
-                        className="rc-editor-textarea"
-                        value={editContent}
-                        onChange={e => setEditContent(e.target.value)}
-                        placeholder="Start writing..."
-                        autoFocus
-                      />
+                      {/* M5: Toolbar with markdown preview toggle */}
+                      <div className="rc-row" style={{ gap: 8, borderBottom: '1px solid var(--rc-border)', paddingBottom: 10, marginBottom: 4 }}>
+                        <button
+                          className={`rc-btn rc-btn--sm${!previewMode ? ' rc-btn--primary' : ''}`}
+                          onClick={() => setPreviewMode(false)}
+                          type="button"
+                        >✏️ Edit</button>
+                        <button
+                          className={`rc-btn rc-btn--sm${previewMode ? ' rc-btn--primary' : ''}`}
+                          onClick={() => setPreviewMode(true)}
+                          type="button"
+                        >👁️ Preview</button>
+                        <span className="rc-help" style={{ marginLeft: 8, fontSize: 11, alignSelf: 'center' }}>Markdown supported</span>
+                      </div>
+                      {previewMode ? (
+                        <div
+                          className="rc-markdown-body"
+                          style={{ minHeight: 200, fontSize: 17, lineHeight: 1.8, fontFamily: 'Georgia, serif', color: 'var(--rc-text)', padding: '8px 0' }}
+                        >
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{editContent || '*Empty section*'}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <textarea
+                          className="rc-editor-textarea"
+                          value={editContent}
+                          onChange={e => setEditContent(e.target.value)}
+                          placeholder="Start writing... (Markdown supported)"
+                          autoFocus
+                        />
+                      )}
                       <div className="rc-row" style={{ gap: 8, marginTop: 12 }}>
                         <button className="rc-btn rc-btn--primary rc-btn--sm" onClick={() => saveEdit(draft.id, section.id)}>Save Changes</button>
-                        <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={() => setEditingSection(null)}>Cancel</button>
+                        <button className="rc-btn rc-btn--ghost rc-btn--sm" onClick={() => { setEditingSection(null); setPreviewMode(false); }}>Cancel</button>
                       </div>
                     </div>
                   ) : (
                     <div
-                      style={{ 
-                        whiteSpace: 'pre-wrap', 
-                        cursor: 'text', 
-                        fontSize: 17, 
-                        lineHeight: 1.8, 
+                      style={{
+                        cursor: 'text',
+                        fontSize: 17,
+                        lineHeight: 1.8,
                         fontFamily: 'Georgia, serif',
-                        color: 'var(--rc-text)'
+                        color: 'var(--rc-text)',
                       }}
                       onClick={() => startEdit(section)}
                       title="Click to edit section"
                     >
-                      {section.content || <span className="rc-muted" style={{ fontStyle: 'italic' }}>Empty section. Click to start typing.</span>}
+                      {section.content ? (
+                        <div className="rc-markdown-body">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <span className="rc-muted" style={{ fontStyle: 'italic' }}>Empty section. Click to start typing.</span>
+                      )}
                     </div>
                   )}
 

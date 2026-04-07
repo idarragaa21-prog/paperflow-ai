@@ -95,10 +95,22 @@ async def generate_summary_async(
         r = {"model": None, "usage": {"input_tokens": 0, "output_tokens": 0, "cost_usd": None, "latency_ms": 0}}
     else:
         llm = llm_provider()
+
+        # M13: Structured summary – use a dedicated summarization model when configured.
+        # Fall back to `llm.summarize_paper()` for all providers; inject a more
+        # structured prompt via `custom_instructions` when none was supplied by the
+        # caller so every summary always contains the five key academic sections.
+        structured_sections_instruction = (
+            "Structure the summary with exactly these sections (use ## headers):\n"
+            "## Objetivo\n## Métodos\n## Resultados\n## Limitaciones\n## Conclusión\n"
+            "Be concise and evidence-based. Do NOT invent numbers or data not in the text."
+        )
+        effective_instructions = custom_instructions or structured_sections_instruction
+
         r = await llm.summarize_paper(
             full_text=full_text,
             title=paper.title,
-            custom_instructions=custom_instructions,
+            custom_instructions=effective_instructions,
         )
 
         summary_text = (r.get("summary") or "").strip()

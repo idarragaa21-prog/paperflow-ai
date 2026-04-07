@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import Any
+import asyncio
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -135,8 +136,12 @@ async def load_papers_from_project(project_id: str, db: AsyncSession) -> list[di
 
 # ── Context builder ───────────────────────────────────────────────────────────
 
-def build_papers_context(papers: list[dict], max_papers: int = 12) -> str:
-    """Build LLM-ready context from paper abstracts / full text."""
+def build_papers_context(papers: list[dict], max_papers: int = 30) -> str:
+    """Build LLM-ready context from paper abstracts / full text.
+
+    Limit raised from 12 → 30 (M3) so deep-research reports are based on more
+    evidence.  Each paper is still capped at 8000 chars of body text.
+    """
     parts = []
     for i, p in enumerate(papers[:max_papers], 1):
         authors_short = (p.get("authors") or "Unknown")
@@ -161,7 +166,12 @@ def build_papers_context(papers: list[dict], max_papers: int = 12) -> str:
 # ── LLM section generator ─────────────────────────────────────────────────────
 
 async def _generate_section(section_prompt: str, papers_context: str, query: str) -> str:
-    """Generate one report section via the configured LLM provider."""
+    """Generate one report section via the configured LLM provider.
+
+    Uses ``settings.PAPERFLOW_RESEARCH_MODEL`` when available so operators can
+    point this task at a model with better long-context / synthesis capabilities
+    without affecting the chat or extraction pipelines (M19).
+    """
     from app.services.llm.factory import llm_provider
 
     system = (
@@ -176,15 +186,16 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
         "Be specific and evidence-based. Do NOT invent data not present in the papers."
     )
 
+    # Resolve the research model (M19): prefer PAPERFLOW_RESEARCH_MODEL, fall back
+    # to the general chat model.
+    research_model = getattr(settings, "PAPERFLOW_RESEARCH_MODEL", None) or settings.PAPERFLOW_CHAT_MODEL
+
     try:
         provider = llm_provider()
-        # All providers have summarize_paper but not a generic chat.
-        # Use the OpenClaw provider's chat() if available, else fall back to a
-        # summary-like call by reusing the paper summarization system.
         if hasattr(provider, "chat"):
             try:
                 r = await provider.chat(  # type: ignore[attr-defined]
-                    model="default",
+                    model=research_model,
                     system=system,
                     user=user,
                     temperature=0.3,
@@ -195,7 +206,7 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
                 logger.warning(f"Deep Research primary chat provider failed, falling back to Ollama: {primary_exc}")
                 from app.services.llm.provider_adapters import OllamaAdapter, LLMCompletionRequest
 
-                fallback = OllamaAdapter(settings.PAPERFLOW_CHAT_MODEL, base_url=settings.OLLAMA_BASE_URL)
+                fallback = OllamaAdapter(research_model, base_url=settings.OLLAMA_BASE_URL)
                 request = LLMCompletionRequest(
                     prompt=user,
                     system=system,
@@ -206,7 +217,6 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
                 response = await fallback.complete(request)
                 return response.text.strip()
         else:
-            # Fallback: describe the inability gracefully
             return f"*LLM provider does not support direct chat. Configure OpenClaw or Claude provider.*"
     except Exception as e:
         logger.error(f"LLM generation failed for section: {e}")
@@ -219,7 +229,7 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
 @dataclass
 class DeepResearchParams:
     query: str
-    max_papers: int = 15
+    max_papers: int = 30  # Raised from 15 → 30 (M3)
     source_mode: str = "pubmed"
     project_id: str | None = None
     db: AsyncSession | None = None
@@ -227,6 +237,9 @@ class DeepResearchParams:
 
 async def generate_deep_research_report(params: DeepResearchParams) -> dict:
     """Full pipeline: source papers → build context → generate report sections.
+
+    Sections are now generated in **parallel** via asyncio.gather (M3) which
+    reduces total report generation time from ~O(n*latency) to ~O(latency).
 
     Args:
         params: DeepResearchParams instance containing all configuration and dependencies.
@@ -278,18 +291,30 @@ async def generate_deep_research_report(params: DeepResearchParams) -> dict:
             "metadata": {"started_at": started_at.isoformat(), "source": source_label},
         }
 
-    prog(f"Found {len(papers)} papers. Analyzing…", 25)
-    papers_context = build_papers_context(papers, max_papers=12)
+    prog(f"Found {len(papers)} papers. Building context…", 25)
+    papers_context = build_papers_context(papers, max_papers=30)
 
-    # ── Step 2: Generate sections ─────────────────────────────────────────────
-    sections: list[dict] = []
-    total = len(REPORT_SECTIONS)
-    for i, sec in enumerate(REPORT_SECTIONS):
-        pct = 30 + int((i / total) * 60)
-        prog(f"Generating: {sec['title']}…", pct)
-        logger.info(f"[DeepResearch] Section: {sec['key']}")
+    # ── Step 2: Generate sections in parallel (M3) ────────────────────────────
+    prog("Generating all report sections in parallel…", 30)
+    logger.info(f"[DeepResearch] Generating {len(REPORT_SECTIONS)} sections in parallel")
+
+    async def _gen(sec: dict) -> dict:
         content = await _generate_section(sec["prompt"], papers_context, query)
-        sections.append({"key": sec["key"], "title": sec["title"], "content": content})
+        return {"key": sec["key"], "title": sec["title"], "content": content}
+
+    section_results = await asyncio.gather(*[_gen(sec) for sec in REPORT_SECTIONS], return_exceptions=True)
+
+    sections: list[dict] = []
+    for i, result in enumerate(section_results):
+        if isinstance(result, Exception):
+            logger.error(f"[DeepResearch] Section {REPORT_SECTIONS[i]['key']} failed: {result}")
+            sections.append({
+                "key": REPORT_SECTIONS[i]["key"],
+                "title": REPORT_SECTIONS[i]["title"],
+                "content": f"*Section could not be generated: {result}*",
+            })
+        else:
+            sections.append(result)
 
     prog("Finalizing report…", 95)
     completed_at = datetime.now(timezone.utc)

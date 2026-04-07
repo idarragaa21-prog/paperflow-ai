@@ -19,6 +19,7 @@ const SOURCE_LABELS: Record<string, string> = {
   pubmed: 'PubMed',
   europepmc: 'Europe PMC',
   doaj: 'DOAJ',
+  semantic_scholar: 'Semantic Scholar',
   unpaywall: 'Unpaywall',
   doi_content_negotiation: 'DOI direct',
   user_provided_oa: 'OA provista por el usuario',
@@ -174,10 +175,17 @@ export default function SearchPage() {
             <div className="rc-row" style={{ alignItems: 'flex-end' }}>
               <div style={{ flex: 1, minWidth: 260 }}>
                 <label htmlFor="search-query" className="rc-kicker" style={{ display: 'block' }}>Research question</label>
+                {/* M10: datalist provides autocomplete from search history */}
+                <datalist id="search-query-suggestions">
+                  {history.searchHistory.slice(0, 10).map((item, i) => (
+                    <option key={i} value={item.query} />
+                  ))}
+                </datalist>
                 <input
                   id="search-query"
                   className="rc-input"
                   data-testid="search-query-input"
+                  list="search-query-suggestions"
                   value={search.query}
                   onChange={(e) => search.setQuery(e.target.value)}
                   placeholder="e.g. ACL reconstruction hamstring vs BPTB meta-analysis"
