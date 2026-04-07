@@ -282,10 +282,21 @@ export default function DeepResearchPage() {
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
             {isEs ? 'Generando reporte…' : 'Generating report…'}
           </div>
-          <div style={{ color: 'var(--rc-muted)', fontSize: 13 }}>
+          <div style={{ color: 'var(--rc-muted)', fontSize: 13, marginBottom: 16 }}>
             {sourceMode === 'project'
               ? isEs ? 'Analizando papers de tu biblioteca…' : 'Analyzing papers from your library…'
               : isEs ? 'Buscando en PubMed, analizando papers, redactando secciones…' : 'Searching PubMed, analyzing papers, writing report sections…'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--rc-muted)' }}>
+            {(isEs
+              ? ['1. Buscando fuentes relevantes…', '2. Extrayendo hallazgos clave…', '3. Sintetizando evidencia…', '4. Redactando secciones del reporte…']
+              : ['1. Searching relevant sources…', '2. Extracting key findings…', '3. Synthesizing evidence…', '4. Writing report sections…']
+            ).map((step, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--rc-primary)', opacity: 0.5 }} />
+                {step}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -356,6 +367,10 @@ export default function DeepResearchPage() {
                 </span>
                 <span>•</span>
                 <span>{isEs ? 'Generado en' : 'Generated in'} {report.metadata.duration_seconds.toFixed(1)}s</span>
+                <span>•</span>
+                <span>
+                  {isEs ? 'Fecha:' : 'Date:'} {new Date().toLocaleDateString(isEs ? 'es-CO' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
                 <span>•</span>
                 <span style={{ fontWeight: 600, color: report.source_mode === 'project_library' ? '#059669' : '#2563eb' }}>
                   {report.source_mode === 'project_library'

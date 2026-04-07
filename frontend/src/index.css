@@ -1207,3 +1207,22 @@ a:hover { color: var(--rc-primary-hover); text-decoration: underline; }
     size: A4 portrait;
   }
 }
+
+/* ── AI Search card glow animation ──────────────────────────────────────── */
+@keyframes rc-ai-glow {
+  0%, 100% { box-shadow: 0 8px 32px rgba(99,102,241,0.18), 0 0 0 1px rgba(139,92,246,0.08); }
+  50% { box-shadow: 0 8px 40px rgba(99,102,241,0.28), 0 0 0 1px rgba(139,92,246,0.15); }
+}
+
+.rc-ai-search-card {
+  animation: rc-ai-glow 3s ease-in-out infinite;
+}
+
+@keyframes rc-ai-btn-pulse {
+  0%, 100% { box-shadow: 0 10px 25px -5px rgba(139,92,246,0.5); }
+  50% { box-shadow: 0 10px 35px -5px rgba(139,92,246,0.7); }
+}
+
+.rc-ai-search-btn {
+  animation: rc-ai-btn-pulse 2s ease-in-out infinite;
+}

@@ -181,6 +181,21 @@ const features: Feature[] = [
     },
     example: { en: 'Clinical + writing', es: 'Clínica + redacción', pt: 'Clínica + escrita' },
   },
+  {
+    kicker: { en: '04. Deep Research', es: '04. Investigación Profunda', pt: '04. Pesquisa Profunda' },
+    title: { en: 'AI writes a full report from your question', es: 'La IA escribe un reporte completo desde tu pregunta', pt: 'A IA escreve um relatório completo a partir da sua pergunta' },
+    body: {
+      en: 'Ask a clinical question, the AI searches PubMed or your library, analyzes papers, and writes a print-ready report with citations.',
+      es: 'Haz una pregunta clínica, la IA busca en PubMed o tu biblioteca, analiza papers, y escribe un reporte listo para imprimir con citas.',
+      pt: 'Faça uma pergunta clínica, a IA busca no PubMed ou na sua biblioteca, analisa papers, e escreve um relatório pronto para imprimir com citações.',
+    },
+    points: {
+      en: ['PubMed or project library source', 'Structured multi-section report', 'Export to PDF with one click'],
+      es: ['Fuente PubMed o biblioteca del proyecto', 'Reporte multi-sección estructurado', 'Exportar a PDF con un clic'],
+      pt: ['Fonte PubMed ou biblioteca do projeto', 'Relatório multi-seção estruturado', 'Exportar para PDF com um clique'],
+    },
+    example: { en: 'Deep research report', es: 'Reporte de investigación', pt: 'Relatório de pesquisa' },
+  },
 ];
 
 const testimonials: Testimonial[] = [
@@ -221,6 +236,32 @@ const testimonials: Testimonial[] = [
       en: 'Resident physician',
       es: 'Médica residente',
       pt: 'Médica residente',
+    },
+  },
+  {
+    quote: {
+      en: 'Deep Research saved me entire weekends. I ask a question and get a structured report with citations in minutes.',
+      es: 'Deep Research me ahorró fines de semana enteros. Hago una pregunta y obtengo un reporte estructurado con citas en minutos.',
+      pt: 'Deep Research me salvou fins de semana inteiros. Faço uma pergunta e recebo um relatório estruturado com citações em minutos.',
+    },
+    name: 'Dr. Carlos Mendoza',
+    role: {
+      en: 'Internal medicine resident',
+      es: 'Residente de medicina interna',
+      pt: 'Residente de medicina interna',
+    },
+  },
+  {
+    quote: {
+      en: 'The literature comparison matrix lets me see all my studies at a glance. No more juggling spreadsheets.',
+      es: 'La matriz de comparación me permite ver todos mis estudios de un vistazo. No más malabares con hojas de cálculo.',
+      pt: 'A matriz de comparação me permite ver todos os meus estudos de relance. Sem mais malabarismos com planilhas.',
+    },
+    name: 'Dr. Valentina Rojas',
+    role: {
+      en: 'Epidemiologist',
+      es: 'Epidemióloga',
+      pt: 'Epidemiologista',
     },
   },
 ];
@@ -264,7 +305,7 @@ const faqs: Faq[] = [
   },
 ];
 
-const brandLogos = ['ORTHO LAB', 'RESIDENCY HUB', 'EVIDENCE UNIT', 'MED REVIEW TEAM', 'RESEARCH CORE'];
+const brandLogos = ['🛡️ ORTHO LAB', '🏥 RESIDENCY HUB', '🔬 EVIDENCE UNIT', '📋 MED REVIEW TEAM', '🧬 RESEARCH CORE'];
 
 function renderExample(locale: Locale, item: Feature) {
   return (

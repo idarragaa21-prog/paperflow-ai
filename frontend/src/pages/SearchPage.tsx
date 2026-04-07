@@ -270,16 +270,33 @@ export default function SearchPage() {
               )}
 
               {!search.loading && search.data.results.length > 0 && (
-                <div className="rc-card" style={{ 
+                <div className="rc-card rc-ai-search-card" style={{ 
                   padding: 24, 
-                  background: 'linear-gradient(145deg, rgba(99,102,241,0.08), rgba(139,92,246,0.03))', 
-                  border: '1px solid rgba(99,102,241,0.3)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.15)'
+                  background: 'linear-gradient(145deg, rgba(99,102,241,0.10), rgba(139,92,246,0.05), rgba(236,72,153,0.03))', 
+                  border: '1.5px solid rgba(99,102,241,0.35)',
+                  boxShadow: '0 8px 32px rgba(99,102,241,0.18), 0 0 0 1px rgba(139,92,246,0.08)',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}>
+                  {/* Glow accent */}
+                  <div style={{
+                    position: 'absolute', top: -40, right: -40, width: 120, height: 120,
+                    borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.15), transparent 70%)',
+                    pointerEvents: 'none',
+                  }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 900, fontSize: 18, marginBottom: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '3px 10px', borderRadius: 999, fontSize: 10, fontWeight: 800,
+                          background: 'linear-gradient(135deg, #4f46e5, #8b5cf6)',
+                          color: '#fff', letterSpacing: '0.06em', textTransform: 'uppercase',
+                        }}>
+                          ★ AI Search
+                        </span>
                         <span style={{ 
+                          fontWeight: 900, fontSize: 18,
                           background: 'linear-gradient(135deg, #818cf8, #c084fc)', 
                           WebkitBackgroundClip: 'text', 
                           WebkitTextFillColor: 'transparent',
@@ -294,7 +311,7 @@ export default function SearchPage() {
                     </div>
                     {!synthesis.answer && !synthesis.loading && (
                       <button
-                        className="rc-btn"
+                        className="rc-btn rc-ai-search-btn"
                         style={{
                           background: 'linear-gradient(135deg, #4f46e5 0%, #8b5cf6 50%, #ec4899 100%)',
                           color: '#fff',
@@ -335,7 +352,11 @@ export default function SearchPage() {
 
                   {synthesis.answer && (
                     <div style={{ marginTop: 16 }}>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.6, color: 'var(--rc-text)' }}>
+                      <div style={{
+                        whiteSpace: 'pre-wrap', fontSize: 14, lineHeight: 1.7, color: 'var(--rc-text)',
+                        background: 'rgba(255,255,255,0.6)', borderRadius: 10, padding: 16,
+                        border: '1px solid rgba(99,102,241,0.12)',
+                      }}>
                         {synthesis.answer}
                       </div>
                       {projectId && (
