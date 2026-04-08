@@ -84,9 +84,14 @@ async def test_federated_search_filters_by_year_and_enriches_results(monkeypatch
             }
         ]
 
+    async def fake_semantic(query: str, max_results: int):
+        del query, max_results
+        return []
+
     monkeypatch.setattr("app.services.federated_search.pubmed_client.search_and_fetch", fake_pubmed)
     monkeypatch.setattr("app.services.federated_search._search_europe_pmc", fake_europe)
     monkeypatch.setattr("app.services.federated_search._search_doaj", fake_doaj)
+    monkeypatch.setattr("app.services.federated_search._search_semantic_scholar", fake_semantic)
 
     payload = await federated_search("rotator cuff augmentation", max_results=10, filters=filters)
 

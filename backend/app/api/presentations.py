@@ -48,8 +48,12 @@ async def create_presentation(
     if len(payload.paper_ids) > 10:
         raise HTTPException(status_code=400, detail="Máximo 10 papers")
 
+    # Optimize N+1 query: fetch all required papers at once
+    papers_q = await db.execute(select(Paper).where(Paper.id.in_(payload.paper_ids)))
+    papers_dict = {p.id: p for p in papers_q.scalars().all()}
+
     for pid in payload.paper_ids:
-        paper = await db.get(Paper, pid)
+        paper = papers_dict.get(pid)
         if not paper:
             raise HTTPException(status_code=404, detail=f"Paper {pid} no encontrado")
         if paper.project_id != payload.project_id:

@@ -123,7 +123,7 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
     prev = FakePrevStudy(paper_id=paper.id, version=2)
     db = FakeDB(paper, item, prev=prev)
 
-    from app.workers import tasks
+    from app.workers import tasks_meta
 
     # patch storage base_dir
     from app.core.storage import storage_manager
@@ -131,10 +131,10 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
     storage_manager.base_dir = tmp_path.resolve()
 
     # patch session maker
-    tasks.async_session_maker = lambda: FakeSessionMaker(db)  # type: ignore
+    tasks_meta.async_session_maker = lambda: FakeSessionMaker(db)  # type: ignore
 
     # patch PDF open encryption check
-    monkeypatch.setattr(tasks, "fitz", None, raising=False)
+    monkeypatch.setattr(tasks_meta, "fitz", None, raising=False)
 
     # patch extraction & validation to avoid LLM
     async def fake_extract_and_validate(inp):
@@ -161,14 +161,14 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
     async def rec_progress(job_id, percent, status="progress", result_patch=None):
         percents.append(int(percent))
 
-    monkeypatch.setattr(tasks, "job_set_progress", rec_progress)
+    monkeypatch.setattr(tasks_meta, "job_set_progress", rec_progress)
 
     async def nop(*a, **k):
         return None
 
-    monkeypatch.setattr(tasks, "job_mark_started", nop)
-    monkeypatch.setattr(tasks, "job_mark_completed", nop)
-    monkeypatch.setattr(tasks, "job_mark_failed", nop)
+    monkeypatch.setattr(tasks_meta, "job_mark_started", nop)
+    monkeypatch.setattr(tasks_meta, "job_mark_completed", nop)
+    monkeypatch.setattr(tasks_meta, "job_mark_failed", nop)
 
     # patch fitz open to not fail
     class FakeDoc:
@@ -180,7 +180,7 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
     import types
 
     fake_fitz = types.SimpleNamespace(open=lambda p: FakeDoc())
-    monkeypatch.setattr(tasks, "fitz", fake_fitz, raising=False)
+    monkeypatch.setattr(tasks_meta, "fitz", fake_fitz, raising=False)
 
     # patch OCR avail
     from app.config import settings
@@ -188,7 +188,7 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
     settings.OCR_ENABLED = False
 
     # Act
-    tasks.meta_extract_paper_job(str(uuid.uuid4()), str(item.batch_id), str(item.id), str(paper.id))
+    tasks_meta.meta_extract_paper_job(str(uuid.uuid4()), str(item.batch_id), str(item.id), str(paper.id))
 
     # Assert: we saw staged progress markers
     assert 5 in percents
