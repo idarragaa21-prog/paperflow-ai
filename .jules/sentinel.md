@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-27 - [Raw DOM HTML Injection in React via Mermaid]
+**Vulnerability:** The `ScreeningPage` component used `containerRef.current.innerHTML = svg` to render a Mermaid chart, combined with `mermaid.initialize({ securityLevel: 'loose' })`. This completely bypassed React's XSS protections and allowed arbitrary script execution if malicious content were to find its way into the SVG rendering pipeline.
+**Learning:** Native library sanitization (e.g., Mermaid's `securityLevel: 'strict'`) should be preferred over adding redundant external dependencies (like DOMPurify). In React, always bind HTML output to state using `dangerouslySetInnerHTML` rather than using direct ref manipulations, as this correctly signals security implications and respects the React VDOM.
+**Prevention:** Avoid `ref.current.innerHTML`. Use `dangerouslySetInnerHTML`. Ensure that external libraries that produce HTML/SVG have their native security settings enabled (e.g., `securityLevel: 'strict'`).
