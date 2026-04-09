@@ -132,6 +132,8 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
 
     # patch session maker
     tasks.async_session_maker = lambda: FakeSessionMaker(db)  # type: ignore
+    import app.workers.tasks_meta as tasks_meta_mod
+    monkeypatch.setattr(tasks_meta_mod, "async_session_maker", lambda: FakeSessionMaker(db))
 
     # patch PDF open encryption check
     monkeypatch.setattr(tasks, "fitz", None, raising=False)
@@ -156,19 +158,33 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
     monkeypatch.setattr(extractor_mod, "extract_and_validate", fake_extract_and_validate)
 
     # patch helpers to record progress
+    import app.workers.tasks_meta as tasks_meta_mod
+    import app.workers.job_tracker as tracker_mod
     percents = []
 
-    async def rec_progress(job_id, percent, status="progress", result_patch=None):
+    def rec_progress_sync(job_id, percent, status="progress", result_patch=None):
         percents.append(int(percent))
 
-    monkeypatch.setattr(tasks, "job_set_progress", rec_progress)
+    monkeypatch.setattr(tracker_mod, "job_set_progress_sync", rec_progress_sync, raising=False)
 
-    async def nop(*a, **k):
+    async def rec_progress_async(job_id, percent, status="progress", result_patch=None):
+        percents.append(int(percent))
+
+    monkeypatch.setattr(tasks_meta_mod, "job_set_progress", rec_progress_async, raising=False)
+
+    def nop_sync(*a, **k):
         return None
 
-    monkeypatch.setattr(tasks, "job_mark_started", nop)
-    monkeypatch.setattr(tasks, "job_mark_completed", nop)
-    monkeypatch.setattr(tasks, "job_mark_failed", nop)
+    monkeypatch.setattr(tracker_mod, "job_mark_started_sync", nop_sync, raising=False)
+    monkeypatch.setattr(tracker_mod, "job_mark_completed_sync", nop_sync, raising=False)
+    monkeypatch.setattr(tracker_mod, "job_mark_failed_sync", nop_sync, raising=False)
+
+    async def nop_async(*a, **k):
+        return None
+
+    monkeypatch.setattr(tasks_meta_mod, "job_mark_started", nop_async, raising=False)
+    monkeypatch.setattr(tasks_meta_mod, "job_mark_completed", nop_async, raising=False)
+    monkeypatch.setattr(tasks_meta_mod, "job_mark_failed", nop_async, raising=False)
 
     # patch fitz open to not fail
     class FakeDoc:

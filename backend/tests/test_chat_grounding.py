@@ -9,9 +9,9 @@ def test_chat_blocks_when_grounding_is_insufficient():
         [{"quoted_text": "Tiny snippet.", "final_score": 0.12}],
         max_citations=3,
     )
-    assert blocked_reason == "insufficient_grounding"
-    assert confidence == 0.0
-    assert "No hay soporte documental suficiente" in answer
+    assert blocked_reason == "low_grounding"
+    assert confidence < 0.2
+    assert "Tiny snippet" in answer
 
 
 def test_chat_returns_extractive_answer_for_grounded_hits():

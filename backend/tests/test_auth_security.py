@@ -137,6 +137,47 @@ async def test_login_is_rate_limited_after_five_invalid_attempts(auth_client):
 
 
 @pytest.mark.asyncio
+async def test_register_is_rate_limited(auth_client):
+    client, db = auth_client
+    for _ in range(2):
+        response = await client.post("/auth/register", json={"email": "newuser@example.com", "password": "password123"})
+        # Should be 409 because email might not be taken (in fake DB, or maybe it returns success/something else, but it counts).
+    blocked = await client.post("/auth/register", json={"email": "newuser@example.com", "password": "password123"})
+    assert blocked.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_is_rate_limited(auth_client):
+    client, db = auth_client
+    for _ in range(3):
+        await client.post("/auth/forgot-password", json={"email": db.user.email})
+    blocked = await client.post("/auth/forgot-password", json={"email": db.user.email})
+    assert blocked.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_reset_password_is_rate_limited(auth_client):
+    from app.services.reset_codes import store_reset_code
+    client, db = auth_client
+
+    store_reset_code(db.user.email, "123456")
+
+    for _ in range(5):
+        await client.post("/auth/reset-password", json={
+            "email": db.user.email,
+            "code": "000000",
+            "new_password": "newpassword123"
+        })
+
+    blocked = await client.post("/auth/reset-password", json={
+        "email": db.user.email,
+        "code": "000000",
+        "new_password": "newpassword123"
+    })
+    assert blocked.status_code == 429
+
+
+@pytest.mark.asyncio
 async def test_refresh_reuse_revokes_session(auth_client):
     client, db = auth_client
     session = AuthSession(
