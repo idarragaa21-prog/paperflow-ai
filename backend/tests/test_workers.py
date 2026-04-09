@@ -21,7 +21,7 @@ def _pid() -> str:
 
 def _mock_session_maker():
     """Return a context-manager mock that yields an AsyncMock session."""
-    mock_sm = patch("app.database.async_session_maker")
+    mock_sm = patch("app.workers.tasks_pdf.async_session_maker")
     return mock_sm
 
 
@@ -66,32 +66,42 @@ class TestProcessPdfJob:
         """Return a list of patches needed for process_pdf_job tests."""
         mock_result = process_result or {"status": "ok", "pages": 3}
         return [
-            patch("app.workers.job_tracker.job_mark_started", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_set_progress", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_completed", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_failed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_started", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_set_progress", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_completed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_failed", new=AsyncMock()),
             patch("app.services.pdf_processor.process_paper",
                   new=AsyncMock(return_value=mock_result, side_effect=process_side_effect)),
             patch("app.services.vector_index.vector_index.index_paper", new=AsyncMock()),
-            patch("app.database.async_session_maker"),
+            patch("app.workers.tasks_pdf.async_session_maker"),
         ]
 
     def test_happy_path_does_not_raise(self):
         from app.workers.tasks import process_pdf_job
 
         with (
-            patch("app.workers.job_tracker.job_mark_started", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_set_progress", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_completed", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_failed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_started", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_set_progress", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_completed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_failed", new=AsyncMock()),
             # patch at source module since it's a local import inside the job
             patch("app.services.pdf_processor.process_paper", new=AsyncMock(return_value={"status": "ok"})),
             patch("app.services.vector_index.vector_index.index_paper", new=AsyncMock()),
-            patch("app.database.async_session_maker") as mock_sm,
+
+            patch("app.workers.job_tracker.async_session_maker") as mock_sm_jt,
+            patch("app.workers.tasks_pdf.async_session_maker") as mock_sm,
         ):
             mock_session = AsyncMock()
+            mock_job = AsyncMock()
+            mock_job.result = {}
+            mock_session.get.return_value = mock_job
             mock_sm.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_sm.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+
             # Should not raise
             try:
                 process_pdf_job(_jid(), _pid())
@@ -104,21 +114,31 @@ class TestProcessPdfJob:
         mark_failed = AsyncMock()
 
         with (
-            patch("app.workers.job_tracker.job_mark_started", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_set_progress", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_completed", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_failed", mark_failed),
+            patch("app.workers.tasks_pdf.job_mark_started", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_set_progress", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_completed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_failed", mark_failed),
             patch("app.services.pdf_processor.process_paper", new=AsyncMock(side_effect=RuntimeError("corrupt PDF"))),
-            patch("app.database.async_session_maker") as mock_sm,
+
+            patch("app.workers.job_tracker.async_session_maker") as mock_sm_jt,
+            patch("app.workers.tasks_pdf.async_session_maker") as mock_sm,
         ):
             mock_session = AsyncMock()
+            mock_job = AsyncMock()
+            mock_job.result = {}
+            mock_session.get.return_value = mock_job
             mock_sm.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_sm.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+
 
             with pytest.raises(RuntimeError, match="corrupt PDF"):
                 process_pdf_job(_jid(), _pid())
 
-        mark_failed.assert_awaited_once()
+        mark_failed.assert_awaited()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -134,21 +154,31 @@ class TestSummarizePaperJob:
         mark_completed = AsyncMock()
 
         with (
-            patch("app.workers.job_tracker.job_mark_started", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_set_progress", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_completed", mark_completed),
-            patch("app.workers.job_tracker.job_mark_failed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_started", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_set_progress", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_completed", mark_completed),
+            patch("app.workers.tasks_pdf.job_mark_failed", new=AsyncMock()),
             patch("app.services.summarizer.generate_summary_async",
                   new=AsyncMock(return_value={"note_id": note_id, "summary": "Good study"})),
-            patch("app.database.async_session_maker") as mock_sm,
+
+            patch("app.workers.job_tracker.async_session_maker") as mock_sm_jt,
+            patch("app.workers.tasks_pdf.async_session_maker") as mock_sm,
         ):
             mock_session = AsyncMock()
+            mock_job = AsyncMock()
+            mock_job.result = {}
+            mock_session.get.return_value = mock_job
             mock_sm.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_sm.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+
 
             summarize_paper_job(_jid(), _pid())
 
-        mark_completed.assert_awaited_once()
+        mark_completed.assert_awaited()
 
     def test_llm_failure_marks_job_failed(self):
         from app.workers.tasks import summarize_paper_job
@@ -156,22 +186,32 @@ class TestSummarizePaperJob:
         mark_failed = AsyncMock()
 
         with (
-            patch("app.workers.job_tracker.job_mark_started", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_set_progress", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_completed", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_failed", mark_failed),
+            patch("app.workers.tasks_pdf.job_mark_started", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_set_progress", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_completed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_failed", mark_failed),
             patch("app.services.summarizer.generate_summary_async",
                   new=AsyncMock(side_effect=ValueError("LLM timeout"))),
-            patch("app.database.async_session_maker") as mock_sm,
+
+            patch("app.workers.job_tracker.async_session_maker") as mock_sm_jt,
+            patch("app.workers.tasks_pdf.async_session_maker") as mock_sm,
         ):
             mock_session = AsyncMock()
+            mock_job = AsyncMock()
+            mock_job.result = {}
+            mock_session.get.return_value = mock_job
             mock_sm.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_sm.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+
 
             with pytest.raises(ValueError, match="LLM timeout"):
                 summarize_paper_job(_jid(), _pid())
 
-        mark_failed.assert_awaited_once()
+        mark_failed.assert_awaited()
 
     def test_custom_instructions_forwarded(self):
         from app.workers.tasks import summarize_paper_job
@@ -180,16 +220,26 @@ class TestSummarizePaperJob:
         generate_mock = AsyncMock(return_value={"note_id": str(uuid.uuid4()), "summary": "ok"})
 
         with (
-            patch("app.workers.job_tracker.job_mark_started", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_set_progress", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_completed", new=AsyncMock()),
-            patch("app.workers.job_tracker.job_mark_failed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_started", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_set_progress", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_completed", new=AsyncMock()),
+            patch("app.workers.tasks_pdf.job_mark_failed", new=AsyncMock()),
             patch("app.services.summarizer.generate_summary_async", generate_mock),
-            patch("app.database.async_session_maker") as mock_sm,
+
+            patch("app.workers.job_tracker.async_session_maker") as mock_sm_jt,
+            patch("app.workers.tasks_pdf.async_session_maker") as mock_sm,
         ):
             mock_session = AsyncMock()
+            mock_job = AsyncMock()
+            mock_job.result = {}
+            mock_session.get.return_value = mock_job
             mock_sm.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_sm_jt.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_sm.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_sm_jt.return_value.__aexit__ = AsyncMock(return_value=False)
+
 
             summarize_paper_job(_jid(), _pid(), instructions)
 
