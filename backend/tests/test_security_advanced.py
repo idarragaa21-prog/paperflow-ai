@@ -414,12 +414,19 @@ async def test_clinical_query_with_deeply_nested_payload_does_not_crash(owner_cl
     for _ in range(100):
         nested = {"level": nested}
 
-    resp = await client.post(
-        "/clinical/query",
-        json={"topic": "ACL outcomes", "extra": nested},
-        headers={"X-CSRF-Token": "valid-csrf"},
-    )
-    # Should return 200/202 (job queued) or 429 (rate limited), never 500
+    from unittest.mock import patch, MagicMock
+
+    with patch("app.api.clinical.get_job_queue") as mock_q:
+        mock_job = MagicMock()
+        mock_job.id = "mock-rq-job-id"
+        mock_q.return_value.enqueue.return_value = mock_job
+
+        resp = await client.post(
+            "/clinical/query",
+            json={"topic": "ACL outcomes", "extra": nested},
+            headers={"X-CSRF-Token": "valid-csrf"},
+        )
+    # Should return 200/202 (job queued) or 429 (rate limited), never 500 (except 503 if we didn't mock redis, but we mock it now)
     assert resp.status_code < 500, (
         f"Server crashed on deeply nested payload: {resp.status_code}"
     )
