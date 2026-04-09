@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -10,10 +10,10 @@ type Paper = { id: string; title: string };
 
 // M9: PRISMA diagram rendered via mermaid
 function PrismaFlowDiagram({ counts }: { counts: Record<string, number> }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [svgHtml, setSvgHtml] = useState<string>('');
 
   useEffect(() => {
-    if (!containerRef.current || Object.keys(counts).length === 0) return;
+    if (Object.keys(counts).length === 0) return;
     const identified = counts.identified ?? counts.total ?? 0;
     const screened = counts.screened ?? counts.title_abstract ?? 0;
     const eligible = counts.eligible ?? counts.full_text ?? 0;
@@ -36,10 +36,10 @@ function PrismaFlowDiagram({ counts }: { counts: Record<string, number> }) {
 
     import('mermaid').then(mod => {
       const mermaid = mod.default;
-      mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+      mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' });
       const id = `prisma-${Date.now()}`;
       mermaid.render(id, diagram).then(({ svg }) => {
-        if (containerRef.current) containerRef.current.innerHTML = svg;
+        setSvgHtml(svg);
       }).catch(() => {});
     }).catch(() => {});
   }, [counts]);
@@ -49,7 +49,7 @@ function PrismaFlowDiagram({ counts }: { counts: Record<string, number> }) {
   return (
     <div>
       <div className="rc-card-title" style={{ marginBottom: 12 }}>PRISMA Flow Diagram</div>
-      <div ref={containerRef} style={{ minHeight: 200, display: 'flex', justifyContent: 'center' }} />
+      <div dangerouslySetInnerHTML={{ __html: svgHtml }} style={{ minHeight: 200, display: 'flex', justifyContent: 'center' }} />
     </div>
   );
 }
