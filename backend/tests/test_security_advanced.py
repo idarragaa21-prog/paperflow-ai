@@ -409,16 +409,22 @@ async def test_clinical_query_with_deeply_nested_payload_does_not_crash(owner_cl
     """Deeply nested JSON in the clinical query payload must not cause 5xx."""
     client, db, sheet, _ = owner_client
 
+    from unittest.mock import patch
     # Build a deeply nested dict (100 levels)
     nested: dict = {"inner": "value"}
     for _ in range(100):
         nested = {"level": nested}
 
-    resp = await client.post(
-        "/clinical/query",
-        json={"topic": "ACL outcomes", "extra": nested},
-        headers={"X-CSRF-Token": "valid-csrf"},
-    )
+    with patch("app.api.clinical.get_job_queue") as mock_queue:
+        from unittest.mock import MagicMock
+        mock_job = MagicMock()
+        mock_job.id = "dummy_job_id"
+        mock_queue.return_value.enqueue.return_value = mock_job
+        resp = await client.post(
+            "/clinical/query",
+            json={"topic": "ACL outcomes", "extra": nested},
+            headers={"X-CSRF-Token": "valid-csrf"},
+        )
     # Should return 200/202 (job queued) or 429 (rate limited), never 500
     assert resp.status_code < 500, (
         f"Server crashed on deeply nested payload: {resp.status_code}"
