@@ -17,6 +17,7 @@ import uuid
 
 import pytest
 import pytest_asyncio
+from unittest.mock import patch, AsyncMock
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
@@ -414,11 +415,16 @@ async def test_clinical_query_with_deeply_nested_payload_does_not_crash(owner_cl
     for _ in range(100):
         nested = {"level": nested}
 
-    resp = await client.post(
-        "/clinical/query",
-        json={"topic": "ACL outcomes", "extra": nested},
-        headers={"X-CSRF-Token": "valid-csrf"},
-    )
+    # Mock the job queue fetcher to avoid 503 from missing Redis
+    from unittest.mock import MagicMock
+    mock_queue = MagicMock()
+    mock_queue.enqueue.return_value = MagicMock(id="fake-rq-id")
+    with patch('app.api.clinical.get_job_queue', return_value=mock_queue):
+        resp = await client.post(
+            "/clinical/query",
+            json={"topic": "ACL outcomes", "extra": nested},
+            headers={"X-CSRF-Token": "valid-csrf"},
+        )
     # Should return 200/202 (job queued) or 429 (rate limited), never 500
     assert resp.status_code < 500, (
         f"Server crashed on deeply nested payload: {resp.status_code}"
