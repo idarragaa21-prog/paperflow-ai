@@ -42,7 +42,7 @@ function renderPage(initialEntry = `/projects/${PROJECT_ID}/research`) {
       <Routes>
         <Route path="/projects/:projectId" element={<ProjectLayout />}>
           <Route path="research" element={<div>Research workspace</div>} />
-          <Route path="collaboration" element={<div>Team workspace</div>} />
+          <Route path="matrix" element={<div>Matrix workspace</div>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -75,7 +75,6 @@ describe('ProjectLayout', () => {
             counts: {
               papers: dashboardCalls >= 2 ? 1 : 0,
               notes: 0,
-              presentations: 0,
               meta_studies_current: 0,
               references: 0,
             },
@@ -87,22 +86,27 @@ describe('ProjectLayout', () => {
     });
   });
 
-  it('exposes the Team tab and routes to collaboration', async () => {
+  it('exposes Matrix support link and routes to matrix workspace', async () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('Proyecto Hombro')).toBeInTheDocument());
-    await userEvent.click(screen.getByRole('link', { name: 'Team' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Matrix' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Team workspace')).toBeInTheDocument();
+      expect(screen.getByText('Matrix workspace')).toBeInTheDocument();
     });
   });
 
   it('refreshes project counts after a project content update event', async () => {
     renderPage();
 
-    // Initially papers count is 0 (first dashboard call)
-    await waitFor(() => expect(screen.getByText('Proyecto Hombro')).toBeInTheDocument());
+    const getPapersMetricValue = () => {
+      const label = screen.getByText(/^papers$/i);
+      const card = label.closest('.rc-metric-card');
+      return card?.querySelector('.rc-metric-card__value')?.textContent ?? null;
+    };
+
+    await waitFor(() => expect(getPapersMetricValue()).toBe('0'));
 
     act(() => {
       window.dispatchEvent(
@@ -112,12 +116,6 @@ describe('ProjectLayout', () => {
       );
     });
 
-    // After event, dashboard is re-fetched (second call returns papers: 1)
-    // PageHero metrics render value and label in separate elements
-    await waitFor(() => {
-      const metricValues = document.querySelectorAll('.rc-metric-card__value');
-      const valuesArr = Array.from(metricValues).map(el => el.textContent);
-      expect(valuesArr).toContain('1');
-    });
+    await waitFor(() => expect(getPapersMetricValue()).toBe('1'));
   });
 });

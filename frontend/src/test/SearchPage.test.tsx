@@ -131,18 +131,27 @@ afterEach(() => {
 // ── 1. Render basics ────────────────────────────────────────────────────────
 
 describe('SearchPage — render', () => {
-  it('renders the page title', () => {
+  it('renders the page title', async () => {
     renderPage();
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith(`/search/projects/${PROJECT_ID}/searches`);
+    });
     expect(screen.getByText('Research Search')).toBeInTheDocument();
   });
 
-  it('renders the query input', () => {
+  it('renders the query input', async () => {
     renderPage();
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith(`/search/projects/${PROJECT_ID}/searches`);
+    });
     expect(screen.getByPlaceholderText(/ACL reconstruction/i)).toBeInTheDocument();
   });
 
-  it('search button is disabled with empty query', () => {
+  it('search button is disabled with empty query', async () => {
     renderPage();
+    await waitFor(() => {
+      expect(api.get).toHaveBeenCalledWith(`/search/projects/${PROJECT_ID}/searches`);
+    });
     expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
   });
 

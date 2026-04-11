@@ -1,352 +1,338 @@
-import { useMemo, useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Breadcrumb } from '../components/Breadcrumb';
-import type { Project, ClinicalSheetRow } from '../types/api';
+import type { Project } from '../types/api';
+
+type ConsultMode = 'brief' | 'standard' | 'deep';
+
+type ClinicalConsult = {
+  id: string;
+  project_id: string | null;
+  question: string;
+  mode: ConsultMode;
+  status: string;
+  answer_markdown: string;
+  uncertainty_text: string | null;
+  limitations_text: string | null;
+  used_project_library: boolean;
+  used_pubmed: boolean;
+  created_at?: string | null;
+  sources: Array<{
+    id: string;
+    source_kind: string;
+    title: string | null;
+    pmid: string | null;
+    doi: string | null;
+    year: number | null;
+    excerpt: string | null;
+    confidence: number | null;
+  }>;
+  claims: Array<{
+    id: string;
+    claim_text: string;
+    confidence: number | null;
+    support_level: string | null;
+  }>;
+};
+
+function toIsoDate(value?: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString();
+}
 
 export default function ClinicalPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { projectId: projectRouteId } = useParams();
   const qc = useQueryClient();
-  const fromProject = searchParams.get('from_project');
+  const defaultProjectId = projectRouteId || '';
+  const [projectId, setProjectId] = useState(defaultProjectId);
+  const [question, setQuestion] = useState('');
+  const [mode, setMode] = useState<ConsultMode>('standard');
+  const [patient, setPatient] = useState('');
+  const [intervention, setIntervention] = useState('');
+  const [comparator, setComparator] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [useProjectLibrary, setUseProjectLibrary] = useState(true);
+  const [usePubmed, setUsePubmed] = useState(true);
+  const [selectedConsultId, setSelectedConsultId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Form state
-  const [projectId, setProjectId] = useState<string>(fromProject || '');
-  const [topic, setTopic] = useState('');
-  const [context, setContext] = useState('');
-  const [objective, setObjective] = useState<'clinical_decision' | 'teaching' | 'presentation' | 'quick_review'>('clinical_decision');
-  const [level, setLevel] = useState<'R1' | 'R3' | 'fellow' | 'specialist'>('specialist');
-  const [focus, setFocus] = useState<'surgical' | 'conservative' | 'diagnostic' | 'rehab' | 'complications' | 'complete'>('complete');
-  const [region, setRegion] = useState('');
-  const [maxLength, setMaxLength] = useState<'brief' | 'standard' | 'exhaustive'>('standard');
-  const [useProjectPapers, setUseProjectPapers] = useState(true);
-  const [searchOnline, setSearchOnline] = useState(true);
-  const [advanced, setAdvanced] = useState(false);
+  const canCreate = question.trim().length >= 3;
+  const consultsQueryKey = useMemo(() => ['clinical-consults', projectId || 'all'], [projectId]);
 
-  // Job polling
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<{ status: string; progress: number; error?: string | null; sheet_id?: string | null } | null>(null);
-  const [genError, setGenError] = useState<string | null>(null);
-
-  const canGenerate = useMemo(() => topic.trim().length > 0, [topic]);
-  const sheetsKey = useMemo(() => ['clinical-sheets', projectId], [projectId]);
-
-  // ── Projects query ────────────────────────────────────────────────────────
-  const { data: projects = [] } = useQuery<Pick<Project, 'id' | 'title' | 'clinical_area'>[]>({
-    queryKey: ['projects-list'],
+  const projectsQuery = useQuery<Pick<Project, 'id' | 'title' | 'clinical_area'>[]>({
+    queryKey: ['projects-list-clinical'],
     queryFn: async () => {
-      const r = await api.get('/projects');
-      return (r.data as Project[]).filter(p => !p.archived).map(p => ({ id: p.id, title: p.title, clinical_area: p.clinical_area }));
+      const response = await api.get('/projects');
+      return (response.data as Project[])
+        .filter((item) => !item.archived)
+        .map((item) => ({ id: item.id, title: item.title, clinical_area: item.clinical_area }));
     },
     staleTime: 60_000,
   });
 
-  const selectedProject = projects.find(p => p.id === projectId);
-
-  // ── Paper count for selected project ─────────────────────────────────────
-  const { data: projectPaperCount } = useQuery<number>({
-    queryKey: ['project-paper-count', projectId],
+  const consultsQuery = useQuery<ClinicalConsult[]>({
+    queryKey: consultsQueryKey,
     queryFn: async () => {
-      if (!projectId) return 0;
-      const r = await api.get(`/projects/${projectId}/dashboard`);
-      return (r.data as { counts?: { papers?: number } })?.counts?.papers ?? 0;
-    },
-    enabled: !!projectId,
-    staleTime: 60_000,
-  });
-
-  // ── Sheets query ──────────────────────────────────────────────────────────
-  const { data: sheets = [], isLoading: sheetsLoading, error: sheetsError } = useQuery<ClinicalSheetRow[]>({
-    queryKey: sheetsKey,
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (projectId) params.project_id = projectId;
-      const r = await api.get('/clinical/sheets', { params });
-      return r.data as ClinicalSheetRow[];
+      const params = projectId ? { project_id: projectId } : undefined;
+      const response = await api.get('/clinical/consults', { params });
+      return response.data as ClinicalConsult[];
     },
   });
 
-  // ── Generate mutation ─────────────────────────────────────────────────────
-  const generateMut = useMutation({
+  const createMutation = useMutation({
     mutationFn: async () => {
-      const r = await api.post('/clinical/query', {
-        topic: topic.trim(),
+      const pico = {
+        patient: patient.trim() || null,
+        intervention: intervention.trim() || null,
+        comparator: comparator.trim() || null,
+        outcome: outcome.trim() || null,
+      };
+      const response = await api.post('/clinical/consults', {
         project_id: projectId || null,
-        context: context.trim() || null,
-        objective, level, focus,
-        region: region.trim() || null,
-        max_length: maxLength,
-        use_project_papers: useProjectPapers,
-        search_online: searchOnline,
+        question: question.trim(),
+        mode,
+        pico,
+        use_project_library: useProjectLibrary,
+        use_pubmed: usePubmed,
       });
-      return r.data as { job_id?: string };
+      return response.data as ClinicalConsult;
     },
-    onSuccess: (data) => {
-      if (data.job_id) {
-        setJobId(data.job_id);
-        setJobStatus({ status: 'queued', progress: 0, error: null, sheet_id: null });
-        setGenError(null);
-      }
+    onSuccess: async (consult) => {
+      setSelectedConsultId(consult.id);
+      setError(null);
+      await qc.invalidateQueries({ queryKey: consultsQueryKey });
     },
     onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Generation failed';
-      setGenError(msg);
+      setError((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Could not create consult');
     },
   });
 
-  // ── Job polling ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!jobId) return;
-    let stopped = false;
-    async function poll() {
-      if (stopped) return;
-      try {
-        const r = await api.get(`/jobs/${jobId}`);
-        const data = r.data as Record<string, unknown>;
-        const status = String(data?.status || 'unknown');
-        const progress = Number(data?.progress_percent || 0);
-        const err = (data?.error as string) || null;
-        const sheet_id = (data?.result as Record<string, unknown>)?.sheet_id as string | null || null;
-        setJobStatus({ status, progress, error: err, sheet_id });
-        if (status === 'completed') {
-          qc.invalidateQueries({ queryKey: sheetsKey });
-          setJobId(null);
-          if (sheet_id) navigate(`/clinical/sheets/${sheet_id}`);
-        }
-        if (status === 'failed') {
-          setJobId(null);
-          setGenError(err || 'Generation failed');
-        }
-      } catch (e: unknown) {
-        setJobStatus({ status: 'polling_error', progress: 0, error: (e as Error)?.message || 'Polling failed' });
-      }
-    }
-    poll();
-    const t = window.setInterval(poll, 4000);
-    return () => { stopped = true; window.clearInterval(t); };
-  }, [jobId, navigate, qc, sheetsKey]);
+  const selectedConsult = useMemo(
+    () => consultsQuery.data?.find((item) => item.id === selectedConsultId) || consultsQuery.data?.[0] || null,
+    [consultsQuery.data, selectedConsultId],
+  );
 
-  const errorMsg = genError || (sheetsError as Error | null)?.message;
-
-  const breadcrumbItems = fromProject && selectedProject
+  const selectedProject = projectsQuery.data?.find((item) => item.id === projectId);
+  const breadcrumbItems = projectRouteId && selectedProject
     ? [
         { label: 'Projects', to: '/projects' },
-        { label: selectedProject.title, to: `/projects/${fromProject}/research` },
-        { label: 'Clinical Sheet' },
+        { label: selectedProject.title, to: `/projects/${projectRouteId}/research` },
+        { label: 'Clinical Consults' },
       ]
-    : [{ label: 'Clinical' }];
+    : [{ label: 'Clinical Consults' }];
 
   return (
-    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 980 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Breadcrumb items={breadcrumbItems} />
 
       <div>
-        <h1 className="rc-page-title">Clinical Sheets</h1>
-        <div className="rc-subtitle">Generate evidence-based clinical summaries with traceable citations, UpToDate-style.</div>
+        <h1 className="rc-page-title">Clinical Consults</h1>
+        <div className="rc-subtitle">
+          Quick, grounded clinical answers with traceable sources from your project library and PubMed.
+        </div>
       </div>
 
-      {errorMsg && <div className="rc-error">{String(errorMsg)}</div>}
+      {error ? <div className="rc-error">{error}</div> : null}
 
-      {/* ── Project context banner ── */}
-      {projectId && selectedProject && (
-        <div className="rc-card" style={{ background: 'rgba(79,70,229,0.06)', border: '1px solid rgba(79,70,229,0.15)', padding: '12px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13 }}>
-              <span style={{ color: 'var(--rc-muted)' }}>Using papers from</span>{' '}
-              <Link to={`/projects/${projectId}/library`} style={{ fontWeight: 700, color: 'var(--rc-primary)', textDecoration: 'none' }}>
-                {selectedProject.title}
-              </Link>
-              {(projectPaperCount ?? 0) > 0 && (
-                <span style={{ color: 'var(--rc-muted)', marginLeft: 6 }}>
-                  · {projectPaperCount} paper{projectPaperCount !== 1 ? 's' : ''} available
-                </span>
-              )}
-            </div>
-            <button
-              className="rc-btn rc-btn--sm rc-btn--ghost"
-              onClick={() => setProjectId('')}
-              style={{ fontSize: 11 }}
-            >
-              Remove project
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Generator form ── */}
       <div className="rc-card">
-        <div className="rc-card-title">New Clinical Sheet</div>
+        <div className="rc-card-title">New consult</div>
 
-        {/* Project selector */}
-        {projects.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <div className="rc-kicker">Project (optional) — use its papers as evidence</div>
-            <select className="rc-select" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">(none — online sources only)</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.title}{p.clinical_area ? ` · ${p.clinical_area}` : ''}</option>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 10 }}>
+          <label className="rc-discover-filter-field">
+            <span>Project scope (optional)</span>
+            <select className="rc-input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">All accessible evidence</option>
+              {(projectsQuery.data || []).map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.title}{project.clinical_area ? ` · ${project.clinical_area}` : ''}
+                </option>
               ))}
             </select>
-          </div>
-        )}
+          </label>
 
-        <div className="rc-kicker">Topic *</div>
-        <textarea
-          className="rc-textarea"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="e.g. Fifth metatarsal stress fracture — diagnosis and treatment"
-          style={{ minHeight: 90 }}
-        />
+          <label className="rc-discover-filter-field">
+            <span>Response mode</span>
+            <select className="rc-input" value={mode} onChange={(e) => setMode(e.target.value as ConsultMode)}>
+              <option value="brief">brief</option>
+              <option value="standard">standard</option>
+              <option value="deep">deep</option>
+            </select>
+          </label>
+        </div>
 
-        <div style={{ height: 10 }} />
-        <button className="rc-btn rc-btn--ghost" onClick={() => setAdvanced(v => !v)} style={{ fontSize: 12 }}>
-          {advanced ? '▲ Hide advanced options' : '▼ Show advanced options'}
-        </button>
+        <label className="rc-discover-filter-field" style={{ marginBottom: 10 }}>
+          <span>Clinical question</span>
+          <textarea
+            className="rc-textarea"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="e.g. Should aspirin be used for secondary prevention after ischemic stroke?"
+            style={{ minHeight: 86 }}
+          />
+        </label>
 
-        {advanced && (
-          <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <div className="rc-kicker">Region / anatomy</div>
-              <input className="rc-input" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. foot/ankle" />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div className="rc-kicker">Clinical context</div>
-              <textarea
-                className="rc-textarea"
-                value={context}
-                onChange={(e) => setContext(e.target.value)}
-                placeholder="Age, sport, comorbidities, clinical scenario…"
-                style={{ minHeight: 72 }}
-              />
-            </div>
-            <div>
-              <div className="rc-kicker">Objective</div>
-              <select className="rc-select" value={objective} onChange={(e) => setObjective(e.target.value as typeof objective)}>
-                <option value="clinical_decision">Clinical decision</option>
-                <option value="teaching">Teaching</option>
-                <option value="presentation">Presentation</option>
-                <option value="quick_review">Quick review</option>
-              </select>
-            </div>
-            <div>
-              <div className="rc-kicker">Level</div>
-              <select className="rc-select" value={level} onChange={(e) => setLevel(e.target.value as typeof level)}>
-                <option value="R1">R1</option>
-                <option value="R3">R3</option>
-                <option value="fellow">Fellow</option>
-                <option value="specialist">Specialist</option>
-              </select>
-            </div>
-            <div>
-              <div className="rc-kicker">Focus</div>
-              <select className="rc-select" value={focus} onChange={(e) => setFocus(e.target.value as typeof focus)}>
-                <option value="complete">Complete</option>
-                <option value="diagnostic">Diagnostic</option>
-                <option value="conservative">Conservative</option>
-                <option value="surgical">Surgical</option>
-                <option value="rehab">Rehabilitation</option>
-                <option value="complications">Complications</option>
-              </select>
-            </div>
-            <div>
-              <div className="rc-kicker">Length</div>
-              <select className="rc-select" value={maxLength} onChange={(e) => setMaxLength(e.target.value as typeof maxLength)}>
-                <option value="brief">Brief</option>
-                <option value="standard">Standard</option>
-                <option value="exhaustive">Exhaustive</option>
-              </select>
-            </div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, cursor: 'pointer' }}>
-              <input type="checkbox" checked={useProjectPapers} onChange={(e) => setUseProjectPapers(e.target.checked)} />
-              Use project papers
-            </label>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, cursor: 'pointer' }}>
-              <input type="checkbox" checked={searchOnline} onChange={(e) => setSearchOnline(e.target.checked)} />
-              Search online evidence
-            </label>
-          </div>
-        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 10 }}>
+          <label className="rc-discover-filter-field">
+            <span>PICO - Patient</span>
+            <input className="rc-input" value={patient} onChange={(e) => setPatient(e.target.value)} placeholder="population" />
+          </label>
+          <label className="rc-discover-filter-field">
+            <span>PICO - Intervention</span>
+            <input className="rc-input" value={intervention} onChange={(e) => setIntervention(e.target.value)} placeholder="intervention" />
+          </label>
+          <label className="rc-discover-filter-field">
+            <span>PICO - Comparator</span>
+            <input className="rc-input" value={comparator} onChange={(e) => setComparator(e.target.value)} placeholder="comparator" />
+          </label>
+          <label className="rc-discover-filter-field">
+            <span>PICO - Outcome</span>
+            <input className="rc-input" value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="outcome" />
+          </label>
+        </div>
 
-        <div style={{ height: 14 }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <input type="checkbox" checked={useProjectLibrary} onChange={(e) => setUseProjectLibrary(e.target.checked)} />
+            Use project library first
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <input type="checkbox" checked={usePubmed} onChange={(e) => setUsePubmed(e.target.checked)} />
+            Fallback to PubMed
+          </label>
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 12 }}>
           <button
             className="rc-btn rc-btn--primary"
-            disabled={!canGenerate || generateMut.isPending || Boolean(jobId)}
-            onClick={() => generateMut.mutate()}
+            onClick={() => createMutation.mutate()}
+            disabled={!canCreate || createMutation.isPending}
           >
-            {jobId ? 'Generating…' : generateMut.isPending ? 'Starting…' : 'Generate Clinical Sheet'}
+            {createMutation.isPending ? 'Generating consult…' : 'Generate consult'}
           </button>
-          {projectId && (projectPaperCount ?? 0) > 0 && !jobId && !generateMut.isPending && (
-            <div className="rc-help">
-              Will use {projectPaperCount} paper{projectPaperCount !== 1 ? 's' : ''} from project + online search
-            </div>
-          )}
         </div>
-
-        {jobStatus && (
-          <div style={{ marginTop: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <span className="rc-help">
-                {jobStatus.status === 'queued' ? 'Queued' :
-                 jobStatus.status === 'started' ? 'Running' :
-                 jobStatus.status === 'polling_error' ? 'Connection error' :
-                 jobStatus.status}
-              </span>
-              <span className="rc-help">· {jobStatus.progress}%</span>
-              {jobStatus.error && <span className="rc-error"> · {String(jobStatus.error)}</span>}
-            </div>
-            <div className="rc-progress">
-              <div style={{ width: `${Math.max(5, Math.min(100, jobStatus.progress))}%` }} />
-            </div>
-            {jobStatus.status === 'started' && jobStatus.progress < 80 && (
-              <div className="rc-help" style={{ marginTop: 6 }}>
-                This may take 30–120 seconds depending on the number of papers and sources.
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* ── Sheets list ── */}
-      <div className="rc-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div className="rc-card-title" style={{ marginBottom: 0 }}>Recent Sheets</div>
-          <button
-            className="rc-btn rc-btn--sm rc-btn--ghost"
-            onClick={() => qc.invalidateQueries({ queryKey: sheetsKey })}
-            disabled={sheetsLoading}
-          >
-            {sheetsLoading ? '…' : '↻ Refresh'}
-          </button>
-        </div>
+      <div className="rc-workspace-grid" style={{ gridTemplateColumns: 'minmax(260px, 360px) minmax(0, 1fr)' }}>
+        <section className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="rc-card-title" style={{ margin: 0 }}>Recent consults</div>
+            <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => consultsQuery.refetch()} disabled={consultsQuery.isFetching}>
+              {consultsQuery.isFetching ? '…' : '↻'}
+            </button>
+          </div>
 
-        {sheets.length === 0 && !sheetsLoading ? (
-          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--rc-muted)', fontSize: 13 }}>
-            No sheets yet. Generate your first one above.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {sheets.map(s => (
-              <button
-                key={s.id}
-                onClick={() => navigate(`/clinical/sheets/${s.id}`)}
-                className="rc-btn"
-                style={{ textAlign: 'left', padding: '10px 14px', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}
-              >
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{s.topic}</div>
-                  <div className="rc-help">v{s.version} · {s.updated_at || s.created_at || ''}</div>
+          {(consultsQuery.data || []).length === 0 && !consultsQuery.isFetching ? (
+            <div className="rc-muted">No consults yet.</div>
+          ) : null}
+
+          {(consultsQuery.data || []).map((consult) => (
+            <button
+              key={consult.id}
+              className="rc-btn"
+              style={{
+                width: '100%',
+                justifyContent: 'flex-start',
+                textAlign: 'left',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 4,
+                borderColor: selectedConsult?.id === consult.id ? 'rgba(79,70,229,0.35)' : undefined,
+                background: selectedConsult?.id === consult.id ? 'var(--rc-primary-weak)' : undefined,
+              }}
+              onClick={() => setSelectedConsultId(consult.id)}
+            >
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{consult.question}</div>
+              <div className="rc-help">{consult.mode} · {toIsoDate(consult.created_at)}</div>
+            </button>
+          ))}
+        </section>
+
+        <section className="rc-card">
+          <div className="rc-card-title">Consult response</div>
+          {!selectedConsult ? <div className="rc-muted">Select a consult to inspect grounded claims and sources.</div> : null}
+
+          {selectedConsult ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="rc-help">
+                Mode: <b>{selectedConsult.mode}</b> · Status: <b>{selectedConsult.status}</b> ·
+                Sources: <b>{selectedConsult.sources.length}</b> · Claims: <b>{selectedConsult.claims.length}</b>
+              </div>
+
+              <div className="rc-card" style={{ padding: 12, background: 'rgba(79,70,229,0.04)' }}>
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.6 }}>
+                  {selectedConsult.answer_markdown || 'No answer content'}
+                </pre>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 10 }}>
+                <div className="rc-card" style={{ padding: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Uncertainty</div>
+                  <div className="rc-help">
+                    {selectedConsult.uncertainty_text || 'Not explicitly reported for this consult.'}
+                  </div>
                 </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rc-muted)" strokeWidth="2" strokeLinecap="round">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-              </button>
-            ))}
-          </div>
-        )}
+                <div className="rc-card" style={{ padding: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Limitations</div>
+                  <div className="rc-help">
+                    {selectedConsult.limitations_text || 'No limitations summary available.'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rc-help">
+                Evidence scope:
+                {' '}
+                {selectedConsult.used_project_library ? 'project library' : 'project library disabled'}
+                {' + '}
+                {selectedConsult.used_pubmed ? 'PubMed fallback enabled' : 'PubMed fallback disabled'}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 10 }}>
+                <div className="rc-card" style={{ padding: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Grounded claims</div>
+                  {selectedConsult.claims.length === 0 ? <div className="rc-muted">No claims.</div> : null}
+                  {selectedConsult.claims.map((claim) => (
+                    <div key={claim.id} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 13 }}>{claim.claim_text}</div>
+                      <div className="rc-help">
+                        confidence {Number(claim.confidence || 0).toFixed(2)} · {claim.support_level || 'unknown'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rc-card" style={{ padding: 12 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Sources</div>
+                  {selectedConsult.sources.length === 0 ? <div className="rc-muted">No sources.</div> : null}
+                  {selectedConsult.sources.map((source) => (
+                    <div key={source.id} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{source.title || 'Untitled source'}</div>
+                      <div className="rc-help">
+                        {source.source_kind}
+                        {source.year ? ` · ${source.year}` : ''}
+                        {source.pmid ? ` · PMID ${source.pmid}` : ''}
+                        {source.doi ? ` · DOI ${source.doi}` : ''}
+                      </div>
+                      {source.excerpt ? <div className="rc-help" style={{ marginTop: 4 }}>{source.excerpt}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selectedConsult.project_id ? (
+                <div className="rc-help">
+                  Linked project evidence scope is active. You can continue in{' '}
+                  <Link to={`/projects/${selectedConsult.project_id}/library`}>Library</Link> or{' '}
+                  <Link to={`/projects/${selectedConsult.project_id}/writing`}>Writing</Link>.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
       </div>
     </div>
   );

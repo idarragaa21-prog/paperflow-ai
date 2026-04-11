@@ -5,20 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -p tsconfig.app.json --noEmit && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e:smoke": "playwright test --config=playwright.config.ts e2e/smoke-ci.spec.ts e2e/landing-shell.smoke.spec.ts"
+    "e2e:smoke": "playwright test e2e/surface-smoke.spec.ts --reporter=list"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.95.2",
-    "@types/dompurify": "^3.0.5",
     "axios": "^1.13.4",
-    "dompurify": "^3.3.3",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.2",
     "mermaid": "^11.12.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -28,8 +24,8 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.2",
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

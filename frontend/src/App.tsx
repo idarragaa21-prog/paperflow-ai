@@ -21,18 +21,14 @@ const CollaborationPage = lazy(() => import('./pages/CollaborationPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const PapersPage = lazy(() => import('./pages/PapersPage'));
 const ReaderPage = lazy(() => import('./pages/ReaderPage'));
-const NotesPage = lazy(() => import('./pages/NotesPage'));
 const MetaPage = lazy(() => import('./pages/MetaPage'));
+const MatrixPage = lazy(() => import('./pages/MatrixPage'));
+const MetaRunsPage = lazy(() => import('./pages/MetaRunsPage'));
+const ArtifactsPage = lazy(() => import('./pages/ArtifactsPage'));
 const ReferencesPage = lazy(() => import('./pages/ReferencesPage'));
-const DraftsPage = lazy(() => import('./pages/DraftsPage'));
-const PresentationsPage = lazy(() => import('./pages/PresentationsPage'));
-const AnalysisPage = lazy(() => import('./pages/AnalysisPage'));
-const ScreeningPage = lazy(() => import('./pages/ScreeningPage'));
+const WritingAssistantPage = lazy(() => import('./pages/WritingAssistantPage'));
 const ClinicalPage = lazy(() => import('./pages/ClinicalPage'));
-const ClinicalSheetPage = lazy(() => import('./pages/ClinicalSheetPage'));
-const BooksPage = lazy(() => import('./pages/BooksPage'));
 const DeepResearchPage = lazy(() => import('./pages/DeepResearchPage'));
-const LiteratureReviewPage = lazy(() => import('./pages/LiteratureReviewPage'));
 
 function PageLoader() {
   return (
@@ -77,26 +73,18 @@ export default function App() {
                 <Route index element={<Navigate to="research" replace />} />
                 {/* Canonical project workflow paths */}
                 <Route path="research" element={<SearchPage />} />
-                <Route path="reader" element={<ReaderPage />} />
                 <Route path="library" element={<PapersPage />} />
-                <Route path="notes" element={<NotesPage />} />
-                <Route path="presentations" element={<PresentationsPage />} />
-                <Route path="meta" element={<MetaPage />} />
-                <Route path="literature-review" element={<LiteratureReviewPage />} />
+                <Route path="reader" element={<ReaderPage />} />
+                <Route path="extraction" element={<MetaPage />} />
+                <Route path="matrix" element={<MatrixPage />} />
+                <Route path="meta-runs" element={<MetaRunsPage />} />
+                <Route path="artifacts" element={<ArtifactsPage />} />
                 <Route path="references" element={<ReferencesPage />} />
-                <Route path="drafts" element={<DraftsPage />} />
-                <Route path="analysis" element={<AnalysisPage />} />
-                <Route path="screening" element={<ScreeningPage />} />
+                <Route path="writing" element={<WritingAssistantPage />} />
+                <Route path="clinical-consults" element={<ClinicalPage />} />
                 <Route path="collaboration" element={<CollaborationPage />} />
-                {/* Legacy aliases kept as redirects-in-place for compatibility */}
-                <Route path="search" element={<SearchPage />} />
-                <Route path="papers" element={<PapersPage />} />
               </Route>
               <Route path="/clinical" element={<ClinicalPage />} />
-              <Route path="/clinical/sheets/:sheetId" element={<ClinicalSheetPage />} />
-              <Route path="/knowledge" element={<BooksPage />} />
-              {/* Legacy alias */}
-              <Route path="/books" element={<Navigate to="/knowledge" replace />} />
               <Route path="/deep-research" element={<DeepResearchPage />} />
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/settings" element={<SettingsPage />} />

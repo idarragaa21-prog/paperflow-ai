@@ -11,10 +11,10 @@ export const demoProjects = [
 ];
 
 export const demoCounts: Record<string, any> = {
-  p1: { papers: 47, notes: 12, references: 38, meta_studies_current: 8, presentations: 2 },
-  p2: { papers: 63, notes: 9, references: 55, meta_studies_current: 14, presentations: 1 },
-  p3: { papers: 29, notes: 7, references: 24, meta_studies_current: 5, presentations: 3 },
-  p4: { papers: 18, notes: 4, references: 15, meta_studies_current: 3, presentations: 0 },
+  p1: { papers: 47, notes: 12, references: 38, meta_studies_current: 8 },
+  p2: { papers: 63, notes: 9, references: 55, meta_studies_current: 14 },
+  p3: { papers: 29, notes: 7, references: 24, meta_studies_current: 5 },
+  p4: { papers: 18, notes: 4, references: 15, meta_studies_current: 3 },
 };
 
 export const demoPapers = [

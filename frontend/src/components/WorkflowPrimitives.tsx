@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { ProjectCounts } from '../types/api';
 
-export type WorkflowStageKey = 'research' | 'library' | 'reader' | 'extract' | 'write' | 'analysis';
+export type WorkflowStageKey = 'research' | 'library' | 'reader' | 'extraction' | 'matrix' | 'meta_runs' | 'writing' | 'artifacts';
 type StageState = 'complete' | 'ready' | 'active' | 'pending';
 
 type WorkflowStage = {
@@ -16,7 +16,7 @@ type WorkflowStage = {
   metricValue: string;
 };
 
-type WorkflowCounts = Pick<ProjectCounts, 'papers' | 'notes' | 'references' | 'meta_studies_current' | 'presentations'>;
+type WorkflowCounts = Pick<ProjectCounts, 'papers' | 'notes' | 'references' | 'meta_studies_current'>;
 
 type PageHeroMetric = {
   label: string;
@@ -47,14 +47,6 @@ type InsightCardProps = {
   tone?: 'primary' | 'success' | 'warning' | 'neutral';
 };
 
-export const EMPTY_COUNTS: WorkflowCounts = {
-  papers: 0,
-  notes: 0,
-  references: 0,
-  meta_studies_current: 0,
-  presentations: 0,
-};
-
 const TONE_CLASS: Record<NonNullable<PageHeroMetric['tone']>, string> = {
   primary: 'rc-metric-card--primary',
   success: 'rc-metric-card--success',
@@ -68,7 +60,6 @@ function normalizeCounts(counts?: Partial<WorkflowCounts> | null): WorkflowCount
     notes: counts?.notes ?? 0,
     references: counts?.references ?? 0,
     meta_studies_current: counts?.meta_studies_current ?? 0,
-    presentations: counts?.presentations ?? 0,
   };
 }
 
@@ -81,15 +72,22 @@ function stageState(key: WorkflowStageKey, counts: WorkflowCounts, current?: Wor
     if (counts.notes > 0) return 'complete';
     return counts.papers > 0 ? 'ready' : 'pending';
   }
-  if (key === 'extract') {
+  if (key === 'extraction') {
     if (counts.meta_studies_current > 0) return 'complete';
     return counts.papers > 0 ? 'ready' : 'pending';
   }
-  if (key === 'write') {
+  if (key === 'matrix') {
+    if (counts.meta_studies_current > 0) return 'complete';
+    return counts.papers > 0 ? 'ready' : 'pending';
+  }
+  if (key === 'meta_runs') {
+    if (counts.meta_studies_current > 0) return 'ready';
+    return counts.papers > 0 ? 'pending' : 'pending';
+  }
+  if (key === 'writing') {
     if (counts.references > 0 || counts.notes > 0) return 'complete';
     return counts.meta_studies_current > 0 ? 'ready' : 'pending';
   }
-  if (counts.presentations > 0) return 'complete';
   return counts.meta_studies_current > 0 ? 'ready' : 'pending';
 }
 
@@ -131,34 +129,54 @@ export function getWorkflowStages(
       metricValue: normalized.notes ? String(normalized.notes) : 'Ask',
     },
     {
-      key: 'extract',
+      key: 'extraction',
       label: 'Extraction',
       shortLabel: 'Extract',
-      description: 'Turn full text into structured studies and review tables.',
-      to: `/projects/${projectId}/meta`,
-      state: stageState('extract', normalized, current),
+      description: 'Extract structured studies, effect sizes and RoB details from papers.',
+      to: `/projects/${projectId}/extraction`,
+      state: stageState('extraction', normalized, current),
       metricLabel: 'studies extracted',
       metricValue: normalized.meta_studies_current ? String(normalized.meta_studies_current) : 'Review',
     },
     {
-      key: 'write',
+      key: 'matrix',
+      label: 'Matrix',
+      shortLabel: 'Matrix',
+      description: 'Consolidate extraction outputs into the versioned master matrix.',
+      to: `/projects/${projectId}/matrix`,
+      state: stageState('matrix', normalized, current),
+      metricLabel: 'matrix readiness',
+      metricValue: normalized.meta_studies_current > 0 ? 'Ready' : 'Pending',
+    },
+    {
+      key: 'meta_runs',
+      label: 'Meta Runs',
+      shortLabel: 'Runs',
+      description: 'Derive datasets and execute publication-grade meta-analysis presets.',
+      to: `/projects/${projectId}/meta-runs`,
+      state: stageState('meta_runs', normalized, current),
+      metricLabel: 'run readiness',
+      metricValue: normalized.meta_studies_current > 0 ? 'Run' : 'Later',
+    },
+    {
+      key: 'writing',
       label: 'Writing',
       shortLabel: 'Write',
-      description: 'Draft grounded prose with evidence and citations attached.',
-      to: `/projects/${projectId}/drafts`,
-      state: stageState('write', normalized, current),
+      description: 'Draft grounded scientific sections with traceable evidence links.',
+      to: `/projects/${projectId}/writing`,
+      state: stageState('writing', normalized, current),
       metricLabel: 'writing assets',
       metricValue: normalized.references || normalized.notes ? String(normalized.references + normalized.notes) : 'Draft',
     },
     {
-      key: 'analysis',
-      label: 'Analysis',
-      shortLabel: 'Analyze',
-      description: 'Run reproducible analyses and export final outputs.',
-      to: `/projects/${projectId}/analysis`,
-      state: stageState('analysis', normalized, current),
-      metricLabel: 'analysis ready',
-      metricValue: normalized.meta_studies_current ? 'Run' : 'Later',
+      key: 'artifacts',
+      label: 'Artifacts',
+      shortLabel: 'Artifacts',
+      description: 'Review, version and download figures/tables/scripts for publication.',
+      to: `/projects/${projectId}/artifacts`,
+      state: stageState('artifacts', normalized, current),
+      metricLabel: 'publication output',
+      metricValue: normalized.meta_studies_current > 0 ? 'Available' : 'Pending',
     },
   ];
 }
@@ -187,20 +205,20 @@ export function getProjectNextAction(
     return {
       label: 'Run Extraction',
       description: 'Extract structured studies and effect-size data from the papers you selected.',
-      to: `/projects/${projectId}/meta`,
+      to: `/projects/${projectId}/extraction`,
     };
   }
   if (normalized.references === 0) {
     return {
       label: 'Draft the Manuscript',
       description: 'Use extracted evidence to start writing a grounded draft.',
-      to: `/projects/${projectId}/drafts`,
+      to: `/projects/${projectId}/writing`,
     };
   }
   return {
-    label: 'Launch Analysis',
-    description: 'Create a dataset, validate it and run the final reproducible analysis.',
-    to: `/projects/${projectId}/analysis`,
+    label: 'Launch Meta Run',
+    description: 'Derive the dataset from matrix and execute the selected meta-analysis preset.',
+    to: `/projects/${projectId}/meta-runs`,
   };
 }
 
@@ -211,10 +229,12 @@ export function getWorkflowCompletion(counts?: Partial<WorkflowCounts> | null) {
     normalized.papers > 0,
     normalized.notes > 0,
     normalized.meta_studies_current > 0,
+    normalized.meta_studies_current > 0,
+    normalized.meta_studies_current > 0,
     normalized.references > 0 || normalized.notes > 0,
     normalized.meta_studies_current > 0,
   ].filter(Boolean).length;
-  return Math.round((completed / 6) * 100);
+  return Math.round((completed / 8) * 100);
 }
 
 function stateLabel(state: StageState) {
