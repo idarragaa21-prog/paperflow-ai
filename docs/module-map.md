@@ -1,35 +1,34 @@
-# PaperFlow AI Module Map
+# PaperFlow Module Map (vNext)
 
-This document tracks the non-destructive transition from `ResearchConsole` to `PaperFlow AI`.
+This document tracks the current module boundaries after the vNext scope cut on `master`.
 
-## Active product modules
+## Active modules
 
-| Current module | Product role now | Planned successor |
+| Module | Role | Core routes |
 | --- | --- | --- |
-| `projects` | Research project workspace | Keep and extend |
-| `search` | Federated literature discovery | Keep and extend |
-| `papers` | Project library and PDF ingestion | Keep and extend |
-| `document pipeline` | Rich PDF parsing, OCR, layout and grounding | Keep and harden |
-| `chat` | Evidence-grounded reader chat | Keep and harden |
-| `meta` | Extraction workspace | Generalized extraction layer |
-| `notes` | Project notes | Keep and extend |
-| `references` | Citation library | New |
-| `drafts` | Writing Studio groundwork | Keep and extend |
-| `analysis` | Reproducible analysis orchestration | Keep and harden |
-| `screening` | Review and PRISMA workflow | Keep and harden |
-| `jobs` | Background processing queue | Keep and extend |
+| `research` | PubMed discovery and import | `/search/*`, `/projects/{id}/library` |
+| `library` | Paper repository and ingestion lifecycle | `/papers/*` |
+| `reader` | Full text reading, annotations, evidence chat | `/chat/*`, `/notes/*` |
+| `extraction` | Structured extraction records (study/effect/RoB) | `/meta/*`, `/extraction/*` |
+| `matrix` | Versioned master extraction matrix | `/matrix/*` |
+| `datasets` | Derived analytical datasets by preset | `/datasets/*` |
+| `meta-runs` | Reproducible analysis runs + artifact catalog | `/meta/runs*`, `/artifacts/*` |
+| `references` | Project bibliography management | `/references/*` |
+| `writing` | Scientific writing assistant with grounded claims | `/writing/*` |
+| `clinical-consults` | Rapid clinical consults with traceable evidence | `/clinical/consults*` |
+| `jobs` | Background queue orchestration | `/jobs/*` |
 
-## Legacy modules
+## Removed modules (hard cut)
 
-| Current module | Status | Replacement path |
-| --- | --- | --- |
-| `clinical` | Bridged/internal | `drafts` + Writing Studio via `POST /drafts/{id}/enhance-with-clinical` |
-| `books` | Bridged/internal | private knowledge sources UI via `/knowledge` (backend `/books` kept for compatibility) |
-| `presentations` | Optional/secondary | post-MVP |
+| Module | Status |
+| --- | --- |
+| `presentations` | Removed |
+| `books` | Removed |
+| `billing` | Removed |
+| `clinical_sheets` | Removed (replaced by `clinical-consults`) |
 
-## Data model migration rules
+## Data model direction
 
-- Do not rename or drop legacy tables during the early transition.
-- Add new document and reference entities in parallel.
-- Prefer adapters over rewrites while UI routes are still shared.
-- New user-facing surfaces should point to `PaperFlow AI` naming even when legacy models still exist internally.
+- Matrix-centric flow is canonical: extraction -> matrix versions -> derived datasets -> meta runs -> artifacts.
+- Writing and clinical outputs must reference explicit source objects (`matrix_rows`, `meta_run_artifacts`, `reference_items`, `papers`/`pubmed`).
+- No new backward compatibility layer should be introduced for removed modules.

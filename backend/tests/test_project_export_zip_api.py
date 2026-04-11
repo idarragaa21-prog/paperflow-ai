@@ -62,7 +62,23 @@ class FakeSession:
         return None
 
     async def execute(self, stmt):
-        raise AssertionError("not used")
+        del stmt
+
+        class _ScalarResult:
+            def first(self):
+                return None
+
+            def all(self):
+                return []
+
+        class _Result:
+            def scalars(self):
+                return _ScalarResult()
+
+            def all(self):
+                return []
+
+        return _Result()
 
 
 @pytest.mark.asyncio

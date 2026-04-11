@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from pathlib import Path
 from uuid import UUID
 
 import httpx
@@ -15,7 +14,6 @@ from app.models.job import Job
 from app.models.paper import Paper
 from app.models.user import User
 from app.schemas.papers import (
-    BatchDownloadPaperRef,
     PaperDetailResponse,
     PaperDeleteResponse,
     PaperDownloadRequest,
@@ -26,6 +24,7 @@ from app.schemas.papers import (
 from app.services.audit import get_latest_paper_download_trace, log_audit
 from app.services.jobs import enqueue_process_pdf, get_job_queue
 from app.services.paper_repo import SQLPaperRepository
+from app.services.permissions import require_project_access
 from app.services.paper_service import PaperDownloadService, PaperServiceError, sha256_hex
 from app.services.pdf_processor import process_paper
 from app.core.logger import logger
@@ -42,12 +41,14 @@ def get_downloader() -> PaperDownloadService:
     return PaperDownloadService()
 
 
-async def _require_owned_project(repo: SQLPaperRepository, *, project_id: UUID, user: User) -> None:
-    project = await repo.get_project(project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    if project.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Proyecto no pertenece al usuario")
+async def _require_project_access(
+    repo: SQLPaperRepository,
+    *,
+    project_id: UUID,
+    user: User,
+    required_role: str = "viewer",
+) -> None:
+    await require_project_access(repo.db, project_id=project_id, user=user, required_role=required_role)
 
 
 def _paper_to_response(
@@ -102,7 +103,7 @@ async def download_paper(
     downloader: PaperDownloadService = Depends(get_downloader),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=payload.project_id, user=user)
+    await _require_project_access(repo, project_id=payload.project_id, user=user, required_role="editor")
 
     # Require at least one identifier OR a direct OA URL (DOAJ papers may have oa_url only)
     if not payload.doi and not payload.pmid and not payload.oa_url:
@@ -269,7 +270,7 @@ async def batch_download(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=payload.project_id, user=user)
+    await _require_project_access(repo, project_id=payload.project_id, user=user, required_role="editor")
 
     papers = [p.model_dump() for p in (payload.papers or [])]
     if not papers:
@@ -327,7 +328,7 @@ async def upload_paper(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=project_id, user=user)
+    await _require_project_access(repo, project_id=project_id, user=user, required_role="editor")
 
     data = await file.read()
     if not storage_manager.validate_pdf(data):
@@ -402,7 +403,7 @@ async def list_papers(
     repo: SQLPaperRepository = Depends(get_repo),
     user: User = Depends(get_current_user),
 ):
-    await _require_owned_project(repo, project_id=project_id, user=user)
+    await _require_project_access(repo, project_id=project_id, user=user, required_role="viewer")
 
     from sqlalchemy import select
 
@@ -445,7 +446,7 @@ async def get_paper(
     paper = await repo.get_paper(paper_id)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="viewer")
     download_trace = await _load_paper_download_trace(repo, paper)
     return PaperDetailResponse(
         id=str(paper.id),
@@ -490,7 +491,7 @@ async def download_paper_file(
         raise HTTPException(status_code=404, detail="Paper not found")
 
     # ownership via project
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="viewer")
 
     if not paper.file_path or not paper.filename:
         raise HTTPException(status_code=404, detail="Paper file missing")
@@ -524,7 +525,7 @@ async def process_paper_endpoint(
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="editor")
 
     # Create DB job record
     job_record = Job(
@@ -567,7 +568,7 @@ async def get_paper_content(
     paper = await repo.get_paper(paper_id)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="viewer")
 
     from sqlalchemy import select
 
@@ -622,7 +623,7 @@ async def get_paper_citations(
     paper = await repo.get_paper(paper_id)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="viewer")
 
     from sqlalchemy import select
 
@@ -652,7 +653,7 @@ async def get_paper_parse_runs(
     paper = await repo.get_paper(paper_id)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="viewer")
 
     from sqlalchemy import select
 
@@ -688,7 +689,7 @@ async def delete_paper(
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="editor")
 
     if paper.file_path:
         try:
@@ -720,7 +721,7 @@ async def toggle_favorite(
     paper = await repo.get_paper(paper_id)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
-    await _require_owned_project(repo, project_id=paper.project_id, user=user)
+    await _require_project_access(repo, project_id=paper.project_id, user=user, required_role="editor")
     paper.favorite = not paper.favorite
     await repo.db.commit()
     return {"id": str(paper.id), "favorite": paper.favorite}

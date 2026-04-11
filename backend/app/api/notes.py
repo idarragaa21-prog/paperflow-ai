@@ -9,12 +9,11 @@ from app.api.deps import get_current_user, get_db
 from app.middleware.rate_limit import limiter
 from app.models.job import Job
 from app.models.note import Note
-from app.models.paper import Paper
-from app.models.project import Project
 from app.models.user import User
 from app.schemas.notes import NoteCreate, NotePatch, NoteResponse, SummarizeNoteRequest
 from app.core.logger import logger
 from app.services.jobs import get_job_queue
+from app.services.permissions import require_paper_access, require_project_access
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -27,13 +26,7 @@ async def summarize_paper(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    paper = await db.get(Paper, payload.paper_id)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-
-    project = await db.get(Project, paper.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Paper not found")
+    paper, _ = await require_paper_access(db, paper_id=payload.paper_id, user=user, required_role="editor")
 
     job_record = Job(
         user_id=user.id,
@@ -80,9 +73,7 @@ async def get_note(
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    project = await db.get(Project, note.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Note not found")
+    await require_project_access(db, project_id=note.project_id, user=user, required_role="viewer")
 
     return NoteResponse(
         id=note.id,
@@ -103,9 +94,7 @@ async def list_notes(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     stmt = select(Note).where(Note.project_id == project_id)
     if paper_id:
@@ -132,9 +121,7 @@ async def create_note(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, payload.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=payload.project_id, user=user, required_role="editor")
 
     note = Note(
         project_id=payload.project_id,
@@ -162,9 +149,7 @@ async def patch_note(
     note = await db.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
-    project = await db.get(Project, note.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Note not found")
+    await require_project_access(db, project_id=note.project_id, user=user, required_role="editor")
 
     if payload.title is not None:
         note.title = payload.title
@@ -189,8 +174,6 @@ async def delete_note(
     note = await db.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
-    project = await db.get(Project, note.project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Note not found")
+    await require_project_access(db, project_id=note.project_id, user=user, required_role="editor")
     await db.delete(note)
     await db.commit()

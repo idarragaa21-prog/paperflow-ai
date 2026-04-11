@@ -16,7 +16,6 @@ from app.core.security import (
     generate_csrf_token,
     hash_password,
     verify_password,
-    verify_token,
 )
 from app.models.audit_log import AuditLog
 from app.models.membership import ProjectInvitation, ProjectMembership
@@ -41,7 +40,8 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         domain=settings.cookie_domain,
         path="/",
     )
-    # Más restrictivo: refresh solo se envía a /auth/refresh
+    # Keep refresh token available on both split-origin (/auth/refresh)
+    # and same-origin proxy setups (/api/auth/refresh).
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -50,7 +50,7 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         samesite=settings.cookie_samesite,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         domain=settings.cookie_domain,
-        path="/auth/refresh",
+        path="/",
     )
 
 
@@ -61,7 +61,7 @@ def _set_csrf_cookie(response: Response, csrf_token: str) -> None:
         httponly=False,
         secure=settings.cookie_secure,
         samesite=settings.cookie_samesite,
-        max_age=86400,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         domain=settings.cookie_domain,
         path="/",
     )
@@ -89,7 +89,7 @@ async def login(
     identifier = credentials.email.lower().strip()
     client_ip = request.client.host if request.client else "unknown"
 
-    q = await db.execute(select(User).where(User.email == credentials.email))
+    q = await db.execute(select(User).where(User.email == identifier))
     user = q.scalar_one_or_none()
 
     try:
@@ -203,7 +203,7 @@ async def refresh(
         samesite=settings.cookie_samesite,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         domain=settings.cookie_domain,
-        path="/auth/refresh",
+        path="/",
     )
     _set_csrf_cookie(response, new_csrf)
     await db.commit()

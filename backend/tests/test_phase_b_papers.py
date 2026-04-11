@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 from app.core.security import create_access_token
 from app.core.storage import storage_manager
 from app.main import app
+from app.models.membership import ProjectMembership
 from app.models.paper import Paper
 
 
@@ -23,7 +24,9 @@ class FakeProject:
 
 
 class FakeDB:
-    def __init__(self):
+    def __init__(self, *, user_id: str, project_id: str):
+        self.user_id = uuid.UUID(user_id)
+        self.project_id = uuid.UUID(project_id)
         self.added = []
 
     def add(self, obj):
@@ -38,8 +41,16 @@ class FakeDB:
     async def commit(self):
         return None
 
+    async def get(self, model, obj_id):
+        name = getattr(model, "__name__", "")
+        if name == "Project":
+            if uuid.UUID(str(obj_id)) != self.project_id:
+                return None
+            return FakeProject(str(self.project_id), str(self.user_id))
+        return None
+
     async def execute(self, stmt):
-        del stmt
+        stmt_text = str(stmt)
 
         class _Result:
             def __init__(self, items):
@@ -51,6 +62,10 @@ class FakeDB:
             def first(self):
                 return self._items[-1] if self._items else None
 
+        if "project_memberships" in stmt_text:
+            membership = ProjectMembership(project_id=self.project_id, user_id=self.user_id, role="owner")
+            return _Result([membership])
+
         audit_entries = [obj for obj in self.added if obj.__class__.__name__ == "AuditLog"]
         return _Result(audit_entries)
 
@@ -60,7 +75,7 @@ class FakeRepo:
         self._user_id = uuid.UUID(user_id)
         self._project_id = uuid.UUID(project_id)
         self._papers: dict[uuid.UUID, Paper] = {}
-        self.db = FakeDB()  # for audit helper
+        self.db = FakeDB(user_id=user_id, project_id=project_id)  # for audit helper
 
     def seed_paper(self, paper: Paper) -> None:
         if paper.id is None:

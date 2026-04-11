@@ -505,12 +505,10 @@ async def project_dashboard(
     from app.models.meta_extractor import ExtractedStudy
     from app.models.note import Note
     from app.models.paper import Paper
-    from app.models.presentation import Presentation
     from app.models.reference_item import ReferenceItem
 
     qp = await db.execute(select(func.count()).select_from(Paper).where(Paper.project_id == project_id))
     qn = await db.execute(select(func.count()).select_from(Note).where(Note.project_id == project_id))
-    qpr = await db.execute(select(func.count()).select_from(Presentation).where(Presentation.project_id == project_id))
     qs = await db.execute(
         select(func.count()).select_from(ExtractedStudy).where(ExtractedStudy.project_id == project_id).where(ExtractedStudy.is_current == True)  # noqa
     )
@@ -521,7 +519,6 @@ async def project_dashboard(
         "counts": {
             "papers": int(qp.scalar() or 0),
             "notes": int(qn.scalar() or 0),
-            "presentations": int(qpr.scalar() or 0),
             "meta_studies_current": int(qs.scalar() or 0),
             "references": int(qr.scalar() or 0),
         },
@@ -614,9 +611,7 @@ async def export_project_zip(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     job_record = Job(
         user_id=user.id,
@@ -655,9 +650,7 @@ async def download_project_zip(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
     job = await db.get(Job, job_id)
     if not job or job.user_id != user.id:

@@ -17,15 +17,20 @@ from app.schemas.extraction import (
     ExtractionRecordResponse,
     ExtractionTemplateResponse,
 )
+from app.services.permissions import require_project_access
 from app.services.extraction_service import create_extraction_record, ensure_builtin_template, export_records, list_records, patch_record
 
 router = APIRouter(prefix="/extraction", tags=["extraction"])
 
 
-async def _require_project(db: AsyncSession, project_id: UUID, user: User) -> Project:
-    project = await db.get(Project, project_id)
-    if not project or project.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Project not found")
+async def _require_project(
+    db: AsyncSession,
+    project_id: UUID,
+    user: User,
+    *,
+    required_role: str = "viewer",
+) -> Project:
+    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role=required_role)
     return project
 
 
@@ -86,7 +91,7 @@ async def create_record(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, payload.project_id, user)
+    await _require_project(db, payload.project_id, user, required_role="editor")
     record = await create_extraction_record(
         db,
         project_id=payload.project_id,
@@ -112,7 +117,7 @@ async def update_record(
     record = result.scalars().first()
     if record is None:
         raise HTTPException(status_code=404, detail="Extraction record not found")
-    await _require_project(db, record.project_id, user)
+    await _require_project(db, record.project_id, user, required_role="editor")
     patched = await patch_record(db, record=record, status=payload.status, fields=payload.fields)
     await db.refresh(patched, attribute_names=["field_values"])
     return _record_to_response(patched)
@@ -124,7 +129,7 @@ async def get_records(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await _require_project(db, project_id, user, required_role="viewer")
     return [_record_to_response(record) for record in await list_records(db, project_id=project_id)]
 
 
@@ -135,6 +140,6 @@ async def export_extraction_records(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await _require_project(db, project_id, user)
+    await _require_project(db, project_id, user, required_role="viewer")
     records = await list_records(db, project_id=project_id)
     return export_records(records, format)
