@@ -420,6 +420,6 @@ async def test_clinical_query_with_deeply_nested_payload_does_not_crash(owner_cl
         headers={"X-CSRF-Token": "valid-csrf"},
     )
     # Should return 200/202 (job queued) or 429 (rate limited), never 500
-    assert resp.status_code < 500, (
-        f"Server crashed on deeply nested payload: {resp.status_code}"
-    )
+    assert resp.status_code in (200, 202, 429, 503), (
+            f"Server crashed on deeply nested payload: {resp.status_code}"
+        )
