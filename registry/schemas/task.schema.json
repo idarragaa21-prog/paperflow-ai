@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Orchestrator Task",
+  "type": "object",
+  "required": [
+    "task_id",
+    "title",
+    "objective",
+    "status",
+    "created_at",
+    "orchestrator"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string"
+    },
+    "parent_task_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "requested_by": {
+      "type": "string"
+    },
+    "orchestrator": {
+      "type": "object"
+    },
+    "classification": {
+      "type": "object"
+    },
+    "assigned_agent": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "constraints": {
+      "type": "object"
+    },
+    "plan": {
+      "type": "array"
+    },
+    "artifacts": {
+      "type": "array"
+    },
+    "subtasks": {
+      "type": "array"
+    },
+    "fallbacks_used": {
+      "type": "array"
+    },
+    "result": {},
+    "error": {}
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "task_id": "task_review_demo",
+  "parent_task_id": null,
+  "title": "Systematic review on femoral neck fracture fixation outcomes",
+  "objective": "Find studies, obtain PDFs, extract structured outcomes, and produce a screened evidence table.",
+  "status": "queued",
+  "priority": "high",
+  "created_at": "2026-04-02T10:00:00Z",
+  "updated_at": "2026-04-02T10:00:00Z",
+  "requested_by": "user",
+  "orchestrator": {
+    "director": "openclaw",
+    "router_version": "v1",
+    "tool_profile": "default"
+  },
+  "classification": {
+    "domain": "systematic_review",
+    "risk": "medium",
+    "execution_mode": "hybrid",
+    "direct_resolve_allowed": false
+  },
+  "assigned_agent": null,
+  "inputs": {
+    "query": "femoral neck fracture fixation randomized trial adults",
+    "doi": [],
+    "pmid": [],
+    "urls": [],
+    "files": []
+  },
+  "constraints": {
+    "max_sources": 50,
+    "must_save_pdfs": true,
+    "structured_output": true,
+    "allow_parallel_subtasks": true
+  },
+  "plan": [],
+  "artifacts": [],
+  "subtasks": [],
+  "fallbacks_used": [],
+  "result": null,
+  "error": null
+}

@@ -1,0 +1,38 @@
+{
+  "task_id": "task_coding_demo",
+  "parent_task_id": null,
+  "title": "Add CSV import for evidence table",
+  "objective": "Inspect the repo, propose the smallest change set, and outline tests for CSV import into an evidence table flow.",
+  "status": "queued",
+  "priority": "medium",
+  "created_at": "2026-04-02T10:00:00Z",
+  "updated_at": "2026-04-02T10:00:00Z",
+  "requested_by": "user",
+  "orchestrator": {
+    "director": "openclaw",
+    "router_version": "v1",
+    "tool_profile": "default"
+  },
+  "classification": {
+    "domain": "coding",
+    "risk": "medium",
+    "execution_mode": "hybrid",
+    "direct_resolve_allowed": false
+  },
+  "assigned_agent": null,
+  "inputs": {
+    "repo_path": ".",
+    "query": "CSV import for evidence table",
+    "files": []
+  },
+  "constraints": {
+    "structured_output": true,
+    "allow_parallel_subtasks": false
+  },
+  "plan": [],
+  "artifacts": [],
+  "subtasks": [],
+  "fallbacks_used": [],
+  "result": null,
+  "error": null
+}

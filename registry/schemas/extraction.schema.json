@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Structured Extraction",
+  "type": "object",
+  "required": [
+    "study_id",
+    "pdf_status",
+    "extraction_confidence",
+    "fields"
+  ],
+  "properties": {
+    "study_id": {
+      "type": "string"
+    },
+    "pdf_status": {
+      "type": "string"
+    },
+    "ocr_used": {
+      "type": "boolean"
+    },
+    "extraction_confidence": {
+      "type": "number"
+    },
+    "fields": {
+      "type": "object"
+    }
+  }
+}

@@ -26,14 +26,13 @@ that runs entirely on your machine. No cloud sync, no subscriptions, no commerci
 | **Paper Library** | Upload, import by DOI, batch download from PubMed. Status tracking, favorites, full-text processing via Grobid. |
 | **PubMed Search** | Federated search with result cards, batch import, and automatic open-access resolution via Unpaywall. |
 | **AI Reader** | Read PDFs with an integrated AI chat grounded in the document. Highlights, annotations, chat history. |
-| **Meta-Analysis** | Data extraction with AI, effect size calculation, risk of bias assessment (RoB), Excel/CSV export. R engine for statistical analysis. |
-| **Clinical Sheets** | Generate UpToDate-style clinical evidence summaries using a multi-pass LLM pipeline. Export to DOCX/PDF. |
-| **Literature Drafts** | AI-assisted scientific writing with inline editing, citation resolution, and HTML export. |
+| **Extraction Workspace** | Structured study/effect/RoB extraction with provenance and validation warnings. |
+| **Master Matrix** | Versioned extraction matrix with export to XLSX/CSV/JSON/XML. |
+| **Meta Runs** | Preset-based derived datasets and reproducible analysis runs with artifact catalog. |
+| **Clinical Consults** | Rapid clinical consults (`brief`, `standard`, `deep`) grounded in project evidence and/or PubMed. |
+| **Writing Assistant** | IMRAD-oriented scientific writing with claim-to-source traceability from matrix, meta runs and references. |
 | **References** | BibTeX export, APA clipboard copy, DOI import, project-scoped reference management. |
-| **Presentations** | Auto-generate slide decks from project papers using customizable templates. |
-| **Books & Scans** | Index and search across book collections and scanned documents. |
 | **Screening** | PRISMA-aligned title/abstract screening with eligibility criteria and batch workflows. |
-| **Analysis** | Statistical analysis orchestration through R engine (regression, group comparison, descriptives). |
 | **Dashboard** | Project-level stats, quick navigation, recent activity overview. |
 | **Mobile** | Fully responsive with hamburger drawer, mobile topbar, and touch-friendly interactions. |
 
@@ -50,7 +49,7 @@ that runs entirely on your machine. No cloud sync, no subscriptions, no commerci
 │ HTTP (REST + cookies)
 ┌───────────────────────▼─────────────────────────────────┐
 │                    Backend (FastAPI)                      │
-│     18 API routers · async services · Auth middleware     │
+│   vNext API routers · async services · Auth middleware     │
 │                    Port 8000                              │
 ├──────────┬──────────┬──────────┬──────────┬─────────────┤
 │ Postgres │  Redis   │  Qdrant  │  MinIO   │   Grobid    │
@@ -196,8 +195,7 @@ paperflow-ai/
 │   │   ├── models/            # SQLAlchemy models
 │   │   ├── schemas/           # Pydantic request/response schemas
 │   │   ├── services/          # Business logic, search, extraction, analysis
-│   │   │   ├── clinical/      # Clinical PRO pipeline (multi-pass LLM)
-│   │   │   ├── llm/           # LLM routing, presets, ensemble
+│   │   │   ├── llm/           # LLM routing (OpenClaw/Ollama/Claude adapters)
 │   │   │   └── meta_extractor/ # Meta-analysis data extraction
 │   │   ├── workers/           # Background job processing (RQ)
 │   │   └── main.py            # FastAPI app entry point
@@ -207,8 +205,7 @@ paperflow-ai/
 ├── frontend/                   # React TypeScript application
 │   ├── src/
 │   │   ├── pages/             # App pages and workflows
-│   │   ├── components/        # Layout, clinical, meta-analysis
-│   │   ├── domain/            # Clinical domain logic
+│   │   ├── components/        # Layout and shared UI building blocks
 │   │   ├── services/          # API client, auth, demo mode
 │   │   ├── store/             # Zustand state management
 │   │   ├── test/              # Frontend unit/integration tests
@@ -234,15 +231,15 @@ paperflow-ai/
 | Papers | `/papers` | upload, download, process, favorites, citations |
 | Search | `/search` | PubMed, federated search |
 | Chat | `/chat` | AI paper chat with grounding |
-| Meta | `/meta` | Studies, effects, RoB, exports |
-| Clinical | `/clinical` | Sheets CRUD, generate, versions, export DOCX/PDF |
+| Extraction | `/meta`, `/extraction` | Study/effect/RoB extraction workflows |
+| Matrix | `/matrix` | build, list versions, inspect, export (`xlsx/csv/json/xml`) |
+| Datasets | `/datasets` | derive dataset from matrix versions |
+| Meta Runs | `/meta/runs` | run preset analyses, list runs and artifacts |
+| Artifacts | `/artifacts` | immutable artifact download by id |
+| Clinical | `/clinical` | clinical consults create/list/get |
+| Writing | `/writing` | writing documents, section generation, citation resolution |
 | References | `/references` | Import, export BibTeX/APA |
-| Drafts | `/drafts` | AI writing, section generation, citation resolution |
-| Presentations | `/presentations` | Generate slide decks |
-| Extraction | `/extraction` | Data extraction templates and records |
 | Screening | `/screening` | Batches, decisions, eligibility criteria |
-| Analysis | `/analysis` | R engine analysis runs |
-| Books | `/books` | Index, scan folder, reindex |
 | Notes | `/notes` | CRUD per project |
 | Jobs | `/jobs` | Background job tracking, cancel |
 
@@ -258,7 +255,7 @@ Full API docs available at **http://127.0.0.1:8000/docs** when backend is runnin
 cd backend
 source .venv/bin/activate
 pytest -q                    # Run all tests
-pytest tests/test_clinical_pro.py -v  # Specific test file
+pytest tests/test_vnext_core_endpoints.py -v  # vNext end-to-end flow
 ```
 
 ### Building Frontend

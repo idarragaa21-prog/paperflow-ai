@@ -1,0 +1,37 @@
+{
+  "task_id": "task_voice_demo",
+  "parent_task_id": null,
+  "title": "Create a local spoken summary",
+  "objective": "Read a short spoken summary of the orchestrator.",
+  "status": "queued",
+  "priority": "low",
+  "created_at": "2026-04-02T10:00:00Z",
+  "updated_at": "2026-04-02T10:00:00Z",
+  "requested_by": "user",
+  "orchestrator": {
+    "director": "openclaw",
+    "router_version": "v1",
+    "tool_profile": "default"
+  },
+  "classification": {
+    "domain": "voice",
+    "risk": "low",
+    "execution_mode": "hybrid",
+    "direct_resolve_allowed": false
+  },
+  "assigned_agent": null,
+  "inputs": {
+    "text": "OpenClaw acts as the director, while specialized agents handle research, documents, coding, operations, and voice.",
+    "files": []
+  },
+  "constraints": {
+    "structured_output": true,
+    "allow_parallel_subtasks": false
+  },
+  "plan": [],
+  "artifacts": [],
+  "subtasks": [],
+  "fallbacks_used": [],
+  "result": null,
+  "error": null
+}

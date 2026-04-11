@@ -1,0 +1,38 @@
+{
+  "task_id": "task_web_research_demo",
+  "parent_task_id": null,
+  "title": "General research on PaperFlow competitors",
+  "objective": "Search the web for competitors or comparable tools to PaperFlow AI and gather the most relevant sources.",
+  "status": "queued",
+  "priority": "medium",
+  "created_at": "2026-04-02T10:00:00Z",
+  "updated_at": "2026-04-02T10:00:00Z",
+  "requested_by": "user",
+  "orchestrator": {
+    "director": "openclaw",
+    "router_version": "v1",
+    "tool_profile": "default"
+  },
+  "classification": {
+    "domain": "research",
+    "risk": "medium",
+    "execution_mode": "hybrid",
+    "direct_resolve_allowed": false
+  },
+  "assigned_agent": null,
+  "inputs": {
+    "query": "PaperFlow AI alternatives literature review research assistant",
+    "files": []
+  },
+  "constraints": {
+    "max_sources": 5,
+    "structured_output": true,
+    "allow_parallel_subtasks": false
+  },
+  "plan": [],
+  "artifacts": [],
+  "subtasks": [],
+  "fallbacks_used": [],
+  "result": null,
+  "error": null
+}

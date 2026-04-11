@@ -1,0 +1,38 @@
+{
+  "task_id": "task_install_tool_demo",
+  "parent_task_id": null,
+  "title": "Inspect install workflow for a dev tool",
+  "objective": "Prepare and, if allowed, run a safe install-oriented shell command for checking ffmpeg on this Mac.",
+  "status": "queued",
+  "priority": "low",
+  "created_at": "2026-04-02T10:00:00Z",
+  "updated_at": "2026-04-02T10:00:00Z",
+  "requested_by": "user",
+  "orchestrator": {
+    "director": "openclaw",
+    "router_version": "v1",
+    "tool_profile": "default"
+  },
+  "classification": {
+    "domain": "ops",
+    "risk": "low",
+    "execution_mode": "hybrid",
+    "direct_resolve_allowed": false
+  },
+  "assigned_agent": null,
+  "inputs": {
+    "cwd": ".",
+    "command": "ffmpeg -version",
+    "files": []
+  },
+  "constraints": {
+    "structured_output": true,
+    "allow_parallel_subtasks": false
+  },
+  "plan": [],
+  "artifacts": [],
+  "subtasks": [],
+  "fallbacks_used": [],
+  "result": null,
+  "error": null
+}

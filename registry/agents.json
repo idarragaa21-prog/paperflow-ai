@@ -1,0 +1,129 @@
+{
+  "version": "1",
+  "director": "openclaw",
+  "agents": [
+    {
+      "id": "research-scout",
+      "purpose": "General research, source triage, article discovery, OA resolution, and first-pass evidence gathering",
+      "tools": [
+        "web_search",
+        "papers_lookup",
+        "url_fetch",
+        "metadata_extract"
+      ],
+      "accepts": [
+        "query",
+        "topic_research",
+        "doi",
+        "pmid",
+        "article_url",
+        "review_task"
+      ],
+      "produces": [
+        "source_list.json",
+        "screening_table.json",
+        "oa_candidates.json",
+        "research_summary.md"
+      ],
+      "fallback_agent": "document-miner"
+    },
+    {
+      "id": "document-miner",
+      "purpose": "Document validation, PDF/Excel intake, OCR-ready processing, and structured extraction scaffolds",
+      "tools": [
+        "pdf_validate",
+        "pdf_extract",
+        "ocr",
+        "excel_extract",
+        "schema_map"
+      ],
+      "accepts": [
+        "pdf_url",
+        "pdf_file",
+        "excel_file",
+        "source_list",
+        "document_task"
+      ],
+      "produces": [
+        "validated_assets.json",
+        "extractions.json",
+        "tables.json",
+        "document_mining.md"
+      ],
+      "fallback_agent": "research-scout"
+    },
+    {
+      "id": "coder-builder",
+      "purpose": "Repo inspection, code planning, validation command discovery, coding task prep, and automation support",
+      "tools": [
+        "git",
+        "shell",
+        "node",
+        "python",
+        "tests",
+        "patch"
+      ],
+      "accepts": [
+        "repo_task",
+        "bugfix",
+        "feature",
+        "automation_task",
+        "coding_task"
+      ],
+      "produces": [
+        "repo_snapshot.json",
+        "patch_plan.json",
+        "test_report.json",
+        "patch_outline.md"
+      ],
+      "fallback_agent": "ops-runner"
+    },
+    {
+      "id": "ops-runner",
+      "purpose": "Mac/system operations, installations, shell execution, files, and operational workflows",
+      "tools": [
+        "shell",
+        "fs",
+        "process",
+        "osascript",
+        "browser_open"
+      ],
+      "accepts": [
+        "system_task",
+        "setup_task",
+        "download_task",
+        "install_task",
+        "command_task"
+      ],
+      "produces": [
+        "ops_log.txt",
+        "ops_result.json",
+        "process_report.json"
+      ],
+      "fallback_agent": null
+    },
+    {
+      "id": "voice-agent",
+      "purpose": "Transcription, TTS, audio conversion, and voice-oriented task handling",
+      "tools": [
+        "transcribe",
+        "tts",
+        "ffmpeg",
+        "audio_normalize"
+      ],
+      "accepts": [
+        "audio_file",
+        "voice_request",
+        "tts_request",
+        "spoken_summary"
+      ],
+      "produces": [
+        "transcript.txt",
+        "transcription_result.json",
+        "tts_result.json",
+        "speech.aiff"
+      ],
+      "fallback_agent": "ops-runner"
+    }
+  ]
+}
