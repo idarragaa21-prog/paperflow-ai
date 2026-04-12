@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 
 from app.config import settings
 from app.services.llm.base import LLMProvider
-
-if TYPE_CHECKING:
-    from app.services.llm.schemas import GenerateOutlineInput
 
 
 class OpenClawProvider(LLMProvider):
@@ -129,77 +126,6 @@ class OpenClawProvider(LLMProvider):
         usage = r.get("usage", {}) or {}
         return {
             "summary": r["content"],
-            "usage": {
-                "input_tokens": usage.get("prompt_tokens", 0),
-                "output_tokens": usage.get("completion_tokens", 0),
-                "cost_usd": usage.get("cost_usd"),
-                "latency_ms": r.get("latency_ms"),
-            },
-            "model": r.get("model"),
-        }
-
-    async def generate_slide_outline(
-        self,
-        input_data: GenerateOutlineInput,
-    ) -> dict[str, Any]:
-        topic = input_data.topic
-        duration_minutes = input_data.duration_minutes
-        audience = input_data.audience
-        papers = input_data.papers
-        num_slides = input_data.num_slides
-
-        # Single-model fallback (not ensemble)
-        system = (
-            "Eres un experto en docencia médica y diseño de presentaciones. "
-            "Tu salida DEBE ser SOLO JSON válido (sin markdown, sin texto extra). "
-            "Objetivo: una presentación 16:9 profesional, NO genérica, con cifras específicas y referencias. "
-            "REGLAS: (1) Cada slide de contenido debe incluir 'takeaway' (1 frase) y 'citations' (lista). "
-            "(2) No inventes números; si un dato no está en papers, marca 'No reportado'. "
-            "(3) Máx 6 bullets por slide, frases cortas, enfoque clínico. "
-            "(4) Incluye 1–3 slides de 'Key Evidence' con tabla comparativa cuando aplique. "
-            "(5) Incluye slide final de Referencias."
-        )
-        user = {
-            "schema": {
-                "title": "string",
-                "slides": [
-                    {
-                        "type": "title|section|content|evidence_table|references",
-                        "title": "string",
-                        "subtitle": "string?",
-                        "bullets": ["string"],
-                        "takeaway": "string?",
-                        "citations": ["string"],
-                        "table": {"headers": ["string"], "rows": [["string"]]} ,
-                        "notes": "string?"
-                    }
-                ]
-            },
-            "topic": topic,
-            "duration_minutes": duration_minutes,
-            "audience": audience,
-            "target_slides": int(num_slides) if num_slides else settings.PRESENTATION_SLIDE_TARGET,
-            "papers": papers or [],
-            "style": {
-                "language": "es",
-                "tone": "profesional",
-                "avoid_generic": True,
-                "include_numbers": True,
-                "include_citations": True,
-            },
-        }
-        r = await self.chat(
-            model=settings.OPENCLAW_MODEL,
-            system=system,
-            user=str(user),
-            temperature=0.3,
-            max_tokens=4096,
-            retry=2,
-        )
-        # Best-effort: return raw text; caller should validate
-        usage = r.get("usage", {}) or {}
-        return {
-            "outline": {"title": topic, "raw": r["content"], "slides": []},
             "usage": {
                 "input_tokens": usage.get("prompt_tokens", 0),
                 "output_tokens": usage.get("completion_tokens", 0),

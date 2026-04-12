@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "direct_execution": {
+    "max_estimated_steps": 2,
+    "max_inputs": 1,
+    "allowed_risk": [
+      "low"
+    ]
+  },
+  "routes": [
+    {
+      "match": [
+        "audio",
+        "transcribe",
+        "tts",
+        "voice",
+        "spoken"
+      ],
+      "agent": "voice-agent"
+    },
+    {
+      "match": [
+        "repo",
+        "code",
+        "bug",
+        "feature",
+        "script",
+        "test",
+        "automation",
+        "build"
+      ],
+      "agent": "coder-builder"
+    },
+    {
+      "match": [
+        "pdf",
+        "excel",
+        "csv",
+        "doi",
+        "pmid",
+        "extract",
+        "document"
+      ],
+      "agent": "document-miner"
+    },
+    {
+      "match": [
+        "install",
+        "shell",
+        "mac",
+        "system",
+        "process",
+        "file",
+        "command",
+        "setup"
+      ],
+      "agent": "ops-runner"
+    },
+    {
+      "match": [
+        "article",
+        "review",
+        "paper",
+        "search",
+        "web",
+        "evidence",
+        "research",
+        "compare"
+      ],
+      "agent": "research-scout"
+    }
+  ]
+}

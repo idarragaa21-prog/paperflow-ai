@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from anthropic import AsyncAnthropic
 
 from app.config import settings
 from app.core.logger import logger
 from app.services.llm.base import LLMProvider
-
-if TYPE_CHECKING:
-    from app.services.llm.schemas import GenerateOutlineInput
 
 _NOT_IMPLEMENTED_MSG = (
     "direct-Claude mode does not implement this method. "
@@ -56,65 +53,6 @@ class ClaudeProvider(LLMProvider):
         usage = r.get("usage", {}) or {}
         return {
             "summary": r["content"],
-            "usage": {
-                "input_tokens": usage.get("prompt_tokens", 0),
-                "output_tokens": usage.get("completion_tokens", 0),
-                "cost_usd": None,
-                "latency_ms": r.get("latency_ms"),
-            },
-            "model": r.get("model"),
-        }
-
-    async def generate_slide_outline(
-        self,
-        input_data: GenerateOutlineInput,
-    ) -> dict[str, Any]:
-        topic = input_data.topic
-        duration_minutes = input_data.duration_minutes
-        audience = input_data.audience
-        papers = input_data.papers
-        num_slides = input_data.num_slides
-
-        from app.config import settings as _s
-        import json
-
-        system = (
-            "Eres un experto en docencia médica y diseño de presentaciones. "
-            "Tu salida DEBE ser SOLO JSON válido (sin markdown, sin texto extra). "
-            "Objetivo: presentación 16:9 profesional con cifras específicas y referencias. "
-            "REGLAS: cada slide de contenido incluye 'takeaway' (1 frase) y 'citations' (lista). "
-            "No inventes números; si un dato no está en papers, marca 'No reportado'. "
-            "Máx 6 bullets por slide."
-        )
-        payload = {
-            "schema": {
-                "title": "string",
-                "slides": [{
-                    "type": "title|section|content|evidence_table|references",
-                    "title": "string", "subtitle": "string?",
-                    "bullets": ["string"], "takeaway": "string?",
-                    "citations": ["string"],
-                    "table": {"headers": ["string"], "rows": [["string"]]},
-                    "notes": "string?",
-                }],
-            },
-            "topic": topic,
-            "duration_minutes": duration_minutes,
-            "audience": audience,
-            "target_slides": int(num_slides) if num_slides else getattr(_s, "PRESENTATION_SLIDE_TARGET", 12),
-            "papers": papers or [],
-            "style": {"language": "es", "tone": "profesional", "avoid_generic": True},
-        }
-        r = await self.chat(
-            model=self.model,
-            system=system,
-            user=json.dumps(payload, ensure_ascii=False),
-            temperature=0.3,
-            max_tokens=self.max_tokens,
-        )
-        usage = r.get("usage", {}) or {}
-        return {
-            "outline": {"title": topic, "raw": r["content"], "slides": []},
             "usage": {
                 "input_tokens": usage.get("prompt_tokens", 0),
                 "output_tokens": usage.get("completion_tokens", 0),

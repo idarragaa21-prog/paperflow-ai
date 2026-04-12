@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -7,8 +7,6 @@ import { useI18n } from '../i18n';
 import type { Locale } from '../i18n';
 import { useTheme } from '../components/ThemeProvider';
 import type {
-  BillingUsageHistoryMonth,
-  BillingUsageSummary,
   MembershipRole,
   Project,
   ProjectInviteResult,
@@ -22,7 +20,7 @@ type ServiceRow = {
   detail?: string;
 };
 
-type SettingsTab = 'general' | 'usage' | 'team';
+type SettingsTab = 'general' | 'team';
 
 const RUNTIME_MODES = [
   { value: 'local_only', label: 'Local only', desc: 'All processing with Ollama + Grobid + Qdrant on localhost. No external API calls.' },
@@ -39,7 +37,6 @@ const TEAM_ROLE_LABELS: Record<MembershipRole, string> = {
 
 const TAB_LABELS: Record<SettingsTab, string> = {
   general: 'General',
-  usage: 'Uso local & cuotas',
   team: 'Equipo',
 };
 
@@ -48,41 +45,6 @@ const ROLE_BADGE_STYLES: Record<MembershipRole, CSSProperties> = {
   editor: { background: 'rgba(59,130,246,0.12)', color: 'rgb(29,78,216)', border: '1px solid rgba(59,130,246,0.18)' },
   viewer: { background: 'rgba(16,185,129,0.12)', color: 'rgb(4,120,87)', border: '1px solid rgba(16,185,129,0.18)' },
 };
-
-function formatInteger(value: number | undefined): string {
-  return Number(value || 0).toLocaleString();
-}
-
-function UsageBarChart({ months }: { months: BillingUsageHistoryMonth[] }) {
-  const maxTokens = useMemo(() => Math.max(...months.map((month) => month.total_tokens), 1), [months]);
-
-  if (months.length === 0) {
-    return <div className="rc-muted">No monthly usage history yet.</div>;
-  }
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${months.length}, minmax(80px, 1fr))`, gap: 12, alignItems: 'end' }}>
-      {months.map((month) => {
-        const height = Math.max(18, Math.round((month.total_tokens / maxTokens) * 120));
-        return (
-          <div key={month.month} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div
-              title={`${month.month}: ${formatInteger(month.total_tokens)} tokens`}
-              style={{
-                height,
-                borderRadius: 14,
-                background: 'linear-gradient(180deg, rgba(59,130,246,0.82) 0%, rgba(16,185,129,0.72) 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.28)',
-              }}
-            />
-            <div style={{ fontSize: 11, fontWeight: 700 }}>{month.month}</div>
-            <div className="rc-help">{formatInteger(month.total_tokens)} tok</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function SettingsPage() {
   const toast = useToast();
@@ -104,10 +66,6 @@ export default function SettingsPage() {
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [runtimeMode, setRuntimeMode] = useState(() => localStorage.getItem('pf_runtime_mode') || 'local_only');
-
-  const [billingSummary, setBillingSummary] = useState<BillingUsageSummary | null>(null);
-  const [billingHistory, setBillingHistory] = useState<BillingUsageHistoryMonth[]>([]);
-  const [loadingUsage, setLoadingUsage] = useState(false);
 
   const [ownedProjects, setOwnedProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -183,24 +141,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function loadUsage() {
-    setLoadingUsage(true);
-    try {
-      const [usageResponse, historyResponse] = await Promise.all([
-        api.get('/billing/usage'),
-        api.get('/billing/history', { params: { months: 6 } }),
-      ]);
-      setBillingSummary(usageResponse.data as BillingUsageSummary);
-      setBillingHistory(((historyResponse.data as { months?: BillingUsageHistoryMonth[] })?.months || []).slice().reverse());
-    } catch (e: any) {
-      setBillingSummary(null);
-      setBillingHistory([]);
-      setError(e?.response?.data?.detail || 'Could not load usage information');
-    } finally {
-      setLoadingUsage(false);
-    }
-  }
-
   async function loadProjects() {
     try {
       const response = await api.get('/projects');
@@ -233,7 +173,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     void loadServices();
-    void loadUsage();
     void loadProjects();
   }, []);
 
@@ -316,7 +255,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="rc-page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 920 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 920 }}>
       <div>
         <h1 className="rc-page-title">{t.settings.title}</h1>
         <div className="rc-subtitle">Manage your profile, usage and collaboration settings.</div>
@@ -421,7 +360,6 @@ export default function SettingsPage() {
               <div className="rc-muted">No service data. Click Refresh to check.</div>
             ) : null}
             {services.length > 0 ? (
-              <div style={{ overflowX: 'auto' }}>
               <table className="rc-table">
                 <thead>
                   <tr>
@@ -449,7 +387,6 @@ export default function SettingsPage() {
                   ))}
                 </tbody>
               </table>
-              </div>
             ) : null}
           </div>
 
@@ -481,109 +418,6 @@ export default function SettingsPage() {
                 This preference is saved in your browser (localStorage). It does not affect the backend default.
               </div>
             </div>
-          </div>
-        </>
-      )}
-
-      {activeTab === 'usage' && (
-        <>
-          <div className="rc-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div className="rc-card-title" style={{ margin: 0 }}>Uso local del mes actual</div>
-              <button className="rc-btn" onClick={loadUsage} disabled={loadingUsage}>
-                {loadingUsage ? 'Refreshing…' : 'Refresh usage'}
-              </button>
-            </div>
-            <div className="rc-help" style={{ marginBottom: 12 }}>
-              This build tracks local AI usage and quotas only. It does not include payment processing, subscription checkout or commercial invoicing.
-            </div>
-            {!billingSummary && !loadingUsage ? (
-              <div className="rc-muted">No tracked local AI usage yet.</div>
-            ) : null}
-            {billingSummary ? (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 18 }}>
-                  <div className="rc-card" style={{ padding: 16 }}>
-                    <div className="rc-kicker">Monthly calls</div>
-                    <div style={{ fontSize: 26, fontWeight: 800 }}>{formatInteger(billingSummary.calls_used)}</div>
-                    <div className="rc-help">Remaining: {billingSummary.quota_calls === -1 ? 'Unlimited' : formatInteger(billingSummary.quota_remaining)}</div>
-                  </div>
-                  <div className="rc-card" style={{ padding: 16 }}>
-                    <div className="rc-kicker">Input tokens</div>
-                    <div style={{ fontSize: 26, fontWeight: 800 }}>{formatInteger(billingSummary.tokens_in)}</div>
-                    <div className="rc-help">Output: {formatInteger(billingSummary.tokens_out)}</div>
-                  </div>
-                  <div className="rc-card" style={{ padding: 16 }}>
-                    <div className="rc-kicker">Total tokens</div>
-                    <div style={{ fontSize: 26, fontWeight: 800 }}>{formatInteger(billingSummary.total_tokens)}</div>
-                    <div className="rc-help">Tier: {billingSummary.tier}</div>
-                  </div>
-                  <div className="rc-card" style={{ padding: 16 }}>
-                    <div className="rc-kicker">Estimated local cost</div>
-                    <div style={{ fontSize: 26, fontWeight: 800 }}>${billingSummary.cost_usd.toFixed(4)}</div>
-                    <div className="rc-help">Usage telemetry only — not a billable checkout amount</div>
-                  </div>
-                </div>
-
-                <div className="rc-card" style={{ padding: 18, marginBottom: 18 }}>
-                  <div className="rc-card-title" style={{ marginBottom: 10 }}>Últimos 6 meses</div>
-                  <UsageBarChart months={billingHistory} />
-                </div>
-
-                <div className="rc-card" style={{ padding: 18, marginBottom: 18 }}>
-                  <div className="rc-card-title" style={{ marginBottom: 10 }}>Modelos usados este mes</div>
-                  {billingSummary.models.length === 0 ? (
-                    <div className="rc-muted">No model usage captured yet.</div>
-                  ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                    <table className="rc-table">
-                      <thead>
-                        <tr>
-                          <th>Model</th>
-                          <th>Calls</th>
-                          <th>Input</th>
-                          <th>Output</th>
-                          <th>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {billingSummary.models.map((item) => (
-                          <tr key={item.model}>
-                            <td style={{ fontWeight: 700 }}>{item.model}</td>
-                            <td>{formatInteger(item.calls)}</td>
-                            <td>{formatInteger(item.tokens_in)}</td>
-                            <td>{formatInteger(item.tokens_out)}</td>
-                            <td>{formatInteger(item.total_tokens)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    </div>
-                  )}
-                </div>
-
-                <div className="rc-card" style={{ padding: 18 }}>
-                  <div className="rc-card-title" style={{ marginBottom: 10 }}>Actividad reciente</div>
-                  {billingSummary.recent.length === 0 ? (
-                    <div className="rc-muted">No recent tracked calls.</div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {billingSummary.recent.map((item, index) => (
-                        <div key={`${item.at || 'usage'}-${index}`} className="rc-product-record rc-product-record--soft">
-                          <div className="rc-product-record__header">
-                            <div style={{ fontWeight: 800 }}>{item.models.map((model) => model.model).join(', ') || 'Unknown model'}</div>
-                            <div className="rc-help">{item.at ? new Date(item.at).toLocaleString() : 'No timestamp'}</div>
-                          </div>
-                          <div className="rc-help" style={{ marginTop: 8 }}>
-                            {formatInteger(item.tokens_in)} in · {formatInteger(item.tokens_out)} out · {formatInteger(item.total_tokens)} total · ${item.cost_usd.toFixed(4)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : null}
           </div>
         </>
       )}

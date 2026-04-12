@@ -1,4 +1,4 @@
-# plumber API for PaperFlow AI analysis orchestration
+# plumber API for PaperFlow AI vNext analysis orchestration
 
 library(plumber)
 library(jsonlite)
@@ -7,16 +7,589 @@ library(jsonlite)
   if (is.null(a)) b else a
 }
 
-#* @get /health
-function() {
-  list(status = "ok", engine = "paperflow-r", version = R.version.string)
+.as_num <- function(x) {
+  suppressWarnings(as.numeric(x))
+}
+
+.num_or_null <- function(x) {
+  if (is.null(x) || length(x) == 0) {
+    return(NULL)
+  }
+  y <- suppressWarnings(as.numeric(x[1]))
+  if (is.na(y)) {
+    return(NULL)
+  }
+  y
+}
+
+.pick_meta <- function(obj, fields) {
+  for (name in fields) {
+    if (!is.null(obj[[name]])) {
+      value <- .num_or_null(obj[[name]])
+      if (!is.null(value)) {
+        return(value)
+      }
+    }
+  }
+  NULL
 }
 
 .coerce_df <- function(rows) {
   if (is.null(rows) || length(rows) == 0) {
     return(data.frame())
   }
-  jsonlite::fromJSON(jsonlite::toJSON(rows, auto_unbox = TRUE), simplifyDataFrame = TRUE)
+  jsonlite::fromJSON(
+    jsonlite::toJSON(rows, auto_unbox = TRUE, null = "null", na = "null"),
+    simplifyDataFrame = TRUE
+  )
+}
+
+.studlab <- function(df) {
+  if ("study_id" %in% names(df)) {
+    return(as.character(df$study_id))
+  }
+  if ("row_key" %in% names(df)) {
+    return(as.character(df$row_key))
+  }
+  as.character(seq_len(nrow(df)))
+}
+
+.extract_meta_summary <- function(meta_obj, model = "random", transform = "none") {
+  if (identical(model, "fixed")) {
+    te <- .pick_meta(meta_obj, c("TE.common", "TE.fixed"))
+    lower <- .pick_meta(meta_obj, c("lower.common", "lower.fixed"))
+    upper <- .pick_meta(meta_obj, c("upper.common", "upper.fixed"))
+    p_value <- .pick_meta(meta_obj, c("pval.common", "pval.fixed"))
+  } else {
+    te <- .pick_meta(meta_obj, c("TE.random", "TE.random.w"))
+    lower <- .pick_meta(meta_obj, c("lower.random", "lower.random.w"))
+    upper <- .pick_meta(meta_obj, c("upper.random", "upper.random.w"))
+    p_value <- .pick_meta(meta_obj, c("pval.random", "pval.random.w"))
+  }
+
+  effect <- te
+  effect_lower <- lower
+  effect_upper <- upper
+
+  if (identical(transform, "exp")) {
+    if (!is.null(te)) effect <- exp(te)
+    if (!is.null(lower)) effect_lower <- exp(lower)
+    if (!is.null(upper)) effect_upper <- exp(upper)
+  } else if (identical(transform, "plogis")) {
+    if (!is.null(te)) effect <- stats::plogis(te)
+    if (!is.null(lower)) effect_lower <- stats::plogis(lower)
+    if (!is.null(upper)) effect_upper <- stats::plogis(upper)
+  }
+
+  k <- .pick_meta(meta_obj, c("k", "k.all"))
+  if (is.null(k) && !is.null(meta_obj$TE)) {
+    k <- length(meta_obj$TE)
+  }
+
+  list(
+    model = model,
+    k = k,
+    pooled = list(
+      effect = effect,
+      lower = effect_lower,
+      upper = effect_upper,
+      log_effect = te,
+      p_value = p_value
+    ),
+    heterogeneity = list(
+      i2 = .pick_meta(meta_obj, c("I2")),
+      tau2 = .pick_meta(meta_obj, c("tau2"))
+    )
+  )
+}
+
+.run_metagen <- function(df, sm = "GEN", model = "random", transform = "none", effect_col = "log_effect") {
+  if (!requireNamespace("meta", quietly = TRUE)) {
+    stop("R package 'meta' is required")
+  }
+
+  te <- .as_num(df[[effect_col]])
+  se <- .as_num(df$se)
+  keep <- is.finite(te) & is.finite(se) & (se > 0)
+  if (sum(keep) < 2) {
+    return(list(
+      summary = list(note = "Not enough rows with finite effect + SE"),
+      warnings = list("Need at least 2 complete rows for metagen."),
+      script = "# Insufficient complete rows for metagen."
+    ))
+  }
+
+  m <- meta::metagen(
+    TE = te[keep],
+    seTE = se[keep],
+    studlab = .studlab(df)[keep],
+    sm = sm,
+    common = identical(model, "fixed"),
+    random = identical(model, "random"),
+    hakn = identical(model, "random")
+  )
+
+  list(
+    summary = .extract_meta_summary(m, model = model, transform = transform),
+    warnings = list(),
+    script = paste(
+      c(
+        "library(meta)",
+        "df <- read.csv('dataset.csv')",
+        sprintf("m <- metagen(TE=df$%s, seTE=df$se, sm='%s', common=%s, random=%s)", effect_col, sm, tolower(identical(model, "fixed")), tolower(identical(model, "random"))),
+        "summary(m)"
+      ),
+      collapse = "\n"
+    ),
+    meta_obj = m
+  )
+}
+
+.run_meta_binary <- function(df, preset) {
+  if (!requireNamespace("meta", quietly = TRUE)) {
+    stop("R package 'meta' is required")
+  }
+
+  a <- .as_num(df$a_events)
+  b <- .as_num(df$b_non_events)
+  c <- .as_num(df$c_events)
+  d <- .as_num(df$d_non_events)
+  n_e <- a + b
+  n_c <- c + d
+  keep <- is.finite(a) & is.finite(b) & is.finite(c) & is.finite(d) & n_e > 0 & n_c > 0
+  model <- if (identical(preset, "meta_binary_fixed")) "fixed" else "random"
+
+  if (sum(keep) >= 2) {
+    m <- meta::metabin(
+      event.e = a[keep],
+      n.e = n_e[keep],
+      event.c = c[keep],
+      n.c = n_c[keep],
+      studlab = .studlab(df)[keep],
+      sm = "OR",
+      method = "Inverse",
+      common = identical(model, "fixed"),
+      random = identical(model, "random")
+    )
+    return(list(
+      summary = .extract_meta_summary(m, model = model, transform = "exp"),
+      warnings = list(),
+      meta_obj = m,
+      script = paste(
+        c(
+          "library(meta)",
+          "df <- read.csv('dataset.csv')",
+          "m <- metabin(event.e=df$a_events, n.e=df$a_events+df$b_non_events, event.c=df$c_events, n.c=df$c_events+df$d_non_events, sm='OR')",
+          "summary(m)"
+        ),
+        collapse = "\n"
+      )
+    ))
+  }
+
+  # Fallback to generic inverse-variance if effect+SE are available.
+  out <- .run_metagen(df, sm = "OR", model = model, transform = "exp", effect_col = "log_effect")
+  if (length(out$warnings) == 0) {
+    out$warnings <- list("2x2 counts were incomplete; used generic log-effect model.")
+  } else {
+    out$warnings <- append(list("2x2 counts were incomplete; used generic log-effect model."), out$warnings)
+  }
+  out
+}
+
+.run_meta_continuous <- function(df, preset) {
+  if (!requireNamespace("meta", quietly = TRUE)) {
+    stop("R package 'meta' is required")
+  }
+  sm <- if (identical(preset, "meta_continuous_smd")) "SMD" else "MD"
+
+  te <- .as_num(df$effect_value)
+  if (all(!is.finite(te)) && ("log_effect" %in% names(df))) {
+    te <- .as_num(df$log_effect)
+  }
+  df$effect_value <- te
+  out <- .run_metagen(df, sm = sm, model = "random", transform = "none", effect_col = "effect_value")
+  out$script <- paste(
+    c(
+      "library(meta)",
+      "df <- read.csv('dataset.csv')",
+      sprintf("m <- metagen(TE=df$effect_value, seTE=df$se, sm='%s', random=TRUE)", sm),
+      "summary(m)"
+    ),
+    collapse = "\n"
+  )
+  out
+}
+
+.run_meta_survival_hr <- function(df) {
+  if (!("log_effect" %in% names(df))) {
+    df$log_effect <- NA_real_
+  }
+  log_effect <- .as_num(df$log_effect)
+  if ("effect_value" %in% names(df)) {
+    hr <- .as_num(df$effect_value)
+    idx <- !is.finite(log_effect) & is.finite(hr) & hr > 0
+    log_effect[idx] <- log(hr[idx])
+  }
+  df$log_effect <- log_effect
+  out <- .run_metagen(df, sm = "HR", model = "random", transform = "exp", effect_col = "log_effect")
+  out$script <- paste(
+    c(
+      "library(meta)",
+      "df <- read.csv('dataset.csv')",
+      "m <- metagen(TE=df$log_effect, seTE=df$se, sm='HR', random=TRUE)",
+      "summary(m)"
+    ),
+    collapse = "\n"
+  )
+  out
+}
+
+.run_meta_proportion <- function(df) {
+  if (!requireNamespace("meta", quietly = TRUE)) {
+    stop("R package 'meta' is required")
+  }
+
+  event <- .as_num(df$a_events)
+  n <- .as_num(df$a_events) + .as_num(df$b_non_events)
+  keep <- is.finite(event) & is.finite(n) & (n > 0)
+  if (sum(keep) < 2) {
+    return(list(
+      summary = list(note = "Not enough rows with event / total for proportion meta-analysis."),
+      warnings = list("Need at least 2 rows with finite events and totals."),
+      script = "# Insufficient rows for metaprop."
+    ))
+  }
+
+  m <- meta::metaprop(
+    event = event[keep],
+    n = n[keep],
+    studlab = .studlab(df)[keep],
+    sm = "PLOGIT",
+    random = TRUE,
+    common = FALSE
+  )
+
+  list(
+    summary = .extract_meta_summary(m, model = "random", transform = "plogis"),
+    warnings = list(),
+    meta_obj = m,
+    script = paste(
+      c(
+        "library(meta)",
+        "df <- read.csv('dataset.csv')",
+        "m <- metaprop(event=df$a_events, n=df$a_events+df$b_non_events, sm='PLOGIT', random=TRUE)",
+        "summary(m)"
+      ),
+      collapse = "\n"
+    )
+  )
+}
+
+.run_meta_diag_accuracy <- function(df) {
+  tp <- .as_num(df$a_events)
+  fn <- .as_num(df$b_non_events)
+  fp <- .as_num(df$c_events)
+  tn <- .as_num(df$d_non_events)
+
+  sens <- tp / (tp + fn)
+  spec <- tn / (tn + fp)
+  sens_w <- tp + fn
+  spec_w <- tn + fp
+
+  sens_keep <- is.finite(sens) & is.finite(sens_w) & sens_w > 0
+  spec_keep <- is.finite(spec) & is.finite(spec_w) & spec_w > 0
+
+  pooled_sens <- NULL
+  pooled_spec <- NULL
+  if (sum(sens_keep) > 0) {
+    pooled_sens <- stats::weighted.mean(sens[sens_keep], sens_w[sens_keep], na.rm = TRUE)
+  }
+  if (sum(spec_keep) > 0) {
+    pooled_spec <- stats::weighted.mean(spec[spec_keep], spec_w[spec_keep], na.rm = TRUE)
+  }
+
+  warnings <- list()
+  if (is.null(pooled_sens) || is.null(pooled_spec)) {
+    warnings <- append(warnings, "Insufficient 2x2 data for pooled sensitivity/specificity.")
+  }
+
+  list(
+    summary = list(
+      model = "diagnostic_weighted_pool",
+      k = nrow(df),
+      pooled = list(
+        sensitivity = pooled_sens,
+        specificity = pooled_spec
+      )
+    ),
+    warnings = warnings,
+    script = paste(
+      c(
+        "df <- read.csv('dataset.csv')",
+        "sens <- df$a_events / (df$a_events + df$b_non_events)",
+        "spec <- df$d_non_events / (df$c_events + df$d_non_events)",
+        "weighted.mean(sens, df$a_events + df$b_non_events, na.rm = TRUE)",
+        "weighted.mean(spec, df$c_events + df$d_non_events, na.rm = TRUE)"
+      ),
+      collapse = "\n"
+    )
+  )
+}
+
+.run_rob_summary <- function(df) {
+  if (!("risk_of_bias_overall" %in% names(df))) {
+    return(list(
+      summary = list(note = "risk_of_bias_overall column is missing."),
+      warnings = list("No RoB labels available in dataset."),
+      script = "# No risk_of_bias_overall column in dataset."
+    ))
+  }
+
+  rob <- tolower(trimws(as.character(df$risk_of_bias_overall)))
+  rob <- rob[!is.na(rob) & nzchar(rob)]
+  if (length(rob) == 0) {
+    return(list(
+      summary = list(note = "No non-empty RoB labels found."),
+      warnings = list("risk_of_bias_overall values are empty."),
+      script = "# Empty risk_of_bias_overall values."
+    ))
+  }
+
+  tab <- table(rob)
+  counts <- as.list(as.integer(tab))
+  names(counts) <- names(tab)
+  pct <- round(100 * as.numeric(tab) / sum(tab), 2)
+  percentages <- as.list(pct)
+  names(percentages) <- names(tab)
+
+  list(
+    summary = list(
+      model = "risk_of_bias_summary",
+      total = sum(tab),
+      counts = counts,
+      percentages = percentages
+    ),
+    warnings = list(),
+    script = "table(tolower(trimws(df$risk_of_bias_overall)))"
+  )
+}
+
+.run_publication_bias <- function(df) {
+  base <- .run_metagen(df, sm = "OR", model = "random", transform = "exp", effect_col = "log_effect")
+  if (length(base$warnings) > 0) {
+    return(base)
+  }
+
+  warnings <- list()
+  bias <- list(egger_p = NULL, rank_p = NULL, k_for_bias = NULL)
+  meta_obj <- base$meta_obj
+  k <- .pick_meta(meta_obj, c("k", "k.all")) %||% length(meta_obj$TE)
+  bias$k_for_bias <- k
+
+  if (!is.null(k) && k >= 10) {
+    if (requireNamespace("meta", quietly = TRUE)) {
+      egger <- tryCatch(meta::metabias(meta_obj, method.bias = "linreg"), error = function(e) NULL)
+      rank <- tryCatch(meta::metabias(meta_obj, method.bias = "rank"), error = function(e) NULL)
+      if (!is.null(egger)) {
+        bias$egger_p <- .pick_meta(egger, c("p.value", "pval"))
+      }
+      if (!is.null(rank)) {
+        bias$rank_p <- .pick_meta(rank, c("p.value", "pval"))
+      }
+    } else {
+      warnings <- append(warnings, "Package 'meta' unavailable for bias tests.")
+    }
+  } else {
+    warnings <- append(warnings, "At least 10 studies are recommended for publication-bias tests.")
+  }
+
+  base$summary$publication_bias <- bias
+  base$warnings <- append(base$warnings, warnings)
+  base$script <- paste(
+    c(
+      "library(meta)",
+      "df <- read.csv('dataset.csv')",
+      "m <- metagen(TE=df$log_effect, seTE=df$se, sm='OR', random=TRUE)",
+      "metabias(m, method.bias='linreg')",
+      "metabias(m, method.bias='rank')"
+    ),
+    collapse = "\n"
+  )
+  base
+}
+
+.capture_plot_triplet <- function(plot_fun) {
+  root <- tempfile("paperflow_plot_")
+  svg_path <- paste0(root, ".svg")
+  png_path <- paste0(root, ".png")
+  pdf_path <- paste0(root, ".pdf")
+  warnings <- character(0)
+
+  run_device <- function(open_fn) {
+    tryCatch(
+      {
+        open_fn()
+        plot_fun()
+      },
+      error = function(err) {
+        warnings <<- c(warnings, as.character(err))
+      }
+    )
+    if (grDevices::dev.cur() > 1) {
+      try(grDevices::dev.off(), silent = TRUE)
+    }
+  }
+
+  run_device(function() grDevices::svg(svg_path, width = 11, height = 8))
+  run_device(function() grDevices::png(png_path, width = 1600, height = 1100, res = 180))
+  run_device(function() grDevices::pdf(pdf_path, width = 11, height = 8, onefile = FALSE))
+
+  out <- list()
+  if (file.exists(svg_path)) {
+    out$svg <- paste(readLines(svg_path, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  }
+  if (file.exists(png_path)) {
+    out$png_base64 <- jsonlite::base64_enc(png_path)
+  }
+  if (file.exists(pdf_path)) {
+    out$pdf_base64 <- jsonlite::base64_enc(pdf_path)
+  }
+  if (length(warnings) > 0) {
+    out$warnings <- as.list(unique(warnings))
+  }
+  out
+}
+
+.build_figure_artifacts <- function(result, analysis_type, df) {
+  artifacts <- list()
+  warnings <- list()
+
+  m <- result$meta_obj %||% NULL
+  if (!is.null(m) && requireNamespace("meta", quietly = TRUE)) {
+    forest <- .capture_plot_triplet(function() {
+      meta::forest(m)
+    })
+    if (!is.null(forest$svg) || !is.null(forest$png_base64) || !is.null(forest$pdf_base64)) {
+      artifacts$forest <- forest[setdiff(names(forest), "warnings")]
+    }
+    if (!is.null(forest$warnings)) {
+      warnings <- append(warnings, forest$warnings)
+    }
+
+    te_length <- length(m$TE %||% numeric(0))
+    if (te_length >= 3) {
+      funnel <- .capture_plot_triplet(function() {
+        meta::funnel(m)
+      })
+      if (!is.null(funnel$svg) || !is.null(funnel$png_base64) || !is.null(funnel$pdf_base64)) {
+        artifacts$funnel <- funnel[setdiff(names(funnel), "warnings")]
+      }
+      if (!is.null(funnel$warnings)) {
+        warnings <- append(warnings, funnel$warnings)
+      }
+    } else {
+      warnings <- append(warnings, "Funnel plot skipped: requires at least 3 studies.")
+    }
+
+    inf_obj <- tryCatch(meta::metainf(m), error = function(err) NULL)
+    if (!is.null(inf_obj)) {
+      influence <- .capture_plot_triplet(function() {
+        meta::forest(inf_obj)
+      })
+      if (!is.null(influence$svg) || !is.null(influence$png_base64) || !is.null(influence$pdf_base64)) {
+        artifacts$influence <- influence[setdiff(names(influence), "warnings")]
+      }
+      if (!is.null(influence$warnings)) {
+        warnings <- append(warnings, influence$warnings)
+      }
+    } else {
+      warnings <- append(warnings, "Influence plot skipped: metainf could not be computed.")
+    }
+  }
+
+  if ("risk_of_bias_overall" %in% names(df)) {
+    rob_values <- tolower(trimws(as.character(df$risk_of_bias_overall)))
+    rob_values <- rob_values[!is.na(rob_values) & nzchar(rob_values)]
+    if (length(rob_values) > 0) {
+      rob_table <- sort(table(rob_values), decreasing = TRUE)
+      rob <- .capture_plot_triplet(function() {
+        palette <- c("#16a34a", "#f59e0b", "#ef4444", "#6b7280", "#0ea5e9")
+        col <- palette[seq_len(min(length(palette), length(rob_table)))]
+        if (length(col) < length(rob_table)) {
+          col <- rep(col, length.out = length(rob_table))
+        }
+        old_par <- par(no.readonly = TRUE)
+        on.exit(par(old_par), add = TRUE)
+        barplot(
+          rob_table,
+          col = col,
+          ylab = "Count",
+          main = "Risk of Bias Summary",
+          las = 2
+        )
+      })
+      if (!is.null(rob$svg) || !is.null(rob$png_base64) || !is.null(rob$pdf_base64)) {
+        artifacts$rob <- rob[setdiff(names(rob), "warnings")]
+      }
+      if (!is.null(rob$warnings)) {
+        warnings <- append(warnings, rob$warnings)
+      }
+    } else if (analysis_type == "risk_of_bias_summary") {
+      warnings <- append(warnings, "RoB plot skipped: no risk_of_bias_overall labels available.")
+    }
+  } else if (analysis_type == "risk_of_bias_summary") {
+    warnings <- append(warnings, "RoB plot skipped: risk_of_bias_overall column missing.")
+  }
+
+  list(artifacts = artifacts, warnings = warnings)
+}
+
+.run_meta_preset <- function(df, analysis_type, params) {
+  warnings <- list()
+  script <- sprintf("# PaperFlow vNext R preset\n# preset: %s", analysis_type)
+
+  # normalize expected numeric columns when present
+  numeric_candidates <- c(
+    "log_effect", "se", "effect_value", "a_events", "b_non_events", "c_events", "d_non_events", "proportion"
+  )
+  for (name in intersect(numeric_candidates, names(df))) {
+    df[[name]] <- .as_num(df[[name]])
+  }
+
+  out <- switch(
+    analysis_type,
+    meta_binary_random = .run_meta_binary(df, "meta_binary_random"),
+    meta_binary_fixed = .run_meta_binary(df, "meta_binary_fixed"),
+    meta_continuous_md = .run_meta_continuous(df, "meta_continuous_md"),
+    meta_continuous_smd = .run_meta_continuous(df, "meta_continuous_smd"),
+    meta_generic_iv = .run_metagen(df, sm = "GEN", model = "random", transform = "none", effect_col = "log_effect"),
+    meta_survival_hr = .run_meta_survival_hr(df),
+    meta_proportion = .run_meta_proportion(df),
+    meta_diag_accuracy = .run_meta_diag_accuracy(df),
+    risk_of_bias_summary = .run_rob_summary(df),
+    publication_bias_suite = .run_publication_bias(df),
+    NULL
+  )
+
+  if (is.null(out)) {
+    return(list(
+      summary = list(
+        analysis_type = analysis_type,
+        row_count = nrow(df),
+        column_count = ncol(df),
+        note = "Unsupported preset"
+      ),
+      warnings = list(sprintf("Unsupported preset: %s", analysis_type)),
+      script = script
+    ))
+  }
+
+  # Attach common envelope fields.
+  out$summary$analysis_type <- analysis_type
+  out$summary$row_count <- nrow(df)
+  out$summary$column_count <- ncol(df)
+  out
 }
 
 .run_regression <- function(df, analysis_type, params) {
@@ -39,24 +612,12 @@ function() {
     ))
   }
 
-  target_sym <- as.name(target)
-  rhs <- as.name(usable_features[[1]])
-  if (length(usable_features) > 1) {
-    for (i in 2:length(usable_features)) {
-      rhs <- call("+", rhs, as.name(usable_features[[i]]))
-    }
-  }
-  safe_formula <- as.formula(call("~", target_sym, rhs), env = parent.frame())
-
-  # For logging and summary
-  formula_text <- paste(deparse(safe_formula), collapse = " ")
-
-  warnings <- list()
+  formula_text <- paste(target, "~", paste(usable_features, collapse = " + "))
   model <- NULL
   if (analysis_type == "linear_regression") {
-    model <- lm(safe_formula, data = df)
+    model <- lm(stats::as.formula(formula_text), data = df)
   } else {
-    model <- glm(safe_formula, data = df, family = binomial())
+    model <- glm(stats::as.formula(formula_text), data = df, family = binomial())
   }
 
   model_summary <- summary(model)
@@ -69,23 +630,79 @@ function() {
       formula = formula_text,
       coefficients = coeff_df
     ),
-    warnings = warnings,
+    warnings = list(),
     script = paste(c(
-      sprintf("df <- read.csv('dataset.csv')"),
+      "df <- read.csv('dataset.csv')",
       sprintf("model <- %s(%s, data = df%s)", ifelse(analysis_type == "linear_regression", "lm", "glm"), formula_text, ifelse(analysis_type == "linear_regression", "", ", family = binomial()")),
       "summary(model)"
     ), collapse = "\n")
   )
 }
 
+#* @get /health
+#* @serializer unboxedJSON
+function() {
+  list(status = "ok", engine = "paperflow-r", version = R.version.string)
+}
+
 #* @post /run-analysis
+#* @serializer unboxedJSON
 function(req, res) {
-  payload <- req$postBody
-  parsed <- jsonlite::fromJSON(payload, simplifyVector = FALSE)
+  payload <- req$postBody %||% "{}"
+  # Defensive fix for non-standard JSON values emitted by upstream clients.
+  payload <- gsub("-Infinity", "null", payload, fixed = TRUE)
+  payload <- gsub("Infinity", "null", payload, fixed = TRUE)
+  payload <- gsub("NaN", "null", payload, fixed = TRUE)
+
+  parsed <- tryCatch(
+    jsonlite::fromJSON(payload, simplifyVector = FALSE),
+    error = function(err) {
+      res$status <- 422
+      return(list(
+        summary = list(note = "Invalid JSON payload"),
+        warnings = list(as.character(err)),
+        script = "# invalid input payload",
+        engine_version = R.version.string
+      ))
+    }
+  )
+  if (!is.null(res$status) && res$status == 422) {
+    return(parsed)
+  }
+
   analysis_type <- tolower(parsed$analysis_type %||% "descriptives")
   params <- parsed$input_params %||% list()
   rows <- parsed$rows %||% list()
   df <- .coerce_df(rows)
+
+  preset_types <- c(
+    "meta_binary_random",
+    "meta_binary_fixed",
+    "meta_continuous_md",
+    "meta_continuous_smd",
+    "meta_generic_iv",
+    "meta_survival_hr",
+    "meta_proportion",
+    "meta_diag_accuracy",
+    "risk_of_bias_summary",
+    "publication_bias_suite"
+  )
+
+  if (analysis_type %in% preset_types) {
+    result <- .run_meta_preset(df, analysis_type, params)
+    figures <- .build_figure_artifacts(result, analysis_type, df)
+    result_warnings <- result$warnings %||% list()
+    if (length(figures$warnings %||% list()) > 0) {
+      result_warnings <- append(result_warnings, figures$warnings)
+    }
+    return(list(
+      summary = result$summary,
+      warnings = result_warnings,
+      script = result$script %||% sprintf("# preset: %s", analysis_type),
+      engine_version = R.version.string,
+      figure_artifacts = figures$artifacts %||% list()
+    ))
+  }
 
   warnings <- list()
   summary_payload <- list(
@@ -123,10 +740,8 @@ function(req, res) {
     warnings <- append(warnings, result$warnings)
     script <- result$script
   } else {
-    warnings <- append(warnings, sprintf("Advanced analysis '%s' is not fully modelled in this r-engine; returning a degraded summary only", analysis_type))
-    summary_payload$note <- "Advanced analysis returned a degraded summary only. Extend plumber.R for full domain-specific modelling."
-    figure$title <- sprintf("Analysis summary (%s, degraded)", analysis_type)
-    figure$caption <- sprintf("Degraded summary fallback for unsupported advanced analysis '%s'.", analysis_type)
+    warnings <- append(warnings, sprintf("Unsupported analysis '%s'.", analysis_type))
+    summary_payload$note <- "Unsupported analysis type for current engine."
   }
 
   list(

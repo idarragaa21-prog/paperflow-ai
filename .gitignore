@@ -6,6 +6,7 @@ frontend/.env.local
 
 # Python
 backend/.venv/
+backend/.venv312/
 __pycache__/
 *.pyc
 *.pyo
@@ -42,3 +43,4 @@ Thumbs.db
 venv/
 backend/venv/
 node_modules/
+.orchestrator-runtime/

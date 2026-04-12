@@ -17,7 +17,7 @@ class Job(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    job_type: Mapped[str] = mapped_column(String(64), nullable=False)  # summarize_paper|generate_presentation|process_pdf
+    job_type: Mapped[str] = mapped_column(String(64), nullable=False)  # summarize_paper|process_pdf|meta_extract|project_export
     status: Mapped[str] = mapped_column(String(32), nullable=False)  # queued|started|progress|completed|failed
 
     input_params: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

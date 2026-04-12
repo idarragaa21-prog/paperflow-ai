@@ -57,7 +57,7 @@ describe('DashboardPage', () => {
       if (url === '/projects/project-1/dashboard') {
         return {
           data: {
-            counts: { papers: 12, references: 8, notes: 4, meta_studies_current: 2, presentations: 1 },
+            counts: { papers: 12, references: 8, notes: 4, meta_studies_current: 2 },
           },
         };
       }
@@ -67,10 +67,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByText('ACL Registry').length).toBeGreaterThan(0);
+      expect(screen.getByRole('heading', { name: 'ACL Registry' })).toBeInTheDocument();
       expect(screen.getByText('Active projects')).toBeInTheDocument();
       expect(screen.getByText('Total papers')).toBeInTheDocument();
-      expect(screen.getAllByText('References').length).toBeGreaterThan(0);
+      expect(screen.getByText('References')).toBeInTheDocument();
       expect(screen.getByText('Notes')).toBeInTheDocument();
     });
   });
@@ -98,7 +98,7 @@ describe('DashboardPage', () => {
       if (url === '/projects/project-1/dashboard') {
         return {
           data: {
-            counts: { papers: 3, references: 2, notes: 1, meta_studies_current: 0, presentations: 0 },
+            counts: { papers: 3, references: 2, notes: 1, meta_studies_current: 0 },
           },
         };
       }
@@ -108,11 +108,8 @@ describe('DashboardPage', () => {
     renderPage();
 
     const user = userEvent.setup();
-    await waitFor(() => expect(screen.getAllByText('Shoulder Lab').length).toBeGreaterThan(0));
-    // Click the project card link (not the spotlight heading)
-    const links = screen.getAllByText('Shoulder Lab');
-    const cardLink = links.find(el => el.tagName === 'A') || links[links.length - 1];
-    await user.click(cardLink);
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Shoulder Lab' })).toBeInTheDocument());
+    await user.click(screen.getByRole('link', { name: 'Shoulder Lab' }));
 
     await waitFor(() => {
       expect(screen.getByText('Project Research')).toBeInTheDocument();

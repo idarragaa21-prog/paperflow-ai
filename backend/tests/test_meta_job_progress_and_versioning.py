@@ -89,6 +89,9 @@ class FakeDB:
 
                 return S(self._prev)
 
+            def all(self):
+                return []
+
         return R(self.prev)
 
 
@@ -171,6 +174,7 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
         percents.append(int(percent))
 
     monkeypatch.setattr(tasks_meta_mod, "job_set_progress", rec_progress_async, raising=False)
+    monkeypatch.setattr(tasks, "job_set_progress", rec_progress_async, raising=False)
 
     def nop_sync(*a, **k):
         return None
@@ -185,6 +189,9 @@ def test_meta_job_progress_calls(monkeypatch, tmp_path):
     monkeypatch.setattr(tasks_meta_mod, "job_mark_started", nop_async, raising=False)
     monkeypatch.setattr(tasks_meta_mod, "job_mark_completed", nop_async, raising=False)
     monkeypatch.setattr(tasks_meta_mod, "job_mark_failed", nop_async, raising=False)
+    monkeypatch.setattr(tasks, "job_mark_started", nop_async, raising=False)
+    monkeypatch.setattr(tasks, "job_mark_completed", nop_async, raising=False)
+    monkeypatch.setattr(tasks, "job_mark_failed", nop_async, raising=False)
 
     # patch fitz open to not fail
     class FakeDoc:

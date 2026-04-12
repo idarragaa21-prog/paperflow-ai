@@ -91,10 +91,6 @@ class Settings(BaseSettings):
     OTEL_ENABLED: bool = False
     OTEL_SERVICE_NAME: str = "paperflow-backend"
 
-    PRESENTATION_SLIDE_TARGET: int = 36
-    PRESENTATION_SLIDE_MIN: int = 30
-    PRESENTATION_SLIDE_MAX: int = 40
-
     # OpenClaw (multi-vendor routing)
     OPENCLAW_BASE_URL: str = "http://127.0.0.1:18789"  # OpenClaw server
     OPENCLAW_TIMEOUT: int = 120

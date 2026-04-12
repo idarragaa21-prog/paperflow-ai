@@ -95,8 +95,8 @@ function NewProjectModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
 const QUICK_ACCESS = [
   {
-    label: 'Clinical Sheets',
-    sub: 'AI clinical summaries',
+    label: 'Clinical Consults',
+    sub: 'Grounded quick answers',
     to: '/clinical',
     color: 'var(--rc-success-weak, rgba(16,185,129,0.1))',
     stroke: 'var(--rc-success)',
@@ -115,18 +115,6 @@ const QUICK_ACCESS = [
     icon: (
       <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--rc-primary)" strokeWidth="1.8" strokeLinecap="round">
         <circle cx="9" cy="8" r="5"/><path d="M14 13l3 3"/><path d="M6 8h6"/>
-      </svg>
-    ),
-  },
-  {
-    label: 'Private Knowledge',
-    sub: 'Indexed internal sources',
-    to: '/knowledge',
-    color: 'rgba(59,130,246,0.1)',
-    stroke: 'rgba(59,130,246,0.85)',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="rgba(59,130,246,0.85)" strokeWidth="1.8" strokeLinecap="round">
-        <path d="M4 3h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M8 3v14M12 7h2M12 10h2"/>
       </svg>
     ),
   },
@@ -224,7 +212,7 @@ export default function DashboardPage() {
               View all projects
             </Link>
             <Link to="/clinical" className="rc-btn" style={{ textDecoration: 'none' }}>
-              Clinical Sheets
+              Clinical Consults
             </Link>
           </>
         )}
@@ -340,7 +328,7 @@ export default function DashboardPage() {
           <div className="rc-card" style={{ textAlign: 'center', padding: '40px 24px' }}>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, fontFamily: 'var(--font-display)' }}>No projects yet</div>
             <div className="rc-help" style={{ marginBottom: 18 }}>
-              Projects are the core of PaperFlow — organize your papers, run searches, extract data, and generate clinical sheets.
+              Projects are the core of PaperFlow — organize papers, run searches, extract data, build matrix versions and generate grounded clinical consults.
             </div>
             <button
               className="rc-btn rc-btn--primary"

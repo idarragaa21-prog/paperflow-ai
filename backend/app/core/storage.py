@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import tempfile
-import zipfile
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -28,7 +26,7 @@ class StorageManager:
         return settings.STORAGE_BACKEND == "s3"
 
     def _ensure_directories(self) -> None:
-        for subdir in ["papers", "slides", "notes", "searches", "books", "datasets", "artifacts"]:
+        for subdir in ["papers", "notes", "searches", "datasets", "artifacts"]:
             (self.base_dir / subdir).mkdir(parents=True, exist_ok=True)
 
     def _sanitize_path(self, path: Path) -> Path:
@@ -57,18 +55,6 @@ class StorageManager:
         if b"%%EOF" not in data[-2048:]:
             return False
         return True
-
-    def validate_pptx(self, data: bytes) -> bool:
-        if not data.startswith(b"PK\x03\x04"):
-            return False
-        try:
-            with zipfile.ZipFile(io.BytesIO(data)) as z:
-                names = set(z.namelist())
-                if "[Content_Types].xml" not in names:
-                    return False
-                return any(name.startswith("ppt/") for name in names)
-        except Exception:
-            return False
 
     def _sanitize_filename(self, filename: str) -> str:
         clean = "".join(c for c in filename if c.isalnum() or c in (" ", "-", "_", "."))
@@ -172,16 +158,6 @@ class StorageManager:
     async def save_paper(self, file: UploadFile, project_id: UUID) -> Dict:
         content = await file.read()
         return await self.save_paper_bytes(data=content, project_id=project_id, suggested_filename=file.filename or None)
-
-    async def save_presentation(self, content: bytes, filename: str, project_id: UUID) -> Dict:
-        if not self.validate_pptx(content):
-            raise ValueError("Archivo no es un PPTX válido")
-        saved = self._save_bytes(subdir="slides", filename=filename, data=content, project_id=project_id)
-        return {
-            "filename": saved["filename"],
-            "file_path": saved["file_path"],
-            "size_kb": saved["size_kb"],
-        }
 
     async def save_dataset_bytes(self, *, data: bytes, filename: str, project_id: UUID) -> Dict[str, Any]:
         return self._save_bytes(subdir="datasets", filename=filename, data=data, project_id=project_id)

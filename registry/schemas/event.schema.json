@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Task Event",
+  "type": "object",
+  "required": [
+    "ts",
+    "event",
+    "task_id"
+  ],
+  "properties": {
+    "ts": {
+      "type": "string"
+    },
+    "event": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "agent": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "step_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    }
+  }
+}

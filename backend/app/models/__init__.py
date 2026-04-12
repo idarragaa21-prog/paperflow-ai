@@ -18,7 +18,6 @@ from app.models.screening import (
     ScreeningDecision,
 )
 from app.models.note import Note
-from app.models.presentation import Presentation, presentation_papers
 from app.models.job import Job
 from app.models.audit_log import AuditLog
 from app.models.reference_item import ReferenceItem
@@ -30,9 +29,10 @@ from app.models.meta_extractor import (
     MetaExtractionBatch,
     MetaExtractionItem,
 )
-from app.models.clinical import ClinicalSheet
-from app.models.book_index import BookIndex
-from app.models.billing import BillingUsageEvent
+from app.models.matrix import MatrixProvenance, MatrixRow, MatrixValidationIssue, MatrixVersion
+from app.models.meta_run import DerivedDataset, MetaRun, MetaRunArtifact
+from app.models.clinical import ClinicalConsult, ClinicalConsultClaim, ClinicalConsultSource
+from app.models.writing import WritingClaimLink, WritingDocument, WritingSection
 
 __all__ = [
     "User",
@@ -71,8 +71,6 @@ __all__ = [
     "ProjectComment",
     "PeerReviewAction",
     "Note",
-    "Presentation",
-    "presentation_papers",
     "Job",
     "AuditLog",
     "ReferenceItem",
@@ -82,7 +80,17 @@ __all__ = [
     "ExtractedStudy",
     "ExtractedEffectSize",
     "ExtractedRiskOfBias",
-    "ClinicalSheet",
-    "BookIndex",
-    "BillingUsageEvent",
+    "MatrixVersion",
+    "MatrixRow",
+    "MatrixProvenance",
+    "MatrixValidationIssue",
+    "DerivedDataset",
+    "MetaRun",
+    "MetaRunArtifact",
+    "ClinicalConsult",
+    "ClinicalConsultSource",
+    "ClinicalConsultClaim",
+    "WritingDocument",
+    "WritingSection",
+    "WritingClaimLink",
 ]

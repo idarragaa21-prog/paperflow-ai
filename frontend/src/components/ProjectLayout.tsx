@@ -5,7 +5,6 @@ import { api } from '../services/api';
 import { useJobPolling } from '../hooks/useJobPolling';
 import { Breadcrumb } from './Breadcrumb';
 import { useToast } from '../ui/Toast/ToastProvider';
-import { useProjectStore } from '../store/projectStore';
 import {
   getProjectNextAction,
   getWorkflowStages,
@@ -34,7 +33,6 @@ type Dashboard = {
   counts: {
     papers: number;
     notes: number;
-    presentations: number;
     meta_studies_current: number;
     references: number;
   };
@@ -43,9 +41,11 @@ type Dashboard = {
 function currentStage(pathname: string): WorkflowStageKey | undefined {
   if (pathname.includes('/library') || pathname.includes('/papers')) return 'library';
   if (pathname.includes('/reader')) return 'reader';
-  if (pathname.includes('/meta')) return 'extract';
-  if (pathname.includes('/drafts')) return 'write';
-  if (pathname.includes('/analysis')) return 'analysis';
+  if (pathname.includes('/extraction') || pathname.includes('/meta')) return 'extraction';
+  if (pathname.includes('/matrix')) return 'matrix';
+  if (pathname.includes('/meta-runs') || pathname.includes('/analysis')) return 'meta_runs';
+  if (pathname.includes('/writing') || pathname.includes('/drafts')) return 'writing';
+  if (pathname.includes('/artifacts')) return 'artifacts';
   if (pathname.includes('/research') || pathname.includes('/search')) return 'research';
   return undefined;
 }
@@ -55,7 +55,6 @@ export default function ProjectLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
-  const setActiveProjectId = useProjectStore((s) => s.setActiveProjectId);
   const [project, setProject] = useState<Project | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -63,11 +62,6 @@ export default function ProjectLayout() {
   const counts = dashboard?.counts;
   const stage = currentStage(location.pathname);
   const stageInfo = getWorkflowStages(projectId || '', counts, stage).find((item) => item.key === stage);
-
-  useEffect(() => {
-    setActiveProjectId(projectId ?? null);
-    return () => setActiveProjectId(null);
-  }, [projectId, setActiveProjectId]);
 
   const exportJob = useJobPolling(exportJobId, {
     onCompleted: () => toast.success('Export ready', 'ZIP is ready to download.'),
@@ -195,9 +189,9 @@ export default function ProjectLayout() {
             <button
               className="rc-btn"
               style={{ gap: 5 }}
-              onClick={() => navigate(`/clinical?from_project=${projectId}`)}
+              onClick={() => navigate(`/projects/${projectId}/clinical-consults`)}
             >
-              Generate Clinical Sheet
+              Open Clinical Consults
             </button>
             <button className="rc-btn" onClick={startExportZip} disabled={exportJob.isRunning}>
               {exportJob.isRunning ? `${exportJob.status?.progress ?? 0}%` : 'Export project ZIP'}
@@ -233,11 +227,12 @@ export default function ProjectLayout() {
           </div>
         </div>
         <div className="rc-support-nav">
-          <NavLink to={`/projects/${projectId}/literature-review`} className="rc-support-pill">Compare Literature</NavLink>
+          <NavLink to={`/projects/${projectId}/matrix`} className="rc-support-pill">Matrix</NavLink>
+          <NavLink to={`/projects/${projectId}/meta-runs`} className="rc-support-pill">Meta Runs</NavLink>
+          <NavLink to={`/projects/${projectId}/artifacts`} className="rc-support-pill">Artifacts</NavLink>
+          <NavLink to={`/projects/${projectId}/writing`} className="rc-support-pill">Writing</NavLink>
           <NavLink to={`/projects/${projectId}/references`} className="rc-support-pill">References</NavLink>
-          <NavLink to={`/projects/${projectId}/screening`} className="rc-support-pill">Screening</NavLink>
-          <NavLink to={`/projects/${projectId}/collaboration`} className="rc-support-pill">Team</NavLink>
-          <NavLink to={`/projects/${projectId}/notes`} className="rc-support-pill">Notes</NavLink>
+          <NavLink to={`/projects/${projectId}/clinical-consults`} className="rc-support-pill">Clinical</NavLink>
         </div>
       </div>
 

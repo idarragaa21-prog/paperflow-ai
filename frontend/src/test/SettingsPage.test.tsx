@@ -48,27 +48,6 @@ describe('SettingsPage', () => {
       if (url === '/health/services') {
         return { data: { services: { ollama: { status: 'ok', latency_ms: 22 }, grobid: { status: 'ok', latency_ms: 80 } } } };
       }
-      if (url === '/billing/usage') {
-        return {
-          data: {
-            period: 'monthly',
-            month: '2026-03',
-            tier: 'local',
-            quota_calls: 1000,
-            calls_used: 12,
-            quota_remaining: 988,
-            tokens_in: 100,
-            tokens_out: 40,
-            total_tokens: 140,
-            cost_usd: 0.03,
-            models: [{ model: 'llama3', calls: 12, tokens_in: 100, tokens_out: 40, total_tokens: 140 }],
-            recent: [],
-          },
-        };
-      }
-      if (url === '/billing/history') {
-        return { data: { months: [{ month: '2026-02', calls: 8, tokens_in: 50, tokens_out: 20, total_tokens: 70, cost_usd: 0.01 }] } };
-      }
       if (url === '/projects') {
         return { data: [{ id: 'project-1', title: 'ACL Project', archived: false }] };
       }
@@ -81,17 +60,11 @@ describe('SettingsPage', () => {
     vi.mocked(api.patch).mockResolvedValue({ data: {} });
   });
 
-  it('loads service and usage sections and persists runtime mode locally', async () => {
+  it('loads service section and persists runtime mode locally', async () => {
     render(<SettingsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('ollama')).toBeInTheDocument();
-    });
-
-    await userEvent.click(screen.getByRole('button', { name: 'Uso local & cuotas' }));
-    await waitFor(() => {
-      expect(screen.getByText(/Estimated local cost/i)).toBeInTheDocument();
-      expect(screen.getByText('llama3')).toBeInTheDocument();
     });
 
     await userEvent.click(screen.getByRole('button', { name: 'General' }));

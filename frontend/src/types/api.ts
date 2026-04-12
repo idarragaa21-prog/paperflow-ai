@@ -28,7 +28,6 @@ export type Project = {
 export type ProjectCounts = {
   papers: number;
   notes: number;
-  presentations: number;
   references: number;
   meta_studies_current: number;
 };
@@ -80,50 +79,6 @@ export type ProjectInvitationLookup = {
   accept_path: string;
   accepted_at?: string | null;
   revoked_at?: string | null;
-};
-
-export type BillingModelUsage = {
-  model: string;
-  calls: number;
-  tokens_in: number;
-  tokens_out: number;
-  total_tokens: number;
-};
-
-export type BillingUsageRecent = {
-  preset?: string | null;
-  tokens_in: number;
-  tokens_out: number;
-  total_tokens: number;
-  cost_usd: number;
-  models: Array<{ model: string; tokens_in: number; tokens_out: number }>;
-  at?: string | null;
-};
-
-export type BillingUsageSummary = {
-  mode?: string;
-  commercial_billing_enabled?: boolean;
-  period: string;
-  month: string;
-  tier: string;
-  quota_calls: number;
-  calls_used: number;
-  quota_remaining: number;
-  tokens_in: number;
-  tokens_out: number;
-  total_tokens: number;
-  cost_usd: number;
-  models: BillingModelUsage[];
-  recent: BillingUsageRecent[];
-};
-
-export type BillingUsageHistoryMonth = {
-  month: string;
-  calls: number;
-  tokens_in: number;
-  tokens_out: number;
-  total_tokens: number;
-  cost_usd: number;
 };
 
 // ─── Papers ───────────────────────────────────────────────────────────────────
@@ -306,18 +261,6 @@ export type Draft = {
   sections: DraftSection[];
 };
 
-// ─── Presentations ────────────────────────────────────────────────────────────
-
-export type PresentationRow = {
-  id: string;
-  title: string;
-  topic: string;
-  duration_minutes: number;
-  audience: string;
-  filename: string;
-  created_at?: string | null;
-};
-
 // ─── References ───────────────────────────────────────────────────────────────
 
 export type ReferenceRow = {
@@ -334,26 +277,6 @@ export type ReferenceRow = {
   source_format: string;
 };
 
-// ─── Clinical ─────────────────────────────────────────────────────────────────
-
-export type ClinicalSheetRow = {
-  id: string;
-  project_id?: string | null;
-  topic: string;
-  version: number;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
-
-export type ClinicalSheetDetail = ClinicalSheetRow & {
-  content_markdown: string;
-  content_json?: Record<string, unknown> | null;
-  references_json?: unknown[] | null;
-  sources_used?: Record<string, unknown> | null;
-  llm_model?: string | null;
-  llm_usage?: Record<string, unknown> | null;
-};
-
 // ─── Meta-analysis ────────────────────────────────────────────────────────────
 
 export type StudyRow = {
@@ -368,17 +291,4 @@ export type StudyRow = {
   rob_auto_generated?: boolean;
   version?: number | null;
   extraction_confidence?: number | string | null;
-};
-
-// ─── Books ────────────────────────────────────────────────────────────────────
-
-export type BookRow = {
-  id: string;
-  title: string;
-  filename: string;
-  chapter_count?: number;
-  chapters_count?: number;
-  total_pages?: number | null;
-  indexed_at?: string | null;
-  created_at?: string | null;
 };

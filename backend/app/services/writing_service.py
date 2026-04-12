@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 import re
-from types import SimpleNamespace
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -195,45 +194,37 @@ async def enhance_draft_with_clinical_evidence(
     draft: Draft,
     user_id: UUID,
 ) -> DraftSection:
-    from app.services.clinical.generator import generate_clinical_sheet
+    from app.services.clinical_consults_service import create_clinical_consult
 
     context = _build_clinical_context_for_draft(draft)
-    clinical_request = SimpleNamespace(
-        project_id=draft.project_id,
+    consult = await create_clinical_consult(
+        db,
         user_id=user_id,
-        topic=draft.title,
-        input_params={
-            "context": context,
-            "objective": "quick_review",
-            "focus": "complete",
-            "level": "specialist",
-            "max_length": "standard",
-            "use_project_papers": True,
-            "search_online": True,
-            "use_books": True,
-            "pro_output": True,
-        },
+        project_id=draft.project_id,
+        question=draft.title,
+        mode="deep",
+        pico_json={"context": context} if context else {},
+        use_project_library=True,
+        use_pubmed=True,
     )
-    output = await generate_clinical_sheet(db=db, sheet=clinical_request, progress_cb=None)
 
     heading = "Clinical evidence enrichment"
-    content = str(output.get("content_markdown") or "").strip()
+    content = str(consult.answer_markdown or "").strip()
     if not content:
         raise RuntimeError("Clinical enrichment returned empty content")
 
     source_summary = {
-        "generated_from": "clinical_pipeline",
-        "format_version": output.get("format_version"),
-        "llm_model": output.get("llm_model"),
-        "warnings": output.get("warnings") or [],
-        "sources_used": output.get("sources_used") or {},
+        "generated_from": "clinical_consults_v2",
+        "consult_id": str(consult.id),
+        "mode": consult.mode,
+        "sources_used": len(consult.sources),
+        "claims": len(consult.claims),
     }
     metadata = dict(draft.metadata_json or {})
     metadata["clinical_enrichment"] = {
         "heading": heading,
-        "format_version": output.get("format_version"),
-        "llm_model": output.get("llm_model"),
-        "warnings": output.get("warnings") or [],
+        "consult_id": str(consult.id),
+        "mode": consult.mode,
     }
     draft.metadata_json = metadata
 
@@ -244,7 +235,7 @@ async def enhance_draft_with_clinical_evidence(
             heading=heading,
             position=len(draft.sections),
             content=content,
-            generated_with_model=str(output.get("llm_model") or "clinical"),
+            generated_with_model="clinical_consults_v2",
             confidence=0.82,
             source_summary=source_summary,
         )
@@ -252,7 +243,7 @@ async def enhance_draft_with_clinical_evidence(
         db.add(existing_section)
     else:
         existing_section.content = content
-        existing_section.generated_with_model = str(output.get("llm_model") or "clinical")
+        existing_section.generated_with_model = "clinical_consults_v2"
         existing_section.confidence = 0.82
         existing_section.source_summary = source_summary
 
