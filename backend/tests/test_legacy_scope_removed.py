@@ -5,10 +5,13 @@ from app.main import app
 
 def _is_legacy_path(path: str) -> bool:
     legacy_prefixes = (
+        "/analysis-runs",
         "/billing",
         "/books",
+        "/drafts",
         "/presentations",
         "/clinical/sheets",
+        "/screening",
     )
     return any(path == prefix or path.startswith(f"{prefix}/") for prefix in legacy_prefixes)
 

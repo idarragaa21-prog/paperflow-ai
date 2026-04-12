@@ -54,11 +54,11 @@ const features = [
         <path d="M7 10h10M7 14h6"/>
       </svg>
     ),
-    title: { en: 'Clinical Evidence Sheets', es: 'Fichas de Evidencia Clínica', pt: 'Fichas de Evidência Clínica' },
+    title: { en: 'Clinical Consults', es: 'Consultas Clínicas Rápidas', pt: 'Consultas Clínicas Rápidas' },
     desc: {
-      en: 'Generate UpToDate-style clinical summaries using a multi-pass LLM pipeline. Export to DOCX and PDF with full citations.',
-      es: 'Genera resúmenes clínicos tipo UpToDate con un pipeline LLM multi-paso. Exporta a DOCX y PDF con citas completas.',
-      pt: 'Gere resumos clínicos tipo UpToDate com um pipeline LLM multi-passo. Exporte para DOCX e PDF com citações completas.',
+      en: 'Ask focused clinical questions and get concise, actionable answers grounded in project papers and PubMed citations.',
+      es: 'Haz preguntas clínicas concretas y recibe respuestas accionables, breves y fundamentadas en papers del proyecto y PubMed.',
+      pt: 'Faça perguntas clínicas objetivas e receba respostas acionáveis, curtas e fundamentadas em papers do projeto e PubMed.',
     },
     color: '#ef4444',
   },
@@ -69,11 +69,11 @@ const features = [
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
       </svg>
     ),
-    title: { en: 'AI Writer + Drafts', es: 'Escritor IA + Borradores', pt: 'Escritor IA + Rascunhos' },
+    title: { en: 'Scientific Writing Assistant', es: 'Asistente de Redacción Científica', pt: 'Assistente de Redação Científica' },
     desc: {
-      en: 'Write scientific papers with AI assistance. Inline editing, automatic citation resolution, and HTML export.',
-      es: 'Escribe papers científicos con asistencia de IA. Edición inline, resolución automática de citas y exportación HTML.',
-      pt: 'Escreva papers científicos com assistência de IA. Edição inline, resolução automática de citações e exportação HTML.',
+      en: 'Generate IMRAD sections, abstracts and legends with strict grounding to matrix evidence, R outputs and traceable citations.',
+      es: 'Genera secciones IMRAD, abstracts y leyendas con grounding estricto a la matriz, resultados de R y citas trazables.',
+      pt: 'Gere seções IMRAD, resumos e legendas com grounding estrito na matriz, resultados de R e citações rastreáveis.',
     },
     color: '#8b5cf6',
   },
@@ -107,23 +107,23 @@ const comparisons = {
     { them: '$24/month for Pro', us: 'Free and open source' },
     { them: 'No meta-analysis', us: 'Full R-powered stats engine' },
     { them: 'No clinical consults', us: 'Grounded rapid clinical consults' },
-    { them: 'No PRISMA screening', us: 'Built-in screening workflow' },
+    { them: 'Fragmented extraction tables', us: 'Versioned master extraction matrix' },
     { them: 'Your data on their servers', us: 'Your data stays on your disk' },
   ],
   es: [
     { them: 'Depende de la nube', us: 'Corre 100% en tu máquina' },
     { them: '$24/mes por Pro', us: 'Gratis y código abierto' },
     { them: 'Sin meta-análisis', us: 'Motor estadístico con R completo' },
-    { them: 'Sin fichas clínicas', us: 'Generador de evidencia tipo UpToDate' },
-    { them: 'Sin tamizaje PRISMA', us: 'Flujo de tamizaje integrado' },
+    { them: 'Sin consultas clínicas rápidas', us: 'Consultas clínicas con grounding bibliográfico' },
+    { them: 'Tablas de extracción fragmentadas', us: 'Master matrix versionada y trazable' },
     { them: 'Tus datos en sus servidores', us: 'Tus datos se quedan en tu disco' },
   ],
   pt: [
     { them: 'Depende da nuvem', us: 'Roda 100% na sua máquina' },
     { them: '$24/mês pelo Pro', us: 'Grátis e código aberto' },
     { them: 'Sem meta-análise', us: 'Motor estatístico com R completo' },
-    { them: 'Sem fichas clínicas', us: 'Gerador de evidência tipo UpToDate' },
-    { them: 'Sem triagem PRISMA', us: 'Fluxo de triagem integrado' },
+    { them: 'Sem consultas clínicas rápidas', us: 'Consultas clínicas com grounding bibliográfico' },
+    { them: 'Tabelas de extração fragmentadas', us: 'Master matrix versionada e rastreável' },
     { them: 'Seus dados nos servidores deles', us: 'Seus dados ficam no seu disco' },
   ],
 };

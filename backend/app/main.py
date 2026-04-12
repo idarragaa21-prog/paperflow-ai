@@ -7,9 +7,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
-from app.api.analysis import router as analysis_router
 from app.api.chat import router as chat_router
-from app.api.drafts import router as drafts_router
 from app.api.jobs import router as jobs_router
 from app.api.references import router as references_router
 from app.api.search import router as search_router
@@ -19,7 +17,6 @@ from app.api.projects import router as projects_router
 from app.api.meta import router as meta_router
 from app.api.meta_runs import router as meta_runs_router
 from app.api.extraction import router as extraction_router
-from app.api.screening import router as screening_router
 from app.api.clinical import router as clinical_router
 from app.api.matrix import router as matrix_router
 from app.api.datasets import router as datasets_router
@@ -86,9 +83,6 @@ app.include_router(extraction_router)
 app.include_router(matrix_router)
 app.include_router(datasets_router)
 app.include_router(references_router)
-app.include_router(drafts_router)
-app.include_router(analysis_router)
-app.include_router(screening_router)
 app.include_router(notes_router)
 app.include_router(projects_router)
 app.include_router(meta_router)

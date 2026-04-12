@@ -42,7 +42,7 @@ async def summarize_paper(
 
     # enqueue
     try:
-        from app.workers.tasks import summarize_paper_job
+        from app.workers.tasks_pdf import summarize_paper_job
 
         q = get_job_queue()
         rq_job = q.enqueue(

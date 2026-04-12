@@ -57,8 +57,14 @@ def _score_rob(rows: list[ExtractedRiskOfBias]) -> dict[str, Any]:
 def _validate_effect(effect_data: dict[str, Any]) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     measure = str(effect_data.get("effect_measure") or "").upper()
+    outcome_type = str(effect_data.get("outcome_type") or "").lower()
+    is_binary = measure in {"OR", "RR"} or outcome_type == "binary"
+    is_survival = measure in {"HR"} or outcome_type in {"time_to_event", "time-to-event", "survival"}
+    is_continuous = measure in {"MD", "SMD"} or outcome_type == "continuous"
+    is_proportion = measure in {"PROPORTION", "PLOGIT"} or outcome_type == "proportion"
+    is_diagnostic = measure in {"DOR", "SENS", "SPEC"} or outcome_type == "diagnostic"
 
-    if measure in {"OR", "RR", "HR"}:
+    if is_binary:
         has_event_table = all(effect_data.get(field) is not None for field in ("a_events", "b_non_events", "c_events", "d_non_events"))
         has_generic = effect_data.get("log_or") is not None and effect_data.get("se_log_or") is not None
         if not has_event_table and not has_generic:
@@ -68,6 +74,84 @@ def _validate_effect(effect_data: dict[str, Any]) -> list[dict[str, str]]:
                     "code": "binary_effect_missing_inputs",
                     "message": "Binary/time-to-event effect requires event table or log effect + SE.",
                     "field_name": "effect_measure",
+                }
+            )
+
+    if is_survival:
+        has_hr = effect_data.get("adjusted_hr") is not None or effect_data.get("effect_value") is not None
+        has_log = effect_data.get("log_or") is not None and effect_data.get("se_log_or") is not None
+        if not has_hr and not has_log:
+            issues.append(
+                {
+                    "severity": "warning",
+                    "code": "survival_effect_missing_inputs",
+                    "message": "Survival effect requires HR/effect_value or log effect + SE.",
+                    "field_name": "effect_measure",
+                }
+            )
+
+    if is_continuous:
+        has_arm_stats = all(
+            effect_data.get(field) is not None
+            for field in ("n_intervention", "n_control", "mean_intervention", "sd_intervention", "mean_control", "sd_control")
+        )
+        has_generic = effect_data.get("effect_value") is not None and (
+            effect_data.get("effect_se") is not None or effect_data.get("se_log_or") is not None
+        )
+        if not has_arm_stats and not has_generic:
+            issues.append(
+                {
+                    "severity": "warning",
+                    "code": "continuous_effect_missing_inputs",
+                    "message": "Continuous effect requires arm summary statistics or effect + SE.",
+                    "field_name": "effect_measure",
+                }
+            )
+
+    if is_proportion:
+        has_totals = effect_data.get("events_total") is not None and effect_data.get("total_n") is not None
+        has_events = effect_data.get("a_events") is not None and effect_data.get("b_non_events") is not None
+        if not has_totals and not has_events:
+            issues.append(
+                {
+                    "severity": "warning",
+                    "code": "proportion_missing_inputs",
+                    "message": "Proportion effect requires events/total or intervention event counts.",
+                    "field_name": "effect_measure",
+                }
+            )
+
+    if is_diagnostic:
+        has_2x2 = all(effect_data.get(field) is not None for field in ("tp", "fp", "fn", "tn"))
+        has_metrics = effect_data.get("sensitivity_value") is not None and effect_data.get("specificity_value") is not None
+        if not has_2x2 and not has_metrics:
+            issues.append(
+                {
+                    "severity": "warning",
+                    "code": "diagnostic_missing_inputs",
+                    "message": "Diagnostic effect requires TP/FP/FN/TN or sensitivity + specificity.",
+                    "field_name": "effect_measure",
+                }
+            )
+
+    if effect_data.get("effect_se") is not None:
+        try:
+            if float(effect_data["effect_se"]) <= 0:
+                issues.append(
+                    {
+                        "severity": "warning",
+                        "code": "invalid_effect_se",
+                        "message": "Standard error must be > 0.",
+                        "field_name": "effect_se",
+                    }
+                )
+        except Exception:
+            issues.append(
+                {
+                    "severity": "warning",
+                    "code": "non_numeric_effect_se",
+                    "message": "Standard error is not numeric.",
+                    "field_name": "effect_se",
                 }
             )
 
@@ -227,10 +311,20 @@ async def build_matrix_version(
             )
 
         for effect in effects:
-            outcome_key = (effect.outcome_name or "outcome").strip().lower().replace(" ", "_")
+            outcome_base = (effect.outcome_name or "outcome").strip().lower().replace(" ", "_")
+            timepoint_key = (effect.timepoint or "not_reported").strip().lower().replace(" ", "_")
+            comparison_key = f"{(effect.arm_intervention or 'arm_a').strip().lower().replace(' ', '_')}__vs__{(effect.arm_control or 'arm_b').strip().lower().replace(' ', '_')}"
+            measure_key = (effect.effect_measure or "effect").strip().lower()
+            outcome_key = f"{outcome_base}::{timepoint_key}::{comparison_key}::{measure_key}"
+            canonical_key = (
+                f"{paper.id}:{outcome_key}:"
+                f"{(effect.subgroup_label or 'all').strip().lower().replace(' ', '_')}:"
+                f"{'sens' if effect.sensitivity_flag else 'main'}"
+            )
             effect_data = {
                 "study_id": str(study.id),
                 "effect_id": str(effect.id),
+                "canonical_key": canonical_key,
                 "paper_id": str(paper.id),
                 "paper_title": paper.title,
                 "pmid": paper.pmid,
@@ -240,18 +334,55 @@ async def build_matrix_version(
                 "arm_intervention": effect.arm_intervention,
                 "arm_control": effect.arm_control,
                 "effect_measure": effect.effect_measure,
+                "outcome_type": effect.outcome_type,
+                "outcome_unit": effect.outcome_unit,
+                "comparator_type": effect.comparator_type,
+                "effect_direction": effect.effect_direction,
                 "a_events": effect.a_events,
                 "b_non_events": effect.b_non_events,
                 "c_events": effect.c_events,
                 "d_non_events": effect.d_non_events,
+                "events_total": effect.events_total,
+                "total_n": effect.total_n,
                 "or_value": effect.or_value,
                 "log_or": effect.log_or,
                 "se_log_or": effect.se_log_or,
+                "effect_value": effect.effect_value,
+                "effect_se": effect.effect_se,
+                "weight": effect.weight,
                 "ci_lower_95": effect.ci_lower_95,
                 "ci_upper_95": effect.ci_upper_95,
                 "adjusted_or": effect.adjusted_or,
                 "adjusted_rr": effect.adjusted_rr,
                 "adjusted_hr": effect.adjusted_hr,
+                "n_intervention": effect.n_intervention,
+                "n_control": effect.n_control,
+                "mean_intervention": effect.mean_intervention,
+                "sd_intervention": effect.sd_intervention,
+                "mean_control": effect.mean_control,
+                "sd_control": effect.sd_control,
+                "median_intervention": effect.median_intervention,
+                "iqr_intervention": effect.iqr_intervention,
+                "median_control": effect.median_control,
+                "iqr_control": effect.iqr_control,
+                "followup_time": effect.followup_time,
+                "followup_unit": effect.followup_unit,
+                "person_time_intervention": effect.person_time_intervention,
+                "person_time_control": effect.person_time_control,
+                "tp": effect.tp,
+                "fp": effect.fp,
+                "fn": effect.fn,
+                "tn": effect.tn,
+                "sensitivity_value": effect.sensitivity_value,
+                "specificity_value": effect.specificity_value,
+                "subgroup_label": effect.subgroup_label,
+                "subgroup_level": effect.subgroup_level,
+                "subgroup_order": effect.subgroup_order,
+                "sensitivity_flag": effect.sensitivity_flag,
+                "sensitivity_reason": effect.sensitivity_reason,
+                "analysis_population": effect.analysis_population,
+                "model_type": effect.model_type,
+                "covariates_json": effect.covariates_json or {},
                 "adjustment_variables": effect.adjustment_variables,
                 "is_adjusted": effect.is_adjusted,
                 "source_page": effect.source_page,

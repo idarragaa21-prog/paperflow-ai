@@ -43,8 +43,8 @@ function currentStage(pathname: string): WorkflowStageKey | undefined {
   if (pathname.includes('/reader')) return 'reader';
   if (pathname.includes('/extraction') || pathname.includes('/meta')) return 'extraction';
   if (pathname.includes('/matrix')) return 'matrix';
-  if (pathname.includes('/meta-runs') || pathname.includes('/analysis')) return 'meta_runs';
-  if (pathname.includes('/writing') || pathname.includes('/drafts')) return 'writing';
+  if (pathname.includes('/meta-runs')) return 'meta_runs';
+  if (pathname.includes('/writing')) return 'writing';
   if (pathname.includes('/artifacts')) return 'artifacts';
   if (pathname.includes('/research') || pathname.includes('/search')) return 'research';
   return undefined;
@@ -174,7 +174,7 @@ export default function ProjectLayout() {
       <PageHero
         eyebrow="Project workflow"
         title={project?.title || 'Project'}
-        subtitle={project?.clinical_area || 'Move from evidence discovery to extraction, writing and final analysis in one continuous workspace.'}
+        subtitle={project?.clinical_area || 'Move from search to matrix, meta runs, clinical consults and writing in one canonical project workflow.'}
         metrics={[
           { label: 'workflow completion', value: `${completion}%`, tone: 'primary' },
           { label: 'papers', value: counts?.papers ?? '—', tone: 'success' },

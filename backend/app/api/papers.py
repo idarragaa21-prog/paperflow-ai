@@ -292,7 +292,7 @@ async def batch_download(
     await repo.db.refresh(job_record)
 
     try:
-        from app.workers.tasks import batch_download_papers_job
+        from app.workers.tasks_pdf import batch_download_papers_job
 
         q = get_job_queue()
         rq_job = q.enqueue(batch_download_papers_job, args=(str(job_record.id), str(payload.project_id), papers), job_timeout="60m")

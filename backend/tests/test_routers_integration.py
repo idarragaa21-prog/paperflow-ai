@@ -26,8 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.main import app
 from app.api.deps import get_db, get_current_user
 from app.database import Base
-from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset
-from app.models.draft import Draft
 from app.models.membership import ProjectMembership
 from app.models.paper import Paper
 from app.models.project import Project
@@ -284,7 +282,7 @@ class TestSearchCacheHit:
 
 @pytest.mark.asyncio
 class TestSharedProjectAccess:
-    async def test_viewer_can_access_reader_analysis_references_and_drafts(self, db_session: AsyncSession):
+    async def test_viewer_can_access_references_datasets_writing_and_chat(self, db_session: AsyncSession):
         owner = User(
             id=uuid.uuid4(),
             email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
@@ -313,23 +311,8 @@ class TestSharedProjectAccess:
             processing_status="ready",
             is_processed=True,
         )
-        dataset = Dataset(project_id=project.id, title="Shared dataset", source_type="manual", row_count=2, column_count=2)
-        draft = Draft(project_id=project.id, title="Shared draft", status="draft", version=1)
         reference = ReferenceItem(project_id=project.id, title="Shared reference", source_format="manual")
-        db_session.add_all([paper, dataset, draft, reference])
-        await db_session.flush()
-        run = AnalysisRun(
-            project_id=project.id,
-            dataset_id=dataset.id,
-            title="Shared run",
-            analysis_type="group_comparison",
-            status="completed",
-            input_params={},
-            warnings=[],
-            runtime_metadata={},
-            result_summary={"ok": True},
-        )
-        db_session.add(run)
+        db_session.add_all([paper, reference])
         await db_session.commit()
 
         app.dependency_overrides[get_db] = _override_get_db
@@ -347,9 +330,8 @@ class TestSharedProjectAccess:
                 patch("app.api.chat.vector_index.index_paper", new=AsyncMock(return_value=None)),
             ):
                 references_r = await client.get("/references", params={"project_id": str(project.id)})
-                drafts_r = await client.get("/drafts", params={"project_id": str(project.id)})
-                datasets_r = await client.get("/datasets", params={"project_id": str(project.id)})
-                runs_r = await client.get("/analysis-runs", params={"project_id": str(project.id)})
+                datasets_r = await client.get("/datasets/derived", params={"project_id": str(project.id)})
+                writing_r = await client.get("/writing/documents", params={"project_id": str(project.id)})
                 chat_r = await client.post(
                     f"/projects/{project.id}/chat",
                     json={"question": "What is the main finding?", "task_type": "chat", "max_citations": 4},
@@ -358,9 +340,8 @@ class TestSharedProjectAccess:
         app.dependency_overrides.clear()
 
         assert references_r.status_code == 200
-        assert drafts_r.status_code == 200
         assert datasets_r.status_code == 200
-        assert runs_r.status_code == 200
+        assert writing_r.status_code == 200
         assert chat_r.status_code == 200
 
     async def test_viewer_can_run_and_reopen_project_search_history(self, db_session: AsyncSession):
@@ -465,10 +446,13 @@ class TestSharedProjectAccess:
         app.dependency_overrides[get_db] = _override_get_db
         app.dependency_overrides[get_current_user] = lambda: viewer
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            create_draft_r = await client.post("/drafts", json={"project_id": str(project.id), "title": "Viewer draft"})
+            create_writing_r = await client.post(
+                "/writing/documents",
+                json={"project_id": str(project.id), "title": "Viewer draft", "mode": "meta_analysis"},
+            )
             create_dataset_r = await client.post(
-                "/datasets",
-                json={"project_id": str(project.id), "title": "Viewer dataset", "rows": [{"group": "A", "value": 1}]},
+                "/datasets/derive",
+                json={"project_id": str(project.id), "preset": "meta_binary_random", "title": "Viewer dataset"},
             )
             import_reference_r = await client.post(
                 "/references/import",
@@ -477,63 +461,9 @@ class TestSharedProjectAccess:
 
         app.dependency_overrides.clear()
 
-        assert create_draft_r.status_code == 403
+        assert create_writing_r.status_code == 403
         assert create_dataset_r.status_code == 403
         assert import_reference_r.status_code == 403
-
-
-@pytest.mark.asyncio
-class TestAnalysisExport:
-    async def test_analysis_export_loads_artifacts_without_missing_greenlet(self, db_session: AsyncSession):
-        owner = User(
-            id=uuid.uuid4(),
-            email=f"owner-{uuid.uuid4().hex[:8]}@paperflow.example.com",
-            full_name="Owner",
-            password_hash=hash_password("pass12345"),
-            is_active=True,
-        )
-        project = Project(user_id=owner.id, title="Analysis export")
-        db_session.add_all([owner, project])
-        await db_session.flush()
-        dataset = Dataset(project_id=project.id, title="Shared dataset", source_type="manual", row_count=2, column_count=2)
-        db_session.add(dataset)
-        await db_session.flush()
-        run = AnalysisRun(
-            project_id=project.id,
-            dataset_id=dataset.id,
-            title="Shared run",
-            analysis_type="group_comparison",
-            status="completed",
-            input_params={},
-            warnings=[],
-            runtime_metadata={},
-            result_summary={"ok": True},
-        )
-        db_session.add(run)
-        await db_session.flush()
-        db_session.add(
-            AnalysisArtifact(
-                analysis_run_id=run.id,
-                artifact_type="report_html",
-                filename="shared-run.html",
-                file_path="artifacts/shared-run.html",
-                mime_type="text/html",
-                metadata_json={"format": "html"},
-            )
-        )
-        await db_session.commit()
-
-        app.dependency_overrides[get_db] = _override_get_db
-        app.dependency_overrides[get_current_user] = lambda: owner
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            with patch("app.services.analysis_service.storage_manager.read_bytes", return_value=b"<html>ok</html>"):
-                response = await client.post(f"/analysis-runs/{run.id}/export", params={"format": "html"})
-
-        app.dependency_overrides.clear()
-
-        assert response.status_code == 200
-        assert response.headers["content-type"].startswith("text/html")
-        assert response.content == b"<html>ok</html>"
 
 
 @pytest.mark.asyncio
@@ -555,7 +485,8 @@ class TestProjectInvitations:
 
         app.dependency_overrides[get_db] = get_db_override
         app.dependency_overrides[get_current_user] = lambda: owner
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as owner_client:
+        owner_transport = ASGITransport(app=app, client=("198.51.100.31", 5501))
+        async with AsyncClient(transport=owner_transport, base_url="http://test") as owner_client:
             owner_client.cookies.set("access_token", "token")
             owner_client.cookies.set("csrf_token", "csrf-123")
             created = await owner_client.post(
@@ -579,8 +510,12 @@ class TestProjectInvitations:
         async def public_db_override():
             yield db_session
 
+        from app.services import auth_rate_limit
+        auth_rate_limit._memory_windows.clear()
+
         app.dependency_overrides[get_db] = public_db_override
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as public_client:
+        public_transport = ASGITransport(app=app, client=("198.51.100.32", 5502))
+        async with AsyncClient(transport=public_transport, base_url="http://test") as public_client:
             lookup = await public_client.get(f"/projects/invitations/{invitation_token}")
             registered = await public_client.post(
                 "/auth/register",

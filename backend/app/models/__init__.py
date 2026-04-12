@@ -7,16 +7,6 @@ from app.models.paper import Paper
 from app.models.document import PaperChunk, PaperCitationSpan, PaperFile, PaperParseRun
 from app.models.chat import AnswerCitation, ChatMessage, ChatSession, PaperHighlight, RetrievedChunk
 from app.models.extraction import ExtractionFieldValue, ExtractionRecord, ExtractionTemplate
-from app.models.draft import Draft, DraftCitation, DraftSection, EvidenceTable
-from app.models.analytics import AnalysisArtifact, AnalysisRun, Dataset, DatasetColumn, FigureArtifact
-from app.models.screening import (
-    EligibilityReason,
-    PeerReviewAction,
-    ProjectComment,
-    ReviewFlow,
-    ScreeningBatch,
-    ScreeningDecision,
-)
 from app.models.note import Note
 from app.models.job import Job
 from app.models.audit_log import AuditLog
@@ -55,21 +45,6 @@ __all__ = [
     "ExtractionTemplate",
     "ExtractionRecord",
     "ExtractionFieldValue",
-    "Draft",
-    "DraftSection",
-    "DraftCitation",
-    "EvidenceTable",
-    "Dataset",
-    "DatasetColumn",
-    "AnalysisRun",
-    "AnalysisArtifact",
-    "FigureArtifact",
-    "ScreeningBatch",
-    "ScreeningDecision",
-    "EligibilityReason",
-    "ReviewFlow",
-    "ProjectComment",
-    "PeerReviewAction",
     "Note",
     "Job",
     "AuditLog",

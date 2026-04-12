@@ -57,20 +57,6 @@ async def _sync_related_state(
 ) -> None:
     input_params = dict(job.input_params or {})
 
-    if job.job_type == "analysis_run":
-        from app.models.analytics import AnalysisRun
-
-        run_id = _parse_uuid(input_params.get("analysis_run_id"))
-        if not run_id:
-            return
-        run = await db.get(AnalysisRun, run_id)
-        if not run:
-            return
-        run.status = target_status
-        if warning:
-            run.warnings = _merge_warning(getattr(run, "warnings", None), warning)
-        return
-
     if job.job_type == "meta_extract_paper":
         from app.models.meta_extractor import MetaExtractionItem
 

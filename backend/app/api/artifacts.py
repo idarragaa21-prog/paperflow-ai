@@ -42,30 +42,4 @@ async def download_artifact(
             headers={"Content-Disposition": f'attachment; filename="{artifact.filename}"'},
         )
 
-    # Legacy compatibility fallback for old analysis artifacts
-    try:
-        from app.models.analytics import AnalysisArtifact, AnalysisRun
-
-        legacy_stmt = (
-            select(AnalysisArtifact)
-            .where(AnalysisArtifact.id == artifact_id)
-            .options(selectinload(AnalysisArtifact.analysis_run))
-        )
-        legacy = (await db.execute(legacy_stmt)).scalars().first()
-        if legacy is not None:
-            run: AnalysisRun = legacy.analysis_run
-            await require_project_access(db, project_id=run.project_id, user=user, required_role="viewer")
-            try:
-                payload = storage_manager.read_bytes(legacy.file_path)
-            except FileNotFoundError as exc:
-                raise HTTPException(status_code=404, detail="Artifact file missing from storage") from exc
-            return Response(
-                payload,
-                media_type=legacy.mime_type or "application/octet-stream",
-                headers={"Content-Disposition": f'attachment; filename="{legacy.filename}"'},
-            )
-    except Exception:
-        # If legacy models are not available in a future cleanup, keep the API response deterministic.
-        pass
-
     raise HTTPException(status_code=404, detail="Artifact not found")

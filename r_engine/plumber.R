@@ -103,6 +103,177 @@ library(jsonlite)
   )
 }
 
+.as_char_vec <- function(value) {
+  if (is.null(value)) {
+    return(character(0))
+  }
+  if (is.character(value)) {
+    return(value)
+  }
+  if (is.list(value)) {
+    return(unlist(lapply(value, as.character), use.names = FALSE))
+  }
+  as.character(value)
+}
+
+.safe_weighted_lm <- function(te, se, data_df, formula_text) {
+  w <- 1 / (se^2)
+  data_df$.te <- te
+  data_df$.w <- w
+  stats::lm(stats::as.formula(paste(".te ~", formula_text)), data = data_df, weights = .w)
+}
+
+.advanced_meta <- function(meta_obj, df, params, transform = "none") {
+  warnings <- list()
+  advanced <- list()
+
+  # Subgroup analysis
+  subgroup_var <- params$subgroup_variable %||% params$subgroup_column %||% params$subgroup
+  if (!is.null(subgroup_var) && subgroup_var %in% names(df)) {
+    grp <- as.character(df[[subgroup_var]])
+    grp[is.na(grp) | !nzchar(grp)] <- "unspecified"
+    keep <- is.finite(meta_obj$TE) & is.finite(meta_obj$seTE)
+    subgroup_rows <- list()
+    for (level in unique(grp[keep])) {
+      idx <- keep & grp == level
+      if (sum(idx) < 2) {
+        next
+      }
+      subgroup_model <- tryCatch(
+        meta::metagen(
+          TE = meta_obj$TE[idx],
+          seTE = meta_obj$seTE[idx],
+          studlab = (.studlab(df))[idx],
+          sm = meta_obj$sm %||% "GEN",
+          common = FALSE,
+          random = TRUE,
+          hakn = TRUE
+        ),
+        error = function(e) NULL
+      )
+      if (!is.null(subgroup_model)) {
+        subgroup_rows[[length(subgroup_rows) + 1]] <- c(
+          list(level = level, studies = sum(idx)),
+          .extract_meta_summary(subgroup_model, model = "random", transform = transform)$pooled
+        )
+      }
+    }
+    if (length(subgroup_rows) > 0) {
+      advanced$subgroup <- list(variable = subgroup_var, groups = subgroup_rows)
+    } else {
+      warnings <- append(warnings, sprintf("Subgroup analysis skipped: `%s` has insufficient complete rows.", subgroup_var))
+    }
+  }
+
+  # Sensitivity analysis (exclude flagged rows + leave-one-out)
+  sensitivity <- list()
+  if ("sensitivity_flag" %in% names(df)) {
+    sensitivity_flag <- as.logical(df$sensitivity_flag)
+    keep <- is.finite(meta_obj$TE) & is.finite(meta_obj$seTE)
+    keep_main <- keep & !sensitivity_flag
+    if (sum(keep_main) >= 2) {
+      m_main <- tryCatch(
+        meta::metagen(
+          TE = meta_obj$TE[keep_main],
+          seTE = meta_obj$seTE[keep_main],
+          studlab = (.studlab(df))[keep_main],
+          sm = meta_obj$sm %||% "GEN",
+          common = FALSE,
+          random = TRUE,
+          hakn = TRUE
+        ),
+        error = function(e) NULL
+      )
+      if (!is.null(m_main)) {
+        sensitivity$exclude_flagged <- .extract_meta_summary(m_main, model = "random", transform = transform)$pooled
+      }
+    }
+  }
+
+  inf_obj <- tryCatch(meta::metainf(meta_obj), error = function(e) NULL)
+  if (!is.null(inf_obj)) {
+    te_vals <- inf_obj$TE.random %||% inf_obj$TE.fixed %||% numeric(0)
+    labels <- inf_obj$studlab %||% character(0)
+    if (length(te_vals) > 0 && length(labels) > 0) {
+      pooled <- .pick_meta(meta_obj, c("TE.random", "TE.common", "TE.fixed")) %||% 0
+      deltas <- abs(te_vals - pooled)
+      ord <- order(deltas, decreasing = TRUE)
+      top_n <- min(5, length(ord))
+      influence_rows <- list()
+      for (i in seq_len(top_n)) {
+        j <- ord[i]
+        influence_rows[[i]] <- list(
+          study = labels[j],
+          delta = deltas[j],
+          pooled_without_study = te_vals[j]
+        )
+      }
+      sensitivity$leave_one_out <- influence_rows
+    }
+  }
+
+  if (length(sensitivity) > 0) {
+    advanced$sensitivity <- sensitivity
+  }
+
+  # Meta-regression
+  covariates <- .as_char_vec(params$meta_regression_covariates %||% params$covariates %||% params$moderators)
+  covariates <- covariates[covariates %in% names(df)]
+  if (length(covariates) > 0) {
+    keep <- is.finite(meta_obj$TE) & is.finite(meta_obj$seTE)
+    reg_df <- data.frame(df[keep, covariates, drop = FALSE])
+    reg_df <- data.frame(lapply(reg_df, function(col) suppressWarnings(as.numeric(col))))
+    complete <- stats::complete.cases(reg_df)
+    if (sum(complete) >= 4) {
+      te <- meta_obj$TE[keep][complete]
+      se <- meta_obj$seTE[keep][complete]
+      reg_df <- reg_df[complete, , drop = FALSE]
+      formula_text <- paste(covariates, collapse = " + ")
+
+      fit <- NULL
+      if (requireNamespace("metafor", quietly = TRUE)) {
+        fit <- tryCatch(
+          metafor::rma.uni(
+            yi = te,
+            sei = se,
+            mods = stats::as.formula(paste("~", formula_text)),
+            method = "REML",
+            data = reg_df
+          ),
+          error = function(e) NULL
+        )
+      }
+      if (is.null(fit)) {
+        fit <- tryCatch(.safe_weighted_lm(te, se, reg_df, formula_text), error = function(e) NULL)
+      }
+
+      if (!is.null(fit)) {
+        coef_tbl <- tryCatch(
+          {
+            sm <- summary(fit)
+            cf <- as.data.frame(sm$coefficients)
+            cf$term <- rownames(cf)
+            rownames(cf) <- NULL
+            cf
+          },
+          error = function(e) NULL
+        )
+        advanced$meta_regression <- list(
+          covariates = covariates,
+          rows = length(te),
+          coefficients = coef_tbl %||% list()
+        )
+      } else {
+        warnings <- append(warnings, "Meta-regression failed for requested covariates.")
+      }
+    } else {
+      warnings <- append(warnings, "Meta-regression skipped: not enough complete rows for moderators.")
+    }
+  }
+
+  list(advanced = advanced, warnings = warnings)
+}
+
 .run_metagen <- function(df, sm = "GEN", model = "random", transform = "none", effect_col = "log_effect") {
   if (!requireNamespace("meta", quietly = TRUE)) {
     stop("R package 'meta' is required")
@@ -250,8 +421,11 @@ library(jsonlite)
     stop("R package 'meta' is required")
   }
 
-  event <- .as_num(df$a_events)
-  n <- .as_num(df$a_events) + .as_num(df$b_non_events)
+  event <- .as_num(df$events_total %||% df$a_events)
+  n <- .as_num(df$total_n)
+  if (all(!is.finite(n))) {
+    n <- .as_num(df$a_events) + .as_num(df$b_non_events)
+  }
   keep <- is.finite(event) & is.finite(n) & (n > 0)
   if (sum(keep) < 2) {
     return(list(
@@ -278,7 +452,7 @@ library(jsonlite)
       c(
         "library(meta)",
         "df <- read.csv('dataset.csv')",
-        "m <- metaprop(event=df$a_events, n=df$a_events+df$b_non_events, sm='PLOGIT', random=TRUE)",
+        "m <- metaprop(event=df$events_total, n=df$total_n, sm='PLOGIT', random=TRUE)",
         "summary(m)"
       ),
       collapse = "\n"
@@ -287,10 +461,10 @@ library(jsonlite)
 }
 
 .run_meta_diag_accuracy <- function(df) {
-  tp <- .as_num(df$a_events)
-  fn <- .as_num(df$b_non_events)
-  fp <- .as_num(df$c_events)
-  tn <- .as_num(df$d_non_events)
+  tp <- .as_num(df$tp %||% df$a_events)
+  fn <- .as_num(df$fn %||% df$b_non_events)
+  fp <- .as_num(df$fp %||% df$c_events)
+  tn <- .as_num(df$tn %||% df$d_non_events)
 
   sens <- tp / (tp + fn)
   spec <- tn / (tn + fp)
@@ -583,6 +757,23 @@ library(jsonlite)
       warnings = list(sprintf("Unsupported preset: %s", analysis_type)),
       script = script
     ))
+  }
+
+  transform <- "none"
+  if (analysis_type %in% c("meta_binary_random", "meta_binary_fixed", "meta_survival_hr", "publication_bias_suite")) {
+    transform <- "exp"
+  } else if (analysis_type %in% c("meta_proportion")) {
+    transform <- "plogis"
+  }
+
+  if (!is.null(out$meta_obj)) {
+    adv <- .advanced_meta(out$meta_obj, df, params, transform = transform)
+    if (length(adv$advanced %||% list()) > 0) {
+      out$summary$advanced <- adv$advanced
+    }
+    if (length(adv$warnings %||% list()) > 0) {
+      out$warnings <- append(out$warnings %||% list(), adv$warnings)
+    }
   }
 
   # Attach common envelope fields.

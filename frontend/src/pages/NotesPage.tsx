@@ -141,7 +141,7 @@ export default function NotesPage() {
               className="rc-input"
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              placeholder="Buscar resúmenes, notas de extracción o screening..."
+              placeholder="Buscar resúmenes y notas de extracción..."
             />
           </label>
           <div className="rc-product-record-list">
