@@ -232,8 +232,6 @@ def meta_extract_paper_job(job_db_id: str, batch_id: str, item_id: str, paper_id
                     rob_auto_generated = False
 
                 # Versioning
-                from sqlalchemy import select
-
                 q = await db.execute(
                     select(ExtractedStudy).where(ExtractedStudy.paper_id == paper_uuid).where(ExtractedStudy.is_current == True)  # noqa
                 )
