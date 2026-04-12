@@ -7,9 +7,9 @@ describe('WorkflowPrimitives.getWorkflowStages', () => {
   it('returns default stages for empty counts and no current stage', () => {
     const stages = getWorkflowStages(projectId, null);
 
-    expect(stages).toHaveLength(6);
+    expect(stages).toHaveLength(8);
 
-    // Research should be ready, others pending
+    // Research should be ready, others pending.
     expect(stages[0].key).toBe('research');
     expect(stages[0].state).toBe('ready');
     expect(stages[0].metricValue).toBe('Start');
@@ -22,17 +22,25 @@ describe('WorkflowPrimitives.getWorkflowStages', () => {
     expect(stages[2].state).toBe('pending');
     expect(stages[2].metricValue).toBe('Ask');
 
-    expect(stages[3].key).toBe('extract');
+    expect(stages[3].key).toBe('extraction');
     expect(stages[3].state).toBe('pending');
     expect(stages[3].metricValue).toBe('Review');
 
-    expect(stages[4].key).toBe('write');
+    expect(stages[4].key).toBe('matrix');
     expect(stages[4].state).toBe('pending');
-    expect(stages[4].metricValue).toBe('Draft');
+    expect(stages[4].metricValue).toBe('Pending');
 
-    expect(stages[5].key).toBe('analysis');
+    expect(stages[5].key).toBe('meta_runs');
     expect(stages[5].state).toBe('pending');
     expect(stages[5].metricValue).toBe('Later');
+
+    expect(stages[6].key).toBe('writing');
+    expect(stages[6].state).toBe('pending');
+    expect(stages[6].metricValue).toBe('Draft');
+
+    expect(stages[7].key).toBe('artifacts');
+    expect(stages[7].state).toBe('pending');
+    expect(stages[7].metricValue).toBe('Pending');
   });
 
   it('updates states when papers are present', () => {
@@ -48,10 +56,16 @@ describe('WorkflowPrimitives.getWorkflowStages', () => {
     expect(library?.metricValue).toBe('5');
 
     const reader = stages.find((s) => s.key === 'reader');
-    expect(reader?.state).toBe('ready'); // Ready because papers exist
+    expect(reader?.state).toBe('ready');
 
-    const extract = stages.find((s) => s.key === 'extract');
-    expect(extract?.state).toBe('ready'); // Ready because papers exist
+    const extraction = stages.find((s) => s.key === 'extraction');
+    expect(extraction?.state).toBe('ready');
+
+    const matrix = stages.find((s) => s.key === 'matrix');
+    expect(matrix?.state).toBe('ready');
+
+    const metaRuns = stages.find((s) => s.key === 'meta_runs');
+    expect(metaRuns?.state).toBe('pending');
   });
 
   it('updates states when all counts are fully populated', () => {
@@ -60,14 +74,26 @@ describe('WorkflowPrimitives.getWorkflowStages', () => {
       notes: 3,
       references: 2,
       meta_studies_current: 4,
-      presentations: 1,
     };
     const stages = getWorkflowStages(projectId, counts);
 
-    expect(stages.every((s) => s.state === 'complete')).toBe(true);
+    const expectedByKey = {
+      research: 'complete',
+      library: 'complete',
+      reader: 'complete',
+      extraction: 'complete',
+      matrix: 'complete',
+      meta_runs: 'ready',
+      writing: 'complete',
+      artifacts: 'ready',
+    } as const;
 
-    const write = stages.find((s) => s.key === 'write');
-    expect(write?.metricValue).toBe('5'); // references (2) + notes (3)
+    for (const stage of stages) {
+      expect(stage.state).toBe(expectedByKey[stage.key]);
+    }
+
+    const writing = stages.find((s) => s.key === 'writing');
+    expect(writing?.metricValue).toBe('5'); // references (2) + notes (3)
   });
 
   it('marks the current stage as active', () => {
@@ -83,22 +109,22 @@ describe('WorkflowPrimitives.getWorkflowStages', () => {
   });
 
   it('handles write state correctly with different combinations of notes and references', () => {
-      // notes but no references
-      let stages = getWorkflowStages(projectId, { notes: 1, references: 0, meta_studies_current: 0 });
-      let write = stages.find((s) => s.key === 'write');
-      expect(write?.state).toBe('complete');
-      expect(write?.metricValue).toBe('1');
+    // notes but no references
+    let stages = getWorkflowStages(projectId, { notes: 1, references: 0, meta_studies_current: 0 });
+    let writing = stages.find((s) => s.key === 'writing');
+    expect(writing?.state).toBe('complete');
+    expect(writing?.metricValue).toBe('1');
 
-      // references but no notes
-      stages = getWorkflowStages(projectId, { notes: 0, references: 2, meta_studies_current: 0 });
-      write = stages.find((s) => s.key === 'write');
-      expect(write?.state).toBe('complete');
-      expect(write?.metricValue).toBe('2');
+    // references but no notes
+    stages = getWorkflowStages(projectId, { notes: 0, references: 2, meta_studies_current: 0 });
+    writing = stages.find((s) => s.key === 'writing');
+    expect(writing?.state).toBe('complete');
+    expect(writing?.metricValue).toBe('2');
 
-      // ready if no notes/references but meta_studies_current > 0
-      stages = getWorkflowStages(projectId, { notes: 0, references: 0, meta_studies_current: 1 });
-      write = stages.find((s) => s.key === 'write');
-      expect(write?.state).toBe('ready');
-      expect(write?.metricValue).toBe('Draft');
-  })
+    // Ready if no notes/references but extracted studies are available.
+    stages = getWorkflowStages(projectId, { notes: 0, references: 0, meta_studies_current: 1 });
+    writing = stages.find((s) => s.key === 'writing');
+    expect(writing?.state).toBe('ready');
+    expect(writing?.metricValue).toBe('Draft');
+  });
 });
