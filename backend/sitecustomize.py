@@ -38,7 +38,7 @@ def _patch_individual_download_trace() -> None:
         return
 
     original_resolve = PaperDownloadService.resolve_open_access_target
-    original_download = PaperDownloadService.download_and_store_from_metadata
+    original_download = PaperDownloadService.download_open_access_pdf
 
     async def resolve_with_trace(self: Any, *args: Any, **kwargs: Any) -> Any:
         target = await original_resolve(self, *args, **kwargs)
@@ -121,7 +121,7 @@ def _patch_individual_download_trace() -> None:
         return result
 
     PaperDownloadService.resolve_open_access_target = resolve_with_trace
-    PaperDownloadService.download_and_store_from_metadata = download_with_trace
+    PaperDownloadService.download_open_access_pdf = download_with_trace
     PaperDownloadService._paperflow_trace_patch = True
 
 
