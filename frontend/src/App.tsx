@@ -17,6 +17,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const JobsPage = lazy(() => import('./pages/JobsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AgentHubPage = lazy(() => import('./pages/AgentHubPage'));
 const CollaborationPage = lazy(() => import('./pages/CollaborationPage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const PapersPage = lazy(() => import('./pages/PapersPage'));
@@ -69,6 +70,7 @@ export default function App() {
             <Route element={<RequireAuth><AuthedLayout /></RequireAuth>}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/agent-hub" element={<AgentHubPage />} />
               <Route path="/projects/:projectId" element={<ProjectLayout />}>
                 <Route index element={<Navigate to="research" replace />} />
                 {/* Canonical project workflow paths */}

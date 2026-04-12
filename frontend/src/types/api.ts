@@ -235,32 +235,6 @@ export type NoteDetail = {
   llm_model?: string | null;
 };
 
-// ─── Drafts ───────────────────────────────────────────────────────────────────
-
-export type DraftSection = {
-  id: string;
-  key: string;
-  heading: string;
-  title: string;
-  content: string;
-  position: number;
-  citations: DraftCitation[];
-};
-
-export type DraftCitation = {
-  id: string;
-  text: string;
-  marker: string;
-};
-
-export type Draft = {
-  id: string;
-  title: string;
-  status: string;
-  version: number;
-  sections: DraftSection[];
-};
-
 // ─── References ───────────────────────────────────────────────────────────────
 
 export type ReferenceRow = {

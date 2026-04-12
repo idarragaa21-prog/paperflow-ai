@@ -110,36 +110,31 @@ export default function SearchPage() {
     }
   }
 
-  async function saveSynthesisToDraft() {
+  async function saveSynthesisToWriting() {
     if (!projectId || !synthesis.answer) return;
     try {
-      // Create new draft
-      const draftRes = await api.post('/drafts', {
+      const documentRes = await api.post('/writing/documents', {
         project_id: projectId,
-        title: search.query || 'Búsqueda Sistematizada',
+        title: search.query || 'Search grounded synthesis',
+        mode: 'systematic_review',
       });
-      const draftId = draftRes.data.id;
+      const documentId = String(documentRes.data?.id || '');
+      if (!documentId) throw new Error('Writing document was created without id');
 
-      // Generate a new empty section with the title "AI Synthesis"
-      const sectionRes = await api.post(`/drafts/${draftId}/generate-section`, {
-        heading: 'AI Synthesis',
-        paper_ids: [],
-        extraction_record_ids: [],
+      const markdown = [
+        '## Grounded search synthesis',
+        '',
+        synthesis.answer,
+        '',
+        '_This section was generated from the Search stage and saved to Writing for full traceable drafting._',
+      ].join('\n');
+      await api.patch(`/writing/documents/${documentId}/sections/introduction`, {
+        content_markdown: markdown,
       });
 
-      // Find the newly generated section
-      const targetSectionId = sectionRes.data.sections?.[sectionRes.data.sections.length - 1]?.id;
-
-      // Patch its content with the actual AI synthesis
-      if (targetSectionId) {
-        await api.patch(`/drafts/${draftId}/sections/${targetSectionId}`, {
-          content: synthesis.answer
-        });
-      }
-
-      toast.success('Guardado en Borradores', 'La síntesis ha sido convertida en un borrador. Revisa la página de Borradores.');
+      toast.success('Saved to Writing', 'The synthesis was saved in a new writing document under Introduction.');
     } catch (e: any) {
-      toast.error('Error al guardar', e?.response?.data?.detail || 'El servidor no pudo procesar la solicitud de guardado de síntesis.');
+      toast.error('Save failed', e?.response?.data?.detail || 'The server could not save this synthesis into writing.');
     }
   }
 
@@ -369,8 +364,8 @@ export default function SearchPage() {
                       </div>
                       {projectId && (
                         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                          <button className="rc-btn rc-btn--sm" onClick={saveSynthesisToDraft} style={{ fontWeight: 600 }}>
-                            📝 Guardar síntesis en Borradores
+                          <button className="rc-btn rc-btn--sm" onClick={saveSynthesisToWriting} style={{ fontWeight: 600 }}>
+                            Save synthesis to Writing
                           </button>
                         </div>
                       )}

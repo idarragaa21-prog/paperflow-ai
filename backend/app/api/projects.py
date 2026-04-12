@@ -626,7 +626,7 @@ async def export_project_zip(
     await db.refresh(job_record)
 
     try:
-        from app.workers.tasks import export_project_zip_job
+        from app.workers.tasks_exports import export_project_zip_job
 
         q = get_job_queue()
         rq_job = q.enqueue(export_project_zip_job, args=(str(job_record.id), str(project_id)), job_timeout="30m")

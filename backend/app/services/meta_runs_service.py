@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import io
 import json
 import math
 from datetime import datetime, timezone
@@ -52,161 +51,312 @@ def _safe_log(value: float | None) -> float | None:
         return None
 
 
-def _coerce_dataset_rows(rows: list[MatrixRow], *, preset: str) -> list[dict[str, Any]]:
+def _derive_se_from_ci(ci_low: float | None, ci_high: float | None, *, log_scale: bool = True) -> float | None:
+    if ci_low is None or ci_high is None:
+        return None
+    try:
+        if log_scale:
+            if ci_low <= 0 or ci_high <= 0:
+                return None
+            return float((math.log(ci_high) - math.log(ci_low)) / 3.92)
+        return float((ci_high - ci_low) / 3.92)
+    except Exception:
+        return None
+
+
+def _resolve_log_effect(data: dict[str, Any]) -> float | None:
+    log_effect = _to_float(data.get("log_or")) or _to_float(data.get("log_effect"))
+    if log_effect is not None:
+        return log_effect
+    candidate = (
+        _to_float(data.get("effect_value"))
+        or _to_float(data.get("or_value"))
+        or _to_float(data.get("adjusted_or"))
+        or _to_float(data.get("adjusted_rr"))
+        or _to_float(data.get("adjusted_hr"))
+    )
+    return _safe_log(candidate)
+
+
+def _resolve_se(data: dict[str, Any], *, log_scale: bool = True) -> float | None:
+    se = _to_float(data.get("effect_se")) or _to_float(data.get("se_log_or")) or _to_float(data.get("se"))
+    if se is not None:
+        return se
+    return _derive_se_from_ci(_to_float(data.get("ci_lower_95")), _to_float(data.get("ci_upper_95")), log_scale=log_scale)
+
+
+def _covariates_as_json(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except Exception:
+        return str(value)
+
+
+def _base_dataset_row(*, row: MatrixRow, data: dict[str, Any], preset: str, effect_measure: str, outcome_type: str) -> dict[str, Any]:
+    return {
+        "preset": preset,
+        "row_id": str(row.id),
+        "row_key": row.row_key,
+        "canonical_key": data.get("canonical_key"),
+        "study_id": data.get("study_id"),
+        "paper_id": data.get("paper_id"),
+        "paper_title": data.get("paper_title"),
+        "outcome_name": data.get("outcome_name"),
+        "timepoint": data.get("timepoint"),
+        "effect_measure": effect_measure,
+        "outcome_type": outcome_type,
+        "subgroup_label": data.get("subgroup_label"),
+        "subgroup_level": data.get("subgroup_level"),
+        "subgroup_order": _to_float(data.get("subgroup_order")),
+        "sensitivity_flag": bool(data.get("sensitivity_flag") or False),
+        "sensitivity_reason": data.get("sensitivity_reason"),
+        "analysis_population": data.get("analysis_population"),
+        "model_type": data.get("model_type"),
+        "covariates_json": _covariates_as_json(data.get("covariates_json")),
+        "risk_of_bias_overall": data.get("risk_of_bias_overall"),
+        "confidence": _to_float(data.get("confidence")),
+    }
+
+
+def _coerce_dataset_rows(rows: list[MatrixRow], *, preset: str) -> tuple[list[dict[str, Any]], list[str]]:
     dataset_rows: list[dict[str, Any]] = []
+    validation_warnings: list[str] = []
+
     for row in rows:
         if row.row_kind != "effect":
             continue
-        data = row.data_json or {}
 
+        data = row.data_json or {}
         effect_measure = str(data.get("effect_measure") or row.effect_measure or "").upper()
-        if preset in {"meta_survival_hr"} and effect_measure not in {"HR"}:
-            continue
-        if preset in {"meta_binary_random", "meta_binary_fixed"} and effect_measure not in {"OR", "RR", "HR"}:
-            continue
-        if preset == "meta_proportion" and data.get("a_events") is None:
-            continue
-
-        or_value = _to_float(data.get("or_value"))
-        adjusted_or = _to_float(data.get("adjusted_or"))
-        adjusted_rr = _to_float(data.get("adjusted_rr"))
-        adjusted_hr = _to_float(data.get("adjusted_hr"))
-        ci_lo = _to_float(data.get("ci_lower_95"))
-        ci_hi = _to_float(data.get("ci_upper_95"))
-        log_or = _to_float(data.get("log_or"))
-        se_log_or = _to_float(data.get("se_log_or"))
-
-        if log_or is None:
-            log_or = _safe_log(or_value or adjusted_or or adjusted_rr or adjusted_hr)
-
-        if se_log_or is None and ci_lo is not None and ci_hi is not None and ci_lo > 0 and ci_hi > 0:
-            try:
-                se_log_or = (math.log(ci_hi) - math.log(ci_lo)) / 3.92
-            except Exception:
-                se_log_or = None
-
-        a_events = _to_float(data.get("a_events"))
-        b_non_events = _to_float(data.get("b_non_events"))
-        c_events = _to_float(data.get("c_events"))
-        d_non_events = _to_float(data.get("d_non_events"))
-
-        proportion = None
-        if a_events is not None and b_non_events is not None and (a_events + b_non_events) > 0:
-            proportion = a_events / (a_events + b_non_events)
-
-        dataset_rows.append(
-            {
-                "preset": preset,
-                "row_id": str(row.id),
-                "row_key": row.row_key,
-                "study_id": data.get("study_id"),
-                "paper_id": data.get("paper_id"),
-                "paper_title": data.get("paper_title"),
-                "outcome_name": data.get("outcome_name"),
-                "timepoint": data.get("timepoint"),
-                "effect_measure": effect_measure,
-                "effect_value": or_value,
-                "log_effect": log_or,
-                "se": se_log_or,
-                "ci_lower_95": ci_lo,
-                "ci_upper_95": ci_hi,
-                "a_events": a_events,
-                "b_non_events": b_non_events,
-                "c_events": c_events,
-                "d_non_events": d_non_events,
-                "adjusted_or": adjusted_or,
-                "adjusted_rr": adjusted_rr,
-                "adjusted_hr": adjusted_hr,
-                "proportion": proportion,
-                "risk_of_bias_overall": data.get("risk_of_bias_overall"),
-                "confidence": _to_float(data.get("confidence")),
-            }
+        outcome_type = str(data.get("outcome_type") or "").lower()
+        base = _base_dataset_row(
+            row=row,
+            data=data,
+            preset=preset,
+            effect_measure=effect_measure,
+            outcome_type=outcome_type,
         )
 
-    if dataset_rows:
-        return dataset_rows
-
-    # Fallback: include all non-study rows so preset runs still have a reproducible input dataset.
-    for row in rows:
-        if row.row_kind == "study":
+        if preset in {"meta_binary_random", "meta_binary_fixed"}:
+            if effect_measure not in {"OR", "RR", "HR"} and outcome_type != "binary":
+                continue
+            a = _to_float(data.get("a_events"))
+            b = _to_float(data.get("b_non_events"))
+            c = _to_float(data.get("c_events"))
+            d = _to_float(data.get("d_non_events"))
+            log_effect = _resolve_log_effect(data)
+            se = _resolve_se(data, log_scale=True)
+            n_e = (a + b) if (a is not None and b is not None) else None
+            n_c = (c + d) if (c is not None and d is not None) else None
+            if (a is None or b is None or c is None or d is None) and (log_effect is None or se is None):
+                validation_warnings.append(f"{row.row_key}: missing binary counts and log effect/SE")
+                continue
+            dataset_rows.append(
+                {
+                    **base,
+                    "a_events": a,
+                    "b_non_events": b,
+                    "c_events": c,
+                    "d_non_events": d,
+                    "event_e": a,
+                    "n_e": n_e,
+                    "event_c": c,
+                    "n_c": n_c,
+                    "effect_value": _to_float(data.get("effect_value")) or _to_float(data.get("or_value")),
+                    "log_effect": log_effect,
+                    "se": se,
+                    "ci_lower_95": _to_float(data.get("ci_lower_95")),
+                    "ci_upper_95": _to_float(data.get("ci_upper_95")),
+                }
+            )
             continue
-        data = row.data_json or {}
-        dataset_rows.append(
-            {
-                "preset": preset,
-                "row_id": str(row.id),
-                "row_key": row.row_key,
-                "study_id": data.get("study_id"),
-                "paper_id": data.get("paper_id"),
-                "paper_title": data.get("paper_title"),
-                "outcome_name": data.get("outcome_name"),
-                "timepoint": data.get("timepoint"),
-                "effect_measure": data.get("effect_measure"),
-                "effect_value": _to_float(data.get("or_value")),
-                "log_effect": _to_float(data.get("log_or")),
-                "se": _to_float(data.get("se_log_or")),
-                "ci_lower_95": _to_float(data.get("ci_lower_95")),
-                "ci_upper_95": _to_float(data.get("ci_upper_95")),
-                "a_events": _to_float(data.get("a_events")),
-                "b_non_events": _to_float(data.get("b_non_events")),
-                "c_events": _to_float(data.get("c_events")),
-                "d_non_events": _to_float(data.get("d_non_events")),
-                "adjusted_or": _to_float(data.get("adjusted_or")),
-                "adjusted_rr": _to_float(data.get("adjusted_rr")),
-                "adjusted_hr": _to_float(data.get("adjusted_hr")),
-                "proportion": None,
-                "risk_of_bias_overall": data.get("risk_of_bias_overall"),
-                "confidence": _to_float(data.get("confidence")),
-            }
-        )
-    return dataset_rows
 
+        if preset in {"meta_continuous_md", "meta_continuous_smd"}:
+            if effect_measure not in {"MD", "SMD"} and outcome_type != "continuous":
+                continue
+            n_i = _to_float(data.get("n_intervention"))
+            n_c = _to_float(data.get("n_control"))
+            mean_i = _to_float(data.get("mean_intervention"))
+            mean_c = _to_float(data.get("mean_control"))
+            sd_i = _to_float(data.get("sd_intervention"))
+            sd_c = _to_float(data.get("sd_control"))
+            effect_value = _to_float(data.get("effect_value"))
+            se = _resolve_se(data, log_scale=False)
 
-def _figure_svg(title: str, subtitle: str) -> bytes:
-    payload = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800">
-<rect width="100%" height="100%" fill="#f9fafb"/>
-<rect x="40" y="40" width="1120" height="720" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
-<text x="70" y="110" font-family="Arial, sans-serif" font-size="34" fill="#111827">{title}</text>
-<text x="70" y="160" font-family="Arial, sans-serif" font-size="20" fill="#4b5563">{subtitle}</text>
-<line x1="90" y1="690" x2="1110" y2="690" stroke="#9ca3af" stroke-width="2"/>
-<line x1="90" y1="220" x2="90" y2="690" stroke="#9ca3af" stroke-width="2"/>
-<text x="95" y="735" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">Generated by PaperFlow meta runs</text>
-</svg>"""
-    return payload.encode("utf-8")
+            if effect_value is None and all(v is not None for v in (mean_i, mean_c)):
+                raw_diff = float(mean_i - mean_c)
+                if preset == "meta_continuous_smd":
+                    if all(v is not None for v in (n_i, n_c, sd_i, sd_c)) and n_i > 1 and n_c > 1:
+                        pooled_sd = math.sqrt((((n_i - 1) * (sd_i**2)) + ((n_c - 1) * (sd_c**2))) / max((n_i + n_c - 2), 1))
+                        effect_value = (raw_diff / pooled_sd) if pooled_sd > 0 else None
+                    else:
+                        effect_value = None
+                else:
+                    effect_value = raw_diff
 
+            if se is None and all(v is not None for v in (n_i, n_c, sd_i, sd_c)) and n_i > 0 and n_c > 0:
+                se = math.sqrt((sd_i**2 / n_i) + (sd_c**2 / n_c))
 
-def _figure_png(title: str, subtitle: str) -> bytes:
-    # Import lazily: PIL startup is expensive and should not slow down API import/test collection.
-    from PIL import Image, ImageDraw
+            if effect_value is None or se is None:
+                validation_warnings.append(f"{row.row_key}: missing continuous effect value/SE")
+                continue
 
-    image = Image.new("RGB", (1200, 800), "white")
-    draw = ImageDraw.Draw(image)
-    draw.rectangle((30, 30, 1170, 770), outline="#d1d5db", width=3)
-    draw.text((60, 70), title, fill="#111827")
-    draw.text((60, 120), subtitle, fill="#4b5563")
-    draw.line((90, 690, 1110, 690), fill="#9ca3af", width=2)
-    draw.line((90, 220, 90, 690), fill="#9ca3af", width=2)
-    out = io.BytesIO()
-    image.save(out, format="PNG")
-    return out.getvalue()
+            dataset_rows.append(
+                {
+                    **base,
+                    "n_intervention": n_i,
+                    "n_control": n_c,
+                    "mean_intervention": mean_i,
+                    "sd_intervention": sd_i,
+                    "mean_control": mean_c,
+                    "sd_control": sd_c,
+                    "effect_value": effect_value,
+                    "log_effect": effect_value,
+                    "se": se,
+                    "ci_lower_95": _to_float(data.get("ci_lower_95")),
+                    "ci_upper_95": _to_float(data.get("ci_upper_95")),
+                }
+            )
+            continue
 
+        if preset == "meta_generic_iv":
+            log_effect = _resolve_log_effect(data)
+            se = _resolve_se(data, log_scale=True)
+            if log_effect is None or se is None:
+                validation_warnings.append(f"{row.row_key}: missing generic inverse-variance effect/SE")
+                continue
+            dataset_rows.append(
+                {
+                    **base,
+                    "effect_value": _to_float(data.get("effect_value")),
+                    "log_effect": log_effect,
+                    "se": se,
+                    "ci_lower_95": _to_float(data.get("ci_lower_95")),
+                    "ci_upper_95": _to_float(data.get("ci_upper_95")),
+                }
+            )
+            continue
 
-def _figure_pdf(title: str, subtitle: str) -> bytes:
-    # Import lazily: reportlab font tables are heavy at module import time.
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
+        if preset == "meta_survival_hr":
+            if effect_measure not in {"HR"} and outcome_type not in {"time_to_event", "time-to-event", "survival"}:
+                continue
+            hr = _to_float(data.get("adjusted_hr")) or _to_float(data.get("effect_value"))
+            log_effect = _resolve_log_effect(data)
+            if log_effect is None:
+                log_effect = _safe_log(hr)
+            se = _resolve_se(data, log_scale=True)
+            if log_effect is None or se is None:
+                validation_warnings.append(f"{row.row_key}: missing survival HR/log-effect/SE")
+                continue
+            dataset_rows.append(
+                {
+                    **base,
+                    "effect_value": hr,
+                    "log_effect": log_effect,
+                    "se": se,
+                    "followup_time": _to_float(data.get("followup_time")),
+                    "followup_unit": data.get("followup_unit"),
+                    "person_time_intervention": _to_float(data.get("person_time_intervention")),
+                    "person_time_control": _to_float(data.get("person_time_control")),
+                    "ci_lower_95": _to_float(data.get("ci_lower_95")),
+                    "ci_upper_95": _to_float(data.get("ci_upper_95")),
+                }
+            )
+            continue
 
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(72, 730, title)
-    c.setFont("Helvetica", 11)
-    c.drawString(72, 710, subtitle)
-    c.rect(60, 120, 500, 540)
-    c.drawString(72, 100, "Generated by PaperFlow meta runs")
-    c.showPage()
-    c.save()
-    return buffer.getvalue()
+        if preset == "meta_proportion":
+            if effect_measure not in {"PROPORTION", "PLOGIT"} and outcome_type != "proportion":
+                continue
+            events = _to_float(data.get("events_total")) or _to_float(data.get("a_events"))
+            total = _to_float(data.get("total_n"))
+            if total is None:
+                a = _to_float(data.get("a_events"))
+                b = _to_float(data.get("b_non_events"))
+                if a is not None and b is not None:
+                    total = a + b
+            if events is None or total is None or total <= 0:
+                validation_warnings.append(f"{row.row_key}: missing events/total for proportion analysis")
+                continue
+            proportion = events / total
+            se = _to_float(data.get("effect_se"))
+            if se is None:
+                se = math.sqrt((proportion * (1 - proportion)) / total)
+            dataset_rows.append(
+                {
+                    **base,
+                    "events_total": events,
+                    "total_n": total,
+                    "effect_value": proportion,
+                    "proportion": proportion,
+                    "log_effect": _safe_log(proportion if proportion > 0 else None),
+                    "se": se,
+                }
+            )
+            continue
+
+        if preset == "meta_diag_accuracy":
+            tp = _to_float(data.get("tp")) or _to_float(data.get("a_events"))
+            fp = _to_float(data.get("fp")) or _to_float(data.get("c_events"))
+            fn = _to_float(data.get("fn")) or _to_float(data.get("b_non_events"))
+            tn = _to_float(data.get("tn")) or _to_float(data.get("d_non_events"))
+            sensitivity_value = _to_float(data.get("sensitivity_value"))
+            specificity_value = _to_float(data.get("specificity_value"))
+            if all(v is not None for v in (tp, fp, fn, tn)):
+                sensitivity_value = sensitivity_value if sensitivity_value is not None else (tp / (tp + fn) if (tp + fn) > 0 else None)
+                specificity_value = specificity_value if specificity_value is not None else (tn / (tn + fp) if (tn + fp) > 0 else None)
+            if sensitivity_value is None or specificity_value is None:
+                validation_warnings.append(f"{row.row_key}: missing diagnostic TP/FP/FN/TN or sensitivity/specificity")
+                continue
+            dataset_rows.append(
+                {
+                    **base,
+                    "tp": tp,
+                    "fp": fp,
+                    "fn": fn,
+                    "tn": tn,
+                    "sensitivity": sensitivity_value,
+                    "specificity": specificity_value,
+                    "effect_value": sensitivity_value,
+                    "log_effect": _safe_log(sensitivity_value),
+                    "se": _to_float(data.get("effect_se")),
+                }
+            )
+            continue
+
+        if preset == "risk_of_bias_summary":
+            if not data.get("risk_of_bias_overall"):
+                continue
+            dataset_rows.append(
+                {
+                    **base,
+                    "risk_of_bias_overall": data.get("risk_of_bias_overall"),
+                    "effect_value": _to_float(data.get("effect_value")),
+                }
+            )
+            continue
+
+        if preset == "publication_bias_suite":
+            log_effect = _resolve_log_effect(data)
+            se = _resolve_se(data, log_scale=True)
+            if log_effect is None or se is None:
+                validation_warnings.append(f"{row.row_key}: missing log effect/SE for publication-bias diagnostics")
+                continue
+            dataset_rows.append(
+                {
+                    **base,
+                    "effect_value": _to_float(data.get("effect_value")),
+                    "log_effect": log_effect,
+                    "se": se,
+                    "ci_lower_95": _to_float(data.get("ci_lower_95")),
+                    "ci_upper_95": _to_float(data.get("ci_upper_95")),
+                }
+            )
+
+    return dataset_rows, validation_warnings
 
 
 def _run_payload_summary(*, preset: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -250,7 +400,11 @@ async def derive_dataset(
         .order_by(MatrixRow.sort_index.asc(), MatrixRow.created_at.asc())
     )
     rows = (await db.execute(rows_stmt)).scalars().all()
-    dataset_rows = _coerce_dataset_rows(rows, preset=preset)
+    dataset_rows, validation_warnings = _coerce_dataset_rows(rows, preset=preset)
+    if not dataset_rows:
+        warning_text = "; ".join(validation_warnings[:8]) if validation_warnings else "No effect rows matched this preset."
+        raise ValueError(f"Dataset derivation failed for preset `{preset}`: {warning_text}")
+
     frame = pd.DataFrame(dataset_rows)
     csv_bytes = frame.to_csv(index=False).encode("utf-8")
     base_title = (title or f"{preset}_dataset").strip()
@@ -270,8 +424,12 @@ async def derive_dataset(
         file_path=saved["file_path"],
         row_count=len(frame.index),
         column_count=len(frame.columns),
-        schema_json={"columns": list(frame.columns)},
-        build_params=build_params or {},
+        schema_json={
+            "columns": list(frame.columns),
+            "preset_contract": preset,
+            "validation_warnings": validation_warnings,
+        },
+        build_params={**(build_params or {}), "validation_warnings": validation_warnings},
         source_signature=matrix_version.source_signature,
     )
     db.add(dataset)
@@ -343,13 +501,22 @@ async def run_meta_analysis(
             response.raise_for_status()
             response_data = response.json()
     except Exception as exc:
-        warnings.append(f"R engine unavailable, local fallback summary used: {exc}")
-        response_data = {
-            "summary": _run_payload_summary(preset=preset, rows=rows),
-            "warnings": warnings,
-            "script": f"# fallback meta run\n# preset: {preset}\n# rows: {len(rows)}",
-            "engine_version": "local-fallback",
+        run.status = "failed"
+        run.summary_json = {
+            "preset": preset,
+            "rows": len(rows),
+            "supports_publication": False,
+            "note": "R engine execution failed. No publication artifacts generated.",
         }
+        run.warnings = [f"R engine request failed: {exc}"]
+        run.engine = "r-engine"
+        run.engine_version = None
+        run.runtime_json = {"preset": preset, "rows": len(rows), "supports_publication": False}
+        run.completed_at = datetime.now(timezone.utc)
+        await db.commit()
+        stmt = select(MetaRun).where(MetaRun.id == run.id).options(selectinload(MetaRun.artifacts))
+        hydrated = await db.execute(stmt)
+        return hydrated.scalars().first()
 
     summary = response_data.get("summary") or _run_payload_summary(preset=preset, rows=rows)
     warnings.extend(response_data.get("warnings") or [])
@@ -380,8 +547,6 @@ async def run_meta_analysis(
     figure_artifacts = response_data.get("figure_artifacts") or {}
     figure_kinds = ("forest", "funnel", "rob", "influence")
     for kind in figure_kinds:
-        title_text = f"{kind.title()} Plot"
-        subtitle = f"Preset: {preset} | Run: {run.id}"
         payload = figure_artifacts.get(kind) if isinstance(figure_artifacts, dict) else None
         svg_bytes: bytes | None = None
         png_bytes: bytes | None = None
@@ -394,16 +559,16 @@ async def run_meta_analysis(
             png_bytes = _decode_base64(payload.get("png_base64"))
             pdf_bytes = _decode_base64(payload.get("pdf_base64"))
 
-        if svg_bytes is None:
-            svg_bytes = _figure_svg(title_text, subtitle)
-        if png_bytes is None:
-            png_bytes = _figure_png(title_text, subtitle)
-        if pdf_bytes is None:
-            pdf_bytes = _figure_pdf(title_text, subtitle)
+        if svg_bytes is None and png_bytes is None and pdf_bytes is None:
+            warnings.append(f"Figure `{kind}` was not generated by the R engine.")
+            continue
 
-        artifacts_to_create.append((f"{kind}_svg", f"{run.id}_{kind}.svg", svg_bytes, "image/svg+xml", {"preset": preset, "figure": kind}))
-        artifacts_to_create.append((f"{kind}_png", f"{run.id}_{kind}.png", png_bytes, "image/png", {"preset": preset, "figure": kind}))
-        artifacts_to_create.append((f"{kind}_pdf", f"{run.id}_{kind}.pdf", pdf_bytes, "application/pdf", {"preset": preset, "figure": kind}))
+        if svg_bytes is not None:
+            artifacts_to_create.append((f"{kind}_svg", f"{run.id}_{kind}.svg", svg_bytes, "image/svg+xml", {"preset": preset, "figure": kind}))
+        if png_bytes is not None:
+            artifacts_to_create.append((f"{kind}_png", f"{run.id}_{kind}.png", png_bytes, "image/png", {"preset": preset, "figure": kind}))
+        if pdf_bytes is not None:
+            artifacts_to_create.append((f"{kind}_pdf", f"{run.id}_{kind}.pdf", pdf_bytes, "application/pdf", {"preset": preset, "figure": kind}))
 
     saved_lookup: dict[str, str] = {}
     for artifact_type, filename, payload, mime, metadata in artifacts_to_create:
@@ -423,7 +588,7 @@ async def run_meta_analysis(
     run.status = "completed"
     run.summary_json = summary
     run.warnings = warnings
-    run.engine = "r-engine" if engine_version != "local-fallback" else "local-fallback"
+    run.engine = "r-engine"
     run.engine_version = engine_version
     run.script_path = saved_lookup.get("script_r")
     run.session_info_path = saved_lookup.get("session_info")

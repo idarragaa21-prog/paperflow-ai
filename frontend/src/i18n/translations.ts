@@ -77,6 +77,7 @@ const en = {
     overview: 'Overview',
     dashboard: 'Dashboard',
     projects: 'Projects',
+    agentHub: 'Agent Hub',
     tools: 'Tools',
     clinical: 'Clinical Consults',
     deepResearch: 'Deep Research',
@@ -130,9 +131,6 @@ const en = {
     notes: 'Notes',
     meta: 'Meta-analysis',
     references: 'References',
-    drafts: 'Drafts',
-    analysis: 'Analysis',
-    screening: 'Screening',
   },
 
   // ── Papers ──
@@ -183,15 +181,6 @@ const en = {
     copyAPA: 'Copy APA',
   },
 
-  // ── Drafts ──
-  drafts: {
-    title: 'Drafts',
-    newDraft: 'New Draft',
-    generateSection: 'Generate section',
-    resolveCitations: 'Resolve citations',
-    copyHtml: 'Copy HTML',
-  },
-
   // ── Jobs ──
   jobs: {
     title: 'Background Jobs',
@@ -201,26 +190,6 @@ const en = {
     failed: 'Failed',
     queued: 'Queued',
     cancelled: 'Cancelled',
-  },
-
-  // ── Analysis ──
-  analysis: {
-    title: 'Analysis',
-    subtitle: 'Create datasets from JSON rows and launch reproducible runs through the FastAPI orchestration layer.',
-    datasetBuilder: 'Dataset builder',
-    datasetTitle: 'Dataset title',
-    createDataset: 'Create dataset',
-    runAnalysis: 'Run analysis',
-    dataset: 'Dataset',
-    noDataset: 'No dataset',
-    type: 'Type',
-    run: 'Run',
-    datasets: 'Datasets',
-    noDatasets: 'No datasets yet',
-    noDatasetsDesc: 'Create your first dataset using the builder above.',
-    recentRuns: 'Recent runs',
-    noRuns: 'No analysis runs yet',
-    noRunsDesc: 'Configure and run an analysis above to see results here.',
   },
 
   // ── Settings ──
@@ -324,6 +293,7 @@ const es: Translations = {
     overview: 'General',
     dashboard: 'Inicio',
     projects: 'Proyectos',
+    agentHub: 'Hub de Agentes',
     tools: 'Herramientas',
     clinical: 'Consultas Clínicas',
     deepResearch: 'Investigación Profunda',
@@ -374,9 +344,6 @@ const es: Translations = {
     notes: 'Notas',
     meta: 'Meta-análisis',
     references: 'Referencias',
-    drafts: 'Borradores',
-    analysis: 'Análisis',
-    screening: 'Tamizaje',
   },
 
   papers: {
@@ -422,14 +389,6 @@ const es: Translations = {
     copyAPA: 'Copiar APA',
   },
 
-  drafts: {
-    title: 'Borradores',
-    newDraft: 'Nuevo Borrador',
-    generateSection: 'Generar sección',
-    resolveCitations: 'Resolver citas',
-    copyHtml: 'Copiar HTML',
-  },
-
   jobs: {
     title: 'Trabajos en segundo plano',
     cancelJob: 'Cancelar',
@@ -438,25 +397,6 @@ const es: Translations = {
     failed: 'Error',
     queued: 'En cola',
     cancelled: 'Cancelado',
-  },
-
-  analysis: {
-    title: 'Análisis',
-    subtitle: 'Crea datasets desde filas JSON y ejecuta análisis reproducibles a través de la capa de orquestación FastAPI.',
-    datasetBuilder: 'Constructor de datasets',
-    datasetTitle: 'Título del dataset',
-    createDataset: 'Crear dataset',
-    runAnalysis: 'Ejecutar análisis',
-    dataset: 'Dataset',
-    noDataset: 'Sin dataset',
-    type: 'Tipo',
-    run: 'Ejecutar',
-    datasets: 'Datasets',
-    noDatasets: 'Aún no hay datasets',
-    noDatasetsDesc: 'Crea tu primer dataset usando el constructor de arriba.',
-    recentRuns: 'Ejecuciones recientes',
-    noRuns: 'Aún no hay ejecuciones',
-    noRunsDesc: 'Configura y ejecuta un análisis arriba para ver resultados aquí.',
   },
 
   settings: {
@@ -556,6 +496,7 @@ const pt: Translations = {
     overview: 'Visão Geral',
     dashboard: 'Painel',
     projects: 'Projetos',
+    agentHub: 'Hub de Agentes',
     tools: 'Ferramentas',
     clinical: 'Consultas Clínicas',
     deepResearch: 'Pesquisa Profunda',
@@ -606,9 +547,6 @@ const pt: Translations = {
     notes: 'Notas',
     meta: 'Meta-análise',
     references: 'Referências',
-    drafts: 'Rascunhos',
-    analysis: 'Análise',
-    screening: 'Triagem',
   },
 
   papers: {
@@ -654,14 +592,6 @@ const pt: Translations = {
     copyAPA: 'Copiar APA',
   },
 
-  drafts: {
-    title: 'Rascunhos',
-    newDraft: 'Novo Rascunho',
-    generateSection: 'Gerar seção',
-    resolveCitations: 'Resolver citações',
-    copyHtml: 'Copiar HTML',
-  },
-
   jobs: {
     title: 'Tarefas em segundo plano',
     cancelJob: 'Cancelar',
@@ -670,25 +600,6 @@ const pt: Translations = {
     failed: 'Erro',
     queued: 'Na fila',
     cancelled: 'Cancelado',
-  },
-
-  analysis: {
-    title: 'Análise',
-    subtitle: 'Crie datasets a partir de linhas JSON e execute análises reproduzíveis pela camada de orquestração FastAPI.',
-    datasetBuilder: 'Construtor de datasets',
-    datasetTitle: 'Título do dataset',
-    createDataset: 'Criar dataset',
-    runAnalysis: 'Executar análise',
-    dataset: 'Dataset',
-    noDataset: 'Sem dataset',
-    type: 'Tipo',
-    run: 'Executar',
-    datasets: 'Datasets',
-    noDatasets: 'Ainda não há datasets',
-    noDatasetsDesc: 'Crie seu primeiro dataset usando o construtor acima.',
-    recentRuns: 'Execuções recentes',
-    noRuns: 'Ainda não há execuções',
-    noRunsDesc: 'Configure e execute uma análise acima para ver resultados aqui.',
   },
 
   settings: {

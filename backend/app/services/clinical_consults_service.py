@@ -35,9 +35,17 @@ def _clip(text: str | None, *, max_len: int = 320) -> str:
 
 
 def _build_claim(source_title: str, excerpt: str) -> str:
-    if excerpt:
-        return excerpt
-    return f"Relevant evidence source identified: {source_title}"
+    text = _clip(excerpt, max_len=260)
+    if not text:
+        return ""
+    sentences = [chunk.strip() for chunk in re.split(r"(?<=[.!?])\s+", text) if chunk.strip()]
+    if not sentences:
+        return text
+
+    # Prefer sentence-level extractive claims with quantified language.
+    quantified = [item for item in sentences if re.search(r"\d|%|ci|or|rr|hr|hazard|risk", item, flags=re.I)]
+    candidate = quantified[0] if quantified else sentences[0]
+    return _clip(candidate, max_len=220)
 
 
 def _answer_limits(mode: str) -> tuple[int, int]:
@@ -123,10 +131,13 @@ async def _collect_pubmed_sources(
 
 def _compose_answer(*, question: str, mode: str, sources: list[ClinicalConsultSource], claims: list[ClinicalConsultClaim]) -> tuple[str, dict[str, Any], str, str]:
     citation_rows = []
+    source_marker: dict[str, str] = {}
     for idx, source in enumerate(sources, start=1):
+        marker = f"[{idx}]"
+        source_marker[str(source.id)] = marker
         citation_rows.append(
             {
-                "marker": f"[{idx}]",
+                "marker": marker,
                 "source_id": str(source.id),
                 "title": source.title,
                 "pmid": source.pmid,
@@ -145,7 +156,9 @@ def _compose_answer(*, question: str, mode: str, sources: list[ClinicalConsultSo
         for idx, source in enumerate(sources, start=1)
     ]
     claim_lines = [
-        f"- {_clip(claim.claim_text, max_len=220)} (confidence {round(float(claim.confidence or 0), 2)})"
+        f"- {_clip(claim.claim_text, max_len=220)} "
+        f"{' '.join(source_marker.get(str(sid), '') for sid in (claim.source_ids_json or []))}".strip()
+        + f" (confidence {round(float(claim.confidence or 0), 2)})"
         for claim in claims
     ]
 
@@ -185,6 +198,7 @@ def _compose_answer(*, question: str, mode: str, sources: list[ClinicalConsultSo
                 "confidence": item.confidence,
                 "support_level": item.support_level,
                 "source_count": item.evidence_count,
+                "source_ids": item.source_ids_json or [],
             }
             for item in claims
         ],
@@ -271,15 +285,20 @@ async def create_clinical_consult(
 
     claim_models: list[ClinicalConsultClaim] = []
     for source in source_models[:claim_limit]:
+        if len((source.excerpt or "").strip()) < 24:
+            continue
+        claim_text = _build_claim(source.title or "Untitled source", source.excerpt or "")
+        if not claim_text:
+            continue
         claim = ClinicalConsultClaim(
             consult_id=consult.id,
-            claim_text=_build_claim(source.title or "Untitled source", source.excerpt or ""),
-            support_level="supported",
-            uncertainty="moderate",
+            claim_text=claim_text,
+            support_level="grounded_extract",
+            uncertainty="moderate" if source.source_kind == "project_paper" else "moderate_to_high",
             confidence=max(0.35, min(0.95, float(source.confidence or 0.5))),
             evidence_count=1,
             source_ids_json=[str(source.id)],
-            metadata_json={},
+            metadata_json={"grounding_method": "extractive_sentence"},
         )
         db.add(claim)
         claim_models.append(claim)

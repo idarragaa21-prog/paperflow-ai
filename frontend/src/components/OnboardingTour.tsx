@@ -36,22 +36,12 @@ const steps: Step[] = [
     placement: 'right',
   },
   {
-    target: 'a[href="/clinical"]',
-    title: { en: 'Clinical Evidence', es: 'Evidencia Clínica', pt: 'Evidência Clínica' },
+    target: 'a[href="/agent-hub"]',
+    title: { en: 'Agent Hub', es: 'Hub de Agentes', pt: 'Hub de Agentes' },
     body: {
-      en: 'Generate UpToDate-style clinical summaries using a multi-pass AI pipeline. Export to DOCX or PDF.',
-      es: 'Genera resúmenes clínicos tipo UpToDate con un pipeline IA multi-paso. Exporta a DOCX o PDF.',
-      pt: 'Gere resumos clínicos tipo UpToDate com um pipeline IA multi-passo. Exporte para DOCX ou PDF.',
-    },
-    placement: 'right',
-  },
-  {
-    target: 'a[href="/deep-research"]',
-    title: { en: 'Deep Research', es: 'Investigación Profunda', pt: 'Pesquisa Profunda' },
-    body: {
-      en: 'Enter a research question and get a comprehensive report analyzing papers from PubMed with full citations.',
-      es: 'Ingresa una pregunta y obtén un reporte integral analizando papers de PubMed con citas completas.',
-      pt: 'Digite uma pergunta e obtenha um relatório abrangente analisando papers do PubMed com citações completas.',
+      en: 'Launch Clinical Consults and Deep Research from one place while keeping project-first workflow intact.',
+      es: 'Lanza Consultas Clínicas e Investigación Profunda desde un solo lugar sin romper el flujo project-first.',
+      pt: 'Inicie Consultas Clínicas e Pesquisa Profunda de um único lugar mantendo o fluxo project-first.',
     },
     placement: 'right',
   },

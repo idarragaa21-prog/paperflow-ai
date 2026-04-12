@@ -65,13 +65,19 @@ class EffectSizeSchema(BaseModel):
     timepoint: Optional[str] = None
     arm_intervention: str
     arm_control: str
-    effect_measure: str = "OR"  # OR|RR|HR|MD|SMD
+    effect_measure: str = "OR"  # OR|RR|HR|MD|SMD|PROPORTION|DOR
+    outcome_type: Optional[str] = "binary"  # binary|continuous|time_to_event|proportion|diagnostic
+    outcome_unit: Optional[str] = None
+    comparator_type: Optional[str] = None
+    effect_direction: Optional[str] = None
 
     # 2x2 (only if explicitly available)
     a_events: Optional[int] = None
     b_non_events: Optional[int] = None
     c_events: Optional[int] = None
     d_non_events: Optional[int] = None
+    events_total: Optional[int] = None
+    total_n: Optional[int] = None
 
     # Additional per-outcome numbers
     p_value: Optional[float] = None
@@ -109,6 +115,9 @@ class EffectSizeSchema(BaseModel):
     or_value: Optional[float] = None
     log_or: Optional[float] = None
     se_log_or: Optional[float] = None
+    effect_value: Optional[float] = None
+    effect_se: Optional[float] = None
+    weight: Optional[float] = None
     ci_lower_95: Optional[float] = None
     ci_upper_95: Optional[float] = None
 
@@ -119,6 +128,33 @@ class EffectSizeSchema(BaseModel):
     adjustment_variables: Optional[str] = None
     is_adjusted: bool = False
 
+    # Continuous outcomes
+    n_intervention: Optional[int] = None
+    n_control: Optional[int] = None
+
+    # Survival / incidence rates
+    followup_time: Optional[float] = None
+    followup_unit: Optional[str] = None
+    person_time_intervention: Optional[float] = None
+    person_time_control: Optional[float] = None
+
+    # Diagnostic outcomes
+    tp: Optional[int] = None
+    fp: Optional[int] = None
+    fn: Optional[int] = None
+    tn: Optional[int] = None
+    sensitivity_value: Optional[float] = None
+    specificity_value: Optional[float] = None
+
+    # Subgroup / sensitivity / meta-regression context
+    subgroup_label: Optional[str] = None
+    subgroup_level: Optional[str] = None
+    subgroup_order: Optional[int] = None
+    sensitivity_flag: Optional[bool] = False
+    sensitivity_reason: Optional[str] = None
+    analysis_population: Optional[str] = None
+    covariates_json: Optional[dict] = None
+
     # Provenance
     raw_extracted_value: Optional[str] = None
     page_number: Optional[int] = None
@@ -128,7 +164,24 @@ class EffectSizeSchema(BaseModel):
     extraction_confidence: float = 0.0
     comments: Optional[str] = None
 
-    @field_validator("a_events", "b_non_events", "c_events", "d_non_events")
+    @field_validator(
+        "a_events",
+        "b_non_events",
+        "c_events",
+        "d_non_events",
+        "events_total",
+        "total_n",
+        "n_intervention_for_outcome",
+        "n_control_for_outcome",
+        "events_intervention",
+        "events_control",
+        "n_intervention",
+        "n_control",
+        "tp",
+        "fp",
+        "fn",
+        "tn",
+    )
     @classmethod
     def non_negative_counts(cls, v):
         if v is None:

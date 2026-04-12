@@ -80,21 +80,62 @@ class ExtractedEffectSize(Base):
     arm_control: Mapped[str] = mapped_column(String(255), nullable=False)
 
     effect_measure: Mapped[str] = mapped_column(String(32), server_default="OR", nullable=False)
+    outcome_type: Mapped[str] = mapped_column(String(32), server_default="binary", nullable=False)
+    outcome_unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    comparator_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    effect_direction: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     a_events: Mapped[int | None] = mapped_column(Integer, nullable=True)
     b_non_events: Mapped[int | None] = mapped_column(Integer, nullable=True)
     c_events: Mapped[int | None] = mapped_column(Integer, nullable=True)
     d_non_events: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    events_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_n: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     or_value: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
     log_or: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
     se_log_or: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    effect_value: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    effect_se: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    weight: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
     ci_lower_95: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
     ci_upper_95: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
 
     adjusted_or: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
     adjusted_rr: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
     adjusted_hr: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+
+    n_intervention: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    n_control: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mean_intervention: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    sd_intervention: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    mean_control: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    sd_control: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    median_intervention: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    iqr_intervention: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    median_control: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    iqr_control: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    followup_time: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    followup_unit: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    person_time_intervention: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    person_time_control: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+
+    tp: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fp: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fn: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tn: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sensitivity_value: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+    specificity_value: Mapped[float | None] = mapped_column(sa.Float(), nullable=True)  # type: ignore[name-defined]
+
+    subgroup_label: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    subgroup_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    subgroup_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sensitivity_flag: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    sensitivity_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    analysis_population: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    covariates_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     adjustment_variables: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_adjusted: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)

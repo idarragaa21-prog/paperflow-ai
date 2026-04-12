@@ -16,7 +16,7 @@ class FakeJob:
         self.user_id = uuid.UUID(user_id)
         self.job_type = job_type
         self.status = status
-        self.queue_name = "analysis" if job_type == "analysis_run" else "documents"
+        self.queue_name = "documents"
         self.attempt = 0
         self.next_retry_at = None
         self.progress_percent = 0
@@ -28,25 +28,11 @@ class FakeJob:
         self.completed_at = None
 
 
-class FakeRun:
-    def __init__(self, run_id: uuid.UUID):
-        self.id = run_id
-        self.status = "running"
-        self.warnings = []
-        self.result_summary = None
-
-
 class FakeMetaItem:
     def __init__(self, item_id: uuid.UUID):
         self.id = item_id
-        self.status = "failed"
-        self.error_message = "old error"
-
-
-class FakeMetaBatch:
-    def __init__(self, batch_id: uuid.UUID):
-        self.id = batch_id
-        self.status = "processing"
+        self.status = "started"
+        self.error_message = None
 
 
 class FakeScalar:
@@ -66,11 +52,9 @@ class FakeResult:
 
 
 class FakeSession:
-    def __init__(self, jobs, runs=None, items=None, batches=None):
+    def __init__(self, jobs, items=None):
         self.jobs = {job.id: job for job in jobs}
-        self.runs = runs or {}
         self.items = items or {}
-        self.batches = batches or {}
 
     async def execute(self, stmt):
         return FakeResult(list(self.jobs.values()))
@@ -79,12 +63,8 @@ class FakeSession:
         name = getattr(model, "__name__", "")
         if name == "Job":
             return self.jobs.get(obj_id)
-        if name == "AnalysisRun":
-            return self.runs.get(obj_id)
         if name == "MetaExtractionItem":
             return self.items.get(obj_id)
-        if name == "MetaExtractionBatch":
-            return self.batches.get(obj_id)
         return None
 
     async def commit(self):
@@ -114,12 +94,12 @@ def _test_app(db: FakeSession, *, user_id: str) -> FastAPI:
 
 
 @pytest.mark.asyncio
-async def test_cancel_analysis_job_marks_run_cancelled(monkeypatch):
+async def test_cancel_meta_item_job_marks_item_cancelled(monkeypatch):
     user_id = "00000000-0000-0000-0000-000000000000"
-    run_id = uuid.uuid4()
-    job = FakeJob(user_id, "analysis_run", "started", input_params={"analysis_run_id": str(run_id)})
-    run = FakeRun(run_id)
-    db = FakeSession([job], runs={run_id: run})
+    item_id = uuid.uuid4()
+    job = FakeJob(user_id, "meta_extract_paper", "started", input_params={"item_id": str(item_id)})
+    item = FakeMetaItem(item_id)
+    db = FakeSession([job], items={item_id: item})
     app = _test_app(db, user_id=user_id)
 
     monkeypatch.setattr("app.api.jobs.redis_available", lambda: False)
@@ -131,31 +111,8 @@ async def test_cancel_analysis_job_marks_run_cancelled(monkeypatch):
         response = await ac.post(f"/jobs/{job.id}/cancel", headers={"X-CSRF-Token": "abc"})
         assert response.status_code == 200
 
-    assert run.status == "cancelled"
-    assert "Cancelled by user" in run.warnings
-
-
-@pytest.mark.asyncio
-async def test_retry_analysis_job_requeues_run(monkeypatch):
-    user_id = "00000000-0000-0000-0000-000000000000"
-    run_id = uuid.uuid4()
-    job = FakeJob(user_id, "analysis_run", "failed", input_params={"analysis_run_id": str(run_id)})
-    run = FakeRun(run_id)
-    run.status = "failed"
-    db = FakeSession([job], runs={run_id: run})
-    app = _test_app(db, user_id=user_id)
-
-    monkeypatch.setattr("app.api.jobs.redis_available", lambda: True)
-    monkeypatch.setattr("app.api.jobs.retry_job_record", lambda current_job: "rq-analysis-retry")
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        ac.cookies.set("csrf_token", "abc")
-        ac.cookies.set("access_token", "x")
-        response = await ac.post(f"/jobs/{job.id}/retry", headers={"X-CSRF-Token": "abc"})
-        assert response.status_code == 200
-
-    assert run.status == "queued"
+    assert item.status == "cancelled"
+    assert item.error_message == "Cancelled by user"
 
 
 @pytest.mark.asyncio
@@ -169,6 +126,8 @@ async def test_retry_meta_item_job_requeues_item(monkeypatch):
         input_params={"item_id": str(item_id), "batch_id": str(uuid.uuid4()), "paper_id": str(uuid.uuid4())},
     )
     item = FakeMetaItem(item_id)
+    item.status = "failed"
+    item.error_message = "old error"
     db = FakeSession([job], items={item_id: item})
     app = _test_app(db, user_id=user_id)
 
@@ -189,7 +148,7 @@ async def test_retry_meta_item_job_requeues_item(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_job_returns_persisted_active_state_when_redis_is_down(monkeypatch):
     user_id = "00000000-0000-0000-0000-000000000000"
-    job = FakeJob(user_id, "analysis_run", "started")
+    job = FakeJob(user_id, "meta_extract_paper", "started")
     job.progress_percent = 45
     db = FakeSession([job])
     app = _test_app(db, user_id=user_id)
@@ -208,12 +167,18 @@ async def test_get_job_returns_persisted_active_state_when_redis_is_down(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_missing_rq_record_marks_analysis_run_failed(monkeypatch):
+async def test_missing_rq_record_marks_meta_item_failed(monkeypatch):
     user_id = "00000000-0000-0000-0000-000000000000"
-    run_id = uuid.uuid4()
-    job = FakeJob(user_id, "analysis_run", "started", input_params={"analysis_run_id": str(run_id)}, result={"rq_job_id": "rq-missing"})
-    run = FakeRun(run_id)
-    db = FakeSession([job], runs={run_id: run})
+    item_id = uuid.uuid4()
+    job = FakeJob(
+        user_id,
+        "meta_extract_paper",
+        "started",
+        input_params={"item_id": str(item_id)},
+        result={"rq_job_id": "rq-missing"},
+    )
+    item = FakeMetaItem(item_id)
+    db = FakeSession([job], items={item_id: item})
     app = _test_app(db, user_id=user_id)
 
     monkeypatch.setattr("app.api.jobs.redis_available", lambda: True)
@@ -234,5 +199,5 @@ async def test_missing_rq_record_marks_analysis_run_failed(monkeypatch):
         response = await ac.get(f"/jobs/{job.id}", headers={"X-CSRF-Token": "abc"})
         assert response.status_code == 200
 
-    assert run.status == "failed"
-    assert "RQ job no encontrado en Redis" in run.warnings
+    assert item.status == "failed"
+    assert item.error_message == "RQ job no encontrado en Redis"

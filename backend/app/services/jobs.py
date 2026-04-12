@@ -15,7 +15,7 @@ def get_job_queue() -> Queue:
 
 
 def enqueue_process_pdf(job_db_id: UUID, paper_id: UUID) -> str:
-    from app.workers.tasks import process_pdf_job
+    from app.workers.tasks_pdf import process_pdf_job
 
     job_queue = get_job_queue()
     job = job_queue.enqueue(

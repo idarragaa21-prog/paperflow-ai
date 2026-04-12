@@ -32,6 +32,30 @@ DEFAULT_SECTION_SPECS: list[tuple[str, str]] = [
 ]
 
 
+def _numeric(value: Any) -> float | None:
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _best_effect_value(payload: dict[str, Any]) -> float | None:
+    for key in (
+        "effect_value",
+        "adjusted_hr",
+        "adjusted_rr",
+        "adjusted_or",
+        "or_value",
+        "log_or",
+    ):
+        parsed = _numeric(payload.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
 def _default_section_text(section_key: str, heading: str) -> str:
     return (
         f"## {heading}\n\n"
@@ -192,19 +216,40 @@ async def generate_section(
             marker = f"[M{citation_counter}]"
             effect_measure = payload.get("effect_measure") or row.effect_measure or "effect"
             outcome = payload.get("outcome_name") or payload.get("outcome_key") or "Outcome"
-            effect_value = payload.get("or_value") or payload.get("adjusted_or") or payload.get("adjusted_rr") or payload.get("adjusted_hr")
-            lines.append(f"- {outcome}: {effect_measure} {effect_value if effect_value is not None else 'not reported'} {marker}")
+            effect_value = _best_effect_value(payload)
+            ci_lower = _numeric(payload.get("ci_lower_95"))
+            ci_upper = _numeric(payload.get("ci_upper_95"))
+            n_total = payload.get("total_n")
+
+            if effect_value is not None:
+                ci_text = ""
+                if ci_lower is not None and ci_upper is not None:
+                    ci_text = f" (95% CI {ci_lower:.3g} to {ci_upper:.3g})"
+                n_text = f"; n={n_total}" if n_total is not None else ""
+                claim_text = f"{outcome}: {effect_measure} {effect_value:.4g}{ci_text}{n_text}"
+                lines.append(f"- {claim_text} {marker}")
+                confidence = float(payload.get("confidence") or 0.6)
+                grounding_status = "quantitative_supported"
+            else:
+                claim_text = (
+                    f"{outcome}: extraction row available for {effect_measure}, "
+                    "but no harmonized quantitative estimate is present yet."
+                )
+                lines.append(f"- {claim_text} {marker}")
+                confidence = float(payload.get("confidence") or 0.45)
+                grounding_status = "qualitative_only"
+
             db.add(
                 WritingClaimLink(
                     document_id=document.id,
                     section_id=section.id,
-                    claim_text=f"{outcome}: {effect_measure} {effect_value if effect_value is not None else 'not reported'}",
+                    claim_text=claim_text,
                     source_type="matrix_row",
                     source_id=str(row.id),
                     citation_marker=marker,
-                    confidence=float(payload.get("confidence") or 0.6),
+                    confidence=confidence,
                     source_locator={"row_key": row.row_key},
-                    metadata_json={},
+                    metadata_json={"grounding_status": grounding_status},
                 )
             )
             citation_counter += 1

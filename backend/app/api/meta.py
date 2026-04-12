@@ -136,7 +136,7 @@ async def create_batch(
     await db.refresh(job_record)
 
     try:
-        from app.workers.tasks import meta_extract_batch_job
+        from app.workers.tasks_meta import meta_extract_batch_job
 
         q = get_job_queue()
         rq_job = q.enqueue(meta_extract_batch_job, args=(str(job_record.id), str(batch.id)), job_timeout="60m")
@@ -246,7 +246,7 @@ async def retry_item(
     await db.refresh(job_record)
 
     try:
-        from app.workers.tasks import meta_extract_paper_job
+        from app.workers.tasks_meta import meta_extract_paper_job
         from app.core.redis_conn import redis_available
 
         if not redis_available():
@@ -337,7 +337,7 @@ async def reextract_study(
     await db.refresh(job_record)
 
     try:
-        from app.workers.tasks import meta_extract_paper_job
+        from app.workers.tasks_meta import meta_extract_paper_job
         from app.core.redis_conn import redis_available
 
         if not redis_available():
@@ -426,6 +426,55 @@ async def add_effect(
         arm_intervention=str(payload.get("arm_intervention")),
         arm_control=str(payload.get("arm_control")),
         effect_measure=str(payload.get("effect_measure") or "OR"),
+        outcome_type=str(payload.get("outcome_type") or "binary"),
+        outcome_unit=payload.get("outcome_unit"),
+        comparator_type=payload.get("comparator_type"),
+        effect_direction=payload.get("effect_direction"),
+        a_events=payload.get("a_events"),
+        b_non_events=payload.get("b_non_events"),
+        c_events=payload.get("c_events"),
+        d_non_events=payload.get("d_non_events"),
+        events_total=payload.get("events_total"),
+        total_n=payload.get("total_n"),
+        or_value=payload.get("or_value"),
+        log_or=payload.get("log_or"),
+        se_log_or=payload.get("se_log_or"),
+        effect_value=payload.get("effect_value"),
+        effect_se=payload.get("effect_se"),
+        weight=payload.get("weight"),
+        ci_lower_95=payload.get("ci_lower_95"),
+        ci_upper_95=payload.get("ci_upper_95"),
+        adjusted_or=payload.get("adjusted_or"),
+        adjusted_rr=payload.get("adjusted_rr"),
+        adjusted_hr=payload.get("adjusted_hr"),
+        n_intervention=payload.get("n_intervention"),
+        n_control=payload.get("n_control"),
+        mean_intervention=payload.get("mean_intervention"),
+        sd_intervention=payload.get("sd_intervention"),
+        mean_control=payload.get("mean_control"),
+        sd_control=payload.get("sd_control"),
+        median_intervention=payload.get("median_intervention"),
+        iqr_intervention=payload.get("iqr_intervention"),
+        median_control=payload.get("median_control"),
+        iqr_control=payload.get("iqr_control"),
+        followup_time=payload.get("followup_time"),
+        followup_unit=payload.get("followup_unit"),
+        person_time_intervention=payload.get("person_time_intervention"),
+        person_time_control=payload.get("person_time_control"),
+        tp=payload.get("tp"),
+        fp=payload.get("fp"),
+        fn=payload.get("fn"),
+        tn=payload.get("tn"),
+        sensitivity_value=payload.get("sensitivity_value"),
+        specificity_value=payload.get("specificity_value"),
+        subgroup_label=payload.get("subgroup_label"),
+        subgroup_level=payload.get("subgroup_level"),
+        subgroup_order=payload.get("subgroup_order"),
+        sensitivity_flag=bool(payload.get("sensitivity_flag") or False),
+        sensitivity_reason=payload.get("sensitivity_reason"),
+        analysis_population=payload.get("analysis_population"),
+        model_type=payload.get("model_type"),
+        covariates_json=payload.get("covariates_json"),
         manually_edited=True,
         edited_at=datetime.now(timezone.utc),
         comments=payload.get("comments"),
@@ -618,18 +667,55 @@ async def get_study(
                 "arm_intervention": e.arm_intervention,
                 "arm_control": e.arm_control,
                 "effect_measure": e.effect_measure,
+                "outcome_type": e.outcome_type,
+                "outcome_unit": e.outcome_unit,
+                "comparator_type": e.comparator_type,
+                "effect_direction": e.effect_direction,
                 "a_events": e.a_events,
                 "b_non_events": e.b_non_events,
                 "c_events": e.c_events,
                 "d_non_events": e.d_non_events,
+                "events_total": e.events_total,
+                "total_n": e.total_n,
                 "or_value": e.or_value,
                 "log_or": e.log_or,
                 "se_log_or": e.se_log_or,
+                "effect_value": e.effect_value,
+                "effect_se": e.effect_se,
+                "weight": e.weight,
                 "ci_lower_95": e.ci_lower_95,
                 "ci_upper_95": e.ci_upper_95,
                 "adjusted_or": e.adjusted_or,
                 "adjusted_rr": e.adjusted_rr,
                 "adjusted_hr": e.adjusted_hr,
+                "n_intervention": e.n_intervention,
+                "n_control": e.n_control,
+                "mean_intervention": e.mean_intervention,
+                "sd_intervention": e.sd_intervention,
+                "mean_control": e.mean_control,
+                "sd_control": e.sd_control,
+                "median_intervention": e.median_intervention,
+                "iqr_intervention": e.iqr_intervention,
+                "median_control": e.median_control,
+                "iqr_control": e.iqr_control,
+                "followup_time": e.followup_time,
+                "followup_unit": e.followup_unit,
+                "person_time_intervention": e.person_time_intervention,
+                "person_time_control": e.person_time_control,
+                "tp": e.tp,
+                "fp": e.fp,
+                "fn": e.fn,
+                "tn": e.tn,
+                "sensitivity_value": e.sensitivity_value,
+                "specificity_value": e.specificity_value,
+                "subgroup_label": e.subgroup_label,
+                "subgroup_level": e.subgroup_level,
+                "subgroup_order": e.subgroup_order,
+                "sensitivity_flag": e.sensitivity_flag,
+                "sensitivity_reason": e.sensitivity_reason,
+                "analysis_population": e.analysis_population,
+                "model_type": e.model_type,
+                "covariates_json": e.covariates_json,
                 "adjustment_variables": e.adjustment_variables,
                 "is_adjusted": e.is_adjusted,
                 "raw_extracted_value": e.raw_extracted_value,
@@ -757,7 +843,20 @@ async def patch_effects_batch(
         patch_dict = upd.patch.model_dump(exclude_unset=True)
 
         # Validate 2x2 counts
-        for ck in ("a_events", "b_non_events", "c_events", "d_non_events"):
+        for ck in (
+            "a_events",
+            "b_non_events",
+            "c_events",
+            "d_non_events",
+            "events_total",
+            "total_n",
+            "n_intervention",
+            "n_control",
+            "tp",
+            "fp",
+            "fn",
+            "tn",
+        ):
             if ck in patch_dict and patch_dict[ck] is not None:
                 try:
                     if int(patch_dict[ck]) < 0:
@@ -834,7 +933,7 @@ async def export_meta_dataset(
     await db.refresh(job_record)
 
     try:
-        from app.workers.tasks import meta_export_job
+        from app.workers.tasks_meta import meta_export_job
 
         q = get_job_queue()
         rq_job = q.enqueue(
