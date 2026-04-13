@@ -404,8 +404,8 @@ export default function PapersPage() {
               </div>
             ) : (
               <div className="rc-row" style={{ alignItems: 'flex-end' }}>
-                <div style={{ minWidth: 200 }}><div className="rc-kicker">DOI</div><input className="rc-input" value={doi} onChange={e => setDoi(e.target.value)} placeholder="10.xxxx/xxxxx" /></div>
-                <div style={{ width: 160 }}><div className="rc-kicker">PMID</div><input className="rc-input" value={pmid} onChange={e => setPmid(e.target.value)} placeholder="12345678" /></div>
+                <div style={{ minWidth: 200 }}><label htmlFor="papers-doi" className="rc-kicker" style={{ display: 'block' }}>DOI</label><input id="papers-doi" className="rc-input" value={doi} onChange={e => setDoi(e.target.value)} placeholder="10.xxxx/xxxxx" /></div>
+                <div style={{ width: 160 }}><label htmlFor="papers-pmid" className="rc-kicker" style={{ display: 'block' }}>PMID</label><input id="papers-pmid" className="rc-input" value={pmid} onChange={e => setPmid(e.target.value)} placeholder="12345678" /></div>
                 <button className="rc-btn rc-btn--primary" disabled={!(doi.trim() || pmid.trim()) || downloadOAMut.isPending} onClick={() => downloadOAMut.mutate()} style={{ padding: '8px 14px', fontSize: 13 }}>
                   {downloadOAMut.isPending ? 'Descargando...' : 'Download'}
                 </button>
