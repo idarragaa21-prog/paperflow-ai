@@ -52,8 +52,9 @@ function NewProjectModal({ onClose, onCreated }: { onClose: () => void; onCreate
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18 }}>New project</div>
 
         <div>
-          <div className="rc-kicker">Project title *</div>
+          <label htmlFor="dashboard-project-title" className="rc-kicker" style={{ display: 'block' }}>Project title *</label>
           <input
+            id="dashboard-project-title"
             className="rc-input"
             value={title}
             onChange={e => setTitle(e.target.value)}
@@ -63,8 +64,9 @@ function NewProjectModal({ onClose, onCreated }: { onClose: () => void; onCreate
           />
         </div>
         <div>
-          <div className="rc-kicker">Clinical area (optional)</div>
+          <label htmlFor="dashboard-clinical-area" className="rc-kicker" style={{ display: 'block' }}>Clinical area (optional)</label>
           <input
+            id="dashboard-clinical-area"
             className="rc-input"
             value={area}
             onChange={e => setArea(e.target.value)}
