@@ -499,8 +499,9 @@ async def download_paper_file(
     if storage_manager.is_s3:
         try:
             data = storage_manager.read_bytes(paper.file_path)
-        except Exception as exc:
-            raise HTTPException(status_code=404, detail=f"File not found: {exc}") from exc
+        except Exception:
+            logger.exception("Failed to read paper file from storage")
+            raise HTTPException(status_code=404, detail="File not found")
         return Response(
             content=data,
             media_type="application/pdf",

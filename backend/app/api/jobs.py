@@ -234,8 +234,9 @@ async def get_job(
         await db.commit()
     except RedisError:
         return _serialize_job(job)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error consultando job: {e}")
+    except Exception:
+        logger.exception("Error consultando job")
+        raise HTTPException(status_code=500, detail="Error consultando job")
 
     return _serialize_job(job)
 
@@ -262,8 +263,9 @@ async def retry_job(
         new_rq_job_id = retry_job_record(job)
     except RedisError as exc:
         raise HTTPException(status_code=503, detail="Redis error") from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"No se pudo reintentar el job: {exc}") from exc
+    except Exception:
+        logger.exception("No se pudo reintentar el job")
+        raise HTTPException(status_code=500, detail="No se pudo reintentar el job")
 
     job.status = "queued"
     job.progress_percent = 0
