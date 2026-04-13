@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-24 - [Information Exposure via Exception Details in API Responses]
+**Vulnerability:** API endpoints in `backend/app/api/jobs.py` and `backend/app/api/papers.py` were returning raw exception details in HTTP response bodies via f-strings (e.g., `raise HTTPException(status_code=500, detail=f"Error consultando job: {e}")`).
+**Learning:** Exposing raw exception strings or stack traces to the client in HTTP responses can leak sensitive system internals, database schema details, or third-party service information, providing attackers with valuable insights into the system's architecture.
+**Prevention:** To prevent sensitive information disclosure, API endpoints must avoid returning raw exception details in HTTP error responses. Instead, return a generic error message to the client (e.g., `"Error consultando job"`) and use `logger.exception` to capture the full traceback in internal server logs.
