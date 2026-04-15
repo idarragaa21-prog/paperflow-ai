@@ -142,6 +142,11 @@ class TestHealth:
         data = (await client.get("/health")).json()
         assert "degraded_features" in data
 
+    async def test_health_services_includes_llm_runtime(self, client: AsyncClient):
+        data = (await client.get("/health/services")).json()
+        assert "services" in data
+        assert "llm_runtime" in data["services"]
+
 
 # ── /auth/login ───────────────────────────────────────────────────────────────
 

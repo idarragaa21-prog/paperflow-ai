@@ -21,7 +21,6 @@ from app.models.membership import ProjectInvitation, ProjectMembership
 from app.models.paper import Paper
 from app.models.project import Project
 from app.models.reference_item import ReferenceItem
-from app.models.screening import EligibilityReason, PeerReviewAction, ProjectComment, ScreeningBatch
 from app.models.user import User
 from app.models.document import PaperChunk, PaperCitationSpan, PaperParseRun
 from app.services.extraction_service import create_extraction_record
@@ -32,7 +31,7 @@ def _paper_text(index: int) -> str:
         f"Study {index + 1} investigated remote monitoring in a synthetic internal RC fixture. "
         f"The main finding was that intervention cohort {index + 1} reduced preventable admissions and improved follow-up adherence. "
         f"Outcome measures included pain, function, utilization and readmission risk. "
-        f"Conclusion: the seeded evidence supports a positive effect size for reproducible chat, extraction and screening workflows."
+        f"Conclusion: the seeded evidence supports a positive effect size for reproducible chat, extraction and matrix workflows."
     )
 
 
@@ -188,48 +187,6 @@ async def _seed_references(session, *, project: Project, papers: list[Paper], li
     await session.commit()
 
 
-async def _seed_screening(session, *, project: Project, owner: User, reviewer: User, first_paper: Paper) -> None:
-    batch = (
-        await session.execute(select(ScreeningBatch).where(ScreeningBatch.project_id == project.id).limit(1))
-    ).scalar_one_or_none()
-    if batch is None:
-        batch = ScreeningBatch(project_id=project.id, title="Internal RC Batch", stage="title_abstract", status="active")
-        session.add(batch)
-    reason = (
-        await session.execute(select(EligibilityReason).where(EligibilityReason.project_id == project.id).limit(1))
-    ).scalar_one_or_none()
-    if reason is None:
-        reason = EligibilityReason(project_id=project.id, code="wrong_population", label="Wrong population")
-        session.add(reason)
-    comment = (
-        await session.execute(select(ProjectComment).where(ProjectComment.project_id == project.id).limit(1))
-    ).scalar_one_or_none()
-    if comment is None:
-        session.add(
-            ProjectComment(
-                project_id=project.id,
-                user_id=reviewer.id,
-                body="Seeded reviewer note for internal RC validation.",
-                target_type="paper",
-                target_id=str(first_paper.id),
-            )
-        )
-    action = (
-        await session.execute(select(PeerReviewAction).where(PeerReviewAction.project_id == project.id).limit(1))
-    ).scalar_one_or_none()
-    if action is None:
-        session.add(
-            PeerReviewAction(
-                project_id=project.id,
-                user_id=reviewer.id,
-                action="screening_review",
-                status="open",
-                payload_json={"paper_id": str(first_paper.id)},
-            )
-        )
-    await session.commit()
-
-
 async def _seed_extraction(session, *, project: Project, paper: Paper) -> None:
     from app.models.extraction import ExtractionRecord
 
@@ -267,7 +224,6 @@ async def _run(args) -> dict:
 
         papers = await _seed_papers(session, project=project, target_count=args.paper_count)
         await _seed_references(session, project=project, papers=papers)
-        await _seed_screening(session, project=project, owner=owner, reviewer=reviewer, first_paper=papers[0])
         await _seed_extraction(session, project=project, paper=papers[0])
         pending_invitation = await _create_pending_invitation(
             session,

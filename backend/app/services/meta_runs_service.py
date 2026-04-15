@@ -8,7 +8,6 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -391,6 +390,8 @@ async def derive_dataset(
     build_params: dict | None,
     user_id: UUID | None,
 ) -> DerivedDataset:
+    import pandas as pd
+
     if preset not in META_PRESETS:
         raise ValueError(f"Unsupported preset: {preset}")
 
@@ -452,7 +453,8 @@ async def list_derived_datasets(db: AsyncSession, *, project_id: UUID) -> list[D
 
 
 def _preset_to_analysis_type(preset: str) -> str:
-    # The current R engine can accept any analysis_type and gracefully degrades unknown presets.
+    if preset not in META_PRESETS:
+        raise ValueError(f"Unsupported preset: {preset}")
     return preset
 
 
@@ -466,6 +468,13 @@ async def run_meta_analysis(
     input_params: dict | None,
     user_id: UUID | None,
 ) -> MetaRun:
+    analysis_type = _preset_to_analysis_type(preset)
+    if str(dataset.preset or "").strip() != preset:
+        raise ValueError(
+            f"Preset mismatch: dataset preset `{dataset.preset}` cannot run as `{preset}`. "
+            "Derive a dataset with the same preset before running analysis."
+        )
+
     run = MetaRun(
         project_id=project_id,
         matrix_version_id=dataset.matrix_version_id,
@@ -481,6 +490,8 @@ async def run_meta_analysis(
     db.add(run)
     await db.flush()
 
+    import pandas as pd
+
     with storage_manager.local_path(dataset.file_path, suffix=".csv") as local_path:
         frame = pd.read_csv(local_path)
     # Use JSON roundtrip to normalize pandas NaN/NaT into JSON-null values.
@@ -493,7 +504,7 @@ async def run_meta_analysis(
             response = await client.post(
                 f"{settings.R_ENGINE_URL}/run-analysis",
                 json={
-                    "analysis_type": _preset_to_analysis_type(preset),
+                    "analysis_type": analysis_type,
                     "input_params": input_params or {},
                     "rows": rows,
                 },

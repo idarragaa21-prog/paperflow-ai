@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -8,10 +10,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
+from app.core.logger import logger
 from app.models.matrix import MatrixRow, MatrixVersion
 from app.models.meta_run import MetaRun
 from app.models.reference_item import ReferenceItem
 from app.models.writing import WritingClaimLink, WritingDocument, WritingSection
+from app.services.llm.factory import llm_provider
 
 
 SUPPORTED_WRITING_MODES = {
@@ -62,6 +67,133 @@ def _default_section_text(section_key: str, heading: str) -> str:
         f"_Draft placeholder for **{section_key}**. Use `/writing/documents/{{id}}/sections/{section_key}` "
         "to generate grounded content from matrix, meta runs, and references._"
     )
+
+
+def _clip_text(text: str | None, *, max_len: int = 420, collapse_whitespace: bool = True) -> str:
+    if not text:
+        return ""
+    compact = re.sub(r"\s+", " ", text).strip() if collapse_whitespace else str(text).strip()
+    if len(compact) <= max_len:
+        return compact
+    return compact[: max_len - 1].rstrip() + "…"
+
+
+def _safe_confidence(value: Any, default: float = 0.6) -> float:
+    try:
+        parsed = float(value)
+    except Exception:
+        return default
+    return max(0.0, min(1.0, parsed))
+
+
+def _extract_citation_markers(text: str) -> set[str]:
+    return {match.group(0) for match in re.finditer(r"\[[A-Z]\d+\]", text or "")}
+
+
+def _render_fallback_section(section: WritingSection, claims_payload: list[dict[str, Any]]) -> str:
+    lines: list[str] = [f"## {section.heading}", ""]
+    lines.append(
+        "Grounded section generated from the current extraction matrix, latest quantitative run, and project references."
+    )
+    lines.append("")
+    if not claims_payload:
+        lines.append("### Traceability note")
+        lines.append("- No matrix/meta/reference evidence was available at generation time [N1].")
+        lines.append("")
+    else:
+        lines.append("### Evidence-grounded claims")
+        for claim in claims_payload:
+            marker = claim.get("citation_marker") or "[N]"
+            lines.append(f"- {_clip_text(claim.get('claim_text'), max_len=320)} {marker}")
+        lines.append("")
+    lines.append("### Limitations")
+    lines.append(
+        "- Claims are constrained to linked matrix rows, run summaries, and reference entries. "
+        "No unlinked factual statements were introduced."
+    )
+    return "\n".join(lines)
+
+
+async def _generate_llm_grounded_markdown(
+    *,
+    document: WritingDocument,
+    section: WritingSection,
+    claims_payload: list[dict[str, Any]],
+) -> tuple[str | None, str | None, str | None]:
+    # Keep tests deterministic and fast.
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return None, None, "llm generation skipped in pytest context"
+    if not claims_payload:
+        return None, None, "no grounded claims available"
+
+    provider = llm_provider()
+    if not hasattr(provider, "chat"):
+        return None, None, "llm provider has no chat method"
+
+    evidence_lines = []
+    for claim in claims_payload:
+        marker = claim.get("citation_marker") or "[N]"
+        source_type = claim.get("source_type") or "unknown_source"
+        source_id = claim.get("source_id") or "unknown_id"
+        confidence = _safe_confidence(claim.get("confidence"))
+        evidence_lines.append(
+            f"{marker} | source={source_type}:{source_id} | confidence={confidence:.2f} | claim={_clip_text(claim.get('claim_text'), max_len=260)}"
+        )
+
+    system = (
+        "You are a senior biomedical scientific writer. "
+        "Write concise, publication-grade English. "
+        "Use ONLY the provided evidence claims. "
+        "Do not invent numbers, effects, limitations, or citations. "
+        "Every factual sentence must cite one or more provided markers exactly as given."
+    )
+    user = (
+        f"Document mode: {document.mode}\n"
+        f"Section key: {section.section_key}\n"
+        f"Section heading: {section.heading}\n\n"
+        "Allowed evidence claims (marker-locked):\n"
+        + "\n".join(f"- {line}" for line in evidence_lines)
+        + "\n\nTask:\n"
+        "- Write the section in markdown with:\n"
+        "  1) a short section opening,\n"
+        "  2) an evidence synthesis paragraph,\n"
+        "  3) a limitations paragraph.\n"
+        "- Keep it directly grounded in the listed claims.\n"
+        "- Reuse markers verbatim (e.g. [M1], [R2], [C3]).\n"
+        "- Do not add any marker that is not in the list."
+    )
+
+    try:
+        response = await provider.chat(  # type: ignore[attr-defined]
+            model=settings.PAPERFLOW_WRITING_MODEL,
+            system=system,
+            user=user,
+            temperature=0.15,
+            max_tokens=1500,
+            timeout=45,
+            retry=1,
+        )
+        content = _clip_text(response.get("content"), max_len=12000, collapse_whitespace=False)
+        model = str(response.get("model") or settings.PAPERFLOW_WRITING_MODEL)
+        if not content:
+            return None, None, "llm returned empty content"
+
+        allowed_markers = {
+            str(item.get("citation_marker") or "").strip()
+            for item in claims_payload
+            if str(item.get("citation_marker") or "").strip()
+        }
+        used_markers = _extract_citation_markers(content)
+
+        if not used_markers:
+            return None, None, "llm output missing grounded citation markers"
+        if not used_markers.issubset(allowed_markers):
+            unknown = ", ".join(sorted(used_markers - allowed_markers))
+            return None, None, f"llm output used unknown citation markers: {unknown}"
+        return content, model, None
+    except Exception as exc:
+        logger.warning(f"[writing] grounded llm generation failed for section {section.section_key}: {exc}")
+        return None, None, str(exc)
 
 
 async def create_document(
@@ -202,15 +334,9 @@ async def generate_section(
         await db.delete(item)
     await db.flush()
 
-    lines: list[str] = [f"## {section.heading}", ""]
-    lines.append(
-        "Grounded section generated from the current extraction matrix, latest quantitative run, and project references."
-    )
-    lines.append("")
-
+    claims_payload: list[dict[str, Any]] = []
     citation_counter = 1
     if rows:
-        lines.append("### Matrix-derived evidence")
         for row in rows[:6]:
             payload = row.data_json or {}
             marker = f"[M{citation_counter}]"
@@ -227,7 +353,6 @@ async def generate_section(
                     ci_text = f" (95% CI {ci_lower:.3g} to {ci_upper:.3g})"
                 n_text = f"; n={n_total}" if n_total is not None else ""
                 claim_text = f"{outcome}: {effect_measure} {effect_value:.4g}{ci_text}{n_text}"
-                lines.append(f"- {claim_text} {marker}")
                 confidence = float(payload.get("confidence") or 0.6)
                 grounding_status = "quantitative_supported"
             else:
@@ -235,104 +360,103 @@ async def generate_section(
                     f"{outcome}: extraction row available for {effect_measure}, "
                     "but no harmonized quantitative estimate is present yet."
                 )
-                lines.append(f"- {claim_text} {marker}")
                 confidence = float(payload.get("confidence") or 0.45)
                 grounding_status = "qualitative_only"
 
-            db.add(
-                WritingClaimLink(
-                    document_id=document.id,
-                    section_id=section.id,
-                    claim_text=claim_text,
-                    source_type="matrix_row",
-                    source_id=str(row.id),
-                    citation_marker=marker,
-                    confidence=confidence,
-                    source_locator={"row_key": row.row_key},
-                    metadata_json={"grounding_status": grounding_status},
-                )
+            claims_payload.append(
+                {
+                    "claim_text": claim_text,
+                    "source_type": "matrix_row",
+                    "source_id": str(row.id),
+                    "citation_marker": marker,
+                    "confidence": confidence,
+                    "source_locator": {"row_key": row.row_key},
+                    "metadata_json": {"grounding_status": grounding_status},
+                }
             )
             citation_counter += 1
-        lines.append("")
 
     if latest_run:
         marker = f"[R{citation_counter}]"
-        lines.append("### Quantitative synthesis")
-        lines.append(
-            f"- Latest meta run `{latest_run.title}` (preset `{latest_run.preset}`) reports "
-            f"{(latest_run.summary_json or {}).get('rows', 'n/a')} analyzed rows {marker}."
-        )
-        db.add(
-            WritingClaimLink(
-                document_id=document.id,
-                section_id=section.id,
-                claim_text=f"Latest meta run: {latest_run.title}",
-                source_type="meta_run",
-                source_id=str(latest_run.id),
-                citation_marker=marker,
-                confidence=0.75,
-                source_locator={"preset": latest_run.preset},
-                metadata_json={},
-            )
+        claims_payload.append(
+            {
+                "claim_text": (
+                    f"Latest meta run `{latest_run.title}` (preset `{latest_run.preset}`) reports "
+                    f"{(latest_run.summary_json or {}).get('rows', 'n/a')} analyzed rows."
+                ),
+                "source_type": "meta_run",
+                "source_id": str(latest_run.id),
+                "citation_marker": marker,
+                "confidence": 0.75,
+                "source_locator": {"preset": latest_run.preset},
+                "metadata_json": {},
+            }
         )
         citation_counter += 1
-        lines.append("")
 
     if references:
-        lines.append("### Supporting references")
         for ref in references[:4]:
             marker = f"[C{citation_counter}]"
-            lines.append(f"- {ref.title} ({ref.publication_year or 'n.d.'}) {marker}")
-            db.add(
-                WritingClaimLink(
-                    document_id=document.id,
-                    section_id=section.id,
-                    claim_text=ref.title,
-                    source_type="reference_item",
-                    source_id=str(ref.id),
-                    citation_marker=marker,
-                    confidence=0.65,
-                    source_locator={"doi": ref.doi, "pmid": ref.pmid},
-                    metadata_json={},
-                )
+            claims_payload.append(
+                {
+                    "claim_text": f"{ref.title} ({ref.publication_year or 'n.d.'})",
+                    "source_type": "reference_item",
+                    "source_id": str(ref.id),
+                    "citation_marker": marker,
+                    "confidence": 0.65,
+                    "source_locator": {"doi": ref.doi, "pmid": ref.pmid},
+                    "metadata_json": {},
+                }
             )
             citation_counter += 1
-        lines.append("")
 
-    if citation_counter == 1:
+    if not claims_payload:
         marker = "[N1]"
-        lines.append("### Traceability note")
-        lines.append(f"- No matrix/meta/reference evidence was available at generation time {marker}.")
+        claims_payload.append(
+            {
+                "claim_text": "No matrix/meta/reference evidence was available at generation time.",
+                "source_type": "generation_context",
+                "source_id": str(document.id),
+                "citation_marker": marker,
+                "confidence": 0.4,
+                "source_locator": {"reason": "insufficient_project_evidence"},
+                "metadata_json": {},
+            }
+        )
+
+    for payload in claims_payload:
         db.add(
             WritingClaimLink(
                 document_id=document.id,
                 section_id=section.id,
-                claim_text="No matrix/meta/reference evidence was available at generation time.",
-                source_type="generation_context",
-                source_id=str(document.id),
-                citation_marker=marker,
-                confidence=0.4,
-                source_locator={"reason": "insufficient_project_evidence"},
-                metadata_json={},
+                claim_text=str(payload["claim_text"]),
+                source_type=str(payload["source_type"]),
+                source_id=str(payload["source_id"]),
+                citation_marker=str(payload.get("citation_marker") or ""),
+                confidence=_safe_confidence(payload.get("confidence")),
+                source_locator=payload.get("source_locator") or {},
+                metadata_json=payload.get("metadata_json") or {},
             )
         )
-        citation_counter += 1
-        lines.append("")
 
-    lines.append("### Limitations")
-    lines.append(
-        "- Claims are constrained to linked matrix rows, run summaries, and reference entries. "
-        "No unlinked factual statements were introduced."
+    fallback_markdown = _render_fallback_section(section, claims_payload)
+    llm_markdown, llm_model, llm_warning = await _generate_llm_grounded_markdown(
+        document=document,
+        section=section,
+        claims_payload=claims_payload,
     )
 
-    section.content_markdown = "\n".join(lines)
+    section.content_markdown = llm_markdown or fallback_markdown
     section.status = "ready"
-    section.generated_with_model = "grounded-template"
+    section.generated_with_model = llm_model or "grounded-template-fallback"
     section.metadata_json = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "matrix_rows_used": len(rows),
         "references_used": len(references),
         "meta_run_id": str(latest_run.id) if latest_run else None,
+        "claim_count": len(claims_payload),
+        "llm_used": bool(llm_markdown),
+        "llm_warning": llm_warning,
     }
     document.status = "in_progress"
     document.version = int(document.version or 1) + 1

@@ -148,4 +148,35 @@ async def health_services() -> dict:
             except Exception as exc:
                 results[label] = {"status": "down", "latency_ms": round((time.monotonic() - t0) * 1000), "detail": str(exc)[:120]}
 
+    runtime = await collect_runtime_health()
+    runtime_services = runtime.get("services") or {}
+
+    # Enrich with runtime-aware local AI details (selected provider, model availability).
+    ollama_runtime = runtime_services.get("ollama") or {}
+    if "ollama" in results:
+        if isinstance(ollama_runtime, dict):
+            results["ollama"]["configured_models"] = ollama_runtime.get("configured_models")
+            results["ollama"]["available_models"] = ollama_runtime.get("available_models")
+            if ollama_runtime.get("detail"):
+                results["ollama"]["detail"] = ollama_runtime.get("detail")
+
+    openclaw_runtime = runtime_services.get("openclaw") or {}
+    if "openclaw" in results and isinstance(openclaw_runtime, dict) and openclaw_runtime.get("detail"):
+        results["openclaw"]["detail"] = openclaw_runtime.get("detail")
+
+    llm_runtime = runtime_services.get("llm_runtime")
+    if isinstance(llm_runtime, dict):
+        results["llm_runtime"] = {
+            "status": llm_runtime.get("status", "unknown"),
+            "latency_ms": 0,
+            "detail": llm_runtime.get("detail"),
+            "active_provider": llm_runtime.get("active_provider"),
+            "fallback_provider": llm_runtime.get("fallback_provider"),
+            "provider_mode": llm_runtime.get("provider_mode"),
+            "chat_model": llm_runtime.get("chat_model"),
+            "writing_model": llm_runtime.get("writing_model"),
+            "vision_model": llm_runtime.get("vision_model"),
+            "embedding_model": llm_runtime.get("embedding_model"),
+        }
+
     return {"services": results}

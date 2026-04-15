@@ -5,6 +5,7 @@
 - `postgres`
 - `redis`
 - `qdrant`
+- `openclaw`
 - `ollama`
 - `minio`
 - `grobid`
@@ -35,6 +36,6 @@
 
 ## Failure handling
 
-- If `ollama`, `grobid`, `qdrant`, `redis`, `minio` or `r-engine` are down, the RC is not releaseable.
+- If `openclaw`, `ollama`, `grobid`, `qdrant`, `redis`, `minio` or `r-engine` are down, the RC is not releaseable.
 - If `prometheus` or `grafana` are down in local dev, the stack may still run, but staging/release smoke should fail.
 - Backup and restore procedures are documented in `docs/backup_restore.md`.
