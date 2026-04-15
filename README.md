@@ -32,7 +32,6 @@ that runs entirely on your machine. No cloud sync, no subscriptions, no commerci
 | **Clinical Consults** | Rapid clinical consults (`brief`, `standard`, `deep`) grounded in project evidence and/or PubMed. |
 | **Writing Assistant** | IMRAD-oriented scientific writing with claim-to-source traceability from matrix, meta runs and references. |
 | **References** | BibTeX export, APA clipboard copy, DOI import, project-scoped reference management. |
-| **Screening** | PRISMA-aligned title/abstract screening with eligibility criteria and batch workflows. |
 | **Dashboard** | Project-level stats, quick navigation, recent activity overview. |
 | **Mobile** | Fully responsive with hamburger drawer, mobile topbar, and touch-friendly interactions. |
 
@@ -56,7 +55,7 @@ that runs entirely on your machine. No cloud sync, no subscriptions, no commerci
 │  :5432   │  :6379   │  :6333   │  :9000   │   :8070     │
 │    DB    │ Jobs/RQ  │ Vectors  │ Storage  │  PDF Parse  │
 ├──────────┴──────────┴──────────┴──────────┴─────────────┤
-│              R Engine (:8010) · Ollama (LLM)             │
+│      R Engine (:8010) · OpenClaw + Ollama (Local AI)      │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -161,8 +160,10 @@ Key variables in `backend/.env`:
 | `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/paperflow_ai` | PostgreSQL connection |
 | `SECRET_KEY` | `CHANGE_ME` | JWT signing secret — **change in production** |
 | `STORAGE_BACKEND` | `s3` | `s3` (MinIO) or `filesystem` |
-| `LLM_PROVIDER` | `openclaw` | `openclaw` or `direct_claude` |
+| `LLM_PROVIDER` | `auto_local` | `auto_local`, `openclaw`, `ollama`, `direct_claude` |
 | `PAPERFLOW_CHAT_MODEL` | `qwen2.5-coder:7b` | Ollama model for paper chat |
+| `PAPERFLOW_WRITING_MODEL` | `qwen2.5-coder:7b` | Ollama model for writing + clinical synthesis |
+| `PAPERFLOW_VISION_MODEL` | `qwen3-vl:8b` | Ollama model for visual/PDF tasks |
 | `GROBID_ENABLED` | `true` | Enable PDF parsing via Grobid |
 
 Production deploy notes:
@@ -177,9 +178,10 @@ Production deploy notes:
 
 PaperFlow AI supports multiple LLM backends:
 
-1. **Ollama (default, free):** Install [Ollama](https://ollama.com), pull the default local models (`ollama pull qwen2.5-coder:7b` and `ollama pull nomic-embed-text`), and it works out of the box.
+1. **`auto_local` (default):** OpenClaw as primary router with automatic fallback to local Ollama.
 2. **OpenClaw:** Multi-vendor routing gateway for Groq, Gemini, DeepSeek, etc.
-3. **Direct Claude:** Set `ANTHROPIC_API_KEY` in `backend/.env`.
+3. **Ollama:** Fully local execution for chat/summarization + embeddings.
+4. **Direct Claude:** Set `ANTHROPIC_API_KEY` in `backend/.env`.
 
 ---
 
@@ -239,7 +241,6 @@ paperflow-ai/
 | Clinical | `/clinical` | clinical consults create/list/get |
 | Writing | `/writing` | writing documents, section generation, citation resolution |
 | References | `/references` | Import, export BibTeX/APA |
-| Screening | `/screening` | Batches, decisions, eligibility criteria |
 | Notes | `/notes` | CRUD per project |
 | Jobs | `/jobs` | Background job tracking, cancel |
 
@@ -256,6 +257,10 @@ cd backend
 source .venv/bin/activate
 pytest -q                    # Run all tests
 pytest tests/test_vnext_core_endpoints.py -v  # vNext end-to-end flow
+
+# Local AI sanity (OpenClaw + Ollama)
+cd ..
+./scripts/check_local_ai.sh
 ```
 
 ### Building Frontend

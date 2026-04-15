@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     OCR_ENABLED: bool = False
 
     # LLM
-    LLM_PROVIDER: str = "openclaw"  # openclaw | direct_claude
+    LLM_PROVIDER: str = "auto_local"  # auto_local | openclaw | ollama | direct_claude
     LLM_STRATEGY: str = "single"  # single | ensemble
     CLINICAL_LLM_PROVIDER: str = "claude"  # claude | openai
     PROJECT_DEFAULT_RUNTIME_MODE: str = "local_only"
@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     PAPERFLOW_CHAT_MODEL: str = "qwen2.5-coder:7b"
     PAPERFLOW_EXTRACTION_MODEL: str = "qwen2.5-coder:7b"
     PAPERFLOW_WRITING_MODEL: str = "qwen2.5-coder:7b"
+    PAPERFLOW_VISION_MODEL: str = "qwen3-vl:8b"
     # Deep-research reports benefit from a model with longer context / better synthesis.
     # Defaults to the same chat model; override to e.g. llama3:8b for better summaries.
     PAPERFLOW_RESEARCH_MODEL: str = "qwen2.5-coder:7b"
@@ -253,6 +254,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
+        if self.LLM_PROVIDER not in {"auto_local", "openclaw", "ollama", "direct_claude"}:
+            raise ValueError("LLM_PROVIDER must be one of: auto_local, openclaw, ollama, direct_claude")
         if self.CLINICAL_LLM_PROVIDER not in {"claude", "openai"}:
             raise ValueError("CLINICAL_LLM_PROVIDER must be one of: claude, openai")
 

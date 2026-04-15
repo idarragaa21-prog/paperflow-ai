@@ -18,12 +18,19 @@ type ServiceRow = {
   status: string;
   latency_ms: number;
   detail?: string;
+  active_provider?: string;
+  fallback_provider?: string | null;
+  provider_mode?: string;
+  chat_model?: string;
+  writing_model?: string;
+  vision_model?: string;
+  embedding_model?: string;
 };
 
 type SettingsTab = 'general' | 'team';
 
 const RUNTIME_MODES = [
-  { value: 'local_only', label: 'Local only', desc: 'All processing with Ollama + Grobid + Qdrant on localhost. No external API calls.' },
+  { value: 'local_only', label: 'Local only', desc: 'OpenClaw + Ollama local-first execution (OpenClaw primary, Ollama fallback), plus Grobid/Qdrant on localhost.' },
   { value: 'hybrid', label: 'Hybrid', desc: 'Local pipeline with optional cloud fallback for extraction or summarization.' },
   { value: 'cloud', label: 'Cloud', desc: 'Cloud-based LLMs (requires API keys). Best quality but requires internet.' },
 ];
@@ -133,6 +140,13 @@ export default function SettingsPage() {
         status: val.status || 'unknown',
         latency_ms: val.latency_ms || 0,
         detail: val.detail,
+        active_provider: val.active_provider,
+        fallback_provider: val.fallback_provider,
+        provider_mode: val.provider_mode,
+        chat_model: val.chat_model,
+        writing_model: val.writing_model,
+        vision_model: val.vision_model,
+        embedding_model: val.embedding_model,
       })));
     } catch {
       setServices([]);
@@ -382,7 +396,14 @@ export default function SettingsPage() {
                       <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
                         {service.latency_ms > 0 ? `${service.latency_ms} ms` : '—'}
                       </td>
-                      <td className="rc-help">{service.detail || '—'}</td>
+                      <td className="rc-help">
+                        {service.detail || '—'}
+                        {service.name === 'llm_runtime' ? (
+                          <div style={{ marginTop: 4, fontFamily: 'monospace', fontSize: 11 }}>
+                            mode={service.provider_mode || 'n/a'} active={service.active_provider || 'n/a'} fallback={service.fallback_provider || 'none'} chat={service.chat_model || 'n/a'} writing={service.writing_model || 'n/a'} vision={service.vision_model || 'n/a'} embed={service.embedding_model || 'n/a'}
+                          </div>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -5,13 +5,14 @@ import tempfile
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator
+from typing import TYPE_CHECKING, Any, Dict, Iterator
 from uuid import UUID, uuid4
-
-from fastapi import UploadFile
 
 from app.config import settings
 from app.core.logger import logger
+
+if TYPE_CHECKING:
+    from fastapi import UploadFile
 
 
 class StorageManager:
@@ -155,7 +156,7 @@ class StorageManager:
         saved["filename"] = safe_name
         return saved
 
-    async def save_paper(self, file: UploadFile, project_id: UUID) -> Dict:
+    async def save_paper(self, file: "UploadFile", project_id: UUID) -> Dict:
         content = await file.read()
         return await self.save_paper_bytes(data=content, project_id=project_id, suggested_filename=file.filename or None)
 

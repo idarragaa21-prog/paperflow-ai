@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 from typing import Any
 from uuid import UUID
@@ -8,8 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.models.clinical import ClinicalConsult, ClinicalConsultClaim, ClinicalConsultSource
 from app.models.paper import Paper
+from app.services.llm.factory import llm_provider
 from app.services.pubmed import pubmed_client
 
 
@@ -34,6 +38,35 @@ def _clip(text: str | None, *, max_len: int = 320) -> str:
     return normalized[: max_len - 1].rstrip() + "…"
 
 
+def _extract_json_object(raw_text: str) -> dict[str, Any] | None:
+    text = (raw_text or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    try:
+        parsed = json.loads(text[start : end + 1])
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        return None
+
+
+def _safe_confidence(value: Any, default: float = 0.6) -> float:
+    try:
+        parsed = float(value)
+    except Exception:
+        return default
+    return max(0.0, min(1.0, parsed))
+
+
 def _build_claim(source_title: str, excerpt: str) -> str:
     text = _clip(excerpt, max_len=260)
     if not text:
@@ -54,6 +87,83 @@ def _answer_limits(mode: str) -> tuple[int, int]:
     if mode == "deep":
         return 10, 8
     return 6, 4
+
+
+async def _llm_grounded_consult_payload(
+    *,
+    question: str,
+    mode: str,
+    sources: list[ClinicalConsultSource],
+    claim_limit: int,
+) -> dict[str, Any] | None:
+    # Keep tests deterministic and offline-fast.
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return None
+    if not sources:
+        return None
+
+    provider = llm_provider()
+    if not hasattr(provider, "chat"):
+        return None
+
+    source_lines = []
+    for source in sources:
+        source_lines.append(
+            {
+                "source_id": str(source.id),
+                "title": source.title,
+                "pmid": source.pmid,
+                "doi": source.doi,
+                "source_kind": source.source_kind,
+                "excerpt": _clip(source.excerpt, max_len=340),
+            }
+        )
+
+    system = (
+        "You are a clinical evidence synthesis assistant. "
+        "You must ONLY use the provided sources. "
+        "Every claim must map to one or more provided source_id values. "
+        "No source_id, no factual claim."
+    )
+    user = (
+        f"Clinical question: {question}\n"
+        f"Mode: {mode}\n"
+        f"Max claims: {claim_limit}\n\n"
+        "Available sources (JSON):\n"
+        f"{json.dumps(source_lines, ensure_ascii=False)}\n\n"
+        "Return STRICT JSON with this schema:\n"
+        "{\n"
+        '  "actionable_summary": "string",\n'
+        '  "uncertainty": "string",\n'
+        '  "limitations": "string",\n'
+        '  "claims": [\n'
+        "    {\n"
+        '      "claim_text": "string",\n'
+        '      "source_ids": ["source_id_1"],\n'
+        '      "support_level": "strong|moderate|limited",\n'
+        '      "uncertainty": "string",\n'
+        '      "confidence": 0.0\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+    )
+    try:
+        response = await provider.chat(  # type: ignore[attr-defined]
+            model=settings.PAPERFLOW_WRITING_MODEL,
+            system=system,
+            user=user,
+            temperature=0.1,
+            max_tokens=1400,
+            timeout=40,
+            retry=1,
+        )
+    except Exception:
+        return None
+
+    parsed = _extract_json_object(str(response.get("content") or ""))
+    if not parsed:
+        return None
+    return parsed
 
 
 async def _collect_project_sources(
@@ -129,7 +239,16 @@ async def _collect_pubmed_sources(
     return out
 
 
-def _compose_answer(*, question: str, mode: str, sources: list[ClinicalConsultSource], claims: list[ClinicalConsultClaim]) -> tuple[str, dict[str, Any], str, str]:
+def _compose_answer(
+    *,
+    question: str,
+    mode: str,
+    sources: list[ClinicalConsultSource],
+    claims: list[ClinicalConsultClaim],
+    actionable_summary: str | None = None,
+    uncertainty_override: str | None = None,
+    limitations_override: str | None = None,
+) -> tuple[str, dict[str, Any], str, str]:
     citation_rows = []
     source_marker: dict[str, str] = {}
     for idx, source in enumerate(sources, start=1):
@@ -146,8 +265,12 @@ def _compose_answer(*, question: str, mode: str, sources: list[ClinicalConsultSo
             }
         )
 
-    uncertainty = "Evidence certainty is limited by extraction quality, missing effect harmonization, and potential publication bias."
-    limitations = "This consult is grounded only on retrieved sources and does not replace full critical appraisal."
+    uncertainty = uncertainty_override or "Evidence certainty is limited by extraction quality, missing effect harmonization, and potential publication bias."
+    limitations = limitations_override or "This consult is grounded only on retrieved sources and does not replace full critical appraisal."
+    summary_text = actionable_summary or (
+        f"{len(sources)} bibliographic sources were retrieved and prioritized. "
+        "Use the claims below as a quick decision aid and confirm with full-text appraisal before changing care."
+    )
 
     evidence_lines = [
         f"- [{idx}] {source.title or 'Untitled source'}"
@@ -167,7 +290,7 @@ def _compose_answer(*, question: str, mode: str, sources: list[ClinicalConsultSo
         "",
         f"**Question:** {question}",
         "",
-        f"**Actionable summary:** {len(sources)} bibliographic sources were retrieved and prioritized. Use the claims below as a quick decision aid and confirm with full-text appraisal before changing care.",
+        f"**Actionable summary:** {summary_text}",
         "",
         "**Grounded claims:**",
     ]
@@ -191,7 +314,7 @@ def _compose_answer(*, question: str, mode: str, sources: list[ClinicalConsultSo
     answer_json = {
         "question": question,
         "mode": mode,
-        "actionable_summary": f"{len(sources)} sources reviewed. Prioritize full-text verification for clinical decisions.",
+        "actionable_summary": summary_text,
         "claims": [
             {
                 "claim_text": item.claim_text,
@@ -284,24 +407,52 @@ async def create_clinical_consult(
     await db.flush()
 
     claim_models: list[ClinicalConsultClaim] = []
-    for source in source_models[:claim_limit]:
-        if len((source.excerpt or "").strip()) < 24:
-            continue
-        claim_text = _build_claim(source.title or "Untitled source", source.excerpt or "")
-        if not claim_text:
-            continue
-        claim = ClinicalConsultClaim(
-            consult_id=consult.id,
-            claim_text=claim_text,
-            support_level="grounded_extract",
-            uncertainty="moderate" if source.source_kind == "project_paper" else "moderate_to_high",
-            confidence=max(0.35, min(0.95, float(source.confidence or 0.5))),
-            evidence_count=1,
-            source_ids_json=[str(source.id)],
-            metadata_json={"grounding_method": "extractive_sentence"},
-        )
-        db.add(claim)
-        claim_models.append(claim)
+    llm_payload = await _llm_grounded_consult_payload(
+        question=question.strip(),
+        mode=mode,
+        sources=source_models,
+        claim_limit=claim_limit,
+    )
+    valid_source_ids = {str(source.id) for source in source_models}
+    raw_llm_claims = llm_payload.get("claims") if isinstance(llm_payload, dict) else None
+    if isinstance(raw_llm_claims, list):
+        for raw_claim in raw_llm_claims[:claim_limit]:
+            claim_text = _clip(str((raw_claim or {}).get("claim_text") or ""), max_len=260)
+            source_ids = [sid for sid in ((raw_claim or {}).get("source_ids") or []) if str(sid) in valid_source_ids]
+            if not claim_text or not source_ids:
+                continue
+            claim = ClinicalConsultClaim(
+                consult_id=consult.id,
+                claim_text=claim_text,
+                support_level=str((raw_claim or {}).get("support_level") or "grounded_llm"),
+                uncertainty=str((raw_claim or {}).get("uncertainty") or "moderate"),
+                confidence=_safe_confidence((raw_claim or {}).get("confidence"), default=0.7),
+                evidence_count=len(source_ids),
+                source_ids_json=[str(sid) for sid in source_ids],
+                metadata_json={"grounding_method": "llm_grounded_json"},
+            )
+            db.add(claim)
+            claim_models.append(claim)
+
+    if not claim_models:
+        for source in source_models[:claim_limit]:
+            if len((source.excerpt or "").strip()) < 24:
+                continue
+            claim_text = _build_claim(source.title or "Untitled source", source.excerpt or "")
+            if not claim_text:
+                continue
+            claim = ClinicalConsultClaim(
+                consult_id=consult.id,
+                claim_text=claim_text,
+                support_level="grounded_extract",
+                uncertainty="moderate" if source.source_kind == "project_paper" else "moderate_to_high",
+                confidence=max(0.35, min(0.95, float(source.confidence or 0.5))),
+                evidence_count=1,
+                source_ids_json=[str(source.id)],
+                metadata_json={"grounding_method": "extractive_sentence"},
+            )
+            db.add(claim)
+            claim_models.append(claim)
 
     await db.flush()
 
@@ -310,6 +461,9 @@ async def create_clinical_consult(
         mode=mode,
         sources=source_models,
         claims=claim_models,
+        actionable_summary=str(llm_payload.get("actionable_summary") or "").strip() if isinstance(llm_payload, dict) else None,
+        uncertainty_override=str(llm_payload.get("uncertainty") or "").strip() if isinstance(llm_payload, dict) else None,
+        limitations_override=str(llm_payload.get("limitations") or "").strip() if isinstance(llm_payload, dict) else None,
     )
     consult.answer_markdown = answer_md
     consult.answer_json = answer_json

@@ -9,6 +9,7 @@ class DummyResponse:
     def __init__(self, text: str = "ok", json_payload: dict | None = None):
         self.text = text
         self._json_payload = json_payload or {}
+        self.headers = {"content-type": "application/json"}
 
     def raise_for_status(self):
         return None
@@ -37,6 +38,8 @@ class DummyAsyncClient:
                     ]
                 }
             )
+        if url.endswith("/health"):
+            return DummyResponse(json_payload={"ok": True, "status": "live"})
         if url.endswith("/api/isalive"):
             return DummyResponse(text="true")
         return DummyResponse(text="ok")
@@ -63,6 +66,8 @@ async def test_collect_runtime_health_separates_required_and_optional(monkeypatc
     assert health["required_services"]["redis"]["status"] == "ok"
     assert health["required_services"]["qdrant"]["status"] == "ok"
     assert health["required_services"]["ollama"]["status"] == "ok"
+    assert health["required_services"]["openclaw"]["status"] == "ok"
+    assert health["required_services"]["llm_runtime"]["active_provider"] == "openclaw"
     assert health["required_services"]["ollama"]["configured_models"]["embedding"]["available"] is True
     assert "prometheus" in health["optional_services"]
 
@@ -87,5 +92,6 @@ async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(mo
 
     assert health["overall_status"] == "degraded"
     assert health["required_services"]["ollama"]["status"] == "degraded"
+    assert health["required_services"]["llm_runtime"]["status"] == "degraded"
     assert health["required_services"]["ollama"]["configured_models"]["embedding"]["available"] is False
     assert "bge-m3" in health["required_services"]["ollama"]["detail"]
