@@ -9,8 +9,11 @@ from uuid import UUID
 import xml.etree.ElementTree as ET
 
 import pandas as pd
+from collections import defaultdict
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
 from sqlalchemy.orm import selectinload
 
 from app.models.extraction import ExtractionFieldValue, ExtractionRecord
@@ -245,15 +248,32 @@ async def build_matrix_version(
     )
     studies = studies_q.all()
 
+    study_ids = [study.id for study, _ in studies]
+
+    # Pre-fetch all effects and rob rows for the relevant studies to avoid N+1 queries
+    effects_by_study_id = defaultdict(list)
+    rob_by_study_id = defaultdict(list)
+
+    if study_ids:
+        all_effects_q = await db.execute(
+            select(ExtractedEffectSize)
+            .where(ExtractedEffectSize.extracted_study_id.in_(study_ids))
+            .order_by(ExtractedEffectSize.id.asc())
+        )
+        for effect in all_effects_q.scalars().all():
+            effects_by_study_id[effect.extracted_study_id].append(effect)
+
+        all_rob_q = await db.execute(
+            select(ExtractedRiskOfBias)
+            .where(ExtractedRiskOfBias.extracted_study_id.in_(study_ids))
+            .order_by(ExtractedRiskOfBias.id.asc())
+        )
+        for rob in all_rob_q.scalars().all():
+            rob_by_study_id[rob.extracted_study_id].append(rob)
+
     for study, paper in studies:
-        effects_q = await db.execute(
-            select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == study.id).order_by(ExtractedEffectSize.id.asc())
-        )
-        effects = effects_q.scalars().all()
-        rob_q = await db.execute(
-            select(ExtractedRiskOfBias).where(ExtractedRiskOfBias.extracted_study_id == study.id).order_by(ExtractedRiskOfBias.id.asc())
-        )
-        rob_rows = rob_q.scalars().all()
+        effects = effects_by_study_id.get(study.id, [])
+        rob_rows = rob_by_study_id.get(study.id, [])
         rob_summary = _score_rob(rob_rows)
 
         study_row = MatrixRow(
