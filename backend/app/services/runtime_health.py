@@ -40,7 +40,7 @@ def _llm_runtime_view(*, provider_mode: str, openclaw_status: str, ollama_status
     if provider_mode == "openclaw":
         if openclaw_status == "ok":
             return {
-                "status": "ok",
+                "status": "ok" if ollama_status == "ok" else "degraded",
                 "active_provider": "openclaw",
                 "fallback_provider": None,
                 "detail": "Configured for OpenClaw only.",
