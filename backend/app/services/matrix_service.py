@@ -9,11 +9,9 @@ from uuid import UUID
 import xml.etree.ElementTree as ET
 
 import pandas as pd
-from collections import defaultdict
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-
+from collections import defaultdict
 from sqlalchemy.orm import selectinload
 
 from app.models.extraction import ExtractionFieldValue, ExtractionRecord
@@ -250,7 +248,6 @@ async def build_matrix_version(
 
     study_ids = [study.id for study, _ in studies]
 
-    # Pre-fetch all effects and rob rows for the relevant studies to avoid N+1 queries
     effects_by_study_id = defaultdict(list)
     rob_by_study_id = defaultdict(list)
 
