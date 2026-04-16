@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2026-04-16 - Prevent sensitive information disclosure in HTTP 500 responses
+**Vulnerability:** API endpoints returning raw exception details (e.g., using f-strings with exception objects) in HTTP 500 responses.
+**Learning:** Returning exception details in HTTP 500 responses leaks sensitive internal server details and logic patterns.
+**Prevention:** Avoid returning raw exception details (e.g., using f-strings with exception objects) in HTTP 500 responses. Instead, return a generic error message to the client and use `logger.exception` to capture the full traceback in internal server logs.
