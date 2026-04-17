@@ -48,27 +48,59 @@ async def import_references(
     parser = parse_bibtex_entries if payload.format == "bibtex" else parse_ris_entries
     parsed = parser(payload.content)
 
+    # Pre-fetch existing entries to avoid N+1 query problem during deduplication
+    dois = {entry.get("doi") for entry in parsed if entry.get("doi")}
+    pmids = {entry.get("pmid") for entry in parsed if entry.get("pmid")}
+    titles = {entry.get("title") for entry in parsed if entry.get("title")}
+
+    existing_refs_q = await db.execute(
+        select(ReferenceItem).where(
+            and_(
+                ReferenceItem.project_id == payload.project_id,
+                or_(
+                    ReferenceItem.doi.in_(dois) if dois else False,
+                    ReferenceItem.pmid.in_(pmids) if pmids else False,
+                    ReferenceItem.title.in_(titles) if titles else False,
+                ),
+            )
+        )
+    )
+    existing_refs = existing_refs_q.scalars().all()
+    existing_dois = {ref.doi for ref in existing_refs if ref.doi}
+    existing_pmids = {ref.pmid for ref in existing_refs if ref.pmid}
+    existing_titles = {ref.title for ref in existing_refs if ref.title}
+
     imported: list[ReferenceItem] = []
     skipped = 0
     for entry in parsed:
-        dedup_q = await db.execute(
-            select(ReferenceItem).where(
-                and_(
-                    ReferenceItem.project_id == payload.project_id,
-                    or_(
-                        and_(ReferenceItem.doi.is_not(None), ReferenceItem.doi == entry.get("doi")),
-                        and_(ReferenceItem.pmid.is_not(None), ReferenceItem.pmid == entry.get("pmid")),
-                        ReferenceItem.title == entry["title"],
-                    ),
-                )
-            )
-        )
-        if dedup_q.scalars().first():
+        doi = entry.get("doi")
+        pmid = entry.get("pmid")
+        title = entry.get("title")
+
+        is_duplicate = False
+        if doi and doi in existing_dois:
+            is_duplicate = True
+        elif pmid and pmid in existing_pmids:
+            is_duplicate = True
+        elif title and title in existing_titles:
+            is_duplicate = True
+
+        if is_duplicate:
             skipped += 1
             continue
+
         item = ReferenceItem(project_id=payload.project_id, **entry)
         db.add(item)
         imported.append(item)
+
+        # Add to existing sets to catch duplicates within the import payload itself
+        if doi:
+            existing_dois.add(doi)
+        if pmid:
+            existing_pmids.add(pmid)
+        if title:
+            existing_titles.add(title)
+
     await db.commit()
     for item in imported:
         await db.refresh(item)

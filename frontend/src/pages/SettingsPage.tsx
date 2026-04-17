@@ -419,9 +419,12 @@ export default function SettingsPage() {
                 <div className="rc-kicker">Confirm new password</div>
                 <input className="rc-input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
               </div>
-              <button className="rc-btn rc-btn--primary" onClick={changePassword} disabled={savingPw || !currentPw || !newPw} style={{ alignSelf: 'flex-start' }}>
-                {savingPw ? 'Updating…' : 'Update password'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, alignSelf: 'flex-start' }}>
+                <button className="rc-btn rc-btn--primary" onClick={changePassword} disabled={savingPw || !currentPw || !newPw}>
+                  {savingPw ? 'Updating…' : 'Update password'}
+                </button>
+                {error === 'Passwords do not match.' && <span style={{ color: 'var(--rc-danger)', fontSize: 13 }}>Passwords do not match.</span>}
+              </div>
             </div>
           </div>
 

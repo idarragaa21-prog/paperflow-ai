@@ -78,14 +78,20 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    // Make sure we're on the General tab since password change is there
+    await userEvent.click(screen.getByRole('button', { name: 'General' }));
+
+    // Specifically target the password inputs to avoid matching generic empty inputs
+    const allPasswordInputs = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'password');
+
+    await userEvent.type(allPasswordInputs[0], 'current-password');
+    await userEvent.type(allPasswordInputs[1], 'new-password');
+    await userEvent.type(allPasswordInputs[2], 'different-password');
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Passwords do not match.')).toBeInTheDocument();
+      const messages = screen.getAllByText('Passwords do not match.');
+      expect(messages.length).toBeGreaterThan(0);
     });
   });
 
