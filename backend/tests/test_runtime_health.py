@@ -35,6 +35,8 @@ class DummyAsyncClient:
                     "models": [
                         {"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL},
                         {"name": runtime_health.settings.PAPERFLOW_EMBEDDING_MODEL},
+                        {"name": runtime_health.settings.PAPERFLOW_EXTRACTION_MODEL},
+                        {"name": runtime_health.settings.PAPERFLOW_WRITING_MODEL},
                     ]
                 }
             )
