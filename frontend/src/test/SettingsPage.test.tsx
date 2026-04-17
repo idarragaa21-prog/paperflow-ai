@@ -82,7 +82,6 @@ describe('SettingsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'General' }));
 
     // Specifically target the password inputs to avoid matching generic empty inputs
-    const currentPwInput = screen.getAllByDisplayValue('').find(el => el.getAttribute('type') === 'password');
     const allPasswordInputs = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'password');
 
     await userEvent.type(allPasswordInputs[0], 'current-password');
