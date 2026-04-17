@@ -100,13 +100,12 @@ describe('ProjectLayout', () => {
   it('refreshes project counts after a project content update event', async () => {
     renderPage();
 
-    const getPapersMetricValue = () => {
-      const label = screen.getByText(/^papers$/i);
-      const card = label.closest('.rc-metric-card');
-      return card?.querySelector('.rc-metric-card__value')?.textContent ?? null;
+    const getPapersBadgeText = () => {
+      const badge = document.querySelector('.pg-badge.pg-badge--info');
+      return badge?.textContent ?? null;
     };
 
-    await waitFor(() => expect(getPapersMetricValue()).toBe('0'));
+    await waitFor(() => expect(getPapersBadgeText()).toBe('0 papers'));
 
     act(() => {
       window.dispatchEvent(
@@ -116,6 +115,6 @@ describe('ProjectLayout', () => {
       );
     });
 
-    await waitFor(() => expect(getPapersMetricValue()).toBe('1'));
+    await waitFor(() => expect(getPapersBadgeText()).toBe('1 papers'));
   });
 });

@@ -38,6 +38,9 @@ vi.mock('../i18n', () => ({
         hasAccount: 'Already have an account?',
       },
     },
+    locale: 'en',
+    setLocale: () => {},
+    localeNames: { es: 'Español', en: 'English', pt: 'Português' },
   }),
 }));
 
@@ -76,9 +79,9 @@ describe('Auth pages', () => {
 
     renderAuth('/login');
 
-    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
+    await userEvent.type(screen.getByPlaceholderText('tu@correo.com'), 'user@example.com');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(screen.getByText('Dashboard Home')).toBeInTheDocument();
@@ -92,9 +95,9 @@ describe('Auth pages', () => {
 
     renderAuth('/login');
 
-    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
+    await userEvent.type(screen.getByPlaceholderText('tu@correo.com'), 'user@example.com');
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'wrong-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(screen.getByText('Credenciales inválidas')).toBeInTheDocument();
@@ -113,7 +116,7 @@ describe('Auth pages', () => {
     const passwordInputs = screen.getAllByPlaceholderText('••••••••');
     await userEvent.type(passwordInputs[0], 'secure-pass');
     await userEvent.type(passwordInputs[1], 'secure-pass');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/auth/register', {
@@ -121,7 +124,7 @@ describe('Auth pages', () => {
         password: 'secure-pass',
         full_name: 'New User',
       });
-      expect(screen.getByText('Welcome back')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument();
     });
   });
 
@@ -150,7 +153,7 @@ describe('Auth pages', () => {
     const passwordInputs = screen.getAllByPlaceholderText('••••••••');
     await userEvent.type(passwordInputs[0], 'secure-pass');
     await userEvent.type(passwordInputs[1], 'secure-pass');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up →' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/auth/register', {
@@ -181,7 +184,7 @@ describe('Auth pages', () => {
 
     expect(screen.getByDisplayValue('invitee@example.com')).toBeInTheDocument();
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(screen.getByText('Invitation landing')).toBeInTheDocument();
@@ -198,7 +201,7 @@ describe('Auth pages', () => {
 
     expect(screen.getByDisplayValue('invitee@example.com')).toBeInTheDocument();
     await userEvent.type(screen.getByPlaceholderText('••••••••'), 'correct-password');
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In to Workspace' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(screen.getByText('Project Research')).toBeInTheDocument();
