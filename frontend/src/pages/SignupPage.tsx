@@ -9,7 +9,8 @@ export default function SignupPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const L = (o: Record<string, string>) => o[locale] || o.es;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,9 +23,7 @@ export default function SignupPage() {
 
   useEffect(() => { if (user) navigate('/dashboard'); }, [user, navigate]);
   useEffect(() => {
-    if (invitationEmail && !email) {
-      setEmail(invitationEmail);
-    }
+    if (invitationEmail && !email) setEmail(invitationEmail);
   }, [email, invitationEmail]);
 
   async function onSubmit(e: FormEvent) {
@@ -39,9 +38,7 @@ export default function SignupPage() {
         password,
         full_name: fullName || null,
       };
-      if (invitationToken) {
-        payload.invitation_token = invitationToken;
-      }
+      if (invitationToken) payload.invitation_token = invitationToken;
       const response = await api.post('/auth/register', payload);
       const acceptedProjectId = (response.data as { accepted_project_id?: string | null } | undefined)?.accepted_project_id;
       navigate(
@@ -49,112 +46,135 @@ export default function SignupPage() {
           ? `/login?email=${encodeURIComponent(email)}&invited=1${acceptedProjectId ? `&accepted_project_id=${encodeURIComponent(acceptedProjectId)}` : `&invitation_token=${encodeURIComponent(invitationToken)}`}`
           : '/login'
       );
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Registration failed');
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Registration failed');
     } finally { setLoading(false); }
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--rc-bg)' }}>
-      {/* Left panel (same as login) */}
-      <div className="login-left-panel" style={{
-        flex: '0 0 460px',
-        background: 'var(--rc-bg)',
-        display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        padding: '48px', borderRight: '1px solid var(--rc-surface-2)',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.6,
-          backgroundImage: 'radial-gradient(circle at 20% 80%, var(--rc-primary-weak) 0%, transparent 60%), radial-gradient(circle at 80% 20%, var(--rc-primary-weak) 0%, transparent 50%)',
-          pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12,
-              background: 'var(--rc-primary)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 20px var(--rc-primary-weak)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-            </div>
-            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--rc-text)', letterSpacing: '-0.03em', fontFamily: 'var(--font-display)' }}>PaperFlow</span>
-          </div>
-          <div style={{ fontSize: 21, fontWeight: 800, color: 'var(--rc-text)', letterSpacing: '-0.03em', lineHeight: 1.25, fontFamily: 'var(--font-display)' }}>
-            Your personal<br />AI research workspace
-          </div>
-          <div style={{ marginTop: 8, fontSize: 13, color: 'var(--rc-muted)', lineHeight: 1.6 }}>
-            Search, extract, analyze and write<br />— everything local, nothing in the cloud.
-          </div>
+    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+      <aside
+        className="pg-login-side"
+        style={{
+          background: 'linear-gradient(160deg, var(--pg-navy-900) 0%, var(--pg-navy-700) 100%)',
+          color: '#fff',
+          padding: '56px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Link to="/" className="pg-brand" style={{ color: '#fff', textDecoration: 'none' }}>
+          <span className="pg-brand-mark" style={{ background: 'rgba(255,255,255,0.14)', color: '#fff' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </span>
+          PaperFlow
+        </Link>
+
+        <div style={{ maxWidth: 440 }}>
+          <h2 className="pg-h1" style={{ color: '#fff', fontSize: 36 }}>
+            {L({
+              es: 'Crea tu cuenta local en 10 segundos.',
+              en: 'Create your local account in 10 seconds.',
+              pt: 'Crie sua conta local em 10 segundos.',
+            })}
+          </h2>
+          <p style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: 15, lineHeight: 1.6 }}>
+            {L({
+              es: 'No necesitas email verificado. No hay sincronización con la nube. Eres tú y tus papers.',
+              en: 'No email verification. No cloud sync. Just you and your papers.',
+              pt: 'Sem verificação de email. Sem sincronização na nuvem. Só você e seus papers.',
+            })}
+          </p>
         </div>
-      </div>
 
-      {/* Right panel — form */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 32px', background: 'var(--rc-bg)' }}>
-        <div style={{ width: '100%', maxWidth: 380 }}>
-          <div style={{ marginBottom: 32 }}>
-            <div style={{ fontSize: 26, fontWeight: 850, letterSpacing: '-0.03em', color: 'var(--rc-text)', fontFamily: 'var(--font-display)' }}>
-              {t.auth.createAccountTitle}
-            </div>
-            <div style={{ marginTop: 6, fontSize: 14, color: 'var(--rc-muted)' }}>{t.auth.createAccountSubtitle}</div>
-          </div>
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+          © {new Date().getFullYear()} PaperFlow · local-first
+        </div>
+      </aside>
 
-          <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <main style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '56px 32px', background: '#fff' }}>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <h1 className="pg-h1">{t.auth.createAccountTitle}</h1>
+          <p className="pg-muted" style={{ marginTop: 6, fontSize: 15 }}>{t.auth.createAccountSubtitle}</p>
+
+          <form onSubmit={onSubmit} style={{ marginTop: 28, display: 'grid', gap: 16 }}>
             {invitationToken ? (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.18)', color: '#4338ca', fontSize: 13 }}>
-                Create an account with the invited email to join the shared project.
+              <div className="pg-card pg-card--soft" style={{ padding: 14, fontSize: 13, color: 'var(--pg-navy-700)' }}>
+                {L({
+                  es: 'Crea una cuenta con el email invitado para unirte al proyecto compartido.',
+                  en: 'Create an account with the invited email to join the shared project.',
+                  pt: 'Crie uma conta com o email convidado para participar do projeto compartilhado.',
+                })}
               </div>
             ) : null}
+
             <div>
-              <label htmlFor="signup-fullname" className="rc-kicker" style={{ display: 'block' }}>{t.auth.fullName}</label>
-              <input id="signup-fullname" className="rc-input" type="text" value={fullName} onChange={e => setFullName(e.target.value)}
-                placeholder={t.auth.fullNamePlaceholder} autoComplete="name" style={{ fontSize: 14 }} />
+              <label className="pg-label" htmlFor="signup-fullname">{t.auth.fullName}</label>
+              <input id="signup-fullname" className="pg-input" type="text" value={fullName}
+                onChange={(e) => setFullName(e.target.value)} placeholder={t.auth.fullNamePlaceholder} autoComplete="name" />
             </div>
+
             <div>
-              <label htmlFor="signup-email" className="rc-kicker" style={{ display: 'block' }}>{t.auth.email}</label>
-              <input id="signup-email" className="rc-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder={t.auth.emailPlaceholder} autoComplete="email" autoFocus required style={{ fontSize: 14 }} />
+              <label className="pg-label" htmlFor="signup-email">{t.auth.email}</label>
+              <input id="signup-email" className="pg-input" type="email" value={email}
+                onChange={(e) => setEmail(e.target.value)} placeholder={t.auth.emailPlaceholder} autoComplete="email" autoFocus required />
             </div>
+
             <div>
-              <label htmlFor="signup-password" className="rc-kicker" style={{ display: 'block' }}>{t.auth.password}</label>
-              <input id="signup-password" className="rc-input" type="password" value={password} onChange={e => setPassword(e.target.value)}
-                placeholder={t.auth.passwordPlaceholder} autoComplete="new-password" required style={{ fontSize: 14 }} />
+              <label className="pg-label" htmlFor="signup-password">{t.auth.password}</label>
+              <input id="signup-password" className="pg-input" type="password" value={password}
+                onChange={(e) => setPassword(e.target.value)} placeholder={t.auth.passwordPlaceholder} autoComplete="new-password" required />
             </div>
+
             <div>
-              <label htmlFor="signup-confirm-password" className="rc-kicker" style={{ display: 'block' }}>{t.auth.confirmPassword}</label>
-              <input id="signup-confirm-password" className="rc-input" type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-                placeholder={t.auth.passwordPlaceholder} autoComplete="new-password" required style={{ fontSize: 14 }} />
+              <label className="pg-label" htmlFor="signup-confirm-password">{t.auth.confirmPassword}</label>
+              <input id="signup-confirm-password" className="pg-input" type="password" value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)} placeholder={t.auth.passwordPlaceholder} autoComplete="new-password" required />
             </div>
 
             {error && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(185,28,28,0.08)', border: '1px solid rgba(185,28,28,0.18)', color: '#b91c1c', fontSize: 13 }}>
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 13 }}>
                 {error}
               </div>
             )}
 
-            <button type="submit" className="rc-btn rc-btn--primary" disabled={loading || !email || !password}
-              style={{ width: '100%', padding: '11px 16px', fontSize: 14, marginTop: 4, borderRadius: 12 }}>
-              {loading ? t.auth.creatingAccount : `${t.auth.signUp} →`}
+            <button type="submit" className="pg-btn pg-btn--primary pg-btn--lg"
+              disabled={loading || !email || !password}
+              style={{ width: '100%', justifyContent: 'center' }}>
+              {loading ? t.auth.creatingAccount : t.auth.signUp}
             </button>
           </form>
 
-          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: 'var(--rc-muted)' }}>
+          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 14, color: 'var(--pg-muted)' }}>
             {t.auth.hasAccount}{' '}
             <Link
-              to={invitationToken ? `/login?invitation_token=${encodeURIComponent(invitationToken)}${email ? `&email=${encodeURIComponent(email)}` : invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}` : '/login'}
-              style={{ fontWeight: 700 }}
+              to={invitationToken
+                ? `/login?invitation_token=${encodeURIComponent(invitationToken)}${email ? `&email=${encodeURIComponent(email)}` : invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}`
+                : '/login'}
+              style={{ fontWeight: 600, color: 'var(--pg-navy-800)', textDecoration: 'none' }}
             >
               {t.auth.signIn}
             </Link>
           </div>
 
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--rc-surface-3)', textAlign: 'center', fontSize: 12, color: 'var(--rc-muted)' }}>
-            {t.auth.tagline}
-          </div>
+          <div className="pg-divider" style={{ margin: '28px 0 12px' }} />
+          <p style={{ fontSize: 12, color: 'var(--pg-soft)', textAlign: 'center', margin: 0 }}>{t.auth.tagline}</p>
         </div>
-      </div>
+      </main>
 
-      <style>{`.login-left-panel { display: flex !important; } @media(max-width:780px){.login-left-panel{display:none!important}}`}</style>
+      <style>{`
+        @media (max-width: 960px) {
+          .pg-login-side { display: none !important; }
+          body > #root > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }

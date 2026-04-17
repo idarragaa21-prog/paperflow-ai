@@ -11,7 +11,8 @@ export default function LoginPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const L = (o: Record<string, string>) => o[locale] || o.es;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,9 +24,7 @@ export default function LoginPage() {
   const hasInvitationContext = Boolean(invitationToken || invitedAfterSignup || acceptedProjectId);
 
   useEffect(() => {
-    if (invitationEmail && !email) {
-      setEmail(invitationEmail);
-    }
+    if (invitationEmail && !email) setEmail(invitationEmail);
   }, [email, invitationEmail]);
 
   useEffect(() => {
@@ -47,161 +46,198 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--rc-bg)', fontFamily: 'var(--font-sans)' }}>
-      {/* Left panel */}
-      <div className="login-left-panel" style={{
-        flex: '0 0 45%',
-        maxWidth: '560px',
-        background: 'linear-gradient(145deg, var(--rc-surface-2) 0%, var(--rc-bg) 100%)',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        padding: '64px', borderRight: '1px solid var(--rc-surface-3)',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        {/* Decorative background glow */}
-        <div style={{ position:'absolute',inset:0,opacity:0.8,
-          backgroundImage:'radial-gradient(circle at 10% 90%, rgba(79, 70, 229, 0.15) 0%, transparent 50%), radial-gradient(circle at 90% 10%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)',
-          pointerEvents:'none' }} />
-
-        {/* Logo */}
-        <div style={{ position:'relative',zIndex:1,display:'flex',alignItems:'center',gap:16 }}>
-          <div style={{ width:48,height:48,borderRadius:14,
-            background:'linear-gradient(135deg, var(--rc-primary) 0%, var(--rc-primary-hover) 100%)',
-            display:'flex',alignItems:'center',justifyContent:'center',
-            boxShadow:'0 8px 30px var(--rc-primary-weak)' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
+    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+      {/* Left side — brand / value */}
+      <aside
+        className="pg-login-side"
+        style={{
+          background: 'linear-gradient(160deg, var(--pg-navy-900) 0%, var(--pg-navy-700) 100%)',
+          color: '#fff',
+          padding: '56px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Link to="/" className="pg-brand" style={{ color: '#fff', textDecoration: 'none' }}>
+          <span className="pg-brand-mark" style={{ background: 'rgba(255,255,255,0.14)', color: '#fff' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-          </div>
-          <span style={{ fontSize:26,fontWeight:900,color:'var(--rc-text)',letterSpacing:'-0.03em',fontFamily:'var(--font-display)' }}>PaperFlow</span>
+          </span>
+          PaperFlow
+        </Link>
+
+        <div style={{ maxWidth: 440 }}>
+          <h2 className="pg-h1" style={{ color: '#fff', fontSize: 40 }}>
+            {L({
+              es: 'Tu espacio de investigación privado.',
+              en: 'Your private research workspace.',
+              pt: 'Seu espaço de pesquisa privado.',
+            })}
+          </h2>
+          <p style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: 16, lineHeight: 1.6 }}>
+            {L({
+              es: 'Busca, lee, extrae, meta-analiza y escribe con IA local. Sin nube por defecto.',
+              en: 'Search, read, extract, meta-analyze and write with local AI. No cloud by default.',
+              pt: 'Pesquise, leia, extraia, meta-analise e escreva com IA local. Sem nuvem por padrão.',
+            })}
+          </p>
+          <ul style={{ marginTop: 28, padding: 0, listStyle: 'none', display: 'grid', gap: 12 }}>
+            {[
+              L({ es: 'Búsqueda PubMed con síntesis IA', en: 'PubMed search with AI synthesis', pt: 'Busca PubMed com síntese IA' }),
+              L({ es: 'Matrix de extracción versionada', en: 'Versioned extraction matrix', pt: 'Matriz de extração versionada' }),
+              L({ es: 'Meta-análisis con R · DOCX/PDF', en: 'Meta-analysis with R · DOCX/PDF', pt: 'Meta-análise com R · DOCX/PDF' }),
+            ].map((it) => (
+              <li key={it} style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,0.88)', fontSize: 14 }}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="4 10 8 14 16 6" />
+                </svg>
+                {it}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Illustration & Value Prop */}
-        <div style={{ position:'relative',zIndex:1, marginTop: '20vh' }}>
-          <div style={{ fontSize:36,fontWeight:900,color:'var(--rc-text)',letterSpacing:'-0.04em',lineHeight:1.15,fontFamily:'var(--font-display)' }}>
-            Your personal <br/>
-            <span style={{ color: 'var(--rc-primary)' }}>AI research workspace</span>
-          </div>
-          <p style={{ marginTop:16,fontSize:16,color:'var(--rc-muted)',lineHeight:1.6, maxWidth: 360 }}>
-            Search, extract, analyze, and draft your scientific manuscripts in one cohesive, secure environment.
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+          © {new Date().getFullYear()} PaperFlow · local-first
+        </div>
+      </aside>
+
+      {/* Right side — form */}
+      <main style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '56px 32px', background: '#fff' }}>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          <h1 className="pg-h1">
+            {L({ es: 'Iniciar sesión', en: 'Sign in', pt: 'Entrar' })}
+          </h1>
+          <p className="pg-muted" style={{ marginTop: 6, fontSize: 15 }}>
+            {L({
+              es: 'Accede a tu workspace local para continuar.',
+              en: 'Access your local workspace to continue.',
+              pt: 'Acesse seu workspace local para continuar.',
+            })}
           </p>
 
-          {/* Feature Badges */}
-          <div style={{ display:'flex',flexDirection:'column',gap:14, marginTop: 40 }}>
-            {[
-              { icon: '🔍', text: 'AI-powered Literature Search' },
-              { icon: '📊', text: 'Automated Matrix Extraction' },
-              { icon: '📝', text: 'Evidence-grounded Drafting Canvas' }
-            ].map((feat, i) =>(
-              <div key={i} style={{ display:'flex',alignItems:'center',gap:12, padding: '12px 16px', background: 'var(--rc-surface-2)', borderRadius: 12, border: '1px solid var(--rc-border)', width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-                <span style={{ fontSize:18 }}>{feat.icon}</span>
-                <span style={{ fontSize:14,color:'var(--rc-text-secondary)',fontWeight:600 }}>{feat.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer info left panel */}
-        <div style={{ position:'relative',zIndex:1, fontSize: 13, color:'var(--rc-muted)', fontWeight:500 }}>
-          © {new Date().getFullYear()} PaperFlow AI. All rights reserved.
-        </div>
-      </div>
-
-      {/* Right panel */}
-      <div style={{ flex:1,display:'flex',alignItems:'center',justifyContent:'center',padding:'48px 32px',background:'var(--rc-bg)' }}>
-        
-        <div className="rc-card rc-glass" style={{ width:'100%',maxWidth:420, padding: '48px', border: '1px solid rgba(79, 70, 229, 0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.05)', borderRadius: 24, position: 'relative', overflow: 'hidden' }}>
-          {/* Subtle glow inside card */}
-          <div style={{ position:'absolute', top: -50, right: -50, width: 150, height: 150, background: 'var(--rc-primary-weak)', filter: 'blur(60px)', borderRadius: '50%', pointerEvents:'none' }} />
-
-          <div style={{ marginBottom:40 }}>
-            <h1 style={{ fontSize:32,fontWeight:900,letterSpacing:'-0.03em',color:'var(--rc-text)',fontFamily:'var(--font-display)', margin: 0 }}>
-              Welcome back
-            </h1>
-            <p style={{ marginTop:8,fontSize:15,color:'var(--rc-text-secondary)' }}>Sign in to continue your research.</p>
-          </div>
-
-          <form onSubmit={onSubmit} style={{ display:'flex',flexDirection:'column',gap:24, position: 'relative', zIndex: 1 }}>
+          <form onSubmit={onSubmit} style={{ marginTop: 28, display: 'grid', gap: 16 }}>
             {hasInvitationContext ? (
-              <div style={{ padding:'14px 16px',borderRadius:12,background:'rgba(99,102,241,0.08)',border:'1px solid rgba(99,102,241,0.2)',color:'#4f46e5',fontSize:14, fontWeight:600 }}>
+              <div className="pg-card pg-card--soft" style={{ padding: 14, fontSize: 13, color: 'var(--pg-navy-700)' }}>
                 {invitedAfterSignup
                   ? acceptedProjectId
-                    ? 'Account created. Sign in to open your shared project.'
-                    : 'Account created. Sign in to accept your project invitation.'
-                  : 'Sign in with the invited email to accept this project invitation.'}
+                    ? L({ es: 'Cuenta creada. Inicia sesión para abrir tu proyecto compartido.', en: 'Account created. Sign in to open your shared project.', pt: 'Conta criada. Entre para abrir seu projeto compartilhado.' })
+                    : L({ es: 'Cuenta creada. Inicia sesión para aceptar la invitación.', en: 'Account created. Sign in to accept the invitation.', pt: 'Conta criada. Entre para aceitar o convite.' })
+                  : L({ es: 'Inicia sesión con el email invitado para aceptar.', en: 'Sign in with the invited email to accept.', pt: 'Entre com o email convidado para aceitar.' })}
               </div>
             ) : null}
-            
-            <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-              <label htmlFor="login-email" style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Email address</label>
-              <input id="login-email" className="rc-input" type="email" value={email} onChange={e=>setEmail(e.target.value)}
-                placeholder="you@example.com" autoComplete="email" autoFocus required 
-                style={{ fontSize:15, padding: '14px 16px', borderRadius: 12, backgroundColor: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', transition: 'all 0.2s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}
+
+            <div>
+              <label className="pg-label" htmlFor="login-email">Email</label>
+              <input
+                id="login-email"
+                type="email"
+                className="pg-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@correo.com"
+                autoComplete="email"
+                autoFocus
+                required
               />
             </div>
-            
-            <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label htmlFor="login-password" style={{ fontSize:13, fontWeight:700, color:'var(--rc-text)', letterSpacing:'0.02em', textTransform:'uppercase' }}>Password</label>
-                <Link to="/forgot-password" style={{ fontSize:13,color:'var(--rc-primary)', fontWeight:600 }}>Forgot password?</Link>
+
+            <div>
+              <div className="pg-row-between" style={{ marginBottom: 6 }}>
+                <label className="pg-label" htmlFor="login-password" style={{ marginBottom: 0 }}>
+                  {L({ es: 'Contraseña', en: 'Password', pt: 'Senha' })}
+                </label>
+                <Link to="/forgot-password" style={{ fontSize: 13, color: 'var(--pg-navy-700)', fontWeight: 500, textDecoration: 'none' }}>
+                  {L({ es: '¿La olvidaste?', en: 'Forgot?', pt: 'Esqueceu?' })}
+                </Link>
               </div>
-              <div style={{ position:'relative' }}>
-                <input id="login-password" className="rc-input" type={showPw?'text':'password'} value={password}
-                  onChange={e=>setPassword(e.target.value)} placeholder="••••••••"
-                  autoComplete="current-password" required 
-                  style={{ fontSize:15, padding: '14px 16px', paddingRight:48, borderRadius: 12, backgroundColor: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', width: '100%', transition: 'all 0.2s', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="login-password"
+                  type={showPw ? 'text' : 'password'}
+                  className="pg-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
+                  style={{ paddingRight: 44 }}
                 />
-                <button type="button" onClick={()=>setShowPw(!showPw)}
-                  aria-label={showPw ? 'Hide password' : 'Show password'}
-                  title={showPw ? 'Hide password' : 'Show password'}
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  aria-label={showPw ? 'Ocultar' : 'Mostrar'}
                   style={{
-                  position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',
-                  background:'none',border:'none',cursor:'pointer',padding:4,
-                  color:'var(--rc-muted)',lineHeight:1, transition: 'color 0.2s' }}>
-                  {showPw
-                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  }
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--pg-soft)',
+                    cursor: 'pointer',
+                    padding: 6,
+                    display: 'inline-flex',
+                  }}
+                >
+                  {showPw ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                      <path d="M17.94 17.94A10 10 0 0 1 12 20c-7 0-11-8-11-8a18 18 0 0 1 5.06-5.94M9.9 4.24A9 9 0 0 1 12 4c7 0 11 8 11 8a18 18 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
 
             {error && (
-              <div style={{ padding:'12px 16px',borderRadius:12,background:'rgba(239, 68, 68,0.08)',border:'1px solid rgba(239, 68, 68,0.2)',color:'#dc2626',fontSize:14, fontWeight:500 }}>
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 13 }}>
                 {error}
               </div>
             )}
 
-            <button type="submit" className="rc-btn rc-btn--primary" disabled={loading||!email||!password}
-              style={{ width:'100%',padding:'14px 16px',fontSize:15,marginTop:8,borderRadius:12, fontWeight:800, letterSpacing: '0.01em', boxShadow: '0 4px 14px var(--rc-primary-weak)', border: 'none' }}>
-              {loading
-                ? <span style={{ display:'flex',alignItems:'center',gap:10,justifyContent:'center' }}>
-                    <span className="rc-spinner" style={{ borderTopColor:'white',width:16,height:16 }}/>{t.auth.signingIn}
-                  </span>
-                : `Sign In to Workspace`}
+            <button
+              type="submit"
+              className="pg-btn pg-btn--primary pg-btn--lg"
+              disabled={loading || !email || !password}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              {loading ? t.auth.signingIn : L({ es: 'Entrar', en: 'Sign in', pt: 'Entrar' })}
             </button>
           </form>
 
-          <div style={{ marginTop:32,textAlign:'center',fontSize:14,color:'var(--rc-text-secondary)', position: 'relative', zIndex: 1 }}>
+          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 14, color: 'var(--pg-muted)' }}>
             {t.auth.noAccount}{' '}
             <Link
               to={invitationToken ? `/signup?invitation_token=${encodeURIComponent(invitationToken)}${invitationEmail ? `&email=${encodeURIComponent(invitationEmail)}` : ''}` : '/signup'}
-              style={{ fontWeight:800, color: 'var(--rc-text)', position: 'relative' }}
-              className="rc-link-highlight"
+              style={{ fontWeight: 600, color: 'var(--pg-navy-800)', textDecoration: 'none' }}
             >
               {t.auth.signUp}
             </Link>
           </div>
+
+          <div className="pg-divider" style={{ margin: '32px 0 16px' }} />
+          <p style={{ fontSize: 12, color: 'var(--pg-soft)', textAlign: 'center', margin: 0 }}>
+            {L({ es: 'Demo: demo@paperflow.ai / demo1234', en: 'Demo: demo@paperflow.ai / demo1234', pt: 'Demo: demo@paperflow.ai / demo1234' })}
+          </p>
         </div>
-      </div>
+      </main>
 
       <style>{`
-        .login-left-panel { display: flex !important; } 
-        @media(max-width:960px){.login-left-panel{display:none!important}}
-        .rc-input:focus { border-color: var(--rc-primary) !important; box-shadow: 0 0 0 3px rgba(79,70,229,0.15) !important; }
-        .rc-link-highlight:hover { color: var(--rc-primary) !important; text-decoration: underline; }
+        @media (max-width: 960px) {
+          .pg-login-side { display: none !important; }
+          body > #root > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+        }
       `}</style>
     </div>
   );

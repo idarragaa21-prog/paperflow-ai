@@ -10,7 +10,6 @@ import {
   getWorkflowCompletion,
   getWorkflowStages,
   InsightCard,
-  PageHero,
 } from '../components/WorkflowPrimitives';
 
 function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon: React.ReactNode }) {
@@ -191,42 +190,26 @@ export default function DashboardPage() {
         />
       )}
 
-      <PageHero
-        eyebrow={`${greeting}, ${firstName}`}
-        title="Pick up the next best step in your research"
-        subtitle={active.length === 0
-          ? 'Create your first project to move from search to library, reading, extraction, writing and analysis in one continuous workspace.'
-          : `${active.length} active project${active.length !== 1 ? 's' : ''} · ${totalPapers} paper${totalPapers !== 1 ? 's' : ''} across your workspace. The goal is not just to store work, but to keep momentum.`}
-        metrics={[
-          { label: 'active projects', value: active.length, tone: 'primary' },
-          { label: 'papers', value: totalPapers, tone: 'success' },
-          { label: 'references', value: totalRefs, tone: 'warning' },
-          { label: 'avg. completion', value: `${averageCompletion}%`, tone: 'neutral' },
-        ]}
-        actions={(
-          <>
-            <button onClick={() => setShowNewProject(true)} className="rc-btn rc-btn--primary">
-              + New project
-            </button>
-            <Link to="/projects" className="rc-btn" style={{ textDecoration: 'none' }}>
-              View all projects
-            </Link>
-            <Link to="/clinical" className="rc-btn" style={{ textDecoration: 'none' }}>
-              Clinical Consults
-            </Link>
-          </>
-        )}
-        aside={(
-          <InsightCard
-            eyebrow="Workspace signal"
-            title={active.length === 0 ? 'No active projects yet' : `${totalNotes} notes already captured`}
-            body={active.length === 0
-              ? 'The fastest path to value is one project, one focused question and one paper set.'
-              : 'The next UX step is to turn these projects into a clearer "continue where you left off" flow.'}
-            tone={active.length === 0 ? 'warning' : 'primary'}
-          />
-        )}
-      />
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div className="pg-kicker" style={{ marginBottom: 6 }}>{`${greeting}, ${firstName}`}</div>
+          <h1 className="pg-h1" style={{ margin: 0 }}>
+            {active.length === 0 ? 'Empieza tu primer proyecto' : '¿Qué vamos a mover hoy?'}
+          </h1>
+          <p className="pg-muted" style={{ marginTop: 6, maxWidth: 640, fontSize: 14 }}>
+            {active.length === 0
+              ? 'Un proyecto organiza tu pregunta, tu biblioteca, la matriz de extracción, los meta-análisis y la escritura final.'
+              : `${active.length} proyectos activos · ${totalPapers} papers · ${totalRefs} referencias · ${averageCompletion}% avance promedio`}
+          </p>
+        </div>
+        <div className="pg-row">
+          <button onClick={() => setShowNewProject(true)} className="pg-btn pg-btn--primary">
+            + Nuevo proyecto
+          </button>
+          <Link to="/projects" className="pg-btn">Ver todos</Link>
+          <Link to="/deep-research" className="pg-btn">Deep Research</Link>
+        </div>
+      </header>
 
       {DEMO_MODE && (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 12, padding: '6px 12px', fontSize: 12, color: 'rgba(245,158,11,0.92)', alignSelf: 'flex-start' }}>
