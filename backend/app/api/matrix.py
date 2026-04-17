@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 from app.services.matrix_service import (
+    build_comparison_view,
     build_matrix_version,
     export_matrix_version,
     get_matrix_version,
@@ -76,6 +77,19 @@ async def get_matrix(
         raise HTTPException(status_code=404, detail="Matrix version not found")
     await require_project_access(db, project_id=version.project_id, user=user, required_role="viewer")
     return serialize_matrix_version(version)
+
+
+@router.get("/{version_id}/comparison")
+async def get_matrix_comparison(
+    version_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    version = await get_matrix_version(db, version_id=version_id)
+    if version is None:
+        raise HTTPException(status_code=404, detail="Matrix version not found")
+    await require_project_access(db, project_id=version.project_id, user=user, required_role="viewer")
+    return build_comparison_view(version)
 
 
 @router.get("/{version_id}/export")

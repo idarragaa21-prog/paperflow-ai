@@ -28,6 +28,24 @@ type MatrixVersionDetail = MatrixVersionListItem & {
   }>;
 };
 
+type ComparisonRow = {
+  study_id: string | null;
+  paper_id: string | null;
+  pmid: string;
+  doi: string;
+  confidence: number;
+  cells: Record<string, string>;
+};
+
+type ComparisonView = {
+  matrix_version_id: string;
+  project_id: string;
+  version_number: number;
+  columns: Array<{ key: string; label: string }>;
+  rows: ComparisonRow[];
+  row_count: number;
+};
+
 const EXPORT_FORMATS = ['xlsx', 'csv', 'json', 'xml'] as const;
 
 function formatDate(value?: string | null): string {
@@ -42,6 +60,7 @@ export default function MatrixPage() {
   const qc = useQueryClient();
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<'detail' | 'comparison'>('detail');
 
   const versionsQuery = useQuery<MatrixVersionListItem[]>({
     queryKey: ['matrix-versions', projectId],
@@ -64,6 +83,15 @@ export default function MatrixPage() {
     queryFn: async () => {
       const response = await api.get(`/matrix/${selectedVersionFromList?.id}`);
       return response.data as MatrixVersionDetail;
+    },
+  });
+
+  const comparisonQuery = useQuery<ComparisonView>({
+    queryKey: ['matrix-comparison', selectedVersionFromList?.id],
+    enabled: Boolean(selectedVersionFromList?.id) && activeView === 'comparison',
+    queryFn: async () => {
+      const response = await api.get(`/matrix/${selectedVersionFromList?.id}/comparison`);
+      return response.data as ComparisonView;
     },
   });
 
@@ -166,10 +194,114 @@ export default function MatrixPage() {
         </section>
 
         <section className="rc-card">
-          <div className="rc-card-title">Selected version detail</div>
-          {!detail ? <div className="rc-muted">Select a matrix version.</div> : null}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+            <div className="rc-card-title" style={{ marginBottom: 0 }}>
+              {activeView === 'comparison' ? 'Literature comparison' : 'Selected version detail'}
+            </div>
+            <div role="tablist" style={{ display: 'inline-flex', borderRadius: 999, background: 'var(--rc-surface-2)', padding: 3 }}>
+              <button
+                role="tab"
+                aria-selected={activeView === 'detail'}
+                onClick={() => setActiveView('detail')}
+                className="rc-btn"
+                style={{
+                  fontSize: 12, padding: '6px 12px', borderRadius: 999, border: 'none',
+                  background: activeView === 'detail' ? 'var(--rc-primary)' : 'transparent',
+                  color: activeView === 'detail' ? 'white' : 'var(--rc-text-secondary)',
+                  fontWeight: 600,
+                }}
+              >
+                Detail
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeView === 'comparison'}
+                onClick={() => setActiveView('comparison')}
+                className="rc-btn"
+                style={{
+                  fontSize: 12, padding: '6px 12px', borderRadius: 999, border: 'none',
+                  background: activeView === 'comparison' ? 'var(--rc-primary)' : 'transparent',
+                  color: activeView === 'comparison' ? 'white' : 'var(--rc-text-secondary)',
+                  fontWeight: 600,
+                }}
+              >
+                Comparison
+              </button>
+            </div>
+          </div>
 
-          {detail ? (
+          {activeView === 'comparison' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {comparisonQuery.isLoading ? <div className="rc-muted">Loading comparison…</div> : null}
+              {comparisonQuery.error ? <div className="rc-error">Could not load comparison.</div> : null}
+              {comparisonQuery.data && comparisonQuery.data.rows.length === 0 ? (
+                <div className="rc-muted">No studies found in this matrix version.</div>
+              ) : null}
+              {comparisonQuery.data && comparisonQuery.data.rows.length > 0 ? (
+                <div style={{ overflowX: 'auto', border: '1px solid var(--rc-border)', borderRadius: 10 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: 'var(--rc-surface-2)' }}>
+                        {comparisonQuery.data.columns.map((col) => (
+                          <th
+                            key={col.key}
+                            style={{
+                              textAlign: 'left',
+                              padding: '10px 12px',
+                              fontWeight: 700,
+                              fontSize: 12,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.4,
+                              color: 'var(--rc-text-secondary)',
+                              borderBottom: '1px solid var(--rc-border)',
+                              whiteSpace: 'nowrap',
+                              position: col.key === 'study' ? 'sticky' : undefined,
+                              left: col.key === 'study' ? 0 : undefined,
+                              background: col.key === 'study' ? 'var(--rc-surface-2)' : undefined,
+                              zIndex: col.key === 'study' ? 2 : undefined,
+                            }}
+                          >
+                            {col.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {comparisonQuery.data.rows.map((row, idx) => (
+                        <tr key={row.study_id || row.paper_id || idx} style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(148,163,184,0.05)' }}>
+                          {comparisonQuery.data!.columns.map((col) => (
+                            <td
+                              key={col.key}
+                              style={{
+                                padding: '10px 12px',
+                                verticalAlign: 'top',
+                                borderBottom: '1px solid var(--rc-border-subtle, rgba(148,163,184,0.18))',
+                                fontWeight: col.key === 'study' ? 600 : 400,
+                                color: 'var(--rc-text)',
+                                position: col.key === 'study' ? 'sticky' : undefined,
+                                left: col.key === 'study' ? 0 : undefined,
+                                background: col.key === 'study'
+                                  ? (idx % 2 === 0 ? 'var(--rc-surface)' : 'var(--rc-surface-2)')
+                                  : undefined,
+                                minWidth: col.key === 'study' ? 220 : 140,
+                                maxWidth: 320,
+                              }}
+                            >
+                              {row.cells[col.key] || '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {activeView === 'detail' && !detail ? <div className="rc-muted">Select a matrix version.</div> : null}
+
+          {activeView === 'detail' && detail ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div className="rc-help">
                 schema {detail.schema_version} · status {detail.status} · created {formatDate(detail.created_at)}

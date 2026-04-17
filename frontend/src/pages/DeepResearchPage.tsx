@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useI18n } from '../i18n';
 import type { Project } from '../types/api';
@@ -21,6 +22,7 @@ type Report = {
 // ── Source badge ──────────────────────────────────────────────────────────────
 export default function DeepResearchPage() {
   const { locale } = useI18n();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [sourceMode, setSourceMode] = useState<'pubmed' | 'project'>('pubmed');
   const [projectId, setProjectId] = useState('');
@@ -28,6 +30,7 @@ export default function DeepResearchPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [sendingToWriting, setSendingToWriting] = useState(false);
 
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -71,6 +74,68 @@ export default function DeepResearchPage() {
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to generate report');
     } finally { setLoading(false); }
+  }
+
+  async function handleSendToWriting() {
+    if (!report || !projectId) return;
+    setSendingToWriting(true);
+    try {
+      const docRes = await api.post('/writing/documents', {
+        project_id: projectId,
+        title: report.query.slice(0, 240) || 'Deep research report',
+        mode: 'systematic_review',
+      });
+      const documentId = String(docRes.data?.id || '');
+      if (!documentId) throw new Error('Document was created without id');
+
+      const sectionMap: Record<string, string> = {
+        background: 'introduction',
+        introduction: 'introduction',
+        methods: 'methods',
+        methodology: 'methods',
+        results: 'results',
+        findings: 'results',
+        discussion: 'discussion',
+        conclusion: 'conclusion',
+        conclusions: 'conclusion',
+        abstract: 'abstract',
+        summary: 'abstract',
+      };
+
+      const tasks: Promise<unknown>[] = [];
+      for (const section of report.sections) {
+        const key = (section.key || section.title || '').toLowerCase();
+        const target = sectionMap[key] ?? 'introduction';
+        const heading = section.title || target;
+        const body = (section.content || '').trim();
+        if (!body) continue;
+        const markdown = `## ${heading}\n\n${body}\n`;
+        tasks.push(
+          api.patch(`/writing/documents/${documentId}/sections/${target}`, {
+            content_markdown: markdown,
+          })
+        );
+      }
+
+      const refsMd = report.papers
+        .map((p, i) => `${i + 1}. ${p.authors} (${p.year}). ${p.title}. *${p.journal}*.${p.doi ? ` https://doi.org/${p.doi}` : ''}`)
+        .join('\n');
+      if (refsMd.trim()) {
+        tasks.push(
+          api.patch(`/writing/documents/${documentId}/sections/methods`, {
+            content_markdown: `## Methods\n\n_Source evidence considered:_\n\n${refsMd}\n`,
+          }).catch(() => undefined)
+        );
+      }
+
+      await Promise.all(tasks);
+      navigate(`/projects/${projectId}/writing`);
+    } catch (e) {
+      const detail = (e as any)?.response?.data?.detail || (e as Error)?.message || 'Failed to send to writing';
+      setError(typeof detail === 'string' ? detail : 'Failed to send to writing');
+    } finally {
+      setSendingToWriting(false);
+    }
   }
 
   async function handleDownloadPdf() {
@@ -305,7 +370,39 @@ export default function DeepResearchPage() {
       {report && (
         <div>
           {/* Export action bar (not included in PDF capture) */}
-          <div className="deep-research-export-bar" style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end' }}>
+          <div className="deep-research-export-bar" style={{ display: 'flex', gap: 8, marginBottom: 12, justifyContent: 'flex-end', flexWrap: 'wrap', alignItems: 'center' }}>
+            {!projectId && (
+              <select
+                className="rc-select"
+                value={projectId}
+                onChange={e => setProjectId(e.target.value)}
+                style={{ fontSize: 12, padding: '6px 10px' }}
+                title={isEs ? 'Selecciona el proyecto destino para enviar a Writing' : 'Pick destination project to send report'}
+              >
+                <option value="">{isEs ? '— Proyecto destino —' : '— Destination project —'}</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </select>
+            )}
+            <button
+              className="rc-btn"
+              style={{ background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe', fontSize: 13, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontFamily: '"Inter", "system-ui", sans-serif' }}
+              onClick={handleSendToWriting}
+              disabled={sendingToWriting || !projectId}
+              aria-label="Send to Writing"
+              title={projectId ? (isEs ? 'Crear documento en Writing con estas secciones' : 'Create a Writing document with these sections') : (isEs ? 'Selecciona un proyecto destino primero' : 'Pick a destination project first')}
+            >
+              {sendingToWriting ? (
+                <>
+                  <span className="rc-spinner" style={{ width: 13, height: 13, borderTopColor: '#4338ca' }} />
+                  {isEs ? 'Enviando…' : 'Sending…'}
+                </>
+              ) : (
+                <>
+                  <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  {isEs ? 'Enviar a Writing' : 'Send to Writing'}
+                </>
+              )}
+            </button>
             <button
               className="rc-btn"
               style={{ background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', fontSize: 13, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontFamily: '"Inter", "system-ui", sans-serif' }}

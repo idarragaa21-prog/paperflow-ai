@@ -63,6 +63,10 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
   const [fullName, setFullName] = useState(user?.full_name || '');
+  const [affiliation, setAffiliation] = useState(user?.affiliation || '');
+  const [orcid, setOrcid] = useState(user?.orcid || '');
+  const [signatureMd, setSignatureMd] = useState(user?.signature_md || '');
+  const [defaultLanguage, setDefaultLanguage] = useState(user?.language || locale);
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [currentPw, setCurrentPw] = useState('');
@@ -90,13 +94,28 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setFullName(user?.full_name || '');
-  }, [user?.full_name]);
+    setAffiliation(user?.affiliation || '');
+    setOrcid(user?.orcid || '');
+    setSignatureMd(user?.signature_md || '');
+    setDefaultLanguage(user?.language || locale);
+  }, [user?.id, user?.full_name, user?.affiliation, user?.orcid, user?.signature_md, user?.language, locale]);
 
   async function saveProfile() {
     setSavingProfile(true);
     setError(null);
     try {
-      await api.patch('/auth/me', { full_name: fullName });
+      const payload: Record<string, unknown> = {
+        full_name: fullName,
+        affiliation,
+        orcid: orcid.trim(),
+        signature_md: signatureMd,
+      };
+      const lang = (defaultLanguage || '').trim().toLowerCase();
+      if (lang) payload.language = lang;
+      await api.patch('/auth/me', payload);
+      if (lang && (lang === 'es' || lang === 'en' || lang === 'pt')) {
+        setLocale(lang as Locale);
+      }
       await checkAuth();
       toast.success('Saved', 'Profile updated.');
     } catch (e: any) {
@@ -335,6 +354,49 @@ export default function SettingsPage() {
               <div>
                 <div className="rc-kicker">Full name</div>
                 <input className="rc-input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                <div>
+                  <div className="rc-kicker">Affiliation</div>
+                  <input
+                    className="rc-input"
+                    value={affiliation}
+                    onChange={(e) => setAffiliation(e.target.value)}
+                    placeholder="Hospital, university, department…"
+                  />
+                </div>
+                <div>
+                  <div className="rc-kicker">ORCID</div>
+                  <input
+                    className="rc-input"
+                    value={orcid}
+                    onChange={(e) => setOrcid(e.target.value)}
+                    placeholder="0000-0000-0000-0000"
+                  />
+                </div>
+                <div>
+                  <div className="rc-kicker">Default language</div>
+                  <select
+                    className="rc-select"
+                    value={defaultLanguage}
+                    onChange={(e) => setDefaultLanguage(e.target.value)}
+                  >
+                    <option value="es">{localeNames?.es || 'Español'}</option>
+                    <option value="en">{localeNames?.en || 'English'}</option>
+                    <option value="pt">{localeNames?.pt || 'Português'}</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div className="rc-kicker">Signature (markdown)</div>
+                <textarea
+                  className="rc-input"
+                  value={signatureMd}
+                  onChange={(e) => setSignatureMd(e.target.value)}
+                  placeholder={'Sincerely,\n\nDr. Jane Doe, MD\nUniversity Hospital'}
+                  style={{ minHeight: 90, fontFamily: 'inherit', resize: 'vertical' }}
+                />
+                <div className="rc-help">Used to sign cover letters and letters to editor when exporting.</div>
               </div>
               <button className="rc-btn rc-btn--primary" onClick={saveProfile} disabled={savingProfile} style={{ alignSelf: 'flex-start' }}>
                 {savingProfile ? 'Saving…' : 'Save changes'}

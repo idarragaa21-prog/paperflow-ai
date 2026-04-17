@@ -241,9 +241,22 @@ async def logout_all(
     return {"status": "logged out everywhere"}
 
 
+def _serialize_me(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "affiliation": user.affiliation,
+        "orcid": user.orcid,
+        "signature_md": user.signature_md,
+        "language": user.language,
+        "preferences": user.preferences or {},
+    }
+
+
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)) -> dict:
-    return {"id": user.id, "email": user.email, "full_name": user.full_name}
+    return _serialize_me(user)
 
 
 @router.patch("/me")
@@ -254,9 +267,31 @@ async def update_me(
 ) -> dict:
     body = await request.json()
     if "full_name" in body:
-        user.full_name = body["full_name"]
+        user.full_name = (body["full_name"] or None)
+    if "affiliation" in body:
+        value = (body["affiliation"] or "").strip()
+        user.affiliation = value or None
+    if "orcid" in body:
+        value = (body["orcid"] or "").strip()
+        user.orcid = value or None
+    if "signature_md" in body:
+        value = body["signature_md"]
+        user.signature_md = value if value else None
+    if "language" in body:
+        value = (body["language"] or "").strip().lower()
+        if value and value not in {"es", "en", "pt"}:
+            raise HTTPException(status_code=422, detail="language must be one of: es, en, pt")
+        user.language = value or None
+    if "preferences" in body:
+        prefs = body["preferences"]
+        if prefs is not None and not isinstance(prefs, dict):
+            raise HTTPException(status_code=422, detail="preferences must be an object")
+        merged = dict(user.preferences or {})
+        if isinstance(prefs, dict):
+            merged.update(prefs)
+        user.preferences = merged or None
     await db.commit()
-    return {"id": user.id, "email": user.email, "full_name": user.full_name}
+    return _serialize_me(user)
 
 
 @router.post("/change-password")

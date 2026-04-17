@@ -617,3 +617,146 @@ def export_matrix_version(version: MatrixVersion, *, export_format: str) -> tupl
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         f"{filename_base}.xlsx",
     )
+
+
+# ── Literature comparison view ───────────────────────────────────────────────
+
+
+_COMPARISON_COLUMNS: list[tuple[str, str]] = [
+    ("study", "Study"),
+    ("design", "Design"),
+    ("population", "Population"),
+    ("intervention", "Intervention"),
+    ("comparator", "Comparator"),
+    ("outcomes", "Primary outcomes"),
+    ("sample_size", "N"),
+    ("follow_up", "Follow-up"),
+    ("key_effect", "Key effect"),
+    ("risk_of_bias", "Risk of bias"),
+    ("limitations", "Limitations"),
+]
+
+
+def _coerce_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        items = [_coerce_text(v) for v in value if v not in (None, "")]
+        return "; ".join(item for item in items if item)
+    if isinstance(value, dict):
+        # Heuristic: pick the most descriptive field
+        for key in ("description", "name", "summary", "label", "value"):
+            v = value.get(key)
+            if v:
+                return _coerce_text(v)
+        return ""
+    return str(value).strip()
+
+
+def _first_present(payload: dict, keys: list[str]) -> Any:
+    for key in keys:
+        if key in payload and payload[key] not in (None, "", [], {}):
+            return payload[key]
+    return None
+
+
+def _format_effect_summary(effect_row: MatrixRow) -> str:
+    data = effect_row.data_json or {}
+    outcome = _coerce_text(_first_present(data, ["outcome_label", "outcome_key", "outcome_name"]))
+    measure = _coerce_text(data.get("effect_measure")) or "effect"
+    value = _first_present(data, ["effect_value", "adjusted_hr", "adjusted_rr", "adjusted_or", "or_value"])
+    lo = data.get("ci_lower_95")
+    hi = data.get("ci_upper_95")
+    parts: list[str] = []
+    if outcome:
+        parts.append(outcome)
+    if value is not None:
+        try:
+            shown = f"{float(value):.2f}"
+        except (TypeError, ValueError):
+            shown = _coerce_text(value)
+        parts.append(f"{measure} {shown}")
+    if lo not in (None, "") and hi not in (None, ""):
+        try:
+            parts.append(f"(95% CI {float(lo):.2f}-{float(hi):.2f})")
+        except (TypeError, ValueError):
+            pass
+    return " — ".join(parts).strip()
+
+
+def build_comparison_view(version: MatrixVersion) -> dict[str, Any]:
+    """Return a paper-by-dimension table view of the matrix for human comparison."""
+
+    rows = sorted(version.rows, key=lambda item: (item.sort_index, item.created_at))
+    studies = [r for r in rows if (r.row_kind or "").lower() == "study"]
+    effects_by_study: dict[str, list[MatrixRow]] = {}
+    for r in rows:
+        if (r.row_kind or "").lower() != "effect":
+            continue
+        sid = str(r.extracted_study_id) if r.extracted_study_id else None
+        if not sid:
+            continue
+        effects_by_study.setdefault(sid, []).append(r)
+
+    comparison_rows: list[dict[str, Any]] = []
+    for study_row in studies:
+        data = study_row.data_json or {}
+        study_json = data.get("study_json") or {}
+        sid = str(study_row.extracted_study_id) if study_row.extracted_study_id else None
+        related = effects_by_study.get(sid or "", [])
+
+        sample_size = _first_present(study_json, [
+            "total_n", "sample_size", "n_total", "n_participants", "participants",
+        ])
+
+        rob_overall = _coerce_text(data.get("risk_of_bias_overall") or "unclear")
+
+        cells = {
+            "study": _coerce_text(
+                _first_present(study_json, ["citation", "short_citation", "study_label"])
+            ) or _coerce_text(data.get("paper_title") or "Untitled study"),
+            "design": _coerce_text(
+                _first_present(study_json, ["design", "study_design", "study_type"])
+            ),
+            "population": _coerce_text(
+                _first_present(study_json, ["population", "patients", "participants_description"])
+            ),
+            "intervention": _coerce_text(
+                _first_present(study_json, ["intervention", "exposure", "treatment"])
+            ),
+            "comparator": _coerce_text(
+                _first_present(study_json, ["comparator", "control", "comparison"])
+            ),
+            "outcomes": _coerce_text(
+                _first_present(study_json, ["primary_outcomes", "outcomes", "endpoints"])
+            ),
+            "sample_size": _coerce_text(sample_size),
+            "follow_up": _coerce_text(
+                _first_present(study_json, ["follow_up", "follow_up_duration", "duration"])
+            ),
+            "key_effect": "; ".join(
+                effect for effect in (_format_effect_summary(r) for r in related[:3]) if effect
+            ),
+            "risk_of_bias": rob_overall,
+            "limitations": _coerce_text(
+                _first_present(study_json, ["limitations", "weaknesses"])
+            ),
+        }
+
+        comparison_rows.append({
+            "study_id": sid,
+            "paper_id": str(study_row.paper_id) if study_row.paper_id else None,
+            "pmid": _coerce_text(data.get("pmid")),
+            "doi": _coerce_text(data.get("doi")),
+            "confidence": float(data.get("study_confidence") or 0),
+            "cells": cells,
+        })
+
+    return {
+        "matrix_version_id": str(version.id),
+        "project_id": str(version.project_id),
+        "version_number": version.version_number,
+        "columns": [{"key": k, "label": label} for k, label in _COMPARISON_COLUMNS],
+        "rows": comparison_rows,
+        "row_count": len(comparison_rows),
+    }

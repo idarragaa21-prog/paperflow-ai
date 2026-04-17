@@ -3,7 +3,16 @@ import { api } from '../services/api';
 import { getCookie } from '../services/cookies';
 import { DEMO_MODE, demoUser } from '../services/demo';
 
-export type UserMe = { id: string; email: string; full_name?: string | null; };
+export type UserMe = {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  affiliation?: string | null;
+  orcid?: string | null;
+  signature_md?: string | null;
+  language?: string | null;
+  preferences?: Record<string, unknown> | null;
+};
 type AuthState = {
   user: UserMe | null; loading: boolean; initialized: boolean; error: string | null;
   checkAuth: () => Promise<void>;

@@ -36,6 +36,48 @@ DEFAULT_SECTION_SPECS: list[tuple[str, str]] = [
     ("abstract", "Abstract"),
 ]
 
+# Per-mode section templates. If a mode is not listed, DEFAULT_SECTION_SPECS is used.
+MODE_SECTION_SPECS: dict[str, list[tuple[str, str]]] = {
+    "narrative": DEFAULT_SECTION_SPECS,
+    "systematic_review": [
+        ("abstract", "Abstract"),
+        ("introduction", "Introduction"),
+        ("search_strategy", "Search strategy"),
+        ("methods", "Methods"),
+        ("risk_of_bias", "Risk of bias"),
+        ("results", "Results"),
+        ("discussion", "Discussion"),
+        ("conclusion", "Conclusion"),
+    ],
+    "meta_analysis": [
+        ("abstract", "Abstract"),
+        ("introduction", "Introduction"),
+        ("methods", "Methods"),
+        ("statistical_analysis", "Statistical analysis"),
+        ("results", "Results"),
+        ("forest_plot", "Forest plot synthesis"),
+        ("heterogeneity", "Heterogeneity assessment"),
+        ("discussion", "Discussion"),
+        ("conclusion", "Conclusion"),
+    ],
+    "letter_to_editor": [
+        ("opening", "Opening"),
+        ("comment", "Comment"),
+        ("closing", "Closing"),
+    ],
+    "cover_letter": [
+        ("salutation", "Salutation"),
+        ("manuscript_summary", "Manuscript summary"),
+        ("significance", "Significance"),
+        ("disclosure", "Conflict of interest disclosure"),
+        ("closing", "Closing"),
+    ],
+}
+
+
+def _section_specs_for_mode(mode: str) -> list[tuple[str, str]]:
+    return MODE_SECTION_SPECS.get(mode, DEFAULT_SECTION_SPECS)
+
 
 def _numeric(value: Any) -> float | None:
     try:
@@ -62,11 +104,7 @@ def _best_effect_value(payload: dict[str, Any]) -> float | None:
 
 
 def _default_section_text(section_key: str, heading: str) -> str:
-    return (
-        f"## {heading}\n\n"
-        f"_Draft placeholder for **{section_key}**. Use `/writing/documents/{{id}}/sections/{section_key}` "
-        "to generate grounded content from matrix, meta runs, and references._"
-    )
+    return f"## {heading}\n\n"
 
 
 def _clip_text(text: str | None, *, max_len: int = 420, collapse_whitespace: bool = True) -> str:
@@ -221,7 +259,7 @@ async def create_document(
     db.add(document)
     await db.flush()
 
-    for position, (section_key, heading) in enumerate(DEFAULT_SECTION_SPECS, start=1):
+    for position, (section_key, heading) in enumerate(_section_specs_for_mode(mode), start=1):
         db.add(
             WritingSection(
                 document_id=document.id,

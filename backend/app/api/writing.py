@@ -3,11 +3,13 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.models.reference_item import ReferenceItem
 from app.models.user import User
 from app.models.writing import WritingSection
 from app.services.permissions import require_project_access
@@ -19,6 +21,12 @@ from app.services.writing_documents_service import (
     resolve_document_citations,
     serialize_document,
     update_section_content,
+)
+from app.services.writing_export import (
+    CITATION_STYLES,
+    build_docx,
+    build_markdown,
+    build_pdf,
 )
 
 router = APIRouter(prefix="/writing", tags=["writing"])
@@ -141,3 +149,65 @@ async def resolve_writing_citations(
         raise HTTPException(status_code=404, detail="Writing document not found")
     await require_project_access(db, project_id=doc.project_id, user=user, required_role="viewer")
     return await resolve_document_citations(db, document=doc)
+
+
+def _safe_filename(name: str) -> str:
+    safe = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in (name or "document").strip())
+    return safe[:80] or "document"
+
+
+@router.get("/documents/{document_id}/export")
+async def export_writing_document(
+    document_id: UUID,
+    format: str = Query("docx", pattern="^(md|markdown|docx|pdf)$"),
+    citation_style: str = Query("apa"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    doc = await get_document(db, document_id=document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Writing document not found")
+    await require_project_access(db, project_id=doc.project_id, user=user, required_role="viewer")
+
+    style = (citation_style or "apa").lower()
+    if style not in CITATION_STYLES:
+        raise HTTPException(status_code=422, detail=f"citation_style must be one of {sorted(CITATION_STYLES)}")
+
+    refs_q = await db.execute(
+        select(ReferenceItem)
+        .where(ReferenceItem.project_id == doc.project_id)
+        .order_by(ReferenceItem.publication_year.desc().nullslast(), ReferenceItem.title.asc())
+    )
+    references = refs_q.scalars().all()
+
+    base = _safe_filename(doc.title)
+
+    fmt = format.lower()
+    if fmt in ("md", "markdown"):
+        body = build_markdown(doc, references=references, citation_style=style).encode("utf-8")
+        return Response(
+            content=body,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{base}.md"'},
+        )
+    if fmt == "docx":
+        try:
+            blob = build_docx(doc, references=references, citation_style=style)
+        except ImportError as exc:  # python-docx missing
+            raise HTTPException(status_code=503, detail=f"DOCX export unavailable: {exc}") from exc
+        return Response(
+            content=blob,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{base}.docx"'},
+        )
+    if fmt == "pdf":
+        try:
+            blob = build_pdf(doc, references=references, citation_style=style)
+        except ImportError as exc:
+            raise HTTPException(status_code=503, detail=f"PDF export unavailable: {exc}") from exc
+        return Response(
+            content=blob,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{base}.pdf"'},
+        )
+    raise HTTPException(status_code=422, detail=f"Unknown format: {format}")

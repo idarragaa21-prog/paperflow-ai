@@ -159,9 +159,120 @@ const heroText = {
 };
 
 const sectionTitles = {
-  en: { features: 'One guided workflow for research', compare: 'Why PaperFlow?', compareSub: 'vs. cloud-based alternatives', cta: 'Ready to own your research?', ctaSub: 'Free forever. No credit card. No cloud.' },
-  es: { features: 'Un flujo guiado para investigar', compare: '¿Por qué PaperFlow?', compareSub: 'vs. alternativas en la nube', cta: '¿Listo para ser dueño de tu investigación?', ctaSub: 'Gratis para siempre. Sin tarjeta de crédito. Sin nube.' },
-  pt: { features: 'Um fluxo guiado para pesquisar', compare: 'Por que PaperFlow?', compareSub: 'vs. alternativas na nuvem', cta: 'Pronto para ser dono da sua pesquisa?', ctaSub: 'Grátis para sempre. Sem cartão de crédito. Sem nuvem.' },
+  en: {
+    features: 'One guided workflow for research',
+    compare: 'Why PaperFlow?',
+    compareSub: 'vs. cloud-based alternatives',
+    cta: 'Ready to own your research?',
+    ctaSub: 'Free forever. No credit card. No cloud.',
+    deep: 'Deep Research, in one click',
+    deepSub: 'Ask a clinical question. Get a fully cited synthesis with bibliography.',
+    deepCta: 'Try Deep Research',
+    deepBullets: [
+      'Searches PubMed live or your project library',
+      'Synthesises evidence into IMRAD-style sections',
+      'Builds the bibliography with linked PMIDs and DOIs',
+      'Print-ready or one-click hand-off to Writing',
+    ],
+    voices: 'What researchers say',
+  },
+  es: {
+    features: 'Un flujo guiado para investigar',
+    compare: '¿Por qué PaperFlow?',
+    compareSub: 'vs. alternativas en la nube',
+    cta: '¿Listo para ser dueño de tu investigación?',
+    ctaSub: 'Gratis para siempre. Sin tarjeta de crédito. Sin nube.',
+    deep: 'Investigación Profunda en un clic',
+    deepSub: 'Haz una pregunta clínica. Recibe una síntesis con citas y bibliografía.',
+    deepCta: 'Probar Investigación Profunda',
+    deepBullets: [
+      'Busca en PubMed o en la biblioteca del proyecto',
+      'Sintetiza evidencia en secciones tipo IMRAD',
+      'Construye la bibliografía con enlaces a PMID y DOI',
+      'Listo para imprimir o enviar directo a Writing',
+    ],
+    voices: 'Lo que dicen los investigadores',
+  },
+  pt: {
+    features: 'Um fluxo guiado para pesquisar',
+    compare: 'Por que PaperFlow?',
+    compareSub: 'vs. alternativas na nuvem',
+    cta: 'Pronto para ser dono da sua pesquisa?',
+    ctaSub: 'Grátis para sempre. Sem cartão de crédito. Sem nuvem.',
+    deep: 'Deep Research em um clique',
+    deepSub: 'Faça uma pergunta clínica. Receba uma síntese citada com bibliografia.',
+    deepCta: 'Testar Deep Research',
+    deepBullets: [
+      'Busca no PubMed ao vivo ou na biblioteca do projeto',
+      'Sintetiza evidência em seções no estilo IMRAD',
+      'Monta a bibliografia com links de PMID e DOI',
+      'Pronto para imprimir ou enviar para Writing',
+    ],
+    voices: 'O que dizem os pesquisadores',
+  },
+};
+
+const testimonials = {
+  en: [
+    {
+      quote:
+        '"Three weeks of literature review collapsed into an afternoon. I still review every citation, but the scaffolding is finally there from minute one."',
+      author: 'Diego I.',
+      role: 'Internal Medicine resident — power user',
+    },
+    {
+      quote:
+        '"Owning my data was non-negotiable for clinical projects. PaperFlow runs on my laptop and never phones home."',
+      author: 'A. García',
+      role: 'Clinical research lead',
+    },
+    {
+      quote:
+        '"The matrix + Writing handoff is what makes it different — every paragraph traces back to a row, every row to a paper."',
+      author: 'M. Rivera',
+      role: 'Methodologist, systematic reviews',
+    },
+  ],
+  es: [
+    {
+      quote:
+        '"Tres semanas de revisión bibliográfica colapsaron en una tarde. Sigo revisando cada cita, pero por fin parto de un esqueleto sólido."',
+      author: 'Diego I.',
+      role: 'Residente de Medicina Interna — power user',
+    },
+    {
+      quote:
+        '"Tener mis datos en mi propio equipo era innegociable para proyectos clínicos. PaperFlow corre en mi portátil y nunca sale a internet."',
+      author: 'A. García',
+      role: 'Líder de investigación clínica',
+    },
+    {
+      quote:
+        '"El puente Matrix → Writing es lo diferencial — cada párrafo regresa a una fila y cada fila a un paper."',
+      author: 'M. Rivera',
+      role: 'Metodólogo, revisiones sistemáticas',
+    },
+  ],
+  pt: [
+    {
+      quote:
+        '"Três semanas de revisão viraram uma tarde. Eu ainda checo cada citação, mas a estrutura inicial vem pronta."',
+      author: 'Diego I.',
+      role: 'Residente de Clínica Médica — power user',
+    },
+    {
+      quote:
+        '"Manter os dados na minha máquina era inegociável. PaperFlow roda no meu notebook e nunca conversa com a nuvem."',
+      author: 'A. García',
+      role: 'Líder de pesquisa clínica',
+    },
+    {
+      quote:
+        '"A ponte Matrix → Writing é o diferencial — cada parágrafo volta a uma linha, e cada linha a um paper."',
+      author: 'M. Rivera',
+      role: 'Metodólogo de revisões sistemáticas',
+    },
+  ],
 };
 
 const workflowSteps = {
@@ -411,6 +522,83 @@ export default function LandingPage() {
                 <span style={{ color: '#10b981', fontSize: 14 }}>✓</span> {row.us}
               </div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* DEEP RESEARCH SPOTLIGHT */}
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 24px 60px', position: 'relative' }}>
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28,
+          padding: 32, borderRadius: 26, position: 'relative', overflow: 'hidden',
+          border: '1px solid rgba(99,102,241,0.25)',
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.10), rgba(236,72,153,0.06) 60%, rgba(16,185,129,0.06))',
+        }}>
+          <div style={{ position: 'absolute', inset: 'auto -10% -30% auto', width: 360, height: 360, background: 'radial-gradient(circle, rgba(139,92,246,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'rgba(139,92,246,0.18)', border: '1px solid rgba(139,92,246,0.35)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#c4b5fd', marginBottom: 14 }}>
+              ★ Deep Research
+            </div>
+            <h2 style={{ fontSize: 'clamp(24px, 4vw, 38px)', fontWeight: 900, letterSpacing: '-0.03em', margin: '0 0 12px' }}>
+              {titles.deep}
+            </h2>
+            <p style={{ fontSize: 16, lineHeight: 1.7, color: 'rgba(255,255,255,0.65)', margin: '0 0 18px', maxWidth: 520 }}>
+              {titles.deepSub}
+            </p>
+            <Link to="/deep-research" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 700, textDecoration: 'none',
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white',
+              boxShadow: '0 12px 30px rgba(99,102,241,0.35)',
+            }}>
+              {titles.deepCta} →
+            </Link>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
+            {titles.deepBullets.map((bullet, i) => (
+              <div key={i} style={{
+                display: 'grid', gridTemplateColumns: '28px 1fr', gap: 12, alignItems: 'flex-start',
+                padding: '14px 16px', borderRadius: 14,
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <div style={{
+                  width: 24, height: 24, borderRadius: 8,
+                  background: 'rgba(139,92,246,0.22)', color: '#c4b5fd',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 800, fontSize: 12,
+                }}>
+                  {i + 1}
+                </div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.78)', lineHeight: 1.55, fontWeight: 500 }}>
+                  {bullet}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px 80px' }}>
+        <h2 style={{ textAlign: 'center', fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 900, letterSpacing: '-0.03em', marginBottom: 30 }}>
+          {titles.voices}
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 }}>
+          {testimonials[locale].map((t, i) => (
+            <figure key={i} style={{
+              margin: 0, padding: 22, borderRadius: 18,
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+              display: 'flex', flexDirection: 'column', gap: 14, position: 'relative',
+            }}>
+              <div aria-hidden style={{ fontFamily: 'Georgia, serif', fontSize: 48, lineHeight: 0.6, color: 'rgba(129,140,248,0.45)', height: 16 }}>“</div>
+              <blockquote style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7, color: 'rgba(255,255,255,0.78)', fontStyle: 'italic' }}>
+                {t.quote}
+              </blockquote>
+              <figcaption style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,0.92)' }}>{t.author}</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>{t.role}</span>
+              </figcaption>
+            </figure>
           ))}
         </div>
       </section>
