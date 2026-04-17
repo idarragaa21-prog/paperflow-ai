@@ -2,7 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
+import './paperguide.css'
 import App from './App.tsx'
+
+// Enable paperguide design system globally
+if (typeof document !== 'undefined') {
+  document.documentElement.classList.add('pg');
+}
 import { ToastProvider } from './ui/Toast/ToastProvider'
 import { ConfirmProvider } from './ui/Dialog/useConfirm'
 import { I18nProvider } from './i18n'

@@ -1,19 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import { downloadBlob } from './meta/exportUtils';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../services/api';
-import { useJobPolling } from '../hooks/useJobPolling';
-import { Breadcrumb } from './Breadcrumb';
 import { useToast } from '../ui/Toast/ToastProvider';
-import {
-  getProjectNextAction,
-  getWorkflowStages,
-  getWorkflowCompletion,
-  InsightCard,
-  PageHero,
-  ProjectWorkflowRail,
-  type WorkflowStageKey,
-} from './WorkflowPrimitives';
+import { useJobPolling } from '../hooks/useJobPolling';
+import { downloadBlob } from './meta/exportUtils';
 import {
   PROJECT_CONTENT_CHANGED_EVENT,
   type ProjectContentChangedDetail,
@@ -38,17 +28,22 @@ type Dashboard = {
   };
 };
 
-function currentStage(pathname: string): WorkflowStageKey | undefined {
-  if (pathname.includes('/library') || pathname.includes('/papers')) return 'library';
-  if (pathname.includes('/reader')) return 'reader';
-  if (pathname.includes('/extraction') || pathname.includes('/meta')) return 'extraction';
-  if (pathname.includes('/matrix')) return 'matrix';
-  if (pathname.includes('/meta-runs')) return 'meta_runs';
-  if (pathname.includes('/writing')) return 'writing';
-  if (pathname.includes('/artifacts')) return 'artifacts';
-  if (pathname.includes('/research') || pathname.includes('/search')) return 'research';
-  return undefined;
-}
+const TABS: Array<{ to: string; label: string }> = [
+  { to: 'research', label: 'Búsqueda' },
+  { to: 'library', label: 'Biblioteca' },
+  { to: 'reader', label: 'Lector' },
+  { to: 'extraction', label: 'Extracción' },
+  { to: 'matrix', label: 'Matrix' },
+  { to: 'meta-runs', label: 'Meta-análisis' },
+  { to: 'writing', label: 'Escritura' },
+  { to: 'references', label: 'Referencias' },
+];
+
+const MORE_TABS: Array<{ to: string; label: string }> = [
+  { to: 'artifacts', label: 'Artefactos' },
+  { to: 'clinical-consults', label: 'Consultas clínicas' },
+  { to: 'collaboration', label: 'Colaboración' },
+];
 
 export default function ProjectLayout() {
   const { projectId } = useParams();
@@ -59,16 +54,15 @@ export default function ProjectLayout() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const counts = dashboard?.counts;
-  const stage = currentStage(location.pathname);
-  const stageInfo = getWorkflowStages(projectId || '', counts, stage).find((item) => item.key === stage);
 
   const exportJob = useJobPolling(exportJobId, {
-    onCompleted: () => toast.success('Export ready', 'ZIP is ready to download.'),
+    onCompleted: () => toast.success('Export listo', 'El ZIP está listo para descargar.'),
     onFailed: (s) => {
-      const msg = s.error || 'Export ZIP failed';
+      const msg = s.error || 'Export ZIP falló';
       setError(msg);
-      toast.error('Export failed', msg);
+      toast.error('Export falló', msg);
     },
   });
 
@@ -79,7 +73,7 @@ export default function ProjectLayout() {
       setProject(response.data as Project);
       setError(null);
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load project';
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'No se pudo cargar el proyecto';
       setError(msg);
     }
   }, [projectId]);
@@ -91,32 +85,21 @@ export default function ProjectLayout() {
       setDashboard(response.data as Dashboard);
       setError(null);
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to load project';
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'No se pudo cargar el proyecto';
       setError(msg);
     }
   }, [projectId]);
 
-  useEffect(() => {
-    void loadProject();
-  }, [loadProject]);
-
-  useEffect(() => {
-    void loadDashboard();
-  }, [loadDashboard, location.pathname]);
+  useEffect(() => { void loadProject(); }, [loadProject]);
+  useEffect(() => { void loadDashboard(); }, [loadDashboard, location.pathname]);
 
   useEffect(() => {
     if (!projectId) return undefined;
-
     const handleProjectUpdate = (event: Event) => {
       const detail = (event as CustomEvent<ProjectContentChangedDetail>).detail;
-      if (detail?.projectId === projectId) {
-        void loadDashboard();
-      }
+      if (detail?.projectId === projectId) void loadDashboard();
     };
-    const handleFocus = () => {
-      void loadDashboard();
-    };
-
+    const handleFocus = () => void loadDashboard();
     window.addEventListener(PROJECT_CONTENT_CHANGED_EVENT, handleProjectUpdate as EventListener);
     window.addEventListener('focus', handleFocus);
     return () => {
@@ -132,7 +115,7 @@ export default function ProjectLayout() {
       const r = await api.post(`/projects/${projectId}/export-zip`, {});
       setExportJobId(String((r.data as { job_id?: string })?.job_id || ''));
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Export ZIP failed');
+      setError((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Export ZIP falló');
     }
   }
 
@@ -144,98 +127,125 @@ export default function ProjectLayout() {
       const r = await api.get(`/projects/${projectId}/export-zip/${exportJobId}/download`, { responseType: 'blob' });
       downloadBlob(r.data as Blob, filename);
     } catch (e: unknown) {
-      setError((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Download ZIP failed');
+      setError((e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Descarga ZIP falló');
     }
   }
 
-  if (!projectId) return <div className="rc-error">Missing project id</div>;
+  if (!projectId) return <div className="pg-card">Falta el id del proyecto</div>;
 
   if (error && !project) {
     return (
-      <div className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 24 }}>
-        <div className="rc-error" style={{ fontSize: 14 }}>{String(error)}</div>
+      <div className="pg-card pg-stack">
+        <div style={{ color: 'var(--pg-danger)', fontSize: 14 }}>{String(error)}</div>
         <div>
-          <Link to="/projects" className="rc-btn" style={{ textDecoration: 'none' }}>← Back to Projects</Link>
+          <Link to="/projects" className="pg-btn">← Volver a proyectos</Link>
         </div>
       </div>
     );
   }
 
-  const nextAction = getProjectNextAction(projectId, counts);
-  const completion = getWorkflowCompletion(counts);
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="rc-page-enter">
-      <Breadcrumb items={[
-        { label: 'Projects', to: '/projects' },
-        { label: project?.title || 'Project' },
-      ]} />
-
-      <PageHero
-        eyebrow="Project workflow"
-        title={project?.title || 'Project'}
-        subtitle={project?.clinical_area || 'Move from search to matrix, meta runs, clinical consults and writing in one canonical project workflow.'}
-        metrics={[
-          { label: 'workflow completion', value: `${completion}%`, tone: 'primary' },
-          { label: 'papers', value: counts?.papers ?? '—', tone: 'success' },
-          { label: 'studies', value: counts?.meta_studies_current ?? '—', tone: 'warning' },
-          { label: 'references', value: counts?.references ?? '—', tone: 'neutral' },
-        ]}
-        actions={(
-          <>
-            <Link className="rc-btn rc-btn--primary" style={{ textDecoration: 'none' }} to={nextAction.to}>
-              {nextAction.label}
-            </Link>
-            <button
-              className="rc-btn"
-              style={{ gap: 5 }}
-              onClick={() => navigate(`/projects/${projectId}/clinical-consults`)}
-            >
-              Open Clinical Consults
-            </button>
-            <button className="rc-btn" onClick={startExportZip} disabled={exportJob.isRunning}>
-              {exportJob.isRunning ? `${exportJob.status?.progress ?? 0}%` : 'Export project ZIP'}
-            </button>
-            {exportJob.isDone && (
-              <button className="rc-btn rc-btn--primary" onClick={downloadZip}>Download ZIP</button>
-            )}
-          </>
-        )}
-        aside={(
-          <InsightCard
-            eyebrow="Next recommended action"
-            title={nextAction.label}
-            body={nextAction.description}
-            tone="primary"
-            action={<Link className="rc-btn rc-btn--primary rc-btn--sm" style={{ textDecoration: 'none' }} to={nextAction.to}>Continue</Link>}
-          />
-        )}
-      />
-
-      {error && project ? <div className="rc-error" style={{ fontSize: 12 }}>{String(error)}</div> : null}
-
-      <ProjectWorkflowRail projectId={projectId} counts={counts} current={stage} />
-
-      <div className="rc-card" style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div className="rc-kicker" style={{ marginBottom: 0 }}>Workspace support</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em' }}>
-            {stageInfo ? `Current stage: ${stageInfo.label}` : 'Supporting tools around the main workflow'}
+    <div className="pg-stack-lg pg-fade-in">
+      {/* Project title bar */}
+      <div className="pg-row-between">
+        <div>
+          <div className="pg-kicker" style={{ marginBottom: 6 }}>
+            <Link to="/projects" style={{ color: 'inherit', textDecoration: 'none' }}>Proyectos</Link> / {project?.clinical_area || 'Sin área'}
           </div>
-          <div className="rc-help" style={{ maxWidth: 640 }}>
-            {stageInfo?.description || nextAction.description}
-          </div>
+          <h1 className="pg-h1">{project?.title || 'Proyecto'}</h1>
+          {project?.description ? (
+            <p className="pg-muted" style={{ margin: '8px 0 0', maxWidth: 720, fontSize: 14 }}>
+              {project.description}
+            </p>
+          ) : null}
         </div>
-        <div className="rc-support-nav">
-          <NavLink to={`/projects/${projectId}/matrix`} className="rc-support-pill">Matrix</NavLink>
-          <NavLink to={`/projects/${projectId}/meta-runs`} className="rc-support-pill">Meta Runs</NavLink>
-          <NavLink to={`/projects/${projectId}/artifacts`} className="rc-support-pill">Artifacts</NavLink>
-          <NavLink to={`/projects/${projectId}/writing`} className="rc-support-pill">Writing</NavLink>
-          <NavLink to={`/projects/${projectId}/references`} className="rc-support-pill">References</NavLink>
-          <NavLink to={`/projects/${projectId}/clinical-consults`} className="rc-support-pill">Clinical</NavLink>
+        <div className="pg-row">
+          <div className="pg-row" style={{ gap: 6 }}>
+            <span className="pg-badge pg-badge--info">{counts?.papers ?? 0} papers</span>
+            <span className="pg-badge">{counts?.meta_studies_current ?? 0} estudios</span>
+            <span className="pg-badge">{counts?.references ?? 0} ref.</span>
+          </div>
+          <button className="pg-btn pg-btn--sm" onClick={startExportZip} disabled={exportJob.isRunning}>
+            {exportJob.isRunning ? `Exportando ${exportJob.status?.progress ?? 0}%` : 'Export ZIP'}
+          </button>
+          {exportJob.isDone && (
+            <button className="pg-btn pg-btn--primary pg-btn--sm" onClick={downloadZip}>Descargar ZIP</button>
+          )}
         </div>
       </div>
 
+      {error && project ? (
+        <div className="pg-card" style={{ borderColor: 'var(--pg-danger)', color: 'var(--pg-danger)', fontSize: 13 }}>
+          {String(error)}
+        </div>
+      ) : null}
+
+      {/* Tab bar */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 4,
+          borderBottom: '1px solid var(--pg-line)',
+          overflowX: 'auto',
+          paddingBottom: 0,
+          position: 'relative',
+        }}
+      >
+        {TABS.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            className={({ isActive }) =>
+              `pg-btn pg-btn--ghost pg-btn--sm${isActive ? ' pg-btn--primary' : ''}`
+            }
+            style={({ isActive }) => ({
+              borderRadius: '8px 8px 0 0',
+              borderBottom: isActive ? '2px solid var(--pg-navy-800)' : '2px solid transparent',
+              marginBottom: -1,
+              textDecoration: 'none',
+              flexShrink: 0,
+              background: isActive ? 'transparent' : 'transparent',
+              color: isActive ? 'var(--pg-navy-800)' : 'var(--pg-muted)',
+              fontWeight: isActive ? 600 : 500,
+            })}
+          >
+            {tab.label}
+          </NavLink>
+        ))}
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="pg-btn pg-btn--ghost pg-btn--sm"
+            style={{ color: 'var(--pg-muted)' }}
+            onClick={() => setMoreOpen((o) => !o)}
+          >
+            Más ▾
+          </button>
+          {moreOpen && (
+            <div
+              className="pg-dropdown-panel pg-fade-in"
+              style={{ left: 'auto', right: 0, top: 40 }}
+              onMouseLeave={() => setMoreOpen(false)}
+            >
+              {MORE_TABS.map((tab) => (
+                <button
+                  key={tab.to}
+                  type="button"
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '10px 12px', borderRadius: 8, cursor: 'pointer', color: 'var(--pg-text)', fontSize: 14 }}
+                  onClick={() => {
+                    setMoreOpen(false);
+                    navigate(`/projects/${projectId}/${tab.to}`);
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Outlet content */}
       <Outlet />
     </div>
   );
