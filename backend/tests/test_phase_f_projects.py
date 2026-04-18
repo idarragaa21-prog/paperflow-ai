@@ -63,6 +63,16 @@ class FakeSession:
         sql = str(stmt)
         if "JOIN project_memberships" in sql and "FROM projects" in sql:
             return FakeResult([(p, None) for p in self.projects if p.user_id == self.user_id])
+
+        # Support union_all used for optimizing dashboard queries
+        if "UNION ALL" in sql or "UNION" in sql:
+            return FakeResult([
+                ("papers", 10),
+                ("notes", 5),
+                ("meta_studies_current", 2),
+                ("references", 8),
+            ])
+
         return FakeResult([p for p in self.projects if p.user_id == self.user_id])
 
     async def get(self, model, obj_id):
