@@ -500,27 +500,35 @@ async def project_dashboard(
 ):
     project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
 
-    from sqlalchemy import func
+    from sqlalchemy import func, literal, union_all
 
     from app.models.meta_extractor import ExtractedStudy
     from app.models.note import Note
     from app.models.paper import Paper
     from app.models.reference_item import ReferenceItem
 
-    qp = await db.execute(select(func.count()).select_from(Paper).where(Paper.project_id == project_id))
-    qn = await db.execute(select(func.count()).select_from(Note).where(Note.project_id == project_id))
-    qs = await db.execute(
-        select(func.count()).select_from(ExtractedStudy).where(ExtractedStudy.project_id == project_id).where(ExtractedStudy.is_current == True)  # noqa
+    # ⚡ Bolt: Combine multiple count queries into a single round-trip using union_all to improve dashboard load performance
+    stmt = union_all(
+        select(literal("papers").label("type"), func.count().label("count")).select_from(Paper).where(Paper.project_id == project_id),
+        select(literal("notes").label("type"), func.count().label("count")).select_from(Note).where(Note.project_id == project_id),
+        select(
+            literal("meta_studies_current").label("type"), func.count().label("count")
+        ).select_from(ExtractedStudy).where(ExtractedStudy.project_id == project_id).where(ExtractedStudy.is_current == True),  # noqa
+        select(literal("references").label("type"), func.count().label("count")).select_from(ReferenceItem).where(ReferenceItem.project_id == project_id),
     )
-    qr = await db.execute(select(func.count()).select_from(ReferenceItem).where(ReferenceItem.project_id == project_id))
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    # Extract values using tuple index to avoid conflict with native tuple.count() method
+    counts = {row[0]: int(row[1] or 0) for row in rows}
 
     return {
         "project_id": str(project_id),
         "counts": {
-            "papers": int(qp.scalar() or 0),
-            "notes": int(qn.scalar() or 0),
-            "meta_studies_current": int(qs.scalar() or 0),
-            "references": int(qr.scalar() or 0),
+            "papers": counts.get("papers", 0),
+            "notes": counts.get("notes", 0),
+            "meta_studies_current": counts.get("meta_studies_current", 0),
+            "references": counts.get("references", 0),
         },
     }
 
