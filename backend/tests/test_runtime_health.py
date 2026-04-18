@@ -34,6 +34,9 @@ class DummyAsyncClient:
                 json_payload={
                     "models": [
                         {"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL},
+                        {"name": runtime_health.settings.PAPERFLOW_EXTRACTION_MODEL},
+                        {"name": getattr(runtime_health.settings, "PAPERFLOW_WRITING_MODEL", "")},
+                        {"name": getattr(runtime_health.settings, "PAPERFLOW_VISION_MODEL", "")},
                         {"name": runtime_health.settings.PAPERFLOW_EMBEDDING_MODEL},
                     ]
                 }
@@ -77,7 +80,16 @@ async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(mo
     class MissingModelAsyncClient(DummyAsyncClient):
         async def get(self, url: str):
             if url.endswith("/api/tags"):
-                return DummyResponse(json_payload={"models": [{"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL}]})
+                return DummyResponse(
+                    json_payload={
+                        "models": [
+                            {"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL},
+                            {"name": runtime_health.settings.PAPERFLOW_EXTRACTION_MODEL},
+                            {"name": getattr(runtime_health.settings, "PAPERFLOW_WRITING_MODEL", "")},
+                            {"name": getattr(runtime_health.settings, "PAPERFLOW_VISION_MODEL", "")},
+                        ]
+                    }
+                )
             if url.endswith("/-/ready") or url.endswith("/api/health"):
                 return DummyResponse(text="ok")
             return await super().get(url)
