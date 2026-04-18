@@ -34,6 +34,8 @@ class DummyAsyncClient:
                 json_payload={
                     "models": [
                         {"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL},
+                        {"name": runtime_health.settings.PAPERFLOW_EXTRACTION_MODEL},
+                        {"name": getattr(runtime_health.settings, "PAPERFLOW_WRITING_MODEL", "")},
                         {"name": runtime_health.settings.PAPERFLOW_EMBEDDING_MODEL},
                     ]
                 }
