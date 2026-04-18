@@ -45,7 +45,7 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('renders stats when project data exists', async () => {
+  it('renders recent project tile when project data exists', async () => {
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === '/projects') {
         return {
@@ -67,11 +67,9 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'ACL Registry' })).toBeInTheDocument();
-      expect(screen.getByText('Active projects')).toBeInTheDocument();
-      expect(screen.getByText('Total papers')).toBeInTheDocument();
-      expect(screen.getByText('References')).toBeInTheDocument();
-      expect(screen.getByText('Notes')).toBeInTheDocument();
+      expect(screen.getByText('ACL Registry')).toBeInTheDocument();
+      expect(screen.getByText('Sports Medicine')).toBeInTheDocument();
+      expect(screen.getByText('Proyectos recientes')).toBeInTheDocument();
     });
   });
 
@@ -81,8 +79,8 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('No projects yet')).toBeInTheDocument();
-      expect(screen.getByText('Create your first project')).toBeInTheDocument();
+      expect(screen.getByText('Aún no tienes proyectos')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Crear tu primer proyecto' })).toBeInTheDocument();
     });
   });
 
@@ -108,8 +106,8 @@ describe('DashboardPage', () => {
     renderPage();
 
     const user = userEvent.setup();
-    await waitFor(() => expect(screen.getByRole('link', { name: 'Shoulder Lab' })).toBeInTheDocument());
-    await user.click(screen.getByRole('link', { name: 'Shoulder Lab' }));
+    await waitFor(() => expect(screen.getByText('Shoulder Lab')).toBeInTheDocument());
+    await user.click(screen.getByText('Shoulder Lab'));
 
     await waitFor(() => {
       expect(screen.getByText('Project Research')).toBeInTheDocument();

@@ -32,14 +32,14 @@ const TABS: Array<{ to: string; label: string }> = [
   { to: 'research', label: 'Búsqueda' },
   { to: 'library', label: 'Biblioteca' },
   { to: 'reader', label: 'Lector' },
-  { to: 'extraction', label: 'Extracción' },
   { to: 'matrix', label: 'Matrix' },
-  { to: 'meta-runs', label: 'Meta-análisis' },
   { to: 'writing', label: 'Escritura' },
-  { to: 'references', label: 'Referencias' },
 ];
 
 const MORE_TABS: Array<{ to: string; label: string }> = [
+  { to: 'extraction', label: 'Extracción' },
+  { to: 'meta-runs', label: 'Meta-análisis' },
+  { to: 'references', label: 'Referencias' },
   { to: 'artifacts', label: 'Artefactos' },
   { to: 'clinical-consults', label: 'Consultas clínicas' },
   { to: 'collaboration', label: 'Colaboración' },
@@ -181,33 +181,12 @@ export default function ProjectLayout() {
       ) : null}
 
       {/* Tab bar */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 4,
-          borderBottom: '1px solid var(--pg-line)',
-          overflowX: 'auto',
-          paddingBottom: 0,
-          position: 'relative',
-        }}
-      >
+      <div className="pg-tabs" role="tablist">
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
-            className={({ isActive }) =>
-              `pg-btn pg-btn--ghost pg-btn--sm${isActive ? ' pg-btn--primary' : ''}`
-            }
-            style={({ isActive }) => ({
-              borderRadius: '8px 8px 0 0',
-              borderBottom: isActive ? '2px solid var(--pg-navy-800)' : '2px solid transparent',
-              marginBottom: -1,
-              textDecoration: 'none',
-              flexShrink: 0,
-              background: isActive ? 'transparent' : 'transparent',
-              color: isActive ? 'var(--pg-navy-800)' : 'var(--pg-muted)',
-              fontWeight: isActive ? 600 : 500,
-            })}
+            className={({ isActive }) => `pg-tab${isActive ? ' active' : ''}`}
           >
             {tab.label}
           </NavLink>
@@ -215,16 +194,16 @@ export default function ProjectLayout() {
         <div style={{ position: 'relative' }}>
           <button
             type="button"
-            className="pg-btn pg-btn--ghost pg-btn--sm"
-            style={{ color: 'var(--pg-muted)' }}
+            className="pg-tab"
             onClick={() => setMoreOpen((o) => !o)}
+            aria-expanded={moreOpen}
           >
             Más ▾
           </button>
           {moreOpen && (
             <div
               className="pg-dropdown-panel pg-fade-in"
-              style={{ left: 'auto', right: 0, top: 40 }}
+              style={{ left: 'auto', right: 0, top: 44 }}
               onMouseLeave={() => setMoreOpen(false)}
             >
               {MORE_TABS.map((tab) => (

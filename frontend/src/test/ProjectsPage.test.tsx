@@ -53,10 +53,10 @@ describe('ProjectsPage', () => {
   it('creates a project from the inline form', async () => {
     renderPage();
 
-    await userEvent.click(screen.getByRole('button', { name: /\+ New project/i }));
+    await userEvent.click(screen.getByRole('button', { name: /\+ Nuevo proyecto/i }));
     await userEvent.type(screen.getByPlaceholderText(/Distal radius fracture outcomes/i), 'New Project');
     await userEvent.type(screen.getByPlaceholderText(/e.g. Orthopedics/i), 'Ortho');
-    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/projects', { title: 'New Project', clinical_area: 'Ortho' });
@@ -67,7 +67,7 @@ describe('ProjectsPage', () => {
     renderPage();
 
     await screen.findByText('ACL Project');
-    fireEvent.click(screen.getByTitle('Archive project'));
+    fireEvent.click(screen.getByTitle('Archivar'));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith('/projects/p1/archive');
