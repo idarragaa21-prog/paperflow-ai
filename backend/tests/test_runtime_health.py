@@ -36,6 +36,7 @@ class DummyAsyncClient:
                         {"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL},
                         {"name": runtime_health.settings.PAPERFLOW_EXTRACTION_MODEL},
                         {"name": getattr(runtime_health.settings, "PAPERFLOW_WRITING_MODEL", "")},
+                        {"name": getattr(runtime_health.settings, "PAPERFLOW_VISION_MODEL", "")},
                         {"name": runtime_health.settings.PAPERFLOW_EMBEDDING_MODEL},
                     ]
                 }
@@ -85,6 +86,7 @@ async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(mo
                             {"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL},
                             {"name": runtime_health.settings.PAPERFLOW_EXTRACTION_MODEL},
                             {"name": getattr(runtime_health.settings, "PAPERFLOW_WRITING_MODEL", "")},
+                            {"name": getattr(runtime_health.settings, "PAPERFLOW_VISION_MODEL", "")},
                         ]
                     }
                 )
