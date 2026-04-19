@@ -194,7 +194,9 @@ async def export_writing_document(
         try:
             blob = build_docx(doc, references=references, citation_style=style)
         except ImportError as exc:  # python-docx missing
-            raise HTTPException(status_code=503, detail=f"DOCX export unavailable: {exc}") from exc
+            from app.core.logger import logger
+            logger.exception("DOCX export unavailable")
+            raise HTTPException(status_code=503, detail="DOCX export unavailable") from exc
         return Response(
             content=blob,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -204,7 +206,9 @@ async def export_writing_document(
         try:
             blob = build_pdf(doc, references=references, citation_style=style)
         except ImportError as exc:
-            raise HTTPException(status_code=503, detail=f"PDF export unavailable: {exc}") from exc
+            from app.core.logger import logger
+            logger.exception("PDF export unavailable")
+            raise HTTPException(status_code=503, detail="PDF export unavailable") from exc
         return Response(
             content=blob,
             media_type="application/pdf",
