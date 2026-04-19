@@ -105,7 +105,7 @@ const MOCK_RESPONSE = {
 async function searchAndWait() {
   renderPage();
   await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL hamstring');
-  fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+  fireEvent.click(screen.getByRole('button', { name: /^Buscar$/i }));
   await waitFor(() => screen.getByText('ACL reconstruction hamstring vs BPTB meta-analysis'));
 }
 
@@ -136,7 +136,7 @@ describe('SearchPage — render', () => {
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith(`/search/projects/${PROJECT_ID}/searches`);
     });
-    expect(screen.getByText('Research Search')).toBeInTheDocument();
+    expect(screen.getByText('Búsqueda federada')).toBeInTheDocument();
   });
 
   it('renders the query input', async () => {
@@ -152,19 +152,19 @@ describe('SearchPage — render', () => {
     await waitFor(() => {
       expect(api.get).toHaveBeenCalledWith(`/search/projects/${PROJECT_ID}/searches`);
     });
-    expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Buscar$/i })).toBeDisabled();
   });
 
   it('search button is disabled with query shorter than 3 chars', async () => {
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'AC');
-    expect(screen.getByRole('button', { name: /^Search$/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Buscar$/i })).toBeDisabled();
   });
 
   it('search button enables when query >= 3 chars', async () => {
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL');
-    expect(screen.getByRole('button', { name: /^Search$/i })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Buscar$/i })).not.toBeDisabled();
   });
 });
 
@@ -174,7 +174,7 @@ describe('SearchPage — API call', () => {
   it('calls /search/federated with correct payload', async () => {
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL hamstring');
-    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Buscar$/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
@@ -198,7 +198,7 @@ describe('SearchPage — API call', () => {
   it('shows result count', async () => {
     await searchAndWait();
     expect(
-      screen.getAllByText((_, element) => element?.textContent === '3 results · from pubmed, europepmc, doaj').length,
+      screen.getAllByText((_, element) => element?.textContent === '3 resultados · pubmed, europepmc, doaj').length,
     ).toBeGreaterThan(0);
   });
 });
@@ -293,21 +293,21 @@ describe('SearchPage — oa_url in download payload', () => {
 describe('SearchPage — filters', () => {
   it('shows filter panel when Filters button is clicked', async () => {
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /Filters/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Filtros/i }));
     expect(screen.getByPlaceholderText(/e.g. Lancet/i)).toBeInTheDocument();
-    expect(screen.getByText(/Open Access only/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open Access/i)).toBeInTheDocument();
   });
 
   it('includes year_from filter in API payload', async () => {
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /Filters/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Filtros/i }));
 
     const yearFrom = screen.getByPlaceholderText('2018');
     await userEvent.clear(yearFrom);
     await userEvent.type(yearFrom, '2020');
 
     await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL knee');
-    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Buscar$/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
@@ -321,16 +321,16 @@ describe('SearchPage — filters', () => {
 
   it('includes open_access_only in payload when checked', async () => {
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: /Filters/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Filtros/i }));
 
     // Find the OA checkbox specifically (not select-all checkboxes)
-    const oaLabel = screen.getByText(/Open Access only/i);
+    const oaLabel = screen.getByText(/Open Access/i);
     const oaCheckbox = oaLabel.parentElement?.querySelector('input[type="checkbox"]');
     expect(oaCheckbox).toBeTruthy();
     await userEvent.click(oaCheckbox!);
 
     await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL knee');
-    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Buscar$/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
@@ -352,7 +352,7 @@ describe('SearchPage — error handling', () => {
     });
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL knee');
-    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Buscar$/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Rate limit exceeded')).toBeInTheDocument();
@@ -369,7 +369,7 @@ describe('SearchPage — error handling', () => {
 
     renderPage();
     await userEvent.type(screen.getByPlaceholderText(/ACL reconstruction/i), 'ACL knee');
-    fireEvent.click(screen.getByRole('button', { name: /^Search$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Buscar$/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('search-warning-banner')).toBeInTheDocument();
@@ -483,7 +483,7 @@ describe('SearchPage — download traceability', () => {
 describe('SearchPage — select and batch download', () => {
   it('Select all OA selects only eligible papers', async () => {
     await searchAndWait();
-    fireEvent.click(screen.getByRole('button', { name: /Select all OA/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Seleccionar todos OA/i }));
 
     const checkboxes = screen.getAllByRole('checkbox');
     // Result 1 (pubmed, OA) → checked
@@ -498,8 +498,8 @@ describe('SearchPage — select and batch download', () => {
       .mockResolvedValueOnce({ data: { job_id: 'batch-001' } });
 
     await searchAndWait();
-    fireEvent.click(screen.getByRole('button', { name: /Select all OA/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Add \(2\) to Library/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Seleccionar todos OA/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Añadir \(2\) a Biblioteca/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
@@ -576,8 +576,8 @@ describe('SearchPage — select and batch download', () => {
       .mockResolvedValueOnce({ data: { job_id: 'batch-001' } });
 
     await searchAndWait();
-    fireEvent.click(screen.getByRole('button', { name: /Select all OA/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Add \(2\) to Library/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Seleccionar todos OA/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Añadir \(2\) a Biblioteca/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/La editorial o el proveedor bloquearon el acceso directo al PDF\./)).toBeInTheDocument();
@@ -589,7 +589,7 @@ describe('SearchPage — select and batch download', () => {
 // ── 10. Search history ──────────────────────────────────────────────────────
 
 describe('SearchPage — search history', () => {
-  it('loads and displays search history on mount', async () => {
+  it('loads history and exposes entries via datalist suggestions', async () => {
     vi.mocked(api.get).mockImplementation(async (url: string) => {
       if (url === `/projects/${PROJECT_ID}`) {
         return { data: { title: 'ACL project' } };
@@ -608,34 +608,11 @@ describe('SearchPage — search history', () => {
 
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Recent searches/i)).toBeInTheDocument();
+      expect(api.get).toHaveBeenCalledWith(`/search/projects/${PROJECT_ID}/searches`);
     });
-  });
-
-  it('shows entries when expanded', async () => {
-    vi.mocked(api.get).mockImplementation(async (url: string) => {
-      if (url === `/projects/${PROJECT_ID}`) {
-        return { data: { title: 'ACL project' } };
-      }
-      if (url === `/search/projects/${PROJECT_ID}/searches`) {
-        return {
-          data: [{
-            id: 'search-001', project_id: PROJECT_ID,
-            query: 'hip fracture outcomes', source: 'federated',
-            results_count: 15, executed_at: '2025-03-18T10:30:00Z',
-          }],
-        };
-      }
-      return { data: [] };
-    });
-
-    renderPage();
-    await waitFor(() => screen.getByText(/Recent searches/i));
-    fireEvent.click(screen.getByText(/Recent searches/i));
-
     await waitFor(() => {
-      expect(screen.getByText('hip fracture outcomes')).toBeInTheDocument();
-      expect(screen.getByText(/15 results/)).toBeInTheDocument();
+      const option = document.querySelector('datalist#search-query-suggestions option[value="hip fracture outcomes"]');
+      expect(option).toBeTruthy();
     });
   });
 });
