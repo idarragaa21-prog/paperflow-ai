@@ -101,7 +101,42 @@ async def authed_client(test_user: User) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.mark.asyncio
 class TestVNextCoreFlow:
-    async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User):
+    async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User, monkeypatch):
+        # Mock R engine response to simulate successful run
+        import app.services.meta_runs_service
+        import httpx
+        from typing import Any
+
+        class DummyResponse:
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return {
+                    "summary": {"rows": 1, "preset": "meta_binary_random", "supports_publication": True},
+                    "script": "print('hello world')",
+                    "engine_version": "1.0",
+                    "figure_artifacts": {
+                        "figure_forest": {
+                            "png_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+                        },
+                        "forest": {
+                            "png_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+                        }
+                    }
+                }
+
+        class DummyAsyncClient:
+            def __init__(self, *args, **kwargs):
+                pass
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, exc_type, exc, tb):
+                pass
+            async def post(self, url: str, json: dict[str, Any] | None = None):
+                return DummyResponse()
+
+        monkeypatch.setattr(app.services.meta_runs_service.httpx, "AsyncClient", DummyAsyncClient)
+
         project = Project(user_id=test_user.id, title="vNext pipeline project")
         db_session.add(project)
         await db_session.flush()
@@ -193,7 +228,7 @@ class TestVNextCoreFlow:
         assert "script_r" in artifact_types
         assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
         assert any("summary" in item for item in artifact_types)
-        assert any(item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
+        assert any("forest_png" in item for item in artifact_types)
 
         first_artifact_id = run_data["artifacts"][0]["id"]
         artifact_resp = await authed_client.get(f"/artifacts/{first_artifact_id}/download")
