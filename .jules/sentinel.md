@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-06-25 - [Exception Details Leakage in HTTP Responses]
+**Vulnerability:** API endpoints were catching exceptions and passing the raw stringified exception (`str(e)`) directly to the `HTTPException` detail parameter. This caused internal error messages, stack traces, and underlying library failure details to be returned in HTTP 5XX and 4XX responses, exposing internal system structure.
+**Learning:** Security Rule: To prevent sensitive information disclosure, API endpoints must avoid returning raw exception details (e.g., using f-strings with exception objects) in HTTP responses.
+**Prevention:** Catch the exception, log the full traceback securely in backend server logs using `logger.exception()`, and return a generic error message (e.g., "Error consultando job", "File not found") to the user.

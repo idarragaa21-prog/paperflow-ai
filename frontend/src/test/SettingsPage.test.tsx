@@ -78,7 +78,8 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
+    const container = screen.getByText('Change password').closest('.rc-card');
+    const inputs = container!.querySelectorAll('input[type="password"]') as NodeListOf<HTMLInputElement>;
     await userEvent.type(inputs[0], 'current-password');
     await userEvent.type(inputs[1], 'new-password');
     await userEvent.type(inputs[2], 'different-password');
