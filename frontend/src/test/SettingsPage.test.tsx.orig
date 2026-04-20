@@ -78,6 +78,7 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
+    const inputs = screen.getAllByDisplayValue(''); // There are 3 inputs with empty value
     await userEvent.type(screen.getByText('Current password').parentElement!.querySelector('input')!, 'current-password');
     await userEvent.type(screen.getByText('New password (min 8 chars)').parentElement!.querySelector('input')!, 'new-password');
     await userEvent.type(screen.getByText('Confirm new password').parentElement!.querySelector('input')!, 'different-password');

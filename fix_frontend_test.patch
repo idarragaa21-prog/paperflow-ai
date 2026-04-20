@@ -1,0 +1,15 @@
+--- frontend/src/test/SettingsPage.test.tsx
++++ frontend/src/test/SettingsPage.test.tsx
+@@ -80,9 +80,9 @@
+     render(<SettingsPage />);
+
+-    const inputs = screen.getAllByDisplayValue('');
+-    await userEvent.type(inputs[0], 'current-password');
+-    await userEvent.type(inputs[1], 'new-password');
+-    await userEvent.type(inputs[2], 'different-password');
++    const inputs = screen.getAllByDisplayValue(''); // There are 3 inputs with empty value
++    await userEvent.type(screen.getByText('Current password').parentElement!.querySelector('input')!, 'current-password');
++    await userEvent.type(screen.getByText('New password (min 8 chars)').parentElement!.querySelector('input')!, 'new-password');
++    await userEvent.type(screen.getByText('Confirm new password').parentElement!.querySelector('input')!, 'different-password');
+     await waitFor(() => expect(screen.getByRole('button', { name: 'Update password' })).not.toBeDisabled());
+     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
