@@ -191,8 +191,13 @@ class VectorIndex:
 
         _QdrantClient, qm = self._qdrant_modules()
         points: list[qm.PointStruct] = []
-        for chunk in chunks:
-            vector = self._embed_text(chunk.text)
+
+        # ⚡ Bolt: Eliminate N+1 HTTP request bottleneck
+        # Impact: Batching chunk texts into `_embed_texts` significantly reduces Ollama API round-trips from O(N) to O(1) batches, reducing overhead per index_paper call.
+        chunk_texts = [chunk.text for chunk in chunks]
+        vectors = self._embed_texts(chunk_texts)
+
+        for chunk, vector in zip(chunks, vectors):
             points.append(
                 qm.PointStruct(
                     id=str(chunk.id),
