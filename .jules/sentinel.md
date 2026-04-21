@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-24 - [Information Disclosure in HTTP 500 Responses]
+**Vulnerability:** The API endpoints for getting and retrying jobs included the raw exception object inside an f-string when raising an HTTP 500 error (`detail=f"Error consultando job: {e}"`). This leaked internal exception details and potentially stack traces to the client.
+**Learning:** Returning exception details to clients through API responses is a common information disclosure vulnerability. It allows attackers to glean details about the backend architecture, database schema, or internal dependencies, which can be leveraged in further attacks.
+**Prevention:** Never include raw exception details in HTTP 500 responses. Instead, return a generic error message (e.g., "Internal server error" or "Error interno consultando job") to the client and use `logger.exception` to securely record the full traceback in internal server logs for debugging.
