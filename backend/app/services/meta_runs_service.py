@@ -575,11 +575,11 @@ async def run_meta_analysis(
             continue
 
         if svg_bytes is not None:
-            artifacts_to_create.append((f"{kind}_svg", f"{run.id}_{kind}.svg", svg_bytes, "image/svg+xml", {"preset": preset, "figure": kind}))
+            artifacts_to_create.append((f"figure_{kind}_svg", f"{run.id}_{kind}.svg", svg_bytes, "image/svg+xml", {"preset": preset, "figure": kind}))
         if png_bytes is not None:
-            artifacts_to_create.append((f"{kind}_png", f"{run.id}_{kind}.png", png_bytes, "image/png", {"preset": preset, "figure": kind}))
+            artifacts_to_create.append((f"figure_{kind}_png", f"{run.id}_{kind}.png", png_bytes, "image/png", {"preset": preset, "figure": kind}))
         if pdf_bytes is not None:
-            artifacts_to_create.append((f"{kind}_pdf", f"{run.id}_{kind}.pdf", pdf_bytes, "application/pdf", {"preset": preset, "figure": kind}))
+            artifacts_to_create.append((f"figure_{kind}_pdf", f"{run.id}_{kind}.pdf", pdf_bytes, "application/pdf", {"preset": preset, "figure": kind}))
 
     saved_lookup: dict[str, str] = {}
     for artifact_type, filename, payload, mime, metadata in artifacts_to_create:
