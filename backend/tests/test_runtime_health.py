@@ -88,6 +88,9 @@ async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(mo
     monkeypatch.setattr("qdrant_client.QdrantClient", DummyQdrantClient)
     monkeypatch.setattr(runtime_health.settings, "PAPERFLOW_EMBEDDING_MODEL", "bge-m3")
 
+    # Mock LLM provider mode to force local-only checking in tests where it expects a degraded ollama state
+    monkeypatch.setattr(runtime_health.settings, "LLM_PROVIDER", "auto_local")
+
     health = await runtime_health.collect_runtime_health()
 
     assert health["overall_status"] == "degraded"

@@ -79,9 +79,16 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    // The first empty inputs are usually affiliation/orcid depending on initial state,
+    // so let's rely on DOM structure or labels. But since we lack explicit labels,
+    // we should fetch the specific password inputs by finding the preceding text.
+    const currentPasswordInput = screen.getByText('Current password').nextElementSibling as HTMLInputElement;
+    const newPasswordInput = screen.getByText('New password (min 8 chars)').nextElementSibling as HTMLInputElement;
+    const confirmPasswordInput = screen.getByText('Confirm new password').nextElementSibling as HTMLInputElement;
+
+    await userEvent.type(currentPasswordInput, 'current-password');
+    await userEvent.type(newPasswordInput, 'new-password');
+    await userEvent.type(confirmPasswordInput, 'different-password');
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {
