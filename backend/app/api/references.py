@@ -48,27 +48,71 @@ async def import_references(
     parser = parse_bibtex_entries if payload.format == "bibtex" else parse_ris_entries
     parsed = parser(payload.content)
 
-    imported: list[ReferenceItem] = []
-    skipped = 0
-    for entry in parsed:
-        dedup_q = await db.execute(
-            select(ReferenceItem).where(
+    # Pre-fetch existing identifiers to avoid N+1 queries and handle intra-batch duplicates
+    parsed_dois = {e.get("doi") for e in parsed if e.get("doi")}
+    parsed_pmids = {e.get("pmid") for e in parsed if e.get("pmid")}
+    parsed_titles = {e.get("title") for e in parsed if e.get("title")}
+
+    existing_dois = set()
+    existing_pmids = set()
+    existing_titles = set()
+
+    conditions = []
+    if parsed_dois:
+        conditions.append(and_(ReferenceItem.doi.is_not(None), ReferenceItem.doi.in_(parsed_dois)))
+    if parsed_pmids:
+        conditions.append(and_(ReferenceItem.pmid.is_not(None), ReferenceItem.pmid.in_(parsed_pmids)))
+    if parsed_titles:
+        conditions.append(ReferenceItem.title.in_(parsed_titles))
+
+    if conditions:
+        existing_q = await db.execute(
+            select(ReferenceItem.doi, ReferenceItem.pmid, ReferenceItem.title).where(
                 and_(
                     ReferenceItem.project_id == payload.project_id,
-                    or_(
-                        and_(ReferenceItem.doi.is_not(None), ReferenceItem.doi == entry.get("doi")),
-                        and_(ReferenceItem.pmid.is_not(None), ReferenceItem.pmid == entry.get("pmid")),
-                        ReferenceItem.title == entry["title"],
-                    ),
+                    or_(*conditions)
                 )
             )
         )
-        if dedup_q.scalars().first():
+        for row in existing_q.all():
+            if row.doi:
+                existing_dois.add(row.doi)
+            if row.pmid:
+                existing_pmids.add(row.pmid)
+            if row.title:
+                existing_titles.add(row.title)
+
+    imported: list[ReferenceItem] = []
+    skipped = 0
+    for entry in parsed:
+        doi = entry.get("doi")
+        pmid = entry.get("pmid")
+        title = entry.get("title")
+
+        is_duplicate = False
+        if doi and doi in existing_dois:
+            is_duplicate = True
+        elif pmid and pmid in existing_pmids:
+            is_duplicate = True
+        elif title and title in existing_titles:
+            is_duplicate = True
+
+        if is_duplicate:
             skipped += 1
             continue
+
+        # Add to sets to handle intra-batch duplicates
+        if doi:
+            existing_dois.add(doi)
+        if pmid:
+            existing_pmids.add(pmid)
+        if title:
+            existing_titles.add(title)
+
         item = ReferenceItem(project_id=payload.project_id, **entry)
         db.add(item)
         imported.append(item)
+
     await db.commit()
     for item in imported:
         await db.refresh(item)

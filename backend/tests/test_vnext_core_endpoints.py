@@ -101,7 +101,34 @@ async def authed_client(test_user: User) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.mark.asyncio
 class TestVNextCoreFlow:
-    async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User):
+    async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User, monkeypatch: pytest.MonkeyPatch):
+        class MockResponse:
+            def __init__(self, json_data):
+                self._json = json_data
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return self._json
+
+        class MockAsyncClient:
+            def __init__(self, *args, **kwargs):
+                pass
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+            async def post(self, url, **kwargs):
+                return MockResponse({
+                    "summary": {"test": "val"},
+                    "warnings": [],
+                    "script": "Rscript",
+                    "engine_version": "1.0",
+                    "figure_artifacts": {"forest": {"svg": "<svg></svg>", "png_base64": "base64", "pdf_base64": "base64"}}
+                })
+
+        import app.services.meta_runs_service as mrs
+        monkeypatch.setattr(mrs.httpx, "AsyncClient", MockAsyncClient)
+
         project = Project(user_id=test_user.id, title="vNext pipeline project")
         db_session.add(project)
         await db_session.flush()
