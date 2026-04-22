@@ -17,3 +17,7 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+## 2025-02-21 - Information Exposure in Job APIs
+**Vulnerability:** Leaking internal application state and stack traces via HTTPException detail parameters initialized with raw exception formatting.
+**Learning:** Returning `f"{e}"` or `f"{exc}"` to HTTP 500 exceptions exposes sensitive system architecture details to clients on unhandled errors, which can be leveraged to profile the infrastructure.
+**Prevention:** Always log exceptions server-side using `logger.exception()` and return sanitized, generic error descriptions like `"Internal server error"` to the client.
