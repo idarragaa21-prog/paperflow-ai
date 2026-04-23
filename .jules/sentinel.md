@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-24 - [Loguru Exception Formatting]
+**Vulnerability:** Replacing `HTTPException` detail leakage with `logger.exception("Error: {}", e)` using python's standard library `logging` could result in a `TypeError`, disrupting error handling flow.
+**Learning:** `loguru` supports brace-style string formatting native to its logger calls `logger.exception("Error: {}", e)`, but to avoid ambiguity and conform with more strict standard library patterns, when calling `logger.exception(msg)`, the exception is automatically appended, and the message doesn't need to format it in explicitly.
+**Prevention:** Always use a simple message for `logger.exception("Error occurred during job operation")` without explicit exception interpolation as the framework natively handles appending the traceback and message.
