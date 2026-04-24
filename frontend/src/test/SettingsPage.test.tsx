@@ -78,10 +78,17 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    // To prevent tests from being fragile due to new inputs with empty values,
+    // we use specific DOM traversal relative to known kickers (or better labels).
+    // Let's type into the password fields.
+    const currentPwInput = screen.getByText('Current password').nextElementSibling as HTMLInputElement;
+    const newPwInput = screen.getByText('New password (min 8 chars)').nextElementSibling as HTMLInputElement;
+    const confirmPwInput = screen.getByText('Confirm new password').nextElementSibling as HTMLInputElement;
+
+    await userEvent.type(currentPwInput, 'current-password');
+    await userEvent.type(newPwInput, 'new-password');
+    await userEvent.type(confirmPwInput, 'different-password');
+
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {
