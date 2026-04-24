@@ -191,8 +191,12 @@ class VectorIndex:
 
         _QdrantClient, qm = self._qdrant_modules()
         points: list[qm.PointStruct] = []
-        for chunk in chunks:
-            vector = self._embed_text(chunk.text)
+
+        # ⚡ Bolt: Fix N+1 HTTP request bottleneck by embedding chunks in a single batch request
+        texts = [chunk.text for chunk in chunks]
+        vectors = self._embed_texts(texts)
+
+        for chunk, vector in zip(chunks, vectors):
             points.append(
                 qm.PointStruct(
                     id=str(chunk.id),
