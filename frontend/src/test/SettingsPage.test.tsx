@@ -78,10 +78,16 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    // Since there are no explicit label tags, we can target the input elements that follow the kicker text,
+    // or rely on getting the container and querying within. The simplest approach without labels
+    // is to locate them by their type="password" attribute since they are the only password fields.
+    const pwInputs = document.querySelectorAll('input[type="password"]');
+    if (pwInputs.length < 3) throw new Error("Could not find password inputs");
+
+    await userEvent.type(pwInputs[0] as HTMLInputElement, 'current-password');
+    await userEvent.type(pwInputs[1] as HTMLInputElement, 'new-password');
+    await userEvent.type(pwInputs[2] as HTMLInputElement, 'different-password');
+
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {

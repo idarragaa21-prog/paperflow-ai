@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2025-02-28 - Exception Leakage in HTTP Responses
+**Vulnerability:** Raw exception objects and stack traces were leaked to the client through HTTP 500 error responses in `backend/app/api/jobs.py` using `detail=f"Error... {e}"`.
+**Learning:** Using f-strings to include `Exception` objects directly in user-facing error messages leaks internal system state which can be leveraged by attackers.
+**Prevention:** Catch the exception, use `logger.exception("Generic error msg")` to capture the full traceback in server logs securely, and return a sanitized, generic error message to the client (e.g., `raise HTTPException(status_code=500, detail="Generic error msg")`).
