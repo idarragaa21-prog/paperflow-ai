@@ -78,10 +78,18 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    // Instead of using getAllByDisplayValue, let's target by proximity to the labels which are div.rc-kicker
+    const currentPwLabel = screen.getByText('Current password');
+    const newPwLabel = screen.getByText('New password (min 8 chars)');
+    const confirmPwLabel = screen.getByText('Confirm new password');
+
+    const currentPw = currentPwLabel.nextElementSibling as HTMLInputElement;
+    const newPw = newPwLabel.nextElementSibling as HTMLInputElement;
+    const confirmPw = confirmPwLabel.nextElementSibling as HTMLInputElement;
+
+    await userEvent.type(currentPw, 'current-password');
+    await userEvent.type(newPw, 'new-password');
+    await userEvent.type(confirmPw, 'different-password');
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {
