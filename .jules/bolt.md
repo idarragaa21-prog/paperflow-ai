@@ -5,3 +5,6 @@
 ## 2024-04-26 - Vector Chunk Embedding Bottleneck
 **Learning:** Document chunk embedding loops that invoke single-item external embedding API requests inherently trigger N+1 bottlenecks.
 **Action:** Always prefer batched embedding endpoints (e.g., passing `list[str]` to `/api/embed`) when iterating over multiple chunks during vector index ingestion.
+## 2024-04-26 - Test Fragility with Form Inputs
+**Learning:** Testing forms using `getAllByDisplayValue('')` to grab sequential empty inputs is highly fragile and breaks when new empty inputs are added to a page.
+**Action:** Instead, target form inputs reliably using their semantic labels or query relative to specific heading/label text (e.g., finding the input next to a specific `rc-kicker` label element).
