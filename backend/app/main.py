@@ -68,8 +68,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=settings.BACKEND_CORS_METHODS,
+    allow_headers=settings.BACKEND_CORS_HEADERS,
 )
 instrument_fastapi(app)
 
