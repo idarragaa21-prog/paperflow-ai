@@ -128,6 +128,8 @@ class Settings(BaseSettings):
     # Default: localhost dev servers. Override via env for production.
     # Example: BACKEND_CORS_ORIGINS=["https://app.paperflow.ai","https://paperflow.ai"]
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    BACKEND_CORS_METHODS: list[str] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    BACKEND_CORS_HEADERS: list[str] = ["Content-Type", "X-CSRF-Token", "Authorization", "Accept", "Origin"]
     COOKIE_SAMESITE: str | None = None
 
     # Cookie domain — set via env for production.

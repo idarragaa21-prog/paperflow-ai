@@ -17,3 +17,7 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+## 2024-05-18 - Overly Permissive CORS Configuration
+**Vulnerability:** The FastAPI backend used wildcard characters (`"*"`) for both `allow_methods` and `allow_headers` in its `CORSMiddleware` configuration.
+**Learning:** While using `allow_origins=["http://localhost:5173", ...]` restricts access to specific domains, allowing arbitrary methods and headers expands the attack surface by permitting non-standard requests (e.g., custom methods, trace injections) that the API was not designed to handle.
+**Prevention:** Always restrict CORS `allow_methods` to the exact HTTP verbs needed (e.g., `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`) and `allow_headers` to the explicitly required headers (e.g., `Content-Type`, `X-CSRF-Token`, `Authorization`, `Accept`, `Origin`), configurable via environment variables in production.
