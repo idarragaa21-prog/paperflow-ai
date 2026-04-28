@@ -17,3 +17,7 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+## 2025-02-28 - Information Exposure in HTTP Responses
+**Vulnerability:** API endpoints returned raw exception objects via f-strings in HTTP 500 error messages (e.g. `detail=f"Error: {e}"`).
+**Learning:** Returning exception objects directly leaks internal details like tracebacks or database state to the client, leading to Information Exposure (CWE-209).
+**Prevention:** Always log the full exception internally (using `logger.exception`) and return generic error messages (e.g. "Internal Server Error") to the client.
