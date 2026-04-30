@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-24 - [Information Disclosure in Error Responses]
+**Vulnerability:** Exception objects were interpolated into the `detail` argument of `HTTPException` class using f-strings (e.g., `raise HTTPException(status_code=500, detail=f"Error consultando job: {e}")`). This caused internal exception details and potentially stack traces or system file paths to be sent in plain text to the API client.
+**Learning:** Developers often interpolate the error object in HTTP response payloads for debugging purposes, but this directly violates secure failure principles by exposing internals to end users.
+**Prevention:** Avoid interpolating exception objects into HTTP response details. Return a generic string to the user (e.g., `raise HTTPException(status_code=500, detail="Error consultando job")`) and use `logger.exception("Error consultando job")` to log the full stacktrace and specific error detail securely on the server side.
