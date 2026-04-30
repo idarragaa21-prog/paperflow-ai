@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import { useEffect, useMemo, useState } from 'react';
 
 type Props = {
@@ -113,11 +114,11 @@ export default function MermaidBlock({ code }: Props) {
             return;
           }
           setUsedFallback(true);
-          setSvgHtml(svg2);
+          setSvgHtml(DOMPurify.sanitize(svg2));
           return;
         }
 
-        setSvgHtml(svg);
+        setSvgHtml(DOMPurify.sanitize(svg));
       } catch (e: any) {
         if (!alive) return;
         setError(String(e?.message || e));
