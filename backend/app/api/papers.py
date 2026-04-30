@@ -500,7 +500,8 @@ async def download_paper_file(
         try:
             data = storage_manager.read_bytes(paper.file_path)
         except Exception as exc:
-            raise HTTPException(status_code=404, detail=f"File not found: {exc}") from exc
+            logger.exception("Error reading paper file from storage")
+            raise HTTPException(status_code=404, detail="File not found") from exc
         return Response(
             content=data,
             media_type="application/pdf",
