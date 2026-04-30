@@ -78,10 +78,10 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    const passwordInputs = document.querySelectorAll('input[type="password"]');
+    await userEvent.type(passwordInputs[0] as HTMLElement, 'current-password');
+    await userEvent.type(passwordInputs[1] as HTMLElement, 'new-password');
+    await userEvent.type(passwordInputs[2] as HTMLElement, 'different-password');
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {
