@@ -427,7 +427,7 @@ export default function PapersPage() {
             <option value="failed">Failed</option>
           </select>
           <button className="rc-btn" style={{ padding: '8px 12px', fontSize: 12 }} onClick={processAllPending}>Process all pending</button>
-          <button className="rc-btn" onClick={() => invalidate()} disabled={isLoading} style={{ padding: '8px 12px', fontSize: 12 }}>{isLoading ? '...' : '↻'}</button>
+          <button className="rc-btn" onClick={() => invalidate()} disabled={isLoading} style={{ padding: '8px 12px', fontSize: 12 }} aria-label="Refresh papers" title="Refresh papers">{isLoading ? '...' : '↻'}</button>
         </div>
         <span className="rc-help" style={{ whiteSpace: 'nowrap' }}>{filtered.length} paper{filtered.length !== 1 ? 's' : ''}</span>
       </div>

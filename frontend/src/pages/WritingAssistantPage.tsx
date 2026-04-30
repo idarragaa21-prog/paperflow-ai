@@ -244,7 +244,7 @@ export default function WritingAssistantPage() {
         <section className="rc-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="rc-card-title" style={{ margin: 0 }}>Documents</div>
-            <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => documentsQuery.refetch()} disabled={documentsQuery.isFetching}>
+            <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => documentsQuery.refetch()} disabled={documentsQuery.isFetching} aria-label="Refresh documents" title="Refresh documents">
               {documentsQuery.isFetching ? '…' : '↻'}
             </button>
           </div>
