@@ -76,7 +76,7 @@ describe('SettingsPage', () => {
   });
 
   it('blocks password change when confirmation does not match', async () => {
-    const { container } = render(<SettingsPage />);
+    render(<SettingsPage />);
 
     const currentPwInput = screen.getByText('Current password').nextElementSibling as HTMLInputElement;
     const newPwInput = screen.getByText('New password (min 8 chars)').nextElementSibling as HTMLInputElement;
