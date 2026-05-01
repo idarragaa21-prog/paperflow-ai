@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-18 - Information Leakage in 500 Responses
+**Vulnerability:** HTTP 500 error responses were exposing internal implementation details and unhandled exception traces directly to the client via f-strings in `HTTPException` detail fields.
+**Learning:** Returning `detail=f"Error message: {exc}"` in FastAPI exceptions exposes sensitive stack traces or database errors that attackers can use to gather intelligence on the internal architecture.
+**Prevention:** In API handlers catching internal errors, explicitly log the full exception internally (e.g., using `logger.exception("Generic contextual message")`) without manually interpolating the exception object, and return a sanitized, static generic error message to the client in the 500 response.
