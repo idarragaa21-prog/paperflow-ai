@@ -137,7 +137,7 @@ class VectorIndex:
         try:
             response = httpx.post(
                 f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/embed",
-                json={"model": settings.PAPERFLOW_CHAT_MODEL, "input": texts},
+                json={"model": settings.PAPERFLOW_EMBEDDING_MODEL, "input": texts},
                 timeout=10.0,
             )
             response.raise_for_status()
@@ -191,8 +191,12 @@ class VectorIndex:
 
         _QdrantClient, qm = self._qdrant_modules()
         points: list[qm.PointStruct] = []
-        for chunk in chunks:
-            vector = self._embed_text(chunk.text)
+
+        # ⚡ Bolt: Batch embeddings to avoid N+1 API calls for chunks
+        chunk_texts = [chunk.text for chunk in chunks]
+        chunk_vectors = self._embed_texts(chunk_texts)
+
+        for chunk, vector in zip(chunks, chunk_vectors):
             points.append(
                 qm.PointStruct(
                     id=str(chunk.id),
