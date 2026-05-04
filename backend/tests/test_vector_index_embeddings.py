@@ -74,7 +74,7 @@ def test_vector_index_falls_back_to_chat_model_when_embedding_model_unavailable(
 def test_vector_index_batches_embeddings_when_api_embed_supports_multiple_inputs(monkeypatch):
     calls: list[tuple[str, dict]] = []
     expected_model = "qwen-batch-test"
-    monkeypatch.setattr("app.services.vector_index.settings.PAPERFLOW_CHAT_MODEL", expected_model)
+    monkeypatch.setattr("app.services.vector_index.settings.PAPERFLOW_EMBEDDING_MODEL", expected_model)
 
     def fake_post(url: str, json: dict, timeout: float):
         calls.append((url, json))
