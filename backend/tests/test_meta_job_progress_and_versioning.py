@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
-from pathlib import Path
 
-import pytest
 
 from app.services.meta_extractor.schema import ExtractedStudySchema
 
