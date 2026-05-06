@@ -72,11 +72,13 @@ export function SearchResultCard({
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <input
           type="checkbox"
+          aria-label={`Select ${r.title}`}
+          title={!canDownload ? 'No download available for this paper' : 'Select for batch download'}
           data-testid={`search-select-${idx}`}
           disabled={!canDownload}
           checked={isSelected}
           onChange={() => search.setSelected((p) => ({ ...p, [key]: !p[key] }))}
-          style={{ marginTop: 3 }}
+          style={{ marginTop: 3, cursor: !canDownload ? 'not-allowed' : 'pointer' }}
         />
         <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -112,6 +114,7 @@ export function SearchResultCard({
       <div className="rc-row" style={{ flexWrap: 'wrap', gap: 6 }}>
         <button
           className="rc-btn"
+          title={!canDownload ? 'No Open Access PDF available to download' : 'Download Open Access PDF'}
           data-testid={`search-save-${idx}`}
           disabled={!canDownload || search.downloadingKey === key}
           onClick={() => search.downloadOA(r)}
