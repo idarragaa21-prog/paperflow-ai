@@ -184,6 +184,7 @@ export default function SearchPage() {
                   value={search.query}
                   onChange={(e) => search.setQuery(e.target.value)}
                   placeholder="e.g. ACL reconstruction hamstring vs BPTB meta-analysis"
+                  title="Enter research question or keywords to search"
                   onKeyDown={(e) => { if (e.key === 'Enter' && search.canSearch && !search.loading) handleSearch(); }}
                 />
               </div>
