@@ -1,4 +1,7 @@
 from __future__ import annotations
+from unittest.mock import patch, MagicMock, AsyncMock
+
+
 
 import uuid
 from collections.abc import AsyncGenerator
@@ -101,7 +104,18 @@ async def authed_client(test_user: User) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.mark.asyncio
 class TestVNextCoreFlow:
-    async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User):
+    @patch('app.services.meta_runs_service.httpx.AsyncClient.post', new_callable=AsyncMock)
+    async def test_extraction_matrix_to_meta_run_pipeline(self, mock_post, db_session: AsyncSession, authed_client: AsyncClient, test_user: User):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "summary": {"test": "summary"},
+            "warnings": [],
+            "script": "print('hello')",
+            "engine_version": "1.0",
+        }
+        mock_post.return_value = mock_response
+
         project = Project(user_id=test_user.id, title="vNext pipeline project")
         db_session.add(project)
         await db_session.flush()
