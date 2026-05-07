@@ -14,7 +14,6 @@ from app.models.user import User
 from app.schemas.search import SearchRecordResponse, SearchRequest, SearchResponse, SearchSynthesizeRequest, SearchSynthesizeResponse
 from app.services.cache import cache
 from app.services.llm.factory import llm_provider
-from app.config import settings
 from app.services.federated_search import (
     _metadata_score,
     _passes_filters,
