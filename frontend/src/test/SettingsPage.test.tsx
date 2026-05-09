@@ -76,9 +76,10 @@ describe('SettingsPage', () => {
   });
 
   it('blocks password change when confirmation does not match', async () => {
-    render(<SettingsPage />);
+    // Since these inputs don't have standard labels, query by type="password"
+    const { container } = render(<SettingsPage />);
+    const inputs = container.querySelectorAll('input[type="password"]');
 
-    const inputs = screen.getAllByDisplayValue('');
     await userEvent.type(inputs[0], 'current-password');
     await userEvent.type(inputs[1], 'new-password');
     await userEvent.type(inputs[2], 'different-password');
