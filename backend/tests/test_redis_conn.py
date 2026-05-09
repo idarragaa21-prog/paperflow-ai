@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import MagicMock
 
 from app.core.redis_conn import get_redis, redis_available

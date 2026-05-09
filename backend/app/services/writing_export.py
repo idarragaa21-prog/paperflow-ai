@@ -11,7 +11,7 @@ import re
 from typing import Any, Iterable
 
 from app.models.reference_item import ReferenceItem
-from app.models.writing import WritingClaimLink, WritingDocument
+from app.models.writing import WritingDocument
 
 
 CITATION_STYLES = {"apa", "vancouver", "ama"}
