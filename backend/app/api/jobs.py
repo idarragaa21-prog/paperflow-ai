@@ -24,9 +24,15 @@ def _serialize_job(job: Job) -> dict:
         "job_type": job.job_type,
         "status": job.status,
         "progress_percent": job.progress_percent or 0,
-        "created_at": job.created_at.isoformat() if getattr(job, "created_at", None) else None,
-        "started_at": job.started_at.isoformat() if getattr(job, "started_at", None) else None,
-        "completed_at": job.completed_at.isoformat() if getattr(job, "completed_at", None) else None,
+        "created_at": job.created_at.isoformat()
+        if getattr(job, "created_at", None)
+        else None,
+        "started_at": job.started_at.isoformat()
+        if getattr(job, "started_at", None)
+        else None,
+        "completed_at": job.completed_at.isoformat()
+        if getattr(job, "completed_at", None)
+        else None,
         "error": job.error_message,
         "result": job.result,
     }
@@ -66,7 +72,11 @@ async def _sync_related_state(
         item = await db.get(MetaExtractionItem, item_id)
         if not item:
             return
-        item.status = "queued" if target_status in {"queued", "started", "progress"} else target_status
+        item.status = (
+            "queued"
+            if target_status in {"queued", "started", "progress"}
+            else target_status
+        )
         item.error_message = None if target_status == "queued" else warning
 
 
@@ -122,10 +132,7 @@ async def list_jobs(
     q = await db.execute(stmt)
     items = [j for j in q.scalars().all() if j.user_id == user.id]
 
-    return [
-        _serialize_job(j)
-        for j in items
-    ]
+    return [_serialize_job(j) for j in items]
 
 
 @router.post("/{job_id}/cancel")
@@ -149,19 +156,27 @@ async def cancel_job(
             try:
                 rq_job.cancel()
             except Exception as e:
-                logger.warning("Failed to cancel RQ job {}, attempting delete: {}", rq_job_id, e)
+                logger.warning(
+                    "Failed to cancel RQ job {}, attempting delete: {}", rq_job_id, e
+                )
                 # fallback: delete from queue if possible
                 try:
                     rq_job.delete(remove_from_queue=True)
                 except Exception as e2:
-                    logger.warning("Failed to delete RQ job {} from queue: {}", rq_job_id, e2)
+                    logger.warning(
+                        "Failed to delete RQ job {} from queue: {}", rq_job_id, e2
+                    )
         except Exception as e:
-            logger.warning("Failed to fetch RQ job {} for cancellation: {}", rq_job_id, e)
+            logger.warning(
+                "Failed to fetch RQ job {} for cancellation: {}", rq_job_id, e
+            )
 
     job.status = "cancelled"
     job.error_message = "Cancelled by user"
     job.completed_at = job.completed_at or datetime.now(timezone.utc)
-    await _sync_related_state(db, job=job, target_status="cancelled", warning="Cancelled by user")
+    await _sync_related_state(
+        db, job=job, target_status="cancelled", warning="Cancelled by user"
+    )
     await db.commit()
 
     return {"ok": True, "id": str(job.id), "status": job.status}
@@ -208,12 +223,21 @@ async def get_job(
             job.status = "failed"
             job.error_message = "RQ job no encontrado en Redis"
             job.completed_at = job.completed_at or datetime.now(timezone.utc)
-            await _sync_related_state(db, job=job, target_status="failed", warning="RQ job no encontrado en Redis")
+            await _sync_related_state(
+                db,
+                job=job,
+                target_status="failed",
+                warning="RQ job no encontrado en Redis",
+            )
             await db.commit()
             return _serialize_job(job)
 
         status = _map_rq_status(rq_job.get_status())
-        meta_progress = rq_job.meta.get("progress_percent") if isinstance(rq_job.meta, dict) else None
+        meta_progress = (
+            rq_job.meta.get("progress_percent")
+            if isinstance(rq_job.meta, dict)
+            else None
+        )
 
         if meta_progress is not None:
             job.progress_percent = int(meta_progress)
@@ -229,13 +253,18 @@ async def get_job(
             job.result = {**(job.result or {}), "rq_result": rq_job.result}
         elif status == "failed":
             job.error_message = str(rq_job.exc_info or "Job failed")
-            await _sync_related_state(db, job=job, target_status="failed", warning=job.error_message)
+            await _sync_related_state(
+                db, job=job, target_status="failed", warning=job.error_message
+            )
 
         await db.commit()
     except RedisError:
         return _serialize_job(job)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error consultando job: {e}")
+    except Exception:
+        logger.exception("Error consultando job")
+        raise HTTPException(
+            status_code=500, detail="Error interno del servidor al consultar el job."
+        )
 
     return _serialize_job(job)
 
@@ -253,7 +282,10 @@ async def retry_job(
         raise HTTPException(status_code=404, detail="Job no encontrado")
 
     if str(job.status or "").lower() not in {"failed", "cancelled"}:
-        raise HTTPException(status_code=409, detail="Solo se pueden reintentar jobs fallidos o cancelados")
+        raise HTTPException(
+            status_code=409,
+            detail="Solo se pueden reintentar jobs fallidos o cancelados",
+        )
 
     if not redis_available():
         raise HTTPException(status_code=503, detail="Redis no disponible")
@@ -262,8 +294,11 @@ async def retry_job(
         new_rq_job_id = retry_job_record(job)
     except RedisError as exc:
         raise HTTPException(status_code=503, detail="Redis error") from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"No se pudo reintentar el job: {exc}") from exc
+    except Exception:
+        logger.exception("No se pudo reintentar el job")
+        raise HTTPException(
+            status_code=500, detail="Error interno del servidor al reintentar el job."
+        )
 
     job.status = "queued"
     job.progress_percent = 0
@@ -274,4 +309,9 @@ async def retry_job(
     await _sync_related_state(db, job=job, target_status="queued")
     await db.commit()
 
-    return {"ok": True, "id": str(job.id), "status": job.status, "rq_job_id": new_rq_job_id}
+    return {
+        "ok": True,
+        "id": str(job.id),
+        "status": job.status,
+        "rq_job_id": new_rq_job_id,
+    }

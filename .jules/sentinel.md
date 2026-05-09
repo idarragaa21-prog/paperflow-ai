@@ -17,3 +17,7 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+## 2024-05-24 - Prevent Sensitive Info Leak in Error Responses
+**Vulnerability:** Raw Python exceptions (`e` / `exc`) were interpolated into `HTTPException` detail strings and returned to users on 500 errors.
+**Learning:** Exposing raw exceptions can leak internal paths, system configurations, and stack traces. The `logger.exception` mechanism in `loguru` captures the traceback without exposing it to the client.
+**Prevention:** Always log `Exception` objects internally using `logger.exception("Generic message")` and return a safe, generic message in the `HTTPException` detail string.
