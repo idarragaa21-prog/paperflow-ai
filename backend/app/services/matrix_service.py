@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.extraction import ExtractionFieldValue, ExtractionRecord
+from app.models.extraction import ExtractionRecord
 from app.models.matrix import MatrixProvenance, MatrixRow, MatrixValidationIssue, MatrixVersion
 from app.models.meta_extractor import ExtractedEffectSize, ExtractedRiskOfBias, ExtractedStudy
 from app.models.paper import Paper
