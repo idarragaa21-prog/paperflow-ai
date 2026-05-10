@@ -1,0 +1,6 @@
+## 2024-05-10 - Index-based input queries in Vitest
+**Learning:** Selecting inputs using `screen.getAllByDisplayValue('')` is extremely fragile and easily broken by unrelated changes (like adding a search bar or generic empty inputs to a page). In this case, `SettingsPage.test.tsx` failed because an empty input was added elsewhere, breaking the index-based array access `inputs[0]`.
+**Action:** When testing forms, reliably target inputs using `screen.getByLabelText` (if `<label>` tags exist), distinct DOM attributes (e.g., `document.querySelectorAll('input[type="password"]')`), or by querying nearby semantic text (e.g., the label text) and traversing `.nextElementSibling`.
+## 2024-05-10 - LLM Provider health checks missing monkeypatch
+**Learning:** `test_collect_runtime_health_marks_missing_ollama_models_as_degraded` was asserting `llm_runtime` is degraded because Ollama is missing models. However, the default `LLM_PROVIDER` in testing might be "openclaw", in which case the missing Ollama models do not degrade the `llm_runtime` overall status.
+**Action:** When testing runtime health checks for the LLM service, explicitly monkeypatch `settings.LLM_PROVIDER` (e.g., to "auto_local") to ensure the correct provider mode logic is evaluated.
