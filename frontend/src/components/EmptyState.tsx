@@ -3,7 +3,7 @@ type EmptyStateVariant = 'papers' | 'projects' | 'notes' | 'references' | 'searc
 import React from "react";
 const illustrations: Record<EmptyStateVariant, React.ReactElement> = {
   projects: (
-    <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
+    <svg width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true">
       <rect x="8" y="22" width="50" height="62" rx="6" fill="rgba(67,56,202,0.07)" stroke="rgba(67,56,202,0.2)" strokeWidth="1.5"/>
       <rect x="62" y="30" width="50" height="54" rx="6" fill="rgba(67,56,202,0.05)" stroke="rgba(67,56,202,0.15)" strokeWidth="1.5"/>
       <rect x="18" y="35" width="30" height="3" rx="1.5" fill="rgba(67,56,202,0.3)"/>
@@ -17,7 +17,7 @@ const illustrations: Record<EmptyStateVariant, React.ReactElement> = {
     </svg>
   ),
   papers: (
-    <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
+    <svg width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true">
       <rect x="20" y="10" width="80" height="80" rx="7" fill="rgba(67,56,202,0.06)" stroke="rgba(67,56,202,0.18)" strokeWidth="1.5" strokeDasharray="4 3"/>
       <rect x="34" y="28" width="52" height="4" rx="2" fill="rgba(67,56,202,0.25)"/>
       <rect x="34" y="38" width="42" height="3" rx="1.5" fill="rgba(67,56,202,0.15)"/>
@@ -28,7 +28,7 @@ const illustrations: Record<EmptyStateVariant, React.ReactElement> = {
     </svg>
   ),
   notes: (
-    <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
+    <svg width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true">
       <rect x="25" y="15" width="70" height="70" rx="7" fill="rgba(67,56,202,0.06)" stroke="rgba(67,56,202,0.18)" strokeWidth="1.5"/>
       <line x1="37" y1="35" x2="83" y2="35" stroke="rgba(67,56,202,0.2)" strokeWidth="2" strokeLinecap="round"/>
       <line x1="37" y1="45" x2="75" y2="45" stroke="rgba(67,56,202,0.15)" strokeWidth="2" strokeLinecap="round"/>
@@ -39,7 +39,7 @@ const illustrations: Record<EmptyStateVariant, React.ReactElement> = {
     </svg>
   ),
   references: (
-    <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
+    <svg width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true">
       <rect x="15" y="18" width="48" height="64" rx="5" fill="rgba(67,56,202,0.06)" stroke="rgba(67,56,202,0.18)" strokeWidth="1.5"/>
       <rect x="57" y="28" width="48" height="54" rx="5" fill="rgba(67,56,202,0.04)" stroke="rgba(67,56,202,0.13)" strokeWidth="1.5"/>
       <rect x="24" y="30" width="30" height="3" rx="1.5" fill="rgba(67,56,202,0.3)"/>
@@ -50,7 +50,7 @@ const illustrations: Record<EmptyStateVariant, React.ReactElement> = {
     </svg>
   ),
   search: (
-    <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
+    <svg width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true">
       <circle cx="52" cy="46" r="26" fill="rgba(67,56,202,0.06)" stroke="rgba(67,56,202,0.2)" strokeWidth="1.5"/>
       <circle cx="52" cy="46" r="16" fill="none" stroke="rgba(67,56,202,0.15)" strokeWidth="1.5" strokeDasharray="4 3"/>
       <line x1="71" y1="65" x2="88" y2="82" stroke="rgba(67,56,202,0.25)" strokeWidth="3" strokeLinecap="round"/>
@@ -58,7 +58,7 @@ const illustrations: Record<EmptyStateVariant, React.ReactElement> = {
     </svg>
   ),
   generic: (
-    <svg width="120" height="100" viewBox="0 0 120 100" fill="none">
+    <svg width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true">
       <rect x="20" y="20" width="80" height="60" rx="8" fill="rgba(67,56,202,0.06)" stroke="rgba(67,56,202,0.18)" strokeWidth="1.5" strokeDasharray="5 3"/>
       <circle cx="60" cy="50" r="16" fill="rgba(67,56,202,0.08)" stroke="rgba(67,56,202,0.2)" strokeWidth="1.5"/>
       <path d="M60 43v8M60 55v2" stroke="rgba(67,56,202,0.45)" strokeWidth="2" strokeLinecap="round"/>
