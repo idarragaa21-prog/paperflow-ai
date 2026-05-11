@@ -6,3 +6,7 @@
 ## 2024-05-24 - Pre-fetching identifiers to avoid N+1 queries
 **Learning:** Bulk imports with individual duplicate checks cause N+1 query bottlenecks.
 **Action:** Pre-fetch existing identifiers into memory using `in_` and check against sets to emulate database autoflush.
+
+## 2024-05-24 - Avoiding fragile form queries in Vitest
+**Learning:** Testing forms with fragile DOM queries like `screen.getAllByDisplayValue('')` breaks easily when new elements without a predefined value are added to the DOM structure.
+**Action:** Instead, rely on robust query selectors (`document.querySelectorAll('input[type="password"]')`) or semantic label targeting whenever forms are verified in Vitest.
