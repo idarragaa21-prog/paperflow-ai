@@ -22,3 +22,8 @@
 **Vulnerability:** FastAPIs `HTTPException` detail fields were returning the raw exception details (e.g. `str(e)`) to the client, exposing internal implementation details.
 **Learning:** Exception details must be sanitized before being exposed to clients to prevent leaking sensitive application structure and error stack contents.
 **Prevention:** Catch generic exceptions, log them with `logger.exception()` to preserve tracebacks internally, and return a hardcoded, generic error message to the client.
+
+## 2024-05-27 - Frontend settings password test fragility
+**Vulnerability:** Not a security vulnerability but a frontend test reliability issue.
+**Learning:** `screen.getAllByDisplayValue('')` returns multiple unlabelled or dynamically generated inputs (like textareas, empty name fields, etc), causing password test to fail due to brittle indexing when the DOM is expanded with unrelated new fields.
+**Prevention:** Rather than using `getAllByDisplayValue('')` and indexing, use attribute selectors like `document.querySelectorAll('input[type="password"]')` for specifically typing passwords in inputs lacking explicit label roles.
