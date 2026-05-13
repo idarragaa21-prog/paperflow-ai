@@ -74,6 +74,7 @@ async def test_collect_runtime_health_separates_required_and_optional(monkeypatc
 
 @pytest.mark.asyncio
 async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(monkeypatch):
+    monkeypatch.setattr(runtime_health.settings, "LLM_PROVIDER", "auto_local")
     class MissingModelAsyncClient(DummyAsyncClient):
         async def get(self, url: str):
             if url.endswith("/api/tags"):
