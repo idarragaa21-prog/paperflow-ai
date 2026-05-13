@@ -5,3 +5,6 @@
 ## 2024-05-13 - Avoid N+1 requests during embeddings
 **Learning:** Using `_embed_text` in a loop when indexing document chunks results in an N+1 HTTP request bottleneck, slowing down paper indexing significantly.
 **Action:** Always collect chunk texts and use the batched `_embed_texts` method to process multiple chunks in a single API call when generating embeddings.
+## 2024-05-13 - LLM Provider mode testing
+**Learning:** `test_collect_runtime_health_marks_missing_ollama_models_as_degraded` in `test_runtime_health.py` dynamically computes the health status depending on `LLM_PROVIDER`. The default test suite environment configures `LLM_PROVIDER` differently than local runs, leading to unexpected `AssertionError` where `degraded` was expected but `ok` was received because the test evaluated openclaw only.
+**Action:** When testing runtime health logic, explicitly mock `settings.LLM_PROVIDER` (e.g. to `auto_local`) alongside embedding models to ensure correct test conditions across different environments.
