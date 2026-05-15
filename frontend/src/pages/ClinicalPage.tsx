@@ -220,7 +220,7 @@ export default function ClinicalPage() {
         <section className="rc-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="rc-card-title" style={{ margin: 0 }}>Recent consults</div>
-            <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => consultsQuery.refetch()} disabled={consultsQuery.isFetching}>
+            <button className="rc-btn rc-btn--sm rc-btn--ghost" aria-label="Refresh" title="Refresh" onClick={() => consultsQuery.refetch()} disabled={consultsQuery.isFetching}>
               {consultsQuery.isFetching ? '…' : '↻'}
             </button>
           </div>
