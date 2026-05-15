@@ -1,6 +1,5 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PaperTableRow from '../components/PaperTableRow';
 import { api } from '../services/api';
@@ -22,28 +21,7 @@ type PaperTraceState = {
   trace?: PaperDownloadTrace | null;
 };
 
-const SOURCE_LABELS: Record<string, string> = {
-  unpaywall: 'Unpaywall',
-  europe_pmc: 'Europe PMC',
-  crossref: 'Crossref',
-  openalex: 'OpenAlex',
-  core: 'CORE',
-  semantic_scholar: 'Semantic Scholar',
-  pubmed_central: 'PMC (PubMed)',
-  doaj: 'DOAJ',
-  arxiv: 'arXiv',
-};
 
-function providerLabel(source?: string | null) {
-  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
-}
-
-function traceStatusLabel(status?: string | null) {
-  if (status === 'downloaded') return 'Descargado';
-  if (status === 'existing') return 'Ya existía';
-  if (status === 'unavailable') return 'No disponible';
-  return 'Fallido';
-}
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob);
@@ -63,19 +41,7 @@ function errorDetail(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
 
-function statusTag(status?: string) {
-  const s = (status || 'uploaded').toLowerCase();
-  if (s === 'ready' || s === 'parsed') return { cls: 'rc-badge rc-badge--success', label: 'Ready', style: { background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.25)', fontWeight: 800 } };
-  if (s === 'processing' || s === 'queued') return { cls: 'rc-badge rc-badge--info', label: 'Processing', style: { background: 'rgba(59,130,246,0.1)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.25)', fontWeight: 600 } };
-  if (s === 'failed') return { cls: 'rc-badge rc-badge--danger', label: 'Failed', style: { background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.25)', fontWeight: 600 } };
-  return { cls: 'rc-badge', label: 'Pending', style: { background: 'var(--rc-surface-2)', border: '1px solid var(--rc-border)', fontWeight: 600 } };
-}
 
 function matchesFilter(p: PaperRow, f: StatusFilter): boolean {
   if (f === 'all') return true;
@@ -475,90 +441,6 @@ export default function PapersPage() {
                   onDeleteWithConfirm={deleteWithConfirm}
                 />
               ))}
-              {filtered.slice(libPage * LIB_PAGE_SIZE, (libPage + 1) * LIB_PAGE_SIZE).map(p => {
-                const st = statusTag(p.processing_status);
-                const isReady = ['ready', 'parsed'].includes((p.processing_status || '').toLowerCase());
-                return (
-                  <Fragment key={p.id}>
-                    <tr style={{ borderBottom: '1px solid var(--rc-border)' }}>
-                      <td style={{ padding: '8px 6px' }}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} /></td>
-                      <td style={{ padding: '8px 6px' }}>
-                        <div title={p.title} style={{ fontWeight: 700, lineHeight: 1.3 }}>{truncate(p.title, 45)}</div>
-                        {p.authors && <div style={{ fontSize: 11, color: 'var(--rc-muted)', marginTop: 2 }}>{truncate(p.authors, 60)}</div>}
-                      </td>
-                      <td style={{ padding: '8px 6px', fontStyle: 'italic', fontSize: 12 }}>
-                        {[p.journal, p.publication_year].filter(Boolean).join(' · ') || '—'}
-                      </td>
-                      <td style={{ padding: '8px 6px' }}>
-                        <span className={st.cls} style={{ fontSize: 11, ...st.style }}>
-                          {st.label === 'Processing' && <span style={{ display: 'inline-block', width: 8, height: 8, border: '2px solid rgba(59,130,246,0.4)', borderTopColor: 'rgba(59,130,246,1)', borderRadius: '50%', animation: 'spin .8s linear infinite', marginRight: 4 }} />}
-                          {st.label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '8px 6px' }}>
-                        {p.source_provider ? <span className="rc-badge" style={{ fontSize: 11 }}>{providerLabel(p.source_provider)}</span> : <span className="rc-help">—</span>}
-                      </td>
-                      <td style={{ padding: '8px 6px' }}>
-                        <div className="rc-row" style={{ gap: 4, flexWrap: 'wrap' }}>
-                          {!isReady && <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => processMut.mutate(p.id)}>Process</button>}
-                          {isReady && (
-                            <>
-                              <Link className="rc-btn rc-btn--primary" style={{ padding: '4px 8px', fontSize: 11, textDecoration: 'none' }} to={`/projects/${projectId}/reader?paper_id=${p.id}`}>📖 Read</Link>
-                              <Link className="rc-btn rc-btn--primary" style={{ padding: '4px 8px', fontSize: 11, textDecoration: 'none' }} to={`/projects/${projectId}/meta?paper_id=${p.id}`}>⚡ Extract</Link>
-                              <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => {
-                                try {
-                                  const r = await api.post(`/references/sync-paper/${p.id}`);
-                                  if ((r.data as any)?.created > 0) {
-                                    toast.success('Sincronizado', 'Referencia creada en el proyecto.');
-                                  } else {
-                                    toast.info('Ya existe', 'Este paper ya está en Referencias.');
-                                  }
-                                } catch (e: any) {
-                                  toast.error('Error', e?.response?.data?.detail || 'No se pudo sincronizar a Referencias.');
-                                }
-                              }}>🔗 to References</button>
-                            </>
-                          )}
-                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => downloadFile(p)}>Download</button>
-                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => void toggleTrace(p)}>
-                            {traceState[p.id]?.expanded ? 'Hide trace' : 'Trace'}
-                          </button>
-                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => favoriteMut.mutate(p)} title={p.favorite ? 'Quitar favorito' : 'Favorito'}>
-                            {p.favorite ? '★' : '☆'}
-                          </button>
-                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => deleteWithConfirm(p)}>Del</button>
-                        </div>
-                      </td>
-                    </tr>
-                    {traceState[p.id]?.expanded ? (
-                      <tr style={{ background: 'var(--rc-surface-2)' }}>
-                        <td colSpan={6} style={{ padding: 12 }}>
-                          {traceState[p.id]?.loading ? (
-                            <div className="rc-help">Cargando traza…</div>
-                          ) : traceState[p.id]?.error ? (
-                            <div className="rc-error">{traceState[p.id]?.error}</div>
-                          ) : traceState[p.id]?.trace ? (
-                            <div style={{ display: 'grid', gap: 8 }}>
-                              <div className="rc-row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                                <span className="rc-badge">{traceStatusLabel(traceState[p.id]!.trace!.final_status)}</span>
-                                <span className="rc-badge">{providerLabel(traceState[p.id]!.trace!.source_provider)}</span>
-                                {traceState[p.id]!.trace!.used_fallback ? <span className="rc-badge">Usó fallback</span> : null}
-                              </div>
-                              <div className="rc-help">Auditado: {formatDate(traceState[p.id]!.trace!.audited_at)}</div>
-                              <div className="rc-help">OA URL: {traceState[p.id]!.trace!.oa_url ? <a href={traceState[p.id]!.trace!.oa_url!} target="_blank" rel="noopener noreferrer">{traceState[p.id]!.trace!.oa_url}</a> : '—'}</div>
-                              <div className="rc-help">Landing URL: {traceState[p.id]!.trace!.landing_url ? <a href={traceState[p.id]!.trace!.landing_url!} target="_blank" rel="noopener noreferrer">{traceState[p.id]!.trace!.landing_url}</a> : '—'}</div>
-                              <div className="rc-help">Resolved URL: {traceState[p.id]!.trace!.resolved_url ? <a href={traceState[p.id]!.trace!.resolved_url!} target="_blank" rel="noopener noreferrer">{traceState[p.id]!.trace!.resolved_url}</a> : '—'}</div>
-                              <div className="rc-help">Resultado: {traceState[p.id]!.trace!.failure_reason || traceStatusLabel(traceState[p.id]!.trace!.final_status)}</div>
-                            </div>
-                          ) : (
-                            <div className="rc-help">Este paper no tiene una auditoría de descarga OA registrada.</div>
-                          )}
-                        </td>
-                      </tr>
-                    ) : null}
-                  </Fragment>
-                );
-              })}
             </tbody>
           </table>
           {totalPages > 1 && (
