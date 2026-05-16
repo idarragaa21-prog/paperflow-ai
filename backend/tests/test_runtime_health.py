@@ -68,29 +68,16 @@ async def test_collect_runtime_health_separates_required_and_optional(monkeypatc
     assert health["required_services"]["ollama"]["status"] == "ok"
     assert health["required_services"]["openclaw"]["status"] == "ok"
     assert health["required_services"]["llm_runtime"]["active_provider"] == "openclaw"
-    assert (
-        health["required_services"]["ollama"]["configured_models"]["embedding"][
-            "available"
-        ]
-        is True
-    )
+    assert health["required_services"]["ollama"]["configured_models"]["embedding"]["available"] is True
     assert "prometheus" in health["optional_services"]
 
 
 @pytest.mark.asyncio
-async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(
-    monkeypatch,
-):
+async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(monkeypatch):
     class MissingModelAsyncClient(DummyAsyncClient):
         async def get(self, url: str):
             if url.endswith("/api/tags"):
-                return DummyResponse(
-                    json_payload={
-                        "models": [
-                            {"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL}
-                        ]
-                    }
-                )
+                return DummyResponse(json_payload={"models": [{"name": runtime_health.settings.PAPERFLOW_CHAT_MODEL}]})
             if url.endswith("/-/ready") or url.endswith("/api/health"):
                 return DummyResponse(text="ok")
             return await super().get(url)
@@ -100,17 +87,11 @@ async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(
     monkeypatch.setattr(runtime_health.httpx, "AsyncClient", MissingModelAsyncClient)
     monkeypatch.setattr("qdrant_client.QdrantClient", DummyQdrantClient)
     monkeypatch.setattr(runtime_health.settings, "PAPERFLOW_EMBEDDING_MODEL", "bge-m3")
-    monkeypatch.setattr(runtime_health.settings, "LLM_PROVIDER", "auto_local")
 
     health = await runtime_health.collect_runtime_health()
 
     assert health["overall_status"] == "degraded"
     assert health["required_services"]["ollama"]["status"] == "degraded"
     assert health["required_services"]["llm_runtime"]["status"] == "degraded"
-    assert (
-        health["required_services"]["ollama"]["configured_models"]["embedding"][
-            "available"
-        ]
-        is False
-    )
+    assert health["required_services"]["ollama"]["configured_models"]["embedding"]["available"] is False
     assert "bge-m3" in health["required_services"]["ollama"]["detail"]
