@@ -138,19 +138,8 @@ class TestVNextCoreFlow:
             async def post(self, url, json=None, **kwargs):
                 return DummyResponse(
                     {
-                        "status": "completed",
                         "summary": {"rows_total": 2},
-                        "artifacts": [
-                            {
-                                "id": str(uuid.uuid4()),
-                                "artifact_type": "effect_table_csv",
-                            },
-                            {"id": str(uuid.uuid4()), "artifact_type": "script_r"},
-                            {"id": str(uuid.uuid4()), "artifact_type": "session_info"},
-                            {"id": str(uuid.uuid4()), "artifact_type": "summary_1"},
-                            {"id": str(uuid.uuid4()), "artifact_type": "figure_1"},
-                            {"id": str(uuid.uuid4()), "artifact_type": "rob_1"},
-                        ],
+                        "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}},
                     }
                 )
 
