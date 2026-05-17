@@ -195,7 +195,7 @@ class TestVNextCoreFlow:
         import httpx
         original_post = httpx.AsyncClient.post
         async def fake_post(self, url, **kwargs):
-            if "r_engine" in str(url) or "REngine" in str(url) or "8005" in str(url) or "meta/run" in str(url):
+            if "r_engine" in str(url) or "REngine" in str(url) or "8005" in str(url) or "run-analysis" in str(url):
                 return DummyResponse({"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}})
             return await original_post(self, url, **kwargs)
 
@@ -217,7 +217,7 @@ class TestVNextCoreFlow:
         assert "script_r" in artifact_types
         assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
         assert any("summary" in item for item in artifact_types)
-        assert any(item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
+        assert any(item.startswith("figure_") or item.startswith("forest_") for item in artifact_types)
 
         first_artifact_id = run_data["artifacts"][0]["id"]
         artifact_resp = await authed_client.get(f"/artifacts/{first_artifact_id}/download")
