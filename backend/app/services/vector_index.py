@@ -40,11 +40,18 @@ def _lexical_score(*, query_terms: set[str], text: str) -> float:
     overlap = sum(lowered.count(term) for term in query_terms)
     if overlap <= 0:
         return 0.0
-    phrase_bonus = 0.25 if " ".join(sorted(query_terms)).strip() and " ".join(sorted(query_terms)) in lowered else 0.0
+    phrase_bonus = (
+        0.25
+        if " ".join(sorted(query_terms)).strip()
+        and " ".join(sorted(query_terms)) in lowered
+        else 0.0
+    )
     return float(overlap) + phrase_bonus
 
 
-def _reciprocal_rank_fusion(rankings: list[list[dict[str, Any]]], *, k: int = 60) -> dict[str, dict[str, Any]]:
+def _reciprocal_rank_fusion(
+    rankings: list[list[dict[str, Any]]], *, k: int = 60
+) -> dict[str, dict[str, Any]]:
     fused: dict[str, dict[str, Any]] = {}
     for ranking in rankings:
         for rank, item in enumerate(ranking, start=1):
@@ -53,17 +60,26 @@ def _reciprocal_rank_fusion(rankings: list[list[dict[str, Any]]], *, k: int = 60
                 key,
                 {
                     **item,
-                    "retrieval_trace": {"dense_rank": None, "lexical_rank": None, "dense_score": 0.0, "lexical_score": 0.0},
+                    "retrieval_trace": {
+                        "dense_rank": None,
+                        "lexical_rank": None,
+                        "dense_score": 0.0,
+                        "lexical_score": 0.0,
+                    },
                     "fused_score": 0.0,
                 },
             )
             current["fused_score"] += 1.0 / (k + rank)
             if item.get("retrieval_source") == "dense":
                 current["retrieval_trace"]["dense_rank"] = rank
-                current["retrieval_trace"]["dense_score"] = float(item.get("score") or 0.0)
+                current["retrieval_trace"]["dense_score"] = float(
+                    item.get("score") or 0.0
+                )
             if item.get("retrieval_source") == "lexical":
                 current["retrieval_trace"]["lexical_rank"] = rank
-                current["retrieval_trace"]["lexical_score"] = float(item.get("score") or 0.0)
+                current["retrieval_trace"]["lexical_score"] = float(
+                    item.get("score") or 0.0
+                )
     return fused
 
 
@@ -112,7 +128,10 @@ class VectorIndex:
                 return [float(value) for value in vector]
         except Exception as exc:
             logger.debug(f"Ollama /api/embed unavailable: {exc}")
-        for model in [settings.PAPERFLOW_EMBEDDING_MODEL, settings.PAPERFLOW_CHAT_MODEL]:
+        for model in [
+            settings.PAPERFLOW_EMBEDDING_MODEL,
+            settings.PAPERFLOW_CHAT_MODEL,
+        ]:
             try:
                 response = httpx.post(
                     f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/embeddings",
@@ -137,7 +156,7 @@ class VectorIndex:
         try:
             response = httpx.post(
                 f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/embed",
-                json={"model": settings.PAPERFLOW_CHAT_MODEL, "input": texts},
+                json={"model": settings.PAPERFLOW_EMBEDDING_MODEL, "input": texts},
                 timeout=10.0,
             )
             response.raise_for_status()
@@ -147,7 +166,9 @@ class VectorIndex:
                 self._embed_dim = len(embeddings[0])
                 return [[float(value) for value in vector] for vector in embeddings]
         except Exception as exc:
-            logger.debug(f"Ollama batch embeddings unavailable, using per-text fallback: {exc}")
+            logger.debug(
+                f"Ollama batch embeddings unavailable, using per-text fallback: {exc}"
+            )
         return [self._embed_text(text) for text in texts]
 
     def _ensure_collection(self) -> None:
@@ -161,17 +182,25 @@ class VectorIndex:
             if self.collection_name not in existing:
                 client.create_collection(
                     collection_name=self.collection_name,
-                    vectors_config=qm.VectorParams(size=dims, distance=qm.Distance.COSINE),
+                    vectors_config=qm.VectorParams(
+                        size=dims, distance=qm.Distance.COSINE
+                    ),
                 )
                 return
             collection = client.get_collection(self.collection_name)
-            existing_size = getattr(getattr(getattr(collection, "config", None), "params", None), "vectors", None)
+            existing_size = getattr(
+                getattr(getattr(collection, "config", None), "params", None),
+                "vectors",
+                None,
+            )
             size = getattr(existing_size, "size", None)
             if isinstance(size, int) and size != dims:
                 client.delete_collection(self.collection_name)
                 client.create_collection(
                     collection_name=self.collection_name,
-                    vectors_config=qm.VectorParams(size=dims, distance=qm.Distance.COSINE),
+                    vectors_config=qm.VectorParams(
+                        size=dims, distance=qm.Distance.COSINE
+                    ),
                 )
         except Exception as exc:
             logger.warning(f"Failed to ensure Qdrant collection: {exc}")
@@ -184,15 +213,23 @@ class VectorIndex:
         paper = await db.get(Paper, paper_id)
         if not paper:
             return
-        chunks_q = await db.execute(select(PaperChunk).where(PaperChunk.paper_id == paper_id).order_by(PaperChunk.page_number, PaperChunk.chunk_index))
+        chunks_q = await db.execute(
+            select(PaperChunk)
+            .where(PaperChunk.paper_id == paper_id)
+            .order_by(PaperChunk.page_number, PaperChunk.chunk_index)
+        )
         chunks = chunks_q.scalars().all()
         if not chunks:
             return
 
         _QdrantClient, qm = self._qdrant_modules()
         points: list[qm.PointStruct] = []
-        for chunk in chunks:
-            vector = self._embed_text(chunk.text)
+
+        # ⚡ Bolt: Fix N+1 embedding bottleneck by replacing sequential API calls
+        # with a single batch request, reducing latency from O(n) to O(1) requests
+        vectors = self._embed_texts([chunk.text for chunk in chunks])
+
+        for chunk, vector in zip(chunks, vectors):
             points.append(
                 qm.PointStruct(
                     id=str(chunk.id),
@@ -210,7 +247,9 @@ class VectorIndex:
             )
         self._ensure_collection()
         try:
-            client.upsert(collection_name=self.collection_name, points=points, wait=False)
+            client.upsert(
+                collection_name=self.collection_name, points=points, wait=False
+            )
         except Exception as exc:
             logger.warning(f"Failed to upsert chunk vectors: {exc}")
 
@@ -225,11 +264,21 @@ class VectorIndex:
         client = self._client_or_none()
         if client is None:
             return []
+
+        _QdrantClient, qm = self._qdrant_modules()
         self._ensure_collection()
         try:
-            filters = [qm.FieldCondition(key="project_id", match=qm.MatchValue(value=str(project_id)))]
+            filters = [
+                qm.FieldCondition(
+                    key="project_id", match=qm.MatchValue(value=str(project_id))
+                )
+            ]
             if paper_id is not None:
-                filters.append(qm.FieldCondition(key="paper_id", match=qm.MatchValue(value=str(paper_id))))
+                filters.append(
+                    qm.FieldCondition(
+                        key="paper_id", match=qm.MatchValue(value=str(paper_id))
+                    )
+                )
             hits = client.search(
                 collection_name=self.collection_name,
                 query_vector=self._embed_text(query),
@@ -249,7 +298,9 @@ class VectorIndex:
                 for hit in hits
             ]
         except Exception as exc:
-            logger.warning(f"Qdrant search failed, falling back to lexical-only retrieval: {exc}")
+            logger.warning(
+                f"Qdrant search failed, falling back to lexical-only retrieval: {exc}"
+            )
             return []
 
     async def _lexical_retrieve(
@@ -265,7 +316,11 @@ class VectorIndex:
         if not query_terms:
             return []
 
-        stmt = select(PaperChunk, Paper.project_id).join(Paper, Paper.id == PaperChunk.paper_id).where(Paper.project_id == project_id)
+        stmt = (
+            select(PaperChunk, Paper.project_id)
+            .join(Paper, Paper.id == PaperChunk.paper_id)
+            .where(Paper.project_id == project_id)
+        )
         if paper_id is not None:
             stmt = stmt.where(PaperChunk.paper_id == paper_id)
         rows = await db.execute(stmt)
@@ -297,17 +352,30 @@ class VectorIndex:
         paper_id: UUID | None = None,
         limit: int = 5,
     ) -> list[dict[str, Any]]:
-        dense = await self._dense_retrieve(query=query, project_id=project_id, paper_id=paper_id, limit=limit * 3)
-        lexical = await self._lexical_retrieve(db, query=query, project_id=project_id, paper_id=paper_id, limit=limit * 3)
+        dense = await self._dense_retrieve(
+            query=query, project_id=project_id, paper_id=paper_id, limit=limit * 3
+        )
+        lexical = await self._lexical_retrieve(
+            db, query=query, project_id=project_id, paper_id=paper_id, limit=limit * 3
+        )
 
         fused = list(_reciprocal_rank_fusion([dense, lexical]).values())
         query_terms = set(_tokenize(query))
         for item in fused:
-            rerank = _lexical_score(query_terms=query_terms, text=str(item.get("quoted_text") or ""))
+            rerank = _lexical_score(
+                query_terms=query_terms, text=str(item.get("quoted_text") or "")
+            )
             item["rerank_score"] = rerank
             item["final_score"] = item["fused_score"] + (0.2 * rerank)
 
-        fused.sort(key=lambda item: (item["final_score"], item["retrieval_trace"]["dense_score"], item["retrieval_trace"]["lexical_score"]), reverse=True)
+        fused.sort(
+            key=lambda item: (
+                item["final_score"],
+                item["retrieval_trace"]["dense_score"],
+                item["retrieval_trace"]["lexical_score"],
+            ),
+            reverse=True,
+        )
         results = fused[:limit]
         for rank, item in enumerate(results, start=1):
             item["rank"] = rank
