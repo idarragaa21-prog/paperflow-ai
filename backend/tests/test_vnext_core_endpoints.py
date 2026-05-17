@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncGenerator
+from unittest import mock
 
 import pytest
 import pytest_asyncio
@@ -176,24 +177,47 @@ class TestVNextCoreFlow:
         dataset_data = derive_resp.json()
         assert dataset_data["row_count"] >= 1
 
-        run_resp = await authed_client.post(
-            "/meta/runs",
-            json={
-                "project_id": str(project.id),
-                "derived_dataset_id": dataset_data["id"],
-                "preset": "meta_binary_random",
-                "title": "binary run",
-            },
-        )
-        assert run_resp.status_code == 200
-        run_data = run_resp.json()
-        assert run_data["status"] == "completed"
+        # Mock R Engine response for meta runs
+        class DummyResponse:
+            def __init__(self, payload, status_code=200):
+                self._payload = payload
+                self.status_code = status_code
+                self.text = "dummy text"
+            def json(self):
+                return self._payload
+            def raise_for_status(self):
+                if self.status_code >= 400:
+                    import httpx
+                    request = httpx.Request("POST", "http://test.invalid")
+                    response = httpx.Response(self.status_code, request=request)
+                    raise httpx.HTTPStatusError("error", request=request, response=response)
+
+        import httpx
+        original_post = httpx.AsyncClient.post
+        async def fake_post(self, url, **kwargs):
+            if "r_engine" in str(url) or "REngine" in str(url) or "8005" in str(url) or "run-analysis" in str(url):
+                return DummyResponse({"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}})
+            return await original_post(self, url, **kwargs)
+
+        with mock.patch("httpx.AsyncClient.post", fake_post):
+            run_resp = await authed_client.post(
+                "/meta/runs",
+                json={
+                    "project_id": str(project.id),
+                    "derived_dataset_id": dataset_data["id"],
+                    "preset": "meta_binary_random",
+                    "title": "binary run",
+                },
+            )
+            assert run_resp.status_code == 200
+            run_data = run_resp.json()
+            assert run_data["status"] == "completed"
         artifact_types = {item["artifact_type"] for item in run_data["artifacts"]}
         assert "effect_table_csv" in artifact_types
         assert "script_r" in artifact_types
         assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
         assert any("summary" in item for item in artifact_types)
-        assert any(item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
+        assert any(item.startswith("figure_") or item.startswith("forest_") for item in artifact_types)
 
         first_artifact_id = run_data["artifacts"][0]["id"]
         artifact_resp = await authed_client.get(f"/artifacts/{first_artifact_id}/download")
