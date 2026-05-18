@@ -20,8 +20,15 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
+def dummy_verify() -> None:
+    """Run a dummy hash validation that consumes roughly the same time as a real one."""
+    pwd_context.dummy_verify()
+
+
 def create_access_token(user_id: UUID, *, session_id: UUID | None = None) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     payload = {"sub": str(user_id), "exp": expire, "type": "access"}
     if session_id:
         payload["sid"] = str(session_id)
@@ -35,7 +42,9 @@ def create_refresh_token(
     token_family: str | None = None,
     refresh_jti: str | None = None,
 ) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
     payload = {"sub": str(user_id), "exp": expire, "type": "refresh"}
     if session_id:
         payload["sid"] = str(session_id)
@@ -48,7 +57,9 @@ def create_refresh_token(
 
 def decode_token_payload(token: str, token_type: str) -> dict | None:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         if payload.get("type") != token_type:
             return None
         return payload
