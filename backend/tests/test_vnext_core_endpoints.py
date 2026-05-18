@@ -176,15 +176,38 @@ class TestVNextCoreFlow:
         dataset_data = derive_resp.json()
         assert dataset_data["row_count"] >= 1
 
-        run_resp = await authed_client.post(
-            "/meta/runs",
-            json={
-                "project_id": str(project.id),
-                "derived_dataset_id": dataset_data["id"],
-                "preset": "meta_binary_random",
-                "title": "binary run",
-            },
-        )
+        class DummyResponse:
+            def __init__(self, payload: dict, status_code: int = 200):
+                self._payload = payload
+                self.status_code = status_code
+            def raise_for_status(self) -> None:
+                pass
+            def json(self) -> dict:
+                return self._payload
+
+        import httpx
+        original_post = httpx.AsyncClient.post
+
+        async def fake_post(self, url, *args, **kwargs):
+            if "run-analysis" in str(url):
+                return DummyResponse({
+                    "summary": {"rows_total": 2},
+                    "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}
+                })
+            return await original_post(self, url, *args, **kwargs)
+
+        with pytest.MonkeyPatch.context() as m:
+            m.setattr(httpx.AsyncClient, "post", fake_post)
+            run_resp = await authed_client.post(
+                "/meta/runs",
+                json={
+                    "project_id": str(project.id),
+                    "derived_dataset_id": dataset_data["id"],
+                    "preset": "meta_binary_random",
+                    "title": "binary run",
+                },
+            )
+
         assert run_resp.status_code == 200
         run_data = run_resp.json()
         assert run_data["status"] == "completed"
@@ -193,7 +216,7 @@ class TestVNextCoreFlow:
         assert "script_r" in artifact_types
         assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
         assert any("summary" in item for item in artifact_types)
-        assert any(item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
+        assert any(item.startswith("forest_") for item in artifact_types)
 
         first_artifact_id = run_data["artifacts"][0]["id"]
         artifact_resp = await authed_client.get(f"/artifacts/{first_artifact_id}/download")
