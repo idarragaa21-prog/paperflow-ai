@@ -4,6 +4,7 @@ Reads a `WritingDocument` (with sections and claim_links eager-loaded) and emits
 binary content suitable for download, plus a final auto-generated bibliography
 in the requested citation style (apa | vancouver | ama).
 """
+
 from __future__ import annotations
 
 import io
@@ -11,7 +12,7 @@ import re
 from typing import Any, Iterable
 
 from app.models.reference_item import ReferenceItem
-from app.models.writing import WritingClaimLink, WritingDocument
+from app.models.writing import WritingDocument
 
 
 CITATION_STYLES = {"apa", "vancouver", "ama"}
@@ -20,6 +21,7 @@ CITATION_STYLES = {"apa", "vancouver", "ama"}
 # --------------------------------------------------------------------------- #
 # Bibliography formatting
 # --------------------------------------------------------------------------- #
+
 
 def _format_authors_apa(authors: list[str] | None) -> str:
     if not authors:
@@ -104,6 +106,7 @@ def build_bibliography_section(
 # Markdown
 # --------------------------------------------------------------------------- #
 
+
 def build_markdown(
     document: WritingDocument,
     *,
@@ -147,20 +150,20 @@ _NUM_LIST_RE = re.compile(r"^\d+\.\s+(.*)$")
 _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*([^*\n]+)\*(?!\*)")
 _CITATION_RE = re.compile(r"(\[[A-Z]\d+\])")
+_INLINE_TOKEN_RE = re.compile(
+    r"(\*\*(?P<bold>.+?)\*\*)"
+    r"|(?<!\*)\*(?P<italic>[^*\n]+)\*(?!\*)"
+    r"|(?P<cite>\[[A-Z]\d+\])"
+)
 
 
 def _add_inline_runs(paragraph, text: str) -> None:
     """Add runs to a docx paragraph honoring **bold**, *italic* and [A1] citations."""
     # Tokenize into bold / italic / citation / plain spans.
     cursor = 0
-    pattern = re.compile(
-        r"(\*\*(?P<bold>.+?)\*\*)"
-        r"|(?<!\*)\*(?P<italic>[^*\n]+)\*(?!\*)"
-        r"|(?P<cite>\[[A-Z]\d+\])"
-    )
-    for match in pattern.finditer(text):
+    for match in _INLINE_TOKEN_RE.finditer(text):
         if match.start() > cursor:
-            paragraph.add_run(text[cursor:match.start()])
+            paragraph.add_run(text[cursor : match.start()])
         if match.group("bold"):
             run = paragraph.add_run(match.group("bold"))
             run.bold = True
@@ -216,7 +219,10 @@ def build_docx(
                 hashes, heading_text = heading_match.groups()
                 level = min(len(hashes) + 1, 4)  # leave 0/1 for title and section
                 # Avoid duplicating the section heading if the LLM already included it.
-                if heading_text.strip().lower() == section.heading.strip().lower() and level <= 2:
+                if (
+                    heading_text.strip().lower() == section.heading.strip().lower()
+                    and level <= 2
+                ):
                     continue
                 doc.add_heading(heading_text.strip(), level=level)
                 continue
@@ -251,6 +257,7 @@ def build_docx(
 # --------------------------------------------------------------------------- #
 # PDF (reportlab)
 # --------------------------------------------------------------------------- #
+
 
 def build_pdf(
     document: WritingDocument,
@@ -326,7 +333,7 @@ def build_pdf(
         out = text
         out = _BOLD_RE.sub(r"<b>\1</b>", out)
         out = _ITALIC_RE.sub(r"<i>\1</i>", out)
-        out = _CITATION_RE.sub(r'<super>\1</super>', out)
+        out = _CITATION_RE.sub(r"<super>\1</super>", out)
         return out
 
     story: list[Any] = []
@@ -358,7 +365,12 @@ def build_pdf(
             if bullet_buffer:
                 story.append(
                     ListFlowable(
-                        [ListItem(Paragraph(md_inline_to_html(item), styles["PFBody"])) for item in bullet_buffer],
+                        [
+                            ListItem(
+                                Paragraph(md_inline_to_html(item), styles["PFBody"])
+                            )
+                            for item in bullet_buffer
+                        ],
                         bulletType="bullet",
                         leftIndent=14,
                     )
@@ -369,7 +381,12 @@ def build_pdf(
             if number_buffer:
                 story.append(
                     ListFlowable(
-                        [ListItem(Paragraph(md_inline_to_html(item), styles["PFBody"])) for item in number_buffer],
+                        [
+                            ListItem(
+                                Paragraph(md_inline_to_html(item), styles["PFBody"])
+                            )
+                            for item in number_buffer
+                        ],
                         bulletType="1",
                         leftIndent=14,
                     )
@@ -389,9 +406,16 @@ def build_pdf(
                 flush_bullets()
                 flush_numbers()
                 hashes, heading_text = heading_match.groups()
-                if heading_text.strip().lower() == section.heading.strip().lower() and len(hashes) <= 2:
+                if (
+                    heading_text.strip().lower() == section.heading.strip().lower()
+                    and len(hashes) <= 2
+                ):
                     continue
-                story.append(Paragraph(md_inline_to_html(heading_text.strip()), styles["PFSubHeading"]))
+                story.append(
+                    Paragraph(
+                        md_inline_to_html(heading_text.strip()), styles["PFSubHeading"]
+                    )
+                )
                 continue
 
             list_match = _LIST_RE.match(line)
@@ -419,7 +443,14 @@ def build_pdf(
         story.append(
             ListFlowable(
                 [
-                    ListItem(Paragraph(md_inline_to_html(format_reference(ref, style=citation_style)), styles["PFBody"]))
+                    ListItem(
+                        Paragraph(
+                            md_inline_to_html(
+                                format_reference(ref, style=citation_style)
+                            ),
+                            styles["PFBody"],
+                        )
+                    )
                     for ref in refs
                 ],
                 bulletType="1",
