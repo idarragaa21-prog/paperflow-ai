@@ -1,0 +1,3 @@
+## 2024-05-17 - Add tooltips to disabled interactive elements
+**Learning:** Some elements like checkboxes or utility action buttons in repetitive structures (like a search result list) that dynamically toggle disabled states are difficult for screen reader and keyboard users to understand if context isn't explicitly provided. Relying solely on visual cues or surrounding text isn't sufficient.
+**Action:** Always verify dynamically disabled elements (`disabled={someCondition}`) also have a fallback ARIA label, description, or `title` tooltip explaining *why* they are disabled, especially in repeating components where context isn't globally available.
