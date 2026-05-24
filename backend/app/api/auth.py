@@ -15,6 +15,7 @@ from app.core.security import (
     decode_token_payload,
     generate_csrf_token,
     hash_password,
+    pwd_context,
     verify_password,
 )
 from app.models.audit_log import AuditLog
@@ -102,7 +103,11 @@ async def login(
             headers={"Retry-After": str(exc.retry_after_seconds)},
         ) from exc
 
-    if not user or not verify_password(credentials.password, user.password_hash):
+    if not user:
+        pwd_context.dummy_verify()
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
+    if not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
     
     if not user.is_active:
@@ -415,6 +420,7 @@ async def forgot_password(
 
     # Always return success to prevent email enumeration
     if not user:
+        pwd_context.dummy_verify()
         return {"ok": True}
 
     code = "".join([str(secrets.randbelow(10)) for _ in range(6)])
