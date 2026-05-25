@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -14,6 +13,10 @@ from app.models.note import Note
 from app.models.paper import Paper
 from app.services.llm.factory import llm_provider
 from app.services.pdf_processor import process_paper
+
+
+_H2_RE = re.compile(r"^##\s+(.+?)\s*$")
+_BOLD_RE = re.compile(r"^\*\*(.+?)\*\*\s*$")
 
 
 def parse_summary_markdown(text: str) -> dict[str, str]:
@@ -37,16 +40,13 @@ def parse_summary_markdown(text: str) -> dict[str, str]:
     current = "Resumen"
     sections[current] = []
 
-    h2 = re.compile(r"^##\s+(.+?)\s*$")
-    bold = re.compile(r"^\*\*(.+?)\*\*\s*$")
-
     for ln in lines:
-        m = h2.match(ln)
+        m = _H2_RE.match(ln)
         if m:
             current = m.group(1).strip()
             sections.setdefault(current, [])
             continue
-        m = bold.match(ln.strip())
+        m = _BOLD_RE.match(ln.strip())
         if m:
             current = m.group(1).strip()
             sections.setdefault(current, [])
@@ -92,7 +92,15 @@ async def generate_summary_async(
             "- Si es escaneado, habilita OCR (OCR_ENABLED=true) e intenta de nuevo.\n"
             "- O sube una versión con texto seleccionable.\n"
         )
-        r = {"model": None, "usage": {"input_tokens": 0, "output_tokens": 0, "cost_usd": None, "latency_ms": 0}}
+        r = {
+            "model": None,
+            "usage": {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost_usd": None,
+                "latency_ms": 0,
+            },
+        }
     else:
         llm = llm_provider()
 
@@ -141,7 +149,9 @@ async def generate_summary_async(
     }
 
 
-def generate_summary_task(paper_id: str, custom_instructions: str | None = None) -> dict[str, Any]:
+def generate_summary_task(
+    paper_id: str, custom_instructions: str | None = None
+) -> dict[str, Any]:
     """SYNC wrapper for RQ (uses asyncio.run)."""
 
     async def _run() -> dict[str, Any]:
