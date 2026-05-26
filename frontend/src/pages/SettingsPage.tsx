@@ -347,35 +347,35 @@ export default function SettingsPage() {
           <div className="rc-card">
             <div className="rc-card-title">Profile</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div className="rc-kicker">Email</div>
+              <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>Email</span>
                 <input className="rc-input" value={user?.email || ''} readOnly style={{ opacity: 0.6 }} />
-              </div>
-              <div>
-                <div className="rc-kicker">Full name</div>
+              </label>
+              <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>Full name</span>
                 <input className="rc-input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
-              </div>
+              </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                <div>
-                  <div className="rc-kicker">Affiliation</div>
+                <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>Affiliation</span>
                   <input
                     className="rc-input"
                     value={affiliation}
                     onChange={(e) => setAffiliation(e.target.value)}
                     placeholder="Hospital, university, department…"
                   />
-                </div>
-                <div>
-                  <div className="rc-kicker">ORCID</div>
+                </label>
+                <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>ORCID</span>
                   <input
                     className="rc-input"
                     value={orcid}
                     onChange={(e) => setOrcid(e.target.value)}
                     placeholder="0000-0000-0000-0000"
                   />
-                </div>
-                <div>
-                  <div className="rc-kicker">Default language</div>
+                </label>
+                <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>Default language</span>
                   <select
                     className="rc-select"
                     value={defaultLanguage}
@@ -385,10 +385,10 @@ export default function SettingsPage() {
                     <option value="en">{localeNames?.en || 'English'}</option>
                     <option value="pt">{localeNames?.pt || 'Português'}</option>
                   </select>
-                </div>
+                </label>
               </div>
-              <div>
-                <div className="rc-kicker">Signature (markdown)</div>
+              <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>Signature (markdown)</span>
                 <textarea
                   className="rc-input"
                   value={signatureMd}
@@ -397,7 +397,7 @@ export default function SettingsPage() {
                   style={{ minHeight: 90, fontFamily: 'inherit', resize: 'vertical' }}
                 />
                 <div className="rc-help">Used to sign cover letters and letters to editor when exporting.</div>
-              </div>
+              </label>
               <button className="rc-btn rc-btn--primary" onClick={saveProfile} disabled={savingProfile} style={{ alignSelf: 'flex-start' }}>
                 {savingProfile ? 'Saving…' : 'Save changes'}
               </button>
@@ -407,18 +407,18 @@ export default function SettingsPage() {
           <div className="rc-card">
             <div className="rc-card-title">Change password</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div className="rc-kicker">Current password</div>
+              <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>Current password</span>
                 <input className="rc-input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
-              </div>
-              <div>
-                <div className="rc-kicker">New password (min 8 chars)</div>
+              </label>
+              <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>New password (min 8 chars)</span>
                 <input className="rc-input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
-              </div>
-              <div>
-                <div className="rc-kicker">Confirm new password</div>
+              </label>
+              <label style={{ display: 'block' }}>
+                <span className="rc-kicker" style={{ display: 'block' }}>Confirm new password</span>
                 <input className="rc-input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
-              </div>
+              </label>
               <button className="rc-btn rc-btn--primary" onClick={changePassword} disabled={savingPw || !currentPw || !newPw} style={{ alignSelf: 'flex-start' }}>
                 {savingPw ? 'Updating…' : 'Update password'}
               </button>
