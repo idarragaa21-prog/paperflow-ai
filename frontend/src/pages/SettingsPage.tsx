@@ -348,16 +348,16 @@ export default function SettingsPage() {
             <div className="rc-card-title">Profile</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <label style={{ display: 'block' }}>
-                <div className="rc-kicker">Email</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>Email</span>
                 <input className="rc-input" value={user?.email || ''} readOnly style={{ opacity: 0.6 }} />
               </label>
               <label style={{ display: 'block' }}>
-                <div className="rc-kicker">Full name</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>Full name</span>
                 <input className="rc-input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" />
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
                 <label style={{ display: 'block' }}>
-                  <div className="rc-kicker">Affiliation</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>Affiliation</span>
                   <input
                     className="rc-input"
                     value={affiliation}
@@ -366,7 +366,7 @@ export default function SettingsPage() {
                   />
                 </label>
                 <label style={{ display: 'block' }}>
-                  <div className="rc-kicker">ORCID</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>ORCID</span>
                   <input
                     className="rc-input"
                     value={orcid}
@@ -375,7 +375,7 @@ export default function SettingsPage() {
                   />
                 </label>
                 <label style={{ display: 'block' }}>
-                  <div className="rc-kicker">Default language</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>Default language</span>
                   <select
                     className="rc-select"
                     value={defaultLanguage}
@@ -388,7 +388,7 @@ export default function SettingsPage() {
                 </label>
               </div>
               <label style={{ display: 'block' }}>
-                <div className="rc-kicker">Signature (markdown)</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>Signature (markdown)</span>
                 <textarea
                   className="rc-input"
                   value={signatureMd}
@@ -408,15 +408,15 @@ export default function SettingsPage() {
             <div className="rc-card-title">Change password</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <label style={{ display: 'block' }}>
-                <div className="rc-kicker">Current password</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>Current password</span>
                 <input className="rc-input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
               </label>
               <label style={{ display: 'block' }}>
-                <div className="rc-kicker">New password (min 8 chars)</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>New password (min 8 chars)</span>
                 <input className="rc-input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
               </label>
               <label style={{ display: 'block' }}>
-                <div className="rc-kicker">Confirm new password</div>
+                <span className="rc-kicker" style={{ display: 'block' }}>Confirm new password</span>
                 <input className="rc-input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
               </label>
               <button className="rc-btn rc-btn--primary" onClick={changePassword} disabled={savingPw || !currentPw || !newPw} style={{ alignSelf: 'flex-start' }}>

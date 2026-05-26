@@ -17,3 +17,7 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+## 2023-10-27 - Test robustness fixes
+**Vulnerability:** A brittle recursion loop inside a test's HTTP mock caused infinite recursion risks if non-matched URLs were executed.
+**Learning:** Overly broad HTTP monkeypatching logic referencing external objects dynamically is error prone and unmaintainable.
+**Prevention:** When creating dynamic overrides with context managers in tests (such as httpx mocks), rely directly on `super()` combined with isolated mock methods rather than nested runtime dependencies.
