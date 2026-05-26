@@ -72,6 +72,7 @@ export function SearchResultCard({
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <input
           type="checkbox"
+          aria-label="Select paper"
           data-testid={`search-select-${idx}`}
           disabled={!canDownload}
           checked={isSelected}
@@ -95,12 +96,15 @@ export function SearchResultCard({
       </div>
       {r.abstract && (
         <div>
-          <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', ...(isExpanded ? {} : { maxHeight: 80, overflow: 'hidden', maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' }) }}>
+          <div id={`abstract-${key}`} style={{ fontSize: 13, whiteSpace: 'pre-wrap', ...(isExpanded ? {} : { maxHeight: 80, overflow: 'hidden', maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' }) }}>
             {r.abstract}
           </div>
           {r.abstract.length > 200 && (
             <button
               data-testid={`search-details-${idx}`}
+              aria-expanded={isExpanded}
+              aria-controls={`abstract-${key}`}
+              aria-label={isExpanded ? "Collapse abstract" : "Expand abstract"}
               onClick={() => search.toggleAbstract(key)}
               style={{ background: 'none', border: 'none', color: 'var(--rc-accent,#6366f1)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '2px 0', marginTop: 2 }}
             >
