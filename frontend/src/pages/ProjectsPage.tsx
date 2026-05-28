@@ -122,10 +122,14 @@ export default function ProjectsPage() {
         <div className="rc-card" style={{ borderColor:'rgba(99,102,241,0.25)',background:'rgba(99,102,241,0.02)' }}>
           <div className="rc-card-title">New project</div>
           <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
-            <div><div className="rc-kicker">Title *</div>
-              <input className="rc-input" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" autoFocus onKeyDown={e=>e.key==='Enter'&&createMut.mutate()}/></div>
-            <div><div className="rc-kicker">Clinical area</div>
-              <input className="rc-input" value={newArea} onChange={e=>setNewArea(e.target.value)} placeholder="e.g. Orthopedics"/></div>
+            <div>
+              <label htmlFor="new-project-title" className="rc-kicker" style={{ display: 'block' }}>Title *</label>
+              <input id="new-project-title" className="rc-input" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" autoFocus onKeyDown={e=>e.key==='Enter'&&createMut.mutate()}/>
+            </div>
+            <div>
+              <label htmlFor="new-project-area" className="rc-kicker" style={{ display: 'block' }}>Clinical area</label>
+              <input id="new-project-area" className="rc-input" value={newArea} onChange={e=>setNewArea(e.target.value)} placeholder="e.g. Orthopedics"/>
+            </div>
             <div style={{ display:'flex',gap:10 }}>
               <button className="rc-btn rc-btn--primary" onClick={() => createMut.mutate()} disabled={createMut.isPending || !newTitle.trim()}>
                 {createMut.isPending ? <><span className="rc-spinner" style={{ borderTopColor:'white' }}/> Creating…</> : 'Create project'}
