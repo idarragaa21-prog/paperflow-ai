@@ -22,3 +22,7 @@
 **Vulnerability:** The login endpoint bypassed password hashing if the user was not found, making login attempts for non-existent users significantly faster. This allowed attackers to enumerate valid usernames via timing analysis.
 **Learning:** Password hashing algorithms (like bcrypt) are intentionally slow. If an authentication flow skips this step for invalid users, the timing discrepancy acts as an oracle for username existence.
 **Prevention:** Always ensure constant-time execution paths in authentication flows by using `dummy_verify()` when a user is not found.
+
+## 2024-05-28 - [Form Input Selection in Tests]
+**Learning:** Selecting form inputs using index-based queries like `screen.getAllByDisplayValue('')` in Vitest tests is extremely fragile and prone to breaking when the UI changes (e.g., adding or removing fields).
+**Action:** Always wrap custom inputs (like those previously using `rc-kicker` divs) in semantic `<label>` elements and apply `style={{ display: 'block' }}` to preserve vertical flow. Then, immediately update the test queries to use `screen.getByLabelText` to enforce accessibility-first testing.

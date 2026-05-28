@@ -407,18 +407,18 @@ export default function SettingsPage() {
           <div className="rc-card">
             <div className="rc-card-title">Change password</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
+              <label style={{ display: 'block' }}>
                 <div className="rc-kicker">Current password</div>
                 <input className="rc-input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
-              </div>
-              <div>
+              </label>
+              <label style={{ display: 'block' }}>
                 <div className="rc-kicker">New password (min 8 chars)</div>
                 <input className="rc-input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
-              </div>
-              <div>
+              </label>
+              <label style={{ display: 'block' }}>
                 <div className="rc-kicker">Confirm new password</div>
                 <input className="rc-input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
-              </div>
+              </label>
               <button className="rc-btn rc-btn--primary" onClick={changePassword} disabled={savingPw || !currentPw || !newPw} style={{ alignSelf: 'flex-start' }}>
                 {savingPw ? 'Updating…' : 'Update password'}
               </button>
