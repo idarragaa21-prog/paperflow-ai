@@ -6,6 +6,8 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+import httpx
+from unittest.mock import patch, MagicMock
 from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID as PGUUID
 from sqlalchemy.ext.compiler import compiles
@@ -176,15 +178,34 @@ class TestVNextCoreFlow:
         dataset_data = derive_resp.json()
         assert dataset_data["row_count"] >= 1
 
-        run_resp = await authed_client.post(
-            "/meta/runs",
-            json={
-                "project_id": str(project.id),
-                "derived_dataset_id": dataset_data["id"],
-                "preset": "meta_binary_random",
-                "title": "binary run",
-            },
-        )
+        class DummyResponse:
+            @property
+            def status_code(self): return 200
+            def raise_for_status(self): pass
+            def json(self): return {"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}}
+            @property
+            def content(self): return b'mocked'
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+            async def post(self, url, *args, **kwargs):
+                if 'run-analysis' in str(url):
+                    return DummyResponse()
+                raise ValueError(f"Unexpected url: {url}")
+
+        with patch('httpx.AsyncClient', return_value=MockAsyncClient()):
+            run_resp = await authed_client.post(
+                "/meta/runs",
+                json={
+                    "project_id": str(project.id),
+                    "derived_dataset_id": dataset_data["id"],
+                    "preset": "meta_binary_random",
+                    "title": "binary run",
+                },
+            )
         assert run_resp.status_code == 200
         run_data = run_resp.json()
         assert run_data["status"] == "completed"
@@ -193,7 +214,7 @@ class TestVNextCoreFlow:
         assert "script_r" in artifact_types
         assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
         assert any("summary" in item for item in artifact_types)
-        assert any(item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
+        assert any(item.startswith("forest_") or item.startswith("rob_") for item in artifact_types)
 
         first_artifact_id = run_data["artifacts"][0]["id"]
         artifact_resp = await authed_client.get(f"/artifacts/{first_artifact_id}/download")
