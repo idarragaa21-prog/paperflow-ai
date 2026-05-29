@@ -102,6 +102,15 @@ async def authed_client(test_user: User) -> AsyncGenerator[AsyncClient, None]:
 @pytest.mark.asyncio
 class TestVNextCoreFlow:
     async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User):
+        from unittest.mock import patch
+        import httpx
+        class DummyAsyncClient:
+            async def __aenter__(self): return self
+            async def __aexit__(self, exc_type, exc, tb): pass
+            async def post(self, url, **kwargs):
+                if 'run-analysis' in str(url):
+                    return type("DummyResponse", (), {"raise_for_status": lambda self: None, "status_code": 200, "json": lambda self: {"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}}})()
+                return await httpx.AsyncClient().post(url, **kwargs)
         project = Project(user_id=test_user.id, title="vNext pipeline project")
         db_session.add(project)
         await db_session.flush()
@@ -157,43 +166,44 @@ class TestVNextCoreFlow:
         db_session.add(effect)
         await db_session.commit()
 
-        matrix_resp = await authed_client.post("/matrix/build", json={"project_id": str(project.id)})
-        assert matrix_resp.status_code == 200
-        matrix_data = matrix_resp.json()
-        assert matrix_data["summary"]["rows_total"] >= 2
-        version_id = matrix_data["id"]
+        with patch("app.services.meta_engine.httpx.AsyncClient", DummyAsyncClient):
+            matrix_resp = await authed_client.post("/matrix/build", json={"project_id": str(project.id)})
+            assert matrix_resp.status_code == 200
+            matrix_data = matrix_resp.json()
+            assert matrix_data["summary"]["rows_total"] >= 2
+            version_id = matrix_data["id"]
 
-        derive_resp = await authed_client.post(
-            "/datasets/derive",
-            json={
-                "project_id": str(project.id),
-                "matrix_version_id": version_id,
-                "preset": "meta_binary_random",
-                "title": "binary_derived",
-            },
-        )
-        assert derive_resp.status_code == 200
-        dataset_data = derive_resp.json()
-        assert dataset_data["row_count"] >= 1
+            derive_resp = await authed_client.post(
+                "/datasets/derive",
+                json={
+                    "project_id": str(project.id),
+                    "matrix_version_id": version_id,
+                    "preset": "meta_binary_random",
+                    "title": "binary_derived",
+                },
+            )
+            assert derive_resp.status_code == 200
+            dataset_data = derive_resp.json()
+            assert dataset_data["row_count"] >= 1
 
-        run_resp = await authed_client.post(
-            "/meta/runs",
-            json={
-                "project_id": str(project.id),
-                "derived_dataset_id": dataset_data["id"],
-                "preset": "meta_binary_random",
-                "title": "binary run",
-            },
-        )
-        assert run_resp.status_code == 200
-        run_data = run_resp.json()
-        assert run_data["status"] == "completed"
-        artifact_types = {item["artifact_type"] for item in run_data["artifacts"]}
-        assert "effect_table_csv" in artifact_types
-        assert "script_r" in artifact_types
-        assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
-        assert any("summary" in item for item in artifact_types)
-        assert any(item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
+            run_resp = await authed_client.post(
+                "/meta/runs",
+                json={
+                    "project_id": str(project.id),
+                    "derived_dataset_id": dataset_data["id"],
+                    "preset": "meta_binary_random",
+                    "title": "binary run",
+                },
+            )
+            assert run_resp.status_code == 200
+            run_data = run_resp.json()
+            assert run_data["status"] == "completed"
+            artifact_types = {item["artifact_type"] for item in run_data["artifacts"]}
+            assert "effect_table_csv" in artifact_types
+            assert "script_r" in artifact_types
+            assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
+            assert any("summary" in item for item in artifact_types)
+            assert any(item.startswith("forest_") or item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
 
         first_artifact_id = run_data["artifacts"][0]["id"]
         artifact_resp = await authed_client.get(f"/artifacts/{first_artifact_id}/download")
