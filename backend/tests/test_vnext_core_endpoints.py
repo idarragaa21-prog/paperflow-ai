@@ -124,7 +124,7 @@ class TestVNextCoreFlow:
                 pass
             async def post(self, url, *args, **kwargs):
                 if "run-analysis" in url or "meta/run" in url:
-                    return DummyResponse({"summary": {"rows_total": 2}, "figure_artifacts": {"figure_forest": {"svg": "PHN2Zz48L3N2Zz4="}}})
+                    return DummyResponse({"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}})
                 return DummyResponse({})
             async def get(self, url, *args, **kwargs):
                 return DummyResponse({})
