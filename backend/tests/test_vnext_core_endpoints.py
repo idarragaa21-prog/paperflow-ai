@@ -129,6 +129,60 @@ class TestVNextCoreFlow:
         import httpx
         monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
 
+
+        class DummyResponse:
+            def __init__(self, json_data):
+                self.status_code = 200
+                self._json_data = json_data
+
+            def json(self):
+                return self._json_data
+
+            def raise_for_status(self):
+                pass
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+            async def post(self, url, *args, **kwargs):
+                if "run-analysis" in str(url):
+                    return DummyResponse({"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}})
+                return DummyResponse({"summary": {"rows_total": 2}})
+
+        import httpx
+        monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
+
+
+        class DummyResponse:
+            def __init__(self, json_data):
+                self.status_code = 200
+                self._json_data = json_data
+
+            def json(self):
+                return self._json_data
+
+            def raise_for_status(self):
+                pass
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+            async def post(self, url, *args, **kwargs):
+                if "run-analysis" in str(url):
+                    return DummyResponse({"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}})
+                return DummyResponse({"summary": {"rows_total": 2}})
+
+        import httpx
+        monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
+
         project = Project(user_id=test_user.id, title="vNext pipeline project")
         db_session.add(project)
         await db_session.flush()
