@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-31 - [Username Enumeration via Timing Attack]
+**Vulnerability:** The login API in `backend/app/api/auth.py` did not perform a password hash verification if the user was not found in the database. This resulted in a faster response time for non-existent users, allowing attackers to enumerate valid email addresses via timing attacks.
+**Learning:** Even if the error message is generic, the execution time difference between checking a password hash (which is intentionally slow) and simply returning an error when a user is not found is significant enough to be measured remotely.
+**Prevention:** Always use constant-time operations when validating user credentials. If a user does not exist, call `pwd_context.dummy_verify()` to simulate the time taken by a real password verification.
