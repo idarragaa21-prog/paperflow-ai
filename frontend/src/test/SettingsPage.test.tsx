@@ -78,10 +78,12 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    // Fix: Query inputs directly, avoiding fragile empty value queries that also pick up settings inputs.
+    // In SettingsPage, we have 3 password inputs in this order: current, new, confirm.
+    const pwInputs = document.querySelectorAll('input[type="password"]');
+    await userEvent.type(pwInputs[0], 'current-password');
+    await userEvent.type(pwInputs[1], 'new-password');
+    await userEvent.type(pwInputs[2], 'different-password');
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {
