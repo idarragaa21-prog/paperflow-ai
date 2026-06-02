@@ -20,23 +20,32 @@ class OAResolved:
     landing_url: str | None = None
 
 
+_DOI_PREFIX_RE = re.compile(r"^https?://(dx\.)?doi\.org/", flags=re.IGNORECASE)
+
+
 def normalize_doi(value: str | None) -> str | None:
     if not value:
         return None
     cleaned = value.strip()
-    cleaned = re.sub(r"^https?://(dx\.)?doi\.org/", "", cleaned, flags=re.IGNORECASE)
+    cleaned = _DOI_PREFIX_RE.sub("", cleaned)
     return cleaned.lower() or None
+
+
+_SPACE_RE = re.compile(r"\s+")
+_NONALNUM_RE = re.compile(r"[^a-z0-9 ]")
 
 
 def normalize_title(value: str | None) -> str | None:
     if not value:
         return None
-    cleaned = re.sub(r"\s+", " ", value.strip().lower())
-    cleaned = re.sub(r"[^a-z0-9 ]", "", cleaned)
+    cleaned = _SPACE_RE.sub(" ", value.strip().lower())
+    cleaned = _NONALNUM_RE.sub("", cleaned)
     return cleaned or None
 
 
-def normalize_reference_identity(*, doi: str | None, pmid: str | None, title: str | None, source: str | None) -> dict:
+def normalize_reference_identity(
+    *, doi: str | None, pmid: str | None, title: str | None, source: str | None
+) -> dict:
     return {
         "doi": normalize_doi(doi),
         "pmid": (pmid or "").strip() or None,
@@ -53,7 +62,9 @@ class UnpaywallResolver:
         if not normalized_doi:
             raise OAResolverError("DOI requerido")
         email = settings.UNPAYWALL_EMAIL or "you@example.com"
-        response = await client.get(f"{self.base_url}/{normalized_doi}", params={"email": email}, timeout=30)
+        response = await client.get(
+            f"{self.base_url}/{normalized_doi}", params={"email": email}, timeout=30
+        )
         response.raise_for_status()
         data = response.json()
 
@@ -68,7 +79,9 @@ class UnpaywallResolver:
                     break
         if not pdf:
             raise OAResolverError("Unpaywall no devolvió URL PDF open-access")
-        return OAResolved(url_for_pdf=pdf, source="unpaywall", oa_url=pdf, landing_url=landing_url)
+        return OAResolved(
+            url_for_pdf=pdf, source="unpaywall", oa_url=pdf, landing_url=landing_url
+        )
 
 
 class EuropePMCResolver:
@@ -81,7 +94,12 @@ class EuropePMCResolver:
         query = f"EXT_ID:{pmid} AND SRC:MED"
         response = await client.get(
             f"{self.base_url}/search",
-            params={"query": query, "format": "json", "pageSize": 1, "resultType": "core"},
+            params={
+                "query": query,
+                "format": "json",
+                "pageSize": 1,
+                "resultType": "core",
+            },
             timeout=30,
         )
         response.raise_for_status()
@@ -93,7 +111,9 @@ class EuropePMCResolver:
         item = hits[0]
         is_oa = str(item.get("isOpenAccess") or "").lower() in ("y", "yes", "true", "1")
         if not is_oa:
-            raise OAResolverError("Europe PMC: el artículo no está marcado como Open Access")
+            raise OAResolverError(
+                "Europe PMC: el artículo no está marcado como Open Access"
+            )
 
         full_text = (item.get("fullTextUrlList") or {}).get("fullTextUrl") or []
         pdf_url = None
@@ -158,4 +178,7 @@ async def resolve_open_access_pdf(
             return await EuropePMCResolver().resolve_by_pmid(pmid, client)
         except (OAResolverError, httpx.HTTPError) as exc:
             attempts.append(str(exc))
-    raise OAResolverError("; ".join([attempt for attempt in attempts if attempt]) or "No se pudo resolver un PDF open-access")
+    raise OAResolverError(
+        "; ".join([attempt for attempt in attempts if attempt])
+        or "No se pudo resolver un PDF open-access"
+    )
