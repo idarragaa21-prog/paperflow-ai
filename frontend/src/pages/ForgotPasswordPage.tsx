@@ -71,8 +71,8 @@ export default function ForgotPasswordPage() {
         {step === 'email' && (
           <form onSubmit={sendCode} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <div className="rc-kicker">{t.auth.email}</div>
-              <input className="rc-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
+              <label htmlFor="forgot-email" className="rc-kicker" style={{ display: 'block' }}>{t.auth.email}</label>
+              <input id="forgot-email" className="rc-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
                 placeholder={t.auth.emailPlaceholder} autoFocus required style={{ fontSize: 14 }} />
             </div>
             {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(185,28,28,0.08)', border: '1px solid rgba(185,28,28,0.18)', color: '#b91c1c', fontSize: 13 }}>{error}</div>}
@@ -86,14 +86,14 @@ export default function ForgotPasswordPage() {
         {step === 'code' && (
           <form onSubmit={resetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <div className="rc-kicker">{t.auth.resetCode}</div>
-              <input className="rc-input" type="text" value={code} onChange={e => setCode(e.target.value)}
+              <label htmlFor="reset-code" className="rc-kicker" style={{ display: 'block' }}>{t.auth.resetCode}</label>
+              <input id="reset-code" className="rc-input" type="text" value={code} onChange={e => setCode(e.target.value)}
                 placeholder={t.auth.resetCodePlaceholder} autoFocus required maxLength={6}
                 style={{ fontSize: 20, letterSpacing: '0.3em', textAlign: 'center', fontWeight: 700 }} />
             </div>
             <div>
-              <div className="rc-kicker">{t.auth.newPassword}</div>
-              <input className="rc-input" type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
+              <label htmlFor="new-password" className="rc-kicker" style={{ display: 'block' }}>{t.auth.newPassword}</label>
+              <input id="new-password" className="rc-input" type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
                 placeholder={t.auth.passwordPlaceholder} required style={{ fontSize: 14 }} />
             </div>
             {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(185,28,28,0.08)', border: '1px solid rgba(185,28,28,0.18)', color: '#b91c1c', fontSize: 13 }}>{error}</div>}
