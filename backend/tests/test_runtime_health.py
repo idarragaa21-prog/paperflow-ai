@@ -59,6 +59,7 @@ async def test_collect_runtime_health_separates_required_and_optional(monkeypatc
     monkeypatch.setattr(runtime_health.storage_manager, "ensure_bucket", lambda: None)
     monkeypatch.setattr(runtime_health.httpx, "AsyncClient", DummyAsyncClient)
     monkeypatch.setattr("qdrant_client.QdrantClient", DummyQdrantClient)
+    monkeypatch.setattr(runtime_health.settings, "LLM_PROVIDER", "auto_local")
 
     health = await runtime_health.collect_runtime_health()
 
@@ -87,6 +88,7 @@ async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(mo
     monkeypatch.setattr(runtime_health.httpx, "AsyncClient", MissingModelAsyncClient)
     monkeypatch.setattr("qdrant_client.QdrantClient", DummyQdrantClient)
     monkeypatch.setattr(runtime_health.settings, "PAPERFLOW_EMBEDDING_MODEL", "bge-m3")
+    monkeypatch.setattr(runtime_health.settings, "LLM_PROVIDER", "auto_local")
 
     health = await runtime_health.collect_runtime_health()
 
