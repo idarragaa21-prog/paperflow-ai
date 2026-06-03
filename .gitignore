@@ -44,3 +44,4 @@ venv/
 backend/venv/
 node_modules/
 .orchestrator-runtime/
+.venv/
