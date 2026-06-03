@@ -523,7 +523,7 @@ export default function PapersPage() {
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => void toggleTrace(p)}>
                             {traceState[p.id]?.expanded ? 'Hide trace' : 'Trace'}
                           </button>
-                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => favoriteMut.mutate(p)} title={p.favorite ? 'Quitar favorito' : 'Favorito'}>
+                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => favoriteMut.mutate(p)} title={p.favorite ? 'Remove favorite' : 'Favorite'} aria-label={p.favorite ? 'Remove favorite' : 'Favorite'}>
                             {p.favorite ? '★' : '☆'}
                           </button>
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => deleteWithConfirm(p)}>Del</button>
