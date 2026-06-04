@@ -408,16 +408,16 @@ export default function SettingsPage() {
             <div className="rc-card-title">Change password</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div className="rc-kicker">Current password</div>
-                <input className="rc-input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
+                <label htmlFor="settings-current-password" className="rc-kicker" style={{ display: 'block' }}>Current password</label>
+                <input id="settings-current-password" className="rc-input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
               </div>
               <div>
-                <div className="rc-kicker">New password (min 8 chars)</div>
-                <input className="rc-input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+                <label htmlFor="settings-new-password" className="rc-kicker" style={{ display: 'block' }}>New password (min 8 chars)</label>
+                <input id="settings-new-password" className="rc-input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
               </div>
               <div>
-                <div className="rc-kicker">Confirm new password</div>
-                <input className="rc-input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
+                <label htmlFor="settings-confirm-password" className="rc-kicker" style={{ display: 'block' }}>Confirm new password</label>
+                <input id="settings-confirm-password" className="rc-input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
               </div>
               <button className="rc-btn rc-btn--primary" onClick={changePassword} disabled={savingPw || !currentPw || !newPw} style={{ alignSelf: 'flex-start' }}>
                 {savingPw ? 'Updating…' : 'Update password'}
