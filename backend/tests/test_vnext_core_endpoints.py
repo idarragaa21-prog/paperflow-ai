@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from unittest.mock import MagicMock
 from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID as PGUUID
 from sqlalchemy.ext.compiler import compiles
@@ -101,7 +102,27 @@ async def authed_client(test_user: User) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.mark.asyncio
 class TestVNextCoreFlow:
-    async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User):
+    async def test_extraction_matrix_to_meta_run_pipeline(self, db_session: AsyncSession, authed_client: AsyncClient, test_user: User, monkeypatch):
+        class DummyResponse:
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return {"summary": {"rows_total": 2}, "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}}}
+
+        class DummyContextManager:
+            def __init__(self, *args, **kwargs):
+                pass
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+            async def post(self, url, json=None, **kwargs):
+                if "run-analysis" in url:
+                    return DummyResponse()
+                return DummyResponse()
+
+        monkeypatch.setattr("httpx.AsyncClient", DummyContextManager)
+
         project = Project(user_id=test_user.id, title="vNext pipeline project")
         db_session.add(project)
         await db_session.flush()
@@ -193,7 +214,7 @@ class TestVNextCoreFlow:
         assert "script_r" in artifact_types
         assert any(item in artifact_types for item in {"session_info", "session_info_txt"})
         assert any("summary" in item for item in artifact_types)
-        assert any(item.startswith("figure_") or item.startswith("rob_") for item in artifact_types)
+        assert any(item.startswith("forest_") or item.startswith("rob_") for item in artifact_types)
 
         first_artifact_id = run_data["artifacts"][0]["id"]
         artifact_resp = await authed_client.get(f"/artifacts/{first_artifact_id}/download")
