@@ -78,10 +78,13 @@ describe('SettingsPage', () => {
   it('blocks password change when confirmation does not match', async () => {
     render(<SettingsPage />);
 
-    const inputs = screen.getAllByDisplayValue('');
-    await userEvent.type(inputs[0], 'current-password');
-    await userEvent.type(inputs[1], 'new-password');
-    await userEvent.type(inputs[2], 'different-password');
+    // In a real app we'd use getByLabelText, but these use pseudo-labels right now
+    // Since there are multiple empty inputs (including team invite), we target the password fields directly
+    const passwordInputs = screen.getAllByDisplayValue('').filter((el) => (el as HTMLInputElement).type === 'password');
+
+    await userEvent.type(passwordInputs[0], 'current-password');
+    await userEvent.type(passwordInputs[1], 'new-password');
+    await userEvent.type(passwordInputs[2], 'different-password');
     fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
 
     await waitFor(() => {
