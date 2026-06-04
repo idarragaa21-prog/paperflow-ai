@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-24 - Centralize Path Traversal Prevention
+**Vulnerability:** Redundant, potentially out-of-sync path traversal logic spread across individual API routers (`api/meta.py`, `api/projects.py`).
+**Learning:** Callers needing a local filesystem path were duplicating path resolution and `ValueError` checks instead of using the canonical `storage_manager.safe_abs_path` method defined in `backend/app/core/storage.py`.
+**Prevention:** Enforce the use of `storage_manager.safe_abs_path(relative_path)` to ensure consistent, secure, and robust defense against directory traversal attacks across the entire backend.

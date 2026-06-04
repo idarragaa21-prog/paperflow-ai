@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 import secrets
 from uuid import UUID
 
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -14,7 +13,12 @@ from app.api.deps import get_current_user, get_db
 from app.core.storage import storage_manager
 from app.middleware.rate_limit import limiter
 from app.models.job import Job
-from app.models.membership import PROJECT_MEMBER_ROLES, PROJECT_INVITATION_STATUSES, ProjectInvitation, ProjectMembership
+from app.models.membership import (
+    PROJECT_MEMBER_ROLES,
+    PROJECT_INVITATION_STATUSES,
+    ProjectInvitation,
+    ProjectMembership,
+)
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.membership import (
@@ -27,21 +31,15 @@ from app.schemas.membership import (
     ProjectMemberUpdateRequest,
 )
 from app.schemas.projects import ProjectCreate, ProjectResponse, ProjectUpdate
-from app.services.email import build_project_invitation_url, send_project_invitation_email
+from app.services.email import (
+    build_project_invitation_url,
+    send_project_invitation_email,
+)
 from app.core.logger import logger
 from app.services.jobs import get_job_queue
 from app.services.permissions import list_accessible_projects, require_project_access
 
 router = APIRouter(prefix="/projects", tags=["projects"])
-
-
-def _safe_abs_path(relative_path: str) -> Path:
-    full_path = (storage_manager.base_dir / relative_path).resolve()
-    try:
-        full_path.relative_to(storage_manager.base_dir)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid file path")
-    return full_path
 
 
 def _project_response(project: Project) -> ProjectResponse:
@@ -59,7 +57,13 @@ def _normalize_membership_role(role: str | None) -> str:
     return role if role in PROJECT_MEMBER_ROLES else "viewer"
 
 
-def _member_response(*, project_id: UUID, user: User, role: str, membership: ProjectMembership | None = None) -> ProjectMemberResponse:
+def _member_response(
+    *,
+    project_id: UUID,
+    user: User,
+    role: str,
+    membership: ProjectMembership | None = None,
+) -> ProjectMemberResponse:
     return ProjectMemberResponse(
         id=getattr(membership, "id", None),
         project_id=project_id,
@@ -97,7 +101,9 @@ def _invitation_response(invitation: ProjectInvitation) -> ProjectInvitationResp
     )
 
 
-async def _list_project_members(db: AsyncSession, *, project: Project) -> list[ProjectMemberResponse]:
+async def _list_project_members(
+    db: AsyncSession, *, project: Project
+) -> list[ProjectMemberResponse]:
     rows = await db.execute(
         select(ProjectMembership, User)
         .join(User, User.id == ProjectMembership.user_id)
@@ -108,10 +114,16 @@ async def _list_project_members(db: AsyncSession, *, project: Project) -> list[P
     members_by_user: dict[UUID, ProjectMemberResponse] = {}
     owner_user = await db.get(User, project.user_id)
     if owner_user is not None:
-        members_by_user[owner_user.id] = _member_response(project_id=project.id, user=owner_user, role="owner")
+        members_by_user[owner_user.id] = _member_response(
+            project_id=project.id, user=owner_user, role="owner"
+        )
 
     for membership, member_user in rows.all():
-        effective_role = "owner" if member_user.id == project.user_id else _normalize_membership_role(membership.role)
+        effective_role = (
+            "owner"
+            if member_user.id == project.user_id
+            else _normalize_membership_role(membership.role)
+        )
         existing = members_by_user.get(member_user.id)
         if existing is None or existing.role != "owner":
             members_by_user[member_user.id] = _member_response(
@@ -200,7 +212,9 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role="viewer"
+    )
     return _project_response(project)
 
 
@@ -210,7 +224,9 @@ async def list_project_members(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role="viewer"
+    )
     return await _list_project_members(db, project=project)
 
 
@@ -220,7 +236,9 @@ async def list_project_invitations(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role="owner"
+    )
     result = await db.execute(
         select(ProjectInvitation)
         .where(ProjectInvitation.project_id == project.id)
@@ -240,7 +258,9 @@ async def invite_project_member(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role="owner"
+    )
 
     email = payload.email.strip().lower()
     if "@" not in email:
@@ -250,9 +270,13 @@ async def invite_project_member(
     invited_user = result.scalar_one_or_none()
     if invited_user is not None:
         role = "owner" if invited_user.id == project.user_id else payload.role
-        membership = await _get_membership_for_user(db, project_id=project.id, user_id=invited_user.id)
+        membership = await _get_membership_for_user(
+            db, project_id=project.id, user_id=invited_user.id
+        )
         if membership is None:
-            membership = ProjectMembership(project_id=project.id, user_id=invited_user.id, role=role)
+            membership = ProjectMembership(
+                project_id=project.id, user_id=invited_user.id, role=role
+            )
             db.add(membership)
         else:
             membership.role = role
@@ -262,10 +286,17 @@ async def invite_project_member(
 
         return ProjectInviteResultResponse(
             kind="membership",
-            member=_member_response(project_id=project.id, user=invited_user, role=role, membership=membership),
+            member=_member_response(
+                project_id=project.id,
+                user=invited_user,
+                role=role,
+                membership=membership,
+            ),
         )
 
-    invitation = await _get_pending_invitation_for_email(db, project_id=project.id, email=email)
+    invitation = await _get_pending_invitation_for_email(
+        db, project_id=project.id, email=email
+    )
     if invitation is None:
         invitation = ProjectInvitation(
             project_id=project.id,
@@ -308,22 +339,30 @@ class ProjectMemberUpdateArgs:
     user: User = Depends(get_current_user)
 
 
-@router.patch("/{project_id}/members/{member_user_id}", response_model=ProjectMemberResponse)
+@router.patch(
+    "/{project_id}/members/{member_user_id}", response_model=ProjectMemberResponse
+)
 @limiter.limit("30/minute")
 async def update_project_member(
     request: Request,
     args: ProjectMemberUpdateArgs = Depends(),
 ):
-    project, _ = await require_project_access(args.db, project_id=args.project_id, user=args.user, required_role="owner")
+    project, _ = await require_project_access(
+        args.db, project_id=args.project_id, user=args.user, required_role="owner"
+    )
 
     member_user = await args.db.get(User, args.member_user_id)
     if member_user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
     if member_user.id == project.user_id:
-        raise HTTPException(status_code=400, detail="Project owner role cannot be changed")
+        raise HTTPException(
+            status_code=400, detail="Project owner role cannot be changed"
+        )
 
-    membership = await _get_membership_for_user(args.db, project_id=project.id, user_id=member_user.id)
+    membership = await _get_membership_for_user(
+        args.db, project_id=project.id, user_id=member_user.id
+    )
     if membership is None:
         raise HTTPException(status_code=404, detail="Membership not found")
 
@@ -331,7 +370,12 @@ async def update_project_member(
     await args.db.commit()
     await args.db.refresh(membership)
 
-    return _member_response(project_id=project.id, user=member_user, role=membership.role, membership=membership)
+    return _member_response(
+        project_id=project.id,
+        user=member_user,
+        role=membership.role,
+        membership=membership,
+    )
 
 
 @router.delete("/{project_id}/members/{member_user_id}")
@@ -343,12 +387,16 @@ async def delete_project_member(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role="owner"
+    )
 
     if member_user_id == project.user_id:
         raise HTTPException(status_code=400, detail="Project owner cannot be removed")
 
-    membership = await _get_membership_for_user(db, project_id=project.id, user_id=member_user_id)
+    membership = await _get_membership_for_user(
+        db, project_id=project.id, user_id=member_user_id
+    )
     if membership is None:
         raise HTTPException(status_code=404, detail="Membership not found")
 
@@ -366,12 +414,16 @@ async def delete_project_invitation(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="owner")
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role="owner"
+    )
     invitation = await db.get(ProjectInvitation, invitation_id)
     if invitation is None or invitation.project_id != project.id:
         raise HTTPException(status_code=404, detail="Invitation not found")
     if invitation.accepted_at is not None:
-        raise HTTPException(status_code=400, detail="Accepted invitations cannot be removed")
+        raise HTTPException(
+            status_code=400, detail="Accepted invitations cannot be removed"
+        )
     invitation.revoked_at = datetime.now(timezone.utc)
     await db.commit()
     return {"ok": True}
@@ -382,7 +434,9 @@ async def get_project_invitation(
     token: str,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(ProjectInvitation).where(ProjectInvitation.token == token).limit(1))
+    result = await db.execute(
+        select(ProjectInvitation).where(ProjectInvitation.token == token).limit(1)
+    )
     invitation = result.scalar_one_or_none()
     if invitation is None:
         raise HTTPException(status_code=404, detail="Invitation not found")
@@ -402,7 +456,9 @@ async def get_project_invitation(
     )
 
 
-@router.post("/invitations/{token}/accept", response_model=ProjectInvitationAcceptResponse)
+@router.post(
+    "/invitations/{token}/accept", response_model=ProjectInvitationAcceptResponse
+)
 @limiter.limit("20/minute")
 async def accept_project_invitation(
     request: Request,
@@ -410,23 +466,31 @@ async def accept_project_invitation(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(ProjectInvitation).where(ProjectInvitation.token == token).limit(1))
+    result = await db.execute(
+        select(ProjectInvitation).where(ProjectInvitation.token == token).limit(1)
+    )
     invitation = result.scalar_one_or_none()
     if invitation is None or invitation.revoked_at is not None:
         raise HTTPException(status_code=404, detail="Invitation not found")
     if invitation.accepted_at is not None:
         raise HTTPException(status_code=409, detail="Invitation already accepted")
     if user.email.lower() != invitation.email.lower():
-        raise HTTPException(status_code=403, detail="Invitation email does not match the signed-in user")
+        raise HTTPException(
+            status_code=403, detail="Invitation email does not match the signed-in user"
+        )
 
     project = await db.get(Project, invitation.project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Invitation project not found")
 
-    membership = await _get_membership_for_user(db, project_id=project.id, user_id=user.id)
+    membership = await _get_membership_for_user(
+        db, project_id=project.id, user_id=user.id
+    )
     role = "owner" if project.user_id == user.id else invitation.role
     if membership is None:
-        membership = ProjectMembership(project_id=project.id, user_id=user.id, role=role)
+        membership = ProjectMembership(
+            project_id=project.id, user_id=user.id, role=role
+        )
         db.add(membership)
     else:
         membership.role = role
@@ -440,7 +504,9 @@ async def accept_project_invitation(
     return ProjectInvitationAcceptResponse(
         project_id=project.id,
         project_title=project.title,
-        member=_member_response(project_id=project.id, user=user, role=role, membership=membership),
+        member=_member_response(
+            project_id=project.id, user=user, role=role, membership=membership
+        ),
     )
 
 
@@ -498,7 +564,9 @@ async def project_dashboard(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role="viewer"
+    )
 
     from sqlalchemy import func
 
@@ -507,12 +575,23 @@ async def project_dashboard(
     from app.models.paper import Paper
     from app.models.reference_item import ReferenceItem
 
-    qp = await db.execute(select(func.count()).select_from(Paper).where(Paper.project_id == project_id))
-    qn = await db.execute(select(func.count()).select_from(Note).where(Note.project_id == project_id))
-    qs = await db.execute(
-        select(func.count()).select_from(ExtractedStudy).where(ExtractedStudy.project_id == project_id).where(ExtractedStudy.is_current == True)  # noqa
+    qp = await db.execute(
+        select(func.count()).select_from(Paper).where(Paper.project_id == project_id)
     )
-    qr = await db.execute(select(func.count()).select_from(ReferenceItem).where(ReferenceItem.project_id == project_id))
+    qn = await db.execute(
+        select(func.count()).select_from(Note).where(Note.project_id == project_id)
+    )
+    qs = await db.execute(
+        select(func.count())
+        .select_from(ExtractedStudy)
+        .where(ExtractedStudy.project_id == project_id)
+        .where(ExtractedStudy.is_current == True)  # noqa
+    )
+    qr = await db.execute(
+        select(func.count())
+        .select_from(ReferenceItem)
+        .where(ReferenceItem.project_id == project_id)
+    )
 
     return {
         "project_id": str(project_id),
@@ -554,7 +633,9 @@ async def project_library(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    await require_project_access(
+        db, project_id=project_id, user=user, required_role="viewer"
+    )
 
     from app.models.paper import Paper
 
@@ -572,7 +653,12 @@ async def project_library(
     if params.author:
         clauses.append(Paper.authors.ilike(f"%{params.author.strip()}%"))
 
-    stmt = select(Paper).where(and_(*clauses)).order_by(Paper.created_at.desc()).offset(params.offset)
+    stmt = (
+        select(Paper)
+        .where(and_(*clauses))
+        .order_by(Paper.created_at.desc())
+        .offset(params.offset)
+    )
     if params.limit is not None:
         stmt = stmt.limit(params.limit)
     q = await db.execute(stmt)
@@ -611,7 +697,9 @@ async def export_project_zip(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    await require_project_access(
+        db, project_id=project_id, user=user, required_role="viewer"
+    )
 
     job_record = Job(
         user_id=user.id,
@@ -629,7 +717,11 @@ async def export_project_zip(
         from app.workers.tasks_exports import export_project_zip_job
 
         q = get_job_queue()
-        rq_job = q.enqueue(export_project_zip_job, args=(str(job_record.id), str(project_id)), job_timeout="30m")
+        rq_job = q.enqueue(
+            export_project_zip_job,
+            args=(str(job_record.id), str(project_id)),
+            job_timeout="30m",
+        )
     except Exception as e:
         logger.error("Failed to enqueue export_project_zip job: {}", e)
         job_record.status = "failed"
@@ -650,7 +742,9 @@ async def download_project_zip(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    await require_project_access(
+        db, project_id=project_id, user=user, required_role="viewer"
+    )
 
     job = await db.get(Job, job_id)
     if not job or job.user_id != user.id:
@@ -669,7 +763,7 @@ async def download_project_zip(
     if job.status != "completed" or not zip_rel:
         raise HTTPException(status_code=400, detail="Export not ready")
 
-    abs_path = _safe_abs_path(zip_rel)
+    abs_path = storage_manager.safe_abs_path(zip_rel)
     if not abs_path.exists():
         raise HTTPException(status_code=404, detail="Export file not found")
 

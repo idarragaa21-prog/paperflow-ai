@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -25,7 +24,11 @@ from app.models.meta_extractor import (
 )
 from app.services.jobs import get_job_queue
 from app.models.meta_export import MetaExport
-from app.schemas.meta import BatchEffectPatchRequest, MetaExportListRow, MetaExportRequest
+from app.schemas.meta import (
+    BatchEffectPatchRequest,
+    MetaExportListRow,
+    MetaExportRequest,
+)
 from app.core.logger import logger
 from app.services.permissions import require_project_access
 
@@ -64,7 +67,9 @@ async def _require_project_role(
     *,
     required_role: str = "viewer",
 ) -> Project:
-    project, _ = await require_project_access(db, project_id=project_id, user=user, required_role=required_role)
+    project, _ = await require_project_access(
+        db, project_id=project_id, user=user, required_role=required_role
+    )
     return project
 
 
@@ -78,7 +83,12 @@ async def create_batch(
 ):
     await _require_project_role(db, params.project_id, user, required_role="editor")
 
-    batch = MetaExtractionBatch(user_id=user.id, project_id=params.project_id, title=params.title, status="created")
+    batch = MetaExtractionBatch(
+        user_id=user.id,
+        project_id=params.project_id,
+        title=params.title,
+        status="created",
+    )
     db.add(batch)
     await db.commit()
     await db.refresh(batch)
@@ -88,16 +98,25 @@ async def create_batch(
     for f in params.files:
         content = await f.read()
         if not storage_manager.validate_pdf(content):
-            raise HTTPException(status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}")
+            raise HTTPException(
+                status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}"
+            )
 
         # Dedup by hash within project
         content_hash = storage_manager._calculate_hash(content)
         existing = await db.execute(
-            select(Paper).where(Paper.project_id == params.project_id).where(Paper.content_hash == content_hash).limit(1)
+            select(Paper)
+            .where(Paper.project_id == params.project_id)
+            .where(Paper.content_hash == content_hash)
+            .limit(1)
         )
         paper = existing.scalars().first()
         if not paper:
-            saved = await storage_manager.save_paper_bytes(data=content, project_id=params.project_id, suggested_filename=f.filename)
+            saved = await storage_manager.save_paper_bytes(
+                data=content,
+                project_id=params.project_id,
+                suggested_filename=f.filename,
+            )
             paper = Paper(
                 project_id=params.project_id,
                 search_result_id=None,
@@ -139,18 +158,29 @@ async def create_batch(
         from app.workers.tasks_meta import meta_extract_batch_job
 
         q = get_job_queue()
-        rq_job = q.enqueue(meta_extract_batch_job, args=(str(job_record.id), str(batch.id)), job_timeout="60m")
+        rq_job = q.enqueue(
+            meta_extract_batch_job,
+            args=(str(job_record.id), str(batch.id)),
+            job_timeout="60m",
+        )
     except Exception as e:
         logger.error("Failed to enqueue meta_extract_batch job: {}", e)
         job_record.status = "failed"
         job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
+        raise HTTPException(
+            status_code=503,
+            detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.",
+        )
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
 
-    return {"batch_id": str(batch.id), "job_id": str(job_record.id), "item_ids": created_items}
+    return {
+        "batch_id": str(batch.id),
+        "job_id": str(job_record.id),
+        "item_ids": created_items,
+    }
 
 
 @router.get("/batches")
@@ -171,7 +201,12 @@ async def list_batches(
     )
     items = q.scalars().all()
     return [
-        {"id": str(b.id), "title": b.title, "status": b.status, "created_at": b.created_at.isoformat()}
+        {
+            "id": str(b.id),
+            "title": b.title,
+            "status": b.status,
+            "created_at": b.created_at.isoformat(),
+        }
         for b in items
     ]
 
@@ -237,7 +272,11 @@ async def retry_item(
         user_id=user.id,
         job_type="meta_extract_paper",
         status="queued",
-        input_params={"batch_id": str(batch.id), "item_id": str(item.id), "paper_id": str(item.paper_id)},
+        input_params={
+            "batch_id": str(batch.id),
+            "item_id": str(item.id),
+            "paper_id": str(item.paper_id),
+        },
         result={},
         progress_percent=0,
     )
@@ -253,13 +292,22 @@ async def retry_item(
             raise RuntimeError("Job queue unavailable. Redis is required.")
 
         q = get_job_queue()
-        rq_job = q.enqueue(meta_extract_paper_job, args=(str(job_record.id), str(batch.id), str(item.id), str(item.paper_id)), job_timeout="30m")
+        rq_job = q.enqueue(
+            meta_extract_paper_job,
+            args=(str(job_record.id), str(batch.id), str(item.id), str(item.paper_id)),
+            job_timeout="30m",
+        )
     except Exception as e:
-        logger.error("Failed to enqueue meta_extract_paper retry job for item {}: {}", item_id, e)
+        logger.error(
+            "Failed to enqueue meta_extract_paper retry job for item {}: {}", item_id, e
+        )
         job_record.status = "failed"
         job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
+        raise HTTPException(
+            status_code=503,
+            detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.",
+        )
 
     job_record.result = {"rq_job_id": rq_job.id}
     item.status = "queued"
@@ -306,19 +354,28 @@ async def reextract_study(
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
 
-    project = await _require_project_role(db, study.project_id, user, required_role="editor")
+    project = await _require_project_role(
+        db, study.project_id, user, required_role="editor"
+    )
 
     # create a synthetic item if not in a batch
     batch_id = study.batch_id
     if not batch_id:
         # create a one-off batch
-        batch = MetaExtractionBatch(user_id=user.id, project_id=project.id, title=f"Re-extract {study_id}", status="created")
+        batch = MetaExtractionBatch(
+            user_id=user.id,
+            project_id=project.id,
+            title=f"Re-extract {study_id}",
+            status="created",
+        )
         db.add(batch)
         await db.commit()
         await db.refresh(batch)
         batch_id = batch.id
 
-    item = MetaExtractionItem(batch_id=batch_id, paper_id=study.paper_id, status="queued")
+    item = MetaExtractionItem(
+        batch_id=batch_id, paper_id=study.paper_id, status="queued"
+    )
     db.add(item)
     await db.commit()
     await db.refresh(item)
@@ -328,7 +385,11 @@ async def reextract_study(
         user_id=user.id,
         job_type="meta_extract_paper",
         status="queued",
-        input_params={"batch_id": str(batch_id), "item_id": str(item.id), "paper_id": str(item.paper_id)},
+        input_params={
+            "batch_id": str(batch_id),
+            "item_id": str(item.id),
+            "paper_id": str(item.paper_id),
+        },
         result={},
         progress_percent=0,
     )
@@ -344,13 +405,24 @@ async def reextract_study(
             raise RuntimeError("Job queue unavailable. Redis is required.")
 
         q = get_job_queue()
-        rq_job = q.enqueue(meta_extract_paper_job, args=(str(job_record.id), str(batch_id), str(item.id), str(item.paper_id)), job_timeout="30m")
+        rq_job = q.enqueue(
+            meta_extract_paper_job,
+            args=(str(job_record.id), str(batch_id), str(item.id), str(item.paper_id)),
+            job_timeout="30m",
+        )
     except Exception as e:
-        logger.error("Failed to enqueue meta_extract_paper re-extract job for study {}: {}", study_id, e)
+        logger.error(
+            "Failed to enqueue meta_extract_paper re-extract job for study {}: {}",
+            study_id,
+            e,
+        )
         job_record.status = "failed"
         job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
+        raise HTTPException(
+            status_code=503,
+            detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.",
+        )
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
@@ -370,7 +442,9 @@ async def list_study_versions(
     await _require_project_role(db, study.project_id, user, required_role="viewer")
 
     q = await db.execute(
-        select(ExtractedStudy).where(ExtractedStudy.paper_id == study.paper_id).order_by(ExtractedStudy.version.desc())
+        select(ExtractedStudy)
+        .where(ExtractedStudy.paper_id == study.paper_id)
+        .order_by(ExtractedStudy.version.desc())
     )
     versions = q.scalars().all()
     return [
@@ -395,9 +469,20 @@ async def list_effects(
         raise HTTPException(status_code=404, detail="Study not found")
     await _require_project_role(db, study.project_id, user, required_role="viewer")
 
-    q = await db.execute(select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == study.id))
+    q = await db.execute(
+        select(ExtractedEffectSize).where(
+            ExtractedEffectSize.extracted_study_id == study.id
+        )
+    )
     eff = q.scalars().all()
-    return [{"id": str(e.id), "outcome_name": e.outcome_name, "effect_measure": e.effect_measure} for e in eff]
+    return [
+        {
+            "id": str(e.id),
+            "outcome_name": e.outcome_name,
+            "effect_measure": e.effect_measure,
+        }
+        for e in eff
+    ]
 
 
 @router.post("/studies/{study_id}/effects")
@@ -519,9 +604,16 @@ async def list_rob(
         raise HTTPException(status_code=404, detail="Study not found")
     await _require_project_role(db, study.project_id, user, required_role="viewer")
 
-    q = await db.execute(select(ExtractedRiskOfBias).where(ExtractedRiskOfBias.extracted_study_id == study.id))
+    q = await db.execute(
+        select(ExtractedRiskOfBias).where(
+            ExtractedRiskOfBias.extracted_study_id == study.id
+        )
+    )
     rob = q.scalars().all()
-    return [{"id": str(r.id), "tool": r.tool, "domain": r.domain, "judgement": r.judgement} for r in rob]
+    return [
+        {"id": str(r.id), "tool": r.tool, "domain": r.domain, "judgement": r.judgement}
+        for r in rob
+    ]
 
 
 @router.post("/studies/{study_id}/rob")
@@ -566,7 +658,9 @@ async def get_batch(
     if not batch or batch.user_id != user.id:
         raise HTTPException(status_code=404, detail="Batch not found")
 
-    q = await db.execute(select(MetaExtractionItem).where(MetaExtractionItem.batch_id == batch.id))
+    q = await db.execute(
+        select(MetaExtractionItem).where(MetaExtractionItem.batch_id == batch.id)
+    )
     items = q.scalars().all()
     return {
         "id": str(batch.id),
@@ -598,13 +692,11 @@ async def list_studies(
 
     from sqlalchemy import exists
 
-    rob_auto = (
-        exists(
-            select(ExtractedRiskOfBias.id)
-            .where(ExtractedRiskOfBias.extracted_study_id == ExtractedStudy.id)
-            .where(ExtractedRiskOfBias.auto_generated == True)  # noqa
-        ).label("rob_auto_generated")
-    )
+    rob_auto = exists(
+        select(ExtractedRiskOfBias.id)
+        .where(ExtractedRiskOfBias.extracted_study_id == ExtractedStudy.id)
+        .where(ExtractedRiskOfBias.auto_generated == True)  # noqa
+    ).label("rob_auto_generated")
 
     stmt = (
         select(ExtractedStudy, Paper, rob_auto)
@@ -643,11 +735,21 @@ async def get_study(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    project = await _require_project_role(db, study.project_id, user, required_role="viewer")
+    await _require_project_role(
+        db, study.project_id, user, required_role="viewer"
+    )
 
-    q1 = await db.execute(select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == study.id))
+    q1 = await db.execute(
+        select(ExtractedEffectSize).where(
+            ExtractedEffectSize.extracted_study_id == study.id
+        )
+    )
     eff = q1.scalars().all()
-    q2 = await db.execute(select(ExtractedRiskOfBias).where(ExtractedRiskOfBias.extracted_study_id == study.id))
+    q2 = await db.execute(
+        select(ExtractedRiskOfBias).where(
+            ExtractedRiskOfBias.extracted_study_id == study.id
+        )
+    )
     rob = q2.scalars().all()
 
     return {
@@ -860,9 +962,13 @@ async def patch_effects_batch(
             if ck in patch_dict and patch_dict[ck] is not None:
                 try:
                     if int(patch_dict[ck]) < 0:
-                        raise HTTPException(status_code=422, detail=f"{ck} no puede ser negativo")
+                        raise HTTPException(
+                            status_code=422, detail=f"{ck} no puede ser negativo"
+                        )
                 except ValueError:
-                    raise HTTPException(status_code=422, detail=f"{ck} debe ser un entero")
+                    raise HTTPException(
+                        status_code=422, detail=f"{ck} debe ser un entero"
+                    )
 
         for k, v in patch_dict.items():
             if hasattr(eff, k):
@@ -924,7 +1030,11 @@ async def export_meta_dataset(
         user_id=user.id,
         job_type=f"meta_export_{export_format}",
         status="queued",
-        input_params={"project_id": str(project_uuid), "batch_id": str(batch_uuid) if batch_uuid else None, "format": export_format},
+        input_params={
+            "project_id": str(project_uuid),
+            "batch_id": str(batch_uuid) if batch_uuid else None,
+            "format": export_format,
+        },
         result={},
         progress_percent=0,
     )
@@ -938,7 +1048,12 @@ async def export_meta_dataset(
         q = get_job_queue()
         rq_job = q.enqueue(
             meta_export_job,
-            args=(str(job_record.id), str(project_uuid), str(batch_uuid) if batch_uuid else "", export_format),
+            args=(
+                str(job_record.id),
+                str(project_uuid),
+                str(batch_uuid) if batch_uuid else "",
+                export_format,
+            ),
             job_timeout="20m",
         )
     except Exception as e:
@@ -946,7 +1061,10 @@ async def export_meta_dataset(
         job_record.status = "failed"
         job_record.error_message = "El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde."
         await db.commit()
-        raise HTTPException(status_code=503, detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.")
+        raise HTTPException(
+            status_code=503,
+            detail="El sistema de procesamiento no está disponible en este momento. Por favor, intenta de nuevo más tarde.",
+        )
 
     job_record.result = {"rq_job_id": rq_job.id}
     await db.commit()
@@ -966,16 +1084,16 @@ async def download_export(
 
     await _require_project_role(db, export.project_id, user, required_role="viewer")
 
-    abs_path = (storage_manager.base_dir / export.file_path).resolve()
-    try:
-        abs_path.relative_to(storage_manager.base_dir)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid file path")
+    abs_path = storage_manager.safe_abs_path(export.file_path)
 
     if not abs_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
-    return FileResponse(abs_path, filename=export.filename, media_type=_export_media_type(export.filename))
+    return FileResponse(
+        abs_path,
+        filename=export.filename,
+        media_type=_export_media_type(export.filename),
+    )
 
 
 @dataclass
