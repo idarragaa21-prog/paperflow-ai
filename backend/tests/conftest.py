@@ -35,3 +35,42 @@ def reset_auth_rate_limit_state(monkeypatch: pytest.MonkeyPatch):
     auth_rate_limit._memory_windows.clear()
     yield
     auth_rate_limit._memory_windows.clear()
+
+class DummyREngineResponse:
+    def __init__(self, text: str = "ok", json_payload: dict | None = None):
+        self.text = text
+        self._json_payload = json_payload or {}
+        self.headers = {"content-type": "application/json"}
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._json_payload
+
+
+class DummyREngineAsyncClient:
+    def __init__(self, *args, **kwargs):
+        return None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    async def post(self, url: str, **kwargs):
+        if "run-analysis" in url:
+            return DummyREngineResponse(
+                json_payload={
+                    "summary": {"rows_total": 2},
+                    "figure_artifacts": {"forest": {"svg": "PHN2Zz48L3N2Zz4="}},
+                }
+            )
+        return DummyREngineResponse(text="ok")
+
+
+@pytest.fixture(autouse=True)
+def mock_r_engine_client(monkeypatch: pytest.MonkeyPatch):
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", DummyREngineAsyncClient)
