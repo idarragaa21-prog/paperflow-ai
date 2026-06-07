@@ -17,3 +17,7 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+## 2024-06-07 - Missing Dummy Verify in Authentication
+**Vulnerability:** Timing attack vulnerability in user authentication login flow.
+**Learning:** The authentication endpoint would immediately return if a user was not found, making the response significantly faster than if the user existed and a password check was performed. This allows attackers to enumerate registered email addresses.
+**Prevention:** Always use `pwd_context.dummy_verify()` or equivalent to enforce a constant-time execution path when a user lookup fails.
