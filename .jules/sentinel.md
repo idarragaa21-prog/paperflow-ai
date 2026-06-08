@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-24 - [Username Enumeration via Timing Attack]
+**Vulnerability:** The login endpoint bypassed password verification when a user didn't exist, leading to significantly faster response times for non-existent users, which allows attackers to enumerate valid usernames.
+**Learning:** Short-circuit evaluation in authentication checks (`if not user or not verify_password()`) leaks information through timing differences.
+**Prevention:** Always perform a dummy password verification (`pwd_context.dummy_verify()`) when a user is not found to ensure constant-time execution across both successful and failed authentication attempts.

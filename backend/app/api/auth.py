@@ -15,13 +15,19 @@ from app.core.security import (
     decode_token_payload,
     generate_csrf_token,
     hash_password,
+    pwd_context,
     verify_password,
 )
 from app.models.audit_log import AuditLog
 from app.models.membership import ProjectInvitation, ProjectMembership
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    UserLogin,
+    UserRegister,
+)
 from app.services import auth_rate_limit, auth_sessions
 from app.services.email import send_password_reset_code_email
 from app.services.reset_codes import delete_reset_code, get_reset_code, store_reset_code
@@ -29,7 +35,9 @@ from app.services.reset_codes import delete_reset_code, get_reset_code, store_re
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+def _set_auth_cookies(
+    response: Response, access_token: str, refresh_token: str
+) -> None:
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -102,9 +110,12 @@ async def login(
             headers={"Retry-After": str(exc.retry_after_seconds)},
         ) from exc
 
-    if not user or not verify_password(credentials.password, user.password_hash):
+    if not user:
+        pwd_context.dummy_verify()
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
-    
+    elif not verify_password(credentials.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
@@ -171,11 +182,15 @@ async def refresh(
     if not auth_sessions.is_session_active(session) or session is None:
         raise HTTPException(status_code=401, detail="Sesión inválida")
     if session.token_family != token_family or session.refresh_jti != refresh_jti:
-        await auth_sessions.revoke_session_family(db, user_id=user.id, token_family=token_family)
+        await auth_sessions.revoke_session_family(
+            db, user_id=user.id, token_family=token_family
+        )
         await db.commit()
         raise HTTPException(status_code=401, detail="Refresh token reuse detected")
 
-    next_refresh_jti = await auth_sessions.rotate_refresh_session(db, session=session, previous_jti=refresh_jti)
+    next_refresh_jti = await auth_sessions.rotate_refresh_session(
+        db, session=session, previous_jti=refresh_jti
+    )
     new_access = create_access_token(user_id, session_id=session.id)
     new_refresh = create_refresh_token(
         user_id,
@@ -267,7 +282,7 @@ async def update_me(
 ) -> dict:
     body = await request.json()
     if "full_name" in body:
-        user.full_name = (body["full_name"] or None)
+        user.full_name = body["full_name"] or None
     if "affiliation" in body:
         value = (body["affiliation"] or "").strip()
         user.affiliation = value or None
@@ -280,7 +295,9 @@ async def update_me(
     if "language" in body:
         value = (body["language"] or "").strip().lower()
         if value and value not in {"es", "en", "pt"}:
-            raise HTTPException(status_code=422, detail="language must be one of: es, en, pt")
+            raise HTTPException(
+                status_code=422, detail="language must be one of: es, en, pt"
+            )
         user.language = value or None
     if "preferences" in body:
         prefs = body["preferences"]
@@ -304,9 +321,13 @@ async def change_password(
     current = body.get("current_password", "")
     new_pw = body.get("new_password", "")
     if not current or not new_pw:
-        raise HTTPException(status_code=400, detail="current_password and new_password required")
+        raise HTTPException(
+            status_code=400, detail="current_password and new_password required"
+        )
     if len(new_pw) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 8 characters"
+        )
     if not verify_password(current, user.password_hash):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     user.password_hash = hash_password(new_pw)
@@ -336,14 +357,21 @@ async def register(
     invitation: ProjectInvitation | None = None
     project: Project | None = None
     if payload.invitation_token:
-        invite_q = await db.execute(select(ProjectInvitation).where(ProjectInvitation.token == payload.invitation_token).limit(1))
+        invite_q = await db.execute(
+            select(ProjectInvitation)
+            .where(ProjectInvitation.token == payload.invitation_token)
+            .limit(1)
+        )
         invitation = invite_q.scalar_one_or_none()
         if invitation is None or invitation.revoked_at is not None:
             raise HTTPException(status_code=404, detail="Invitation not found")
         if invitation.accepted_at is not None:
             raise HTTPException(status_code=409, detail="Invitation already accepted")
         if invitation.email.lower() != email:
-            raise HTTPException(status_code=400, detail="Invitation email does not match the registration email")
+            raise HTTPException(
+                status_code=400,
+                detail="Invitation email does not match the registration email",
+            )
         project = await db.get(Project, invitation.project_id)
         if project is None:
             raise HTTPException(status_code=404, detail="Invitation project not found")
@@ -371,9 +399,17 @@ async def register(
         )
         membership = membership_q.scalar_one_or_none()
         if membership is None:
-            db.add(ProjectMembership(project_id=invitation.project_id, user_id=user.id, role=invitation.role))
+            db.add(
+                ProjectMembership(
+                    project_id=invitation.project_id,
+                    user_id=user.id,
+                    role=invitation.role,
+                )
+            )
         else:
-            membership.role = "owner" if project and project.user_id == user.id else invitation.role
+            membership.role = (
+                "owner" if project and project.user_id == user.id else invitation.role
+            )
         invitation.accepted_at = datetime.now(timezone.utc)
         invitation.accepted_by_user_id = user.id
         accepted_project_id = str(invitation.project_id)
@@ -421,11 +457,15 @@ async def forgot_password(
     store_reset_code(payload.email, code)
 
     from app.core.logger import logger
+
     delivery = send_password_reset_code_email(to_email=payload.email, code=code)
     if delivery.sent:
         logger.info("Password reset code sent to {}", payload.email)
     else:
-        logger.warning("Email delivery not configured; reset code generated for {} (check logs at DEBUG level)", payload.email)
+        logger.warning(
+            "Email delivery not configured; reset code generated for {} (check logs at DEBUG level)",
+            payload.email,
+        )
         logger.debug("[RESET CODE] {} → {}", payload.email, code)
 
     return {"ok": True, "delivery_status": delivery.status}
