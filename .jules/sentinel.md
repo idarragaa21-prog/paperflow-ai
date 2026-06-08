@@ -22,3 +22,8 @@
 **Vulnerability:** The login endpoint bypassed password verification when a user didn't exist, leading to significantly faster response times for non-existent users, which allows attackers to enumerate valid usernames.
 **Learning:** Short-circuit evaluation in authentication checks (`if not user or not verify_password()`) leaks information through timing differences.
 **Prevention:** Always perform a dummy password verification (`pwd_context.dummy_verify()`) when a user is not found to ensure constant-time execution across both successful and failed authentication attempts.
+
+## 2024-05-24 - [Vitest test selection by display value]
+**Vulnerability:** Vitest query for input elements used `screen.getAllByDisplayValue('')` which resulted in grabbing elements from all over the form when verifying the change password section.
+**Learning:** Using `getAllByDisplayValue('')` to find empty inputs is extremely fragile as it will match any empty input on the page, not just the ones in the intended component.
+**Prevention:** Query input elements contextually by scoping queries to specific container elements or by using specific ARIA labels (`getByRole` / `getByLabelText`) rather than generic visual content like empty values.
