@@ -117,6 +117,9 @@ jobs:
       PLAYWRIGHT_BASE_URL: "http://127.0.0.1:5173"
       PLAYWRIGHT_API_URL: "http://127.0.0.1:8000"
       PAPERFLOW_SKIP_GROBID_WAIT: "1"
+      # Use the Chrome preinstalled on the runner image; downloading browsers
+      # from the Playwright CDN has repeatedly hung on degraded runner egress.
+      PLAYWRIGHT_CHANNEL: "chrome"
     steps:
       - uses: actions/checkout@v6
 
@@ -144,13 +147,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
-
-      - name: Install Playwright browser
-        working-directory: frontend
-        timeout-minutes: 10
-        # GitHub ubuntu-24.04 images ship Chromium system deps preinstalled;
-        # --with-deps invokes apt-get, which hangs when runner egress is degraded.
-        run: npx playwright install chromium
 
       - name: Run stable browser smoke
         working-directory: frontend
