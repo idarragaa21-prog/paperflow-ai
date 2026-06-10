@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 import uuid
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, Index
@@ -21,7 +23,7 @@ class PaperFile(Base, TimestampMixin):
     mime_type: Mapped[str] = mapped_column(String(128), server_default="application/pdf", nullable=False)
     size_kb: Mapped[int | None] = mapped_column(Integer, nullable=True)
     checksum: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    is_primary: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    is_primary: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("true"), nullable=False)
 
     paper = relationship("Paper", back_populates="files")
 
@@ -35,7 +37,7 @@ class PaperParseRun(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), server_default="queued", nullable=False)
     parser_name: Mapped[str] = mapped_column(String(64), server_default="paperflow_pdf_v1", nullable=False)
     parser_version: Mapped[str] = mapped_column(String(32), server_default="1", nullable=False)
-    used_ocr: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    used_ocr: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     pages_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     chars_extracted: Mapped[int | None] = mapped_column(Integer, nullable=True)
     warnings: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)

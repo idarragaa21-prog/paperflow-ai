@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from datetime import datetime
 import uuid
 
@@ -46,7 +48,7 @@ class SearchResult(Base, TimestampMixin):
     source: Mapped[str | None] = mapped_column(String(64), nullable=True)
     language: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
-    is_open_access: Mapped[bool] = mapped_column(nullable=False, server_default="false")
+    is_open_access: Mapped[bool] = mapped_column(nullable=False, server_default=sa.text("false"))
     oa_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     relevance_score: Mapped[float | None] = mapped_column(nullable=True)
 

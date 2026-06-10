@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from datetime import datetime
 import uuid
 
@@ -36,12 +38,12 @@ class Paper(Base, TimestampMixin):
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     source_provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
     source_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    is_open_access: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    is_open_access: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     oa_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    favorite: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    favorite: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     tags: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
-    is_processed: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    is_processed: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     full_text_extracted: Mapped[str | None] = mapped_column(Text, nullable=True)
     processing_status: Mapped[str] = mapped_column(String(32), server_default="uploaded", nullable=False)
     processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)

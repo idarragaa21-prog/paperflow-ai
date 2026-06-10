@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from datetime import datetime
 import uuid
 
@@ -29,8 +31,8 @@ class ClinicalConsult(Base, TimestampMixin):
     uncertainty_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     limitations_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    used_project_library: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
-    used_pubmed: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    used_project_library: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("true"), nullable=False)
+    used_pubmed: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     sources = relationship("ClinicalConsultSource", back_populates="consult", cascade="all, delete-orphan")

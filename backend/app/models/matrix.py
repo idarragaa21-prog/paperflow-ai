@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from datetime import datetime
 import uuid
 
@@ -22,7 +24,7 @@ class MatrixVersion(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), server_default="ready", nullable=False)
     schema_version: Mapped[str] = mapped_column(String(64), server_default="matrix.v1", nullable=False)
     source_signature: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    is_current: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    is_current: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("true"), nullable=False)
 
     summary_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     validation_summary_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

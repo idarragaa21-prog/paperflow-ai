@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 import uuid
 
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, Index
@@ -18,7 +20,7 @@ class ExtractionTemplate(Base, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     discipline: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    is_builtin: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    is_builtin: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     schema_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
     records = relationship("ExtractionRecord", back_populates="template")
@@ -55,7 +57,7 @@ class ExtractionFieldValue(Base, TimestampMixin):
     source_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_locator: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    manually_edited: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    manually_edited: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
 
     record = relationship("ExtractionRecord", back_populates="field_values")
 
