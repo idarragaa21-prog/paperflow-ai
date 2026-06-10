@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [master]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -74,6 +78,7 @@ jobs:
   frontend:
     name: Frontend Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -106,6 +111,7 @@ jobs:
   smoke-e2e:
     name: Browser Smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [backend, frontend]
     env:
       PLAYWRIGHT_BASE_URL: "http://127.0.0.1:5173"
