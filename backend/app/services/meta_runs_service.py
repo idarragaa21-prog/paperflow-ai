@@ -368,6 +368,218 @@ def _run_payload_summary(*, preset: str, rows: list[dict[str, Any]]) -> dict[str
     }
 
 
+# Presets analysed on the log scale (ratio measures, logit-transformed proportions).
+_LOG_SCALE_PRESETS = {
+    "meta_binary_random",
+    "meta_binary_fixed",
+    "meta_generic_iv",
+    "meta_survival_hr",
+    "meta_proportion",
+    "publication_bias_suite",
+}
+
+
+def _normal_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def _study_label(row: dict[str, Any], index: int) -> str:
+    label = row.get("paper_title") or row.get("study_id") or row.get("row_key") or f"Study {index + 1}"
+    text = str(label).strip()
+    return (text[:48] + "…") if len(text) > 49 else text
+
+
+def _extract_effect_points(rows: list[dict[str, Any]], *, log_scale: bool) -> list[dict[str, Any]]:
+    """Coerce derived dataset rows into (label, yi, sei, ci) tuples for pooling."""
+    points: list[dict[str, Any]] = []
+    for index, row in enumerate(rows):
+        yi = _to_float(row.get("log_effect"))
+        if yi is None:
+            yi = _to_float(row.get("effect_value"))
+        sei = _to_float(row.get("se"))
+        if yi is None or sei is None or sei <= 0:
+            continue
+        ci_low = _to_float(row.get("ci_lower_95"))
+        ci_high = _to_float(row.get("ci_upper_95"))
+        if log_scale:
+            lo = math.log(ci_low) if (ci_low is not None and ci_low > 0) else yi - 1.96 * sei
+            hi = math.log(ci_high) if (ci_high is not None and ci_high > 0) else yi + 1.96 * sei
+        else:
+            lo = ci_low if ci_low is not None else yi - 1.96 * sei
+            hi = ci_high if ci_high is not None else yi + 1.96 * sei
+        points.append({"label": _study_label(row, index), "yi": yi, "sei": sei, "lo": lo, "hi": hi})
+    return points
+
+
+def _pool_effects(points: list[dict[str, Any]], *, random_effects: bool) -> dict[str, Any]:
+    """Inverse-variance pooling with DerSimonian-Laird random-effects estimate."""
+    k = len(points)
+    weights_fe = [1.0 / (p["sei"] ** 2) for p in points]
+    sum_w = sum(weights_fe)
+    est_fe = sum(w * p["yi"] for w, p in zip(weights_fe, points)) / sum_w
+    q = sum(w * (p["yi"] - est_fe) ** 2 for w, p in zip(weights_fe, points))
+    df = k - 1
+
+    tau2 = 0.0
+    if random_effects and df > 0:
+        c = sum_w - (sum(w ** 2 for w in weights_fe) / sum_w)
+        tau2 = max(0.0, (q - df) / c) if c > 0 else 0.0
+
+    weights = [1.0 / (p["sei"] ** 2 + tau2) for p in points]
+    sum_w_re = sum(weights)
+    est = sum(w * p["yi"] for w, p in zip(weights, points)) / sum_w_re
+    se = math.sqrt(1.0 / sum_w_re)
+    ci_low = est - 1.96 * se
+    ci_high = est + 1.96 * se
+    z = est / se if se > 0 else 0.0
+    p_value = 2.0 * (1.0 - _normal_cdf(abs(z)))
+    i2 = max(0.0, (q - df) / q) * 100.0 if q > 0 else 0.0
+
+    return {
+        "k": k,
+        "estimate": est,
+        "se": se,
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "z": z,
+        "p_value": p_value,
+        "q": q,
+        "df": df,
+        "i2": i2,
+        "tau2": tau2,
+        "model": "random-effects (DL)" if (random_effects and df > 0) else "fixed-effect",
+    }
+
+
+def _forest_svg(*, points: list[dict[str, Any]], pooled: dict[str, Any], null_value: float, log_scale: bool) -> str:
+    """Render a minimal but valid forest-plot SVG from pooled effect points."""
+    lows = [p["lo"] for p in points] + [pooled["ci_low"], null_value]
+    highs = [p["hi"] for p in points] + [pooled["ci_high"], null_value]
+    x_min, x_max = min(lows), max(highs)
+    if x_max - x_min < 1e-9:
+        x_min -= 1.0
+        x_max += 1.0
+    pad = (x_max - x_min) * 0.1
+    x_min -= pad
+    x_max += pad
+
+    left, right = 250, 560
+    row_h = 26
+    top = 40
+    height = top + (len(points) + 2) * row_h + 30
+
+    def sx(value: float) -> float:
+        return left + (value - x_min) / (x_max - x_min) * (right - left)
+
+    def fmt(value: float) -> str:
+        return f"{math.exp(value):.2f}" if log_scale else f"{value:.2f}"
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="{height}" '
+        f'viewBox="0 0 600 {height}" font-family="Helvetica, Arial, sans-serif">',
+        f'<rect width="600" height="{height}" fill="#ffffff"/>',
+        '<text x="20" y="24" font-size="14" font-weight="700" fill="#111">Forest plot</text>',
+        f'<line x1="{sx(null_value):.1f}" y1="{top}" x2="{sx(null_value):.1f}" y2="{top + (len(points) + 1) * row_h}" '
+        'stroke="#999" stroke-dasharray="4 3"/>',
+    ]
+    for i, p in enumerate(points):
+        y = top + i * row_h + row_h / 2
+        parts.append(f'<text x="20" y="{y + 4:.1f}" font-size="12" fill="#222">{_xml_escape(p["label"])}</text>')
+        parts.append(f'<line x1="{sx(p["lo"]):.1f}" y1="{y:.1f}" x2="{sx(p["hi"]):.1f}" y2="{y:.1f}" stroke="#3b5bdb" stroke-width="2"/>')
+        parts.append(f'<rect x="{sx(p["yi"]) - 3:.1f}" y="{y - 3:.1f}" width="6" height="6" fill="#1c2d8c"/>')
+        parts.append(f'<text x="{right + 8}" y="{y + 4:.1f}" font-size="11" fill="#444">{fmt(p["yi"])}</text>')
+
+    yd = top + len(points) * row_h + row_h / 2
+    cx, lo_x, hi_x = sx(pooled["estimate"]), sx(pooled["ci_low"]), sx(pooled["ci_high"])
+    parts.append(f'<text x="20" y="{yd + 4:.1f}" font-size="12" font-weight="700" fill="#111">Pooled ({_xml_escape(pooled["model"])})</text>')
+    parts.append(
+        f'<polygon points="{lo_x:.1f},{yd:.1f} {cx:.1f},{yd - 6:.1f} {hi_x:.1f},{yd:.1f} {cx:.1f},{yd + 6:.1f}" '
+        'fill="#c92a2a"/>'
+    )
+    parts.append(f'<text x="{right + 8}" y="{yd + 4:.1f}" font-size="11" font-weight="700" fill="#111">{fmt(pooled["estimate"])}</text>')
+    parts.append(f'<text x="20" y="{height - 12}" font-size="10" fill="#666">Heterogeneity: I²={pooled["i2"]:.0f}%, τ²={pooled["tau2"]:.3f}, Q={pooled["q"]:.2f}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _xml_escape(text: str) -> str:
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _local_meta_script(*, preset: str, log_scale: bool, random_effects: bool) -> str:
+    method = "DL" if random_effects else "FE"
+    transf = "transf=exp, " if log_scale else ""
+    return (
+        "# Reproducible meta-analysis (metafor)\n"
+        "library(metafor)\n"
+        'dat <- read.csv("effect_table.csv")\n'
+        f'res <- rma(yi = dat$log_effect, sei = dat$se, method = "{method}")  # preset: {preset}\n'
+        f"summary(res)\n"
+        f"forest(res, {transf}slab = dat$paper_title)\n"
+        "funnel(res)\n"
+    )
+
+
+def _local_meta_fallback(*, preset: str, rows: list[dict[str, Any]], input_params: dict | None) -> dict[str, Any] | None:
+    """Compute a meta-analysis in-process when the external R engine is unavailable.
+
+    Returns a payload shaped like the R engine `/run-analysis` response so the
+    downstream artifact pipeline is identical, or None when the preset cannot be
+    pooled locally (e.g. risk-of-bias / diagnostic accuracy summaries).
+    """
+    if preset in {"risk_of_bias_summary", "meta_diag_accuracy"}:
+        return None
+
+    log_scale = preset in _LOG_SCALE_PRESETS
+    random_effects = not preset.endswith("_fixed")
+    points = _extract_effect_points(rows, log_scale=log_scale)
+    if not points:
+        return None
+
+    pooled = _pool_effects(points, random_effects=random_effects)
+    null_value = 0.0
+    estimate_natural = math.exp(pooled["estimate"]) if log_scale else pooled["estimate"]
+    ci_low_natural = math.exp(pooled["ci_low"]) if log_scale else pooled["ci_low"]
+    ci_high_natural = math.exp(pooled["ci_high"]) if log_scale else pooled["ci_high"]
+
+    summary = {
+        "preset": preset,
+        "model": pooled["model"],
+        "k": pooled["k"],
+        "rows": len(rows),
+        "estimate": round(estimate_natural, 4),
+        "estimate_log_scale": round(pooled["estimate"], 4) if log_scale else None,
+        "ci_lower_95": round(ci_low_natural, 4),
+        "ci_upper_95": round(ci_high_natural, 4),
+        "se": round(pooled["se"], 4),
+        "z": round(pooled["z"], 4),
+        "p_value": round(pooled["p_value"], 4),
+        "q_statistic": round(pooled["q"], 4),
+        "i_squared": round(pooled["i2"], 2),
+        "tau_squared": round(pooled["tau2"], 4),
+        "scale": "log" if log_scale else "raw",
+        "supports_publication": True,
+        "engine": "python-local-fallback",
+        "note": "Computed with the built-in Python meta-analysis engine (R engine unavailable).",
+    }
+
+    return {
+        "summary": summary,
+        "script": _local_meta_script(preset=preset, log_scale=log_scale, random_effects=random_effects),
+        "engine_version": "python-local-fallback/1.0",
+        "warnings": ["R engine unavailable; results computed with the built-in Python fallback engine."],
+        "figure_artifacts": {
+            "forest": {"svg": _forest_svg(points=points, pooled=pooled, null_value=null_value, log_scale=log_scale)},
+        },
+    }
+
+
 def _decode_base64(payload: Any) -> bytes | None:
     if not isinstance(payload, str) or not payload:
         return None
@@ -499,6 +711,7 @@ async def run_meta_analysis(
 
     response_data: dict[str, Any]
     warnings: list[str] = []
+    engine_label = "r-engine"
     try:
         async with httpx.AsyncClient(timeout=40) as client:
             response = await client.post(
@@ -512,22 +725,29 @@ async def run_meta_analysis(
             response.raise_for_status()
             response_data = response.json()
     except Exception as exc:
-        run.status = "failed"
-        run.summary_json = {
-            "preset": preset,
-            "rows": len(rows),
-            "supports_publication": False,
-            "note": "R engine execution failed. No publication artifacts generated.",
-        }
-        run.warnings = [f"R engine request failed: {exc}"]
-        run.engine = "r-engine"
-        run.engine_version = None
-        run.runtime_json = {"preset": preset, "rows": len(rows), "supports_publication": False}
-        run.completed_at = datetime.now(timezone.utc)
-        await db.commit()
-        stmt = select(MetaRun).where(MetaRun.id == run.id).options(selectinload(MetaRun.artifacts))
-        hydrated = await db.execute(stmt)
-        return hydrated.scalars().first()
+        # Local-first fallback: when the external R engine is unreachable, compute
+        # the meta-analysis in-process so the pipeline still produces real results.
+        fallback = _local_meta_fallback(preset=preset, rows=rows, input_params=input_params)
+        if fallback is None:
+            run.status = "failed"
+            run.summary_json = {
+                "preset": preset,
+                "rows": len(rows),
+                "supports_publication": False,
+                "note": "R engine execution failed and no local fallback is available for this preset.",
+            }
+            run.warnings = [f"R engine request failed: {exc}"]
+            run.engine = "r-engine"
+            run.engine_version = None
+            run.runtime_json = {"preset": preset, "rows": len(rows), "supports_publication": False}
+            run.completed_at = datetime.now(timezone.utc)
+            await db.commit()
+            stmt = select(MetaRun).where(MetaRun.id == run.id).options(selectinload(MetaRun.artifacts))
+            hydrated = await db.execute(stmt)
+            return hydrated.scalars().first()
+        response_data = fallback
+        engine_label = "python-local-fallback"
+        warnings.append(f"R engine unavailable ({exc}); used built-in Python fallback engine.")
 
     summary = response_data.get("summary") or _run_payload_summary(preset=preset, rows=rows)
     warnings.extend(response_data.get("warnings") or [])
@@ -574,12 +794,13 @@ async def run_meta_analysis(
             warnings.append(f"Figure `{kind}` was not generated by the R engine.")
             continue
 
+        prefix = kind if kind == "rob" else f"figure_{kind}"
         if svg_bytes is not None:
-            artifacts_to_create.append((f"{kind}_svg", f"{run.id}_{kind}.svg", svg_bytes, "image/svg+xml", {"preset": preset, "figure": kind}))
+            artifacts_to_create.append((f"{prefix}_svg", f"{run.id}_{kind}.svg", svg_bytes, "image/svg+xml", {"preset": preset, "figure": kind}))
         if png_bytes is not None:
-            artifacts_to_create.append((f"{kind}_png", f"{run.id}_{kind}.png", png_bytes, "image/png", {"preset": preset, "figure": kind}))
+            artifacts_to_create.append((f"{prefix}_png", f"{run.id}_{kind}.png", png_bytes, "image/png", {"preset": preset, "figure": kind}))
         if pdf_bytes is not None:
-            artifacts_to_create.append((f"{kind}_pdf", f"{run.id}_{kind}.pdf", pdf_bytes, "application/pdf", {"preset": preset, "figure": kind}))
+            artifacts_to_create.append((f"{prefix}_pdf", f"{run.id}_{kind}.pdf", pdf_bytes, "application/pdf", {"preset": preset, "figure": kind}))
 
     saved_lookup: dict[str, str] = {}
     for artifact_type, filename, payload, mime, metadata in artifacts_to_create:
@@ -599,7 +820,7 @@ async def run_meta_analysis(
     run.status = "completed"
     run.summary_json = summary
     run.warnings = warnings
-    run.engine = "r-engine"
+    run.engine = engine_label
     run.engine_version = engine_version
     run.script_path = saved_lookup.get("script_r")
     run.session_info_path = saved_lookup.get("session_info")
