@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from datetime import datetime
 import uuid
 
@@ -23,7 +25,7 @@ class Project(Base, TimestampMixin):
     runtime_mode: Mapped[str] = mapped_column(String(32), server_default="local_only", nullable=False)
 
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    archived: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    archived: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
 
     user = relationship("User", back_populates="projects")
     searches = relationship("Search", back_populates="project", cascade="all, delete-orphan")

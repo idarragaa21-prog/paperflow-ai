@@ -15,6 +15,13 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Normalize naive datetimes (e.g. from SQLite) to UTC-aware for comparison."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
 def new_token_family() -> str:
     return secrets.token_urlsafe(24)
 
@@ -53,7 +60,7 @@ def is_session_active(session: AuthSession | None) -> bool:
     return bool(
         session
         and session.revoked_at is None
-        and (session.expires_at is None or session.expires_at > _utcnow())
+        and (session.expires_at is None or _as_utc(session.expires_at) > _utcnow())
     )
 
 

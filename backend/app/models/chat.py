@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 import uuid
 
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, Index
@@ -21,7 +23,7 @@ class ChatSession(Base, TimestampMixin):
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     task_type: Mapped[str] = mapped_column(String(32), server_default="chat", nullable=False)
     runtime_mode: Mapped[str] = mapped_column(String(32), server_default="local_only", nullable=False)
-    grounded: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    grounded: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("true"), nullable=False)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     project = relationship("Project", back_populates="chat_sessions")
@@ -41,7 +43,7 @@ class ChatMessage(Base, TimestampMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     claim_type: Mapped[str] = mapped_column(String(16), server_default="resumen", nullable=False)
     confidence: Mapped[float] = mapped_column(Float, server_default="0", nullable=False)
-    grounded: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    grounded: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     session = relationship("ChatSession", back_populates="messages")

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [master]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -74,6 +78,7 @@ jobs:
   frontend:
     name: Frontend Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -106,11 +111,15 @@ jobs:
   smoke-e2e:
     name: Browser Smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [backend, frontend]
     env:
       PLAYWRIGHT_BASE_URL: "http://127.0.0.1:5173"
       PLAYWRIGHT_API_URL: "http://127.0.0.1:8000"
       PAPERFLOW_SKIP_GROBID_WAIT: "1"
+      # Use the Chrome preinstalled on the runner image; downloading browsers
+      # from the Playwright CDN has repeatedly hung on degraded runner egress.
+      PLAYWRIGHT_CHANNEL: "chrome"
     steps:
       - uses: actions/checkout@v6
 
@@ -138,10 +147,6 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
-
-      - name: Install Playwright browser
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
 
       - name: Run stable browser smoke
         working-directory: frontend

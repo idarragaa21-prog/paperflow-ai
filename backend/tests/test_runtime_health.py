@@ -55,6 +55,7 @@ class DummyQdrantClient:
 
 @pytest.mark.asyncio
 async def test_collect_runtime_health_separates_required_and_optional(monkeypatch):
+    monkeypatch.setattr(runtime_health.settings, "LLM_PROVIDER", "auto_local")
     monkeypatch.setattr(runtime_health, "redis_available", lambda: True)
     monkeypatch.setattr(runtime_health.storage_manager, "ensure_bucket", lambda: None)
     monkeypatch.setattr(runtime_health.httpx, "AsyncClient", DummyAsyncClient)
@@ -82,6 +83,7 @@ async def test_collect_runtime_health_marks_missing_ollama_models_as_degraded(mo
                 return DummyResponse(text="ok")
             return await super().get(url)
 
+    monkeypatch.setattr(runtime_health.settings, "LLM_PROVIDER", "auto_local")
     monkeypatch.setattr(runtime_health, "redis_available", lambda: True)
     monkeypatch.setattr(runtime_health.storage_manager, "ensure_bucket", lambda: None)
     monkeypatch.setattr(runtime_health.httpx, "AsyncClient", MissingModelAsyncClient)

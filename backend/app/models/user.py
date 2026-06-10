@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlalchemy as sa
+
 from datetime import datetime
 import uuid
 
@@ -27,7 +29,7 @@ class User(Base, TimestampMixin):
     preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("true"), nullable=False)
 
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
     jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")

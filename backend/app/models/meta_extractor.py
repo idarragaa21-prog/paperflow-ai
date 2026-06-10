@@ -54,7 +54,7 @@ class ExtractedStudy(Base):
     batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("meta_extraction_batches.id", ondelete="SET NULL"), nullable=True)
 
     version: Mapped[int] = mapped_column(Integer, server_default="1", nullable=False)
-    is_current: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    is_current: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("true"), nullable=False)
 
     study_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
     extraction_confidence: Mapped[float] = mapped_column(sa.Float(), server_default="0.0", nullable=False)  # type: ignore[name-defined]
@@ -131,14 +131,14 @@ class ExtractedEffectSize(Base):
     subgroup_label: Mapped[str | None] = mapped_column(String(128), nullable=True)
     subgroup_level: Mapped[str | None] = mapped_column(String(128), nullable=True)
     subgroup_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    sensitivity_flag: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    sensitivity_flag: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     sensitivity_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     analysis_population: Mapped[str | None] = mapped_column(String(64), nullable=True)
     model_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
     covariates_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     adjustment_variables: Mapped[str | None] = mapped_column(Text, nullable=True)
-    is_adjusted: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    is_adjusted: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
 
     raw_extracted_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_type: Mapped[str] = mapped_column(String(32), server_default="text", nullable=False)
@@ -148,7 +148,7 @@ class ExtractedEffectSize(Base):
     confidence: Mapped[float] = mapped_column(sa.Float(), server_default="0.0", nullable=False)  # type: ignore[name-defined]
     comments: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    manually_edited: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    manually_edited: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -166,10 +166,10 @@ class ExtractedRiskOfBias(Base):
     judgement: Mapped[str] = mapped_column(String(32), server_default="unclear", nullable=False)
     support_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    manually_edited: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    manually_edited: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    auto_generated: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    auto_generated: Mapped[bool] = mapped_column(Boolean, server_default=sa.text("false"), nullable=False)
 
 
 Index("idx_rob_study", ExtractedRiskOfBias.extracted_study_id)
