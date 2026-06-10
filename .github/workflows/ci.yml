@@ -147,7 +147,10 @@ jobs:
 
       - name: Install Playwright browser
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+        # GitHub ubuntu-24.04 images ship Chromium system deps preinstalled;
+        # --with-deps invokes apt-get, which hangs when runner egress is degraded.
+        run: npx playwright install chromium
 
       - name: Run stable browser smoke
         working-directory: frontend
