@@ -23,6 +23,7 @@ from app.models.meta_extractor import (
     MetaExtractionBatch,
     MetaExtractionItem,
 )
+from app.services import manual_extraction
 from app.services.jobs import get_job_queue
 from app.models.meta_export import MetaExport
 from app.schemas.meta import BatchEffectPatchRequest, MetaExportListRow, MetaExportRequest
@@ -382,6 +383,70 @@ async def list_study_versions(
         }
         for s in versions
     ]
+
+
+@router.post("/studies")
+@limiter.limit("30/minute")
+async def create_manual_study(
+    request: Request,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Create one study by hand (no LLM extraction required).
+
+    Body: {"project_id", optional "paper_id", study fields, optional "effects": [...]}.
+    """
+    project_id_raw = payload.get("project_id")
+    if not project_id_raw:
+        raise HTTPException(status_code=400, detail="project_id requerido")
+    project_id = UUID(str(project_id_raw))
+    await _require_project_role(db, project_id, user, required_role="editor")
+
+    try:
+        record = await manual_extraction.create_study(
+            db,
+            project_id=project_id,
+            paper_id=UUID(str(payload["paper_id"])) if payload.get("paper_id") else None,
+            study=payload,
+            effects=payload.get("effects") or [],
+        )
+        await db.commit()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {"id": str(record.id), "paper_id": str(record.paper_id)}
+
+
+@router.post("/studies/import")
+@limiter.limit("10/minute")
+async def import_manual_studies(
+    request: Request,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Bulk-import prepared extraction data (the common expert workflow).
+
+    Body: {"project_id", "studies": [{study fields, "effects": [...]}, ...]}.
+    """
+    project_id_raw = payload.get("project_id")
+    if not project_id_raw:
+        raise HTTPException(status_code=400, detail="project_id requerido")
+    project_id = UUID(str(project_id_raw))
+    await _require_project_role(db, project_id, user, required_role="editor")
+
+    try:
+        created = await manual_extraction.import_studies(
+            db, project_id=project_id, studies=payload.get("studies") or []
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "imported_studies": len(created),
+        "study_ids": [str(s.id) for s in created],
+    }
 
 
 @router.get("/studies/{study_id}/effects")

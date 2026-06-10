@@ -63,6 +63,37 @@ def _derive_se_from_ci(ci_low: float | None, ci_high: float | None, *, log_scale
         return None
 
 
+def _effect_from_2x2(
+    a: float, b: float, c: float, d: float, *, measure: str = "OR"
+) -> dict[str, float] | None:
+    """Log effect size and SE from a 2x2 table (events/non-events per arm).
+
+    a,b = intervention events / non-events; c,d = control events / non-events.
+    OR uses log(ad/bc) with SE = sqrt(1/a+1/b+1/c+1/d). RR uses log of risk ratio
+    with the standard large-sample SE. A Haldane-Anscombe 0.5 correction is applied
+    to all cells when any cell is zero.
+    """
+    measure = (measure or "OR").upper()
+    if min(a, b, c, d) == 0:
+        a, b, c, d = a + 0.5, b + 0.5, c + 0.5, d + 0.5
+    try:
+        if measure == "RR":
+            n_e, n_c = a + b, c + d
+            risk_e, risk_c = a / n_e, c / n_c
+            if risk_e <= 0 or risk_c <= 0:
+                return None
+            log_effect = math.log(risk_e / risk_c)
+            se = math.sqrt((1.0 / a) - (1.0 / n_e) + (1.0 / c) - (1.0 / n_c))
+        else:  # OR (also used as a robust default for HR when only counts exist)
+            log_effect = math.log((a * d) / (b * c))
+            se = math.sqrt((1.0 / a) + (1.0 / b) + (1.0 / c) + (1.0 / d))
+    except (ValueError, ZeroDivisionError):
+        return None
+    if se <= 0 or not math.isfinite(log_effect) or not math.isfinite(se):
+        return None
+    return {"log_effect": log_effect, "se": se}
+
+
 def _resolve_log_effect(data: dict[str, Any]) -> float | None:
     log_effect = _to_float(data.get("log_or")) or _to_float(data.get("log_effect"))
     if log_effect is not None:
@@ -151,6 +182,16 @@ def _coerce_dataset_rows(rows: list[MatrixRow], *, preset: str) -> tuple[list[di
             se = _resolve_se(data, log_scale=True)
             n_e = (a + b) if (a is not None and b is not None) else None
             n_c = (c + d) if (c is not None and d is not None) else None
+            # Compute the (log) effect and SE directly from the 2x2 table when the
+            # study only provides raw counts — the standard input for binary
+            # outcomes. Uses a Haldane-Anscombe 0.5 correction for zero cells.
+            if (log_effect is None or se is None) and None not in (a, b, c, d):
+                computed = _effect_from_2x2(a, b, c, d, measure=effect_measure)
+                if computed is not None:
+                    if log_effect is None:
+                        log_effect = computed["log_effect"]
+                    if se is None:
+                        se = computed["se"]
             if (a is None or b is None or c is None or d is None) and (log_effect is None or se is None):
                 validation_warnings.append(f"{row.row_key}: missing binary counts and log effect/SE")
                 continue
@@ -427,6 +468,8 @@ def _pool_effects(points: list[dict[str, Any]], *, random_effects: bool) -> dict
 
     weights = [1.0 / (p["sei"] ** 2 + tau2) for p in points]
     sum_w_re = sum(weights)
+    for w, p in zip(weights, points):
+        p["weight_pct"] = (w / sum_w_re) * 100.0 if sum_w_re > 0 else 0.0
     est = sum(w * p["yi"] for w, p in zip(weights, points)) / sum_w_re
     se = math.sqrt(1.0 / sum_w_re)
     ci_low = est - 1.96 * se
@@ -451,22 +494,55 @@ def _pool_effects(points: list[dict[str, Any]], *, random_effects: bool) -> dict
     }
 
 
-def _forest_svg(*, points: list[dict[str, Any]], pooled: dict[str, Any], null_value: float, log_scale: bool) -> str:
-    """Render a minimal but valid forest-plot SVG from pooled effect points."""
+def _nice_axis_ticks(x_min: float, x_max: float, log_scale: bool) -> list[float]:
+    """Pick a few readable tick positions (in analysis-scale units)."""
+    if log_scale:
+        candidates = [0.1, 0.2, 0.25, 0.5, 1, 2, 4, 5, 10]
+        ticks = [math.log(v) for v in candidates if x_min <= math.log(v) <= x_max]
+        return ticks or [0.0]
+    span = x_max - x_min
+    step = 10 ** math.floor(math.log10(span)) if span > 0 else 1.0
+    if span / step < 3:
+        step /= 2
+    start = math.ceil(x_min / step) * step
+    ticks: list[float] = []
+    val = start
+    while val <= x_max and len(ticks) < 8:
+        ticks.append(val)
+        val += step
+    return ticks
+
+
+def _forest_svg(
+    *,
+    points: list[dict[str, Any]],
+    pooled: dict[str, Any],
+    null_value: float,
+    log_scale: bool,
+    measure_label: str = "Effect",
+    favours_low: str = "intervention",
+    favours_high: str = "control",
+) -> str:
+    """Render a publication-style forest plot SVG with axis, weights and labels."""
     lows = [p["lo"] for p in points] + [pooled["ci_low"], null_value]
     highs = [p["hi"] for p in points] + [pooled["ci_high"], null_value]
     x_min, x_max = min(lows), max(highs)
     if x_max - x_min < 1e-9:
         x_min -= 1.0
         x_max += 1.0
-    pad = (x_max - x_min) * 0.1
+    pad = (x_max - x_min) * 0.12
     x_min -= pad
     x_max += pad
 
-    left, right = 250, 560
+    width = 760
+    left, right = 240, 470
+    est_x = right + 14
+    weight_x = width - 16
     row_h = 26
-    top = 40
-    height = top + (len(points) + 2) * row_h + 30
+    top = 56
+    plot_bottom = top + (len(points) + 1) * row_h
+    axis_y = plot_bottom + 8
+    height = axis_y + 56
 
     def sx(value: float) -> float:
         return left + (value - x_min) / (x_max - x_min) * (right - left)
@@ -474,30 +550,48 @@ def _forest_svg(*, points: list[dict[str, Any]], pooled: dict[str, Any], null_va
     def fmt(value: float) -> str:
         return f"{math.exp(value):.2f}" if log_scale else f"{value:.2f}"
 
+    null_x = sx(null_value)
     parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="{height}" '
-        f'viewBox="0 0 600 {height}" font-family="Helvetica, Arial, sans-serif">',
-        f'<rect width="600" height="{height}" fill="#ffffff"/>',
-        '<text x="20" y="24" font-size="14" font-weight="700" fill="#111">Forest plot</text>',
-        f'<line x1="{sx(null_value):.1f}" y1="{top}" x2="{sx(null_value):.1f}" y2="{top + (len(points) + 1) * row_h}" '
-        'stroke="#999" stroke-dasharray="4 3"/>',
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" font-family="Helvetica, Arial, sans-serif">',
+        f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
+        f'<text x="20" y="26" font-size="14" font-weight="700" fill="#111">Forest plot — {_xml_escape(measure_label)} (95% CI)</text>',
+        '<text x="20" y="44" font-size="10" fill="#888" font-weight="600">Study</text>',
+        f'<text x="{est_x}" y="44" font-size="10" fill="#888" font-weight="600">{_xml_escape(measure_label)} [95% CI]</text>',
+        f'<text x="{weight_x}" y="44" font-size="10" fill="#888" font-weight="600" text-anchor="end">Weight</text>',
+        f'<line x1="{null_x:.1f}" y1="{top - 6}" x2="{null_x:.1f}" y2="{plot_bottom:.1f}" stroke="#999" stroke-dasharray="4 3"/>',
     ]
+
+    max_w = max((p.get("weight_pct") or 0.0) for p in points) or 1.0
     for i, p in enumerate(points):
         y = top + i * row_h + row_h / 2
+        weight = p.get("weight_pct") or 0.0
+        size = 3.0 + 5.0 * math.sqrt(weight / max_w)  # marker area ∝ weight
         parts.append(f'<text x="20" y="{y + 4:.1f}" font-size="12" fill="#222">{_xml_escape(p["label"])}</text>')
-        parts.append(f'<line x1="{sx(p["lo"]):.1f}" y1="{y:.1f}" x2="{sx(p["hi"]):.1f}" y2="{y:.1f}" stroke="#3b5bdb" stroke-width="2"/>')
-        parts.append(f'<rect x="{sx(p["yi"]) - 3:.1f}" y="{y - 3:.1f}" width="6" height="6" fill="#1c2d8c"/>')
-        parts.append(f'<text x="{right + 8}" y="{y + 4:.1f}" font-size="11" fill="#444">{fmt(p["yi"])}</text>')
+        parts.append(f'<line x1="{sx(p["lo"]):.1f}" y1="{y:.1f}" x2="{sx(p["hi"]):.1f}" y2="{y:.1f}" stroke="#3b5bdb" stroke-width="1.6"/>')
+        parts.append(f'<rect x="{sx(p["yi"]) - size:.1f}" y="{y - size:.1f}" width="{2 * size:.1f}" height="{2 * size:.1f}" fill="#1c2d8c"/>')
+        parts.append(f'<text x="{est_x}" y="{y + 4:.1f}" font-size="11" fill="#444">{fmt(p["yi"])} [{fmt(p["lo"])}, {fmt(p["hi"])}]</text>')
+        parts.append(f'<text x="{weight_x}" y="{y + 4:.1f}" font-size="10" fill="#777" text-anchor="end">{weight:.1f}%</text>')
 
     yd = top + len(points) * row_h + row_h / 2
     cx, lo_x, hi_x = sx(pooled["estimate"]), sx(pooled["ci_low"]), sx(pooled["ci_high"])
     parts.append(f'<text x="20" y="{yd + 4:.1f}" font-size="12" font-weight="700" fill="#111">Pooled ({_xml_escape(pooled["model"])})</text>')
     parts.append(
-        f'<polygon points="{lo_x:.1f},{yd:.1f} {cx:.1f},{yd - 6:.1f} {hi_x:.1f},{yd:.1f} {cx:.1f},{yd + 6:.1f}" '
-        'fill="#c92a2a"/>'
+        f'<polygon points="{lo_x:.1f},{yd:.1f} {cx:.1f},{yd - 7:.1f} {hi_x:.1f},{yd:.1f} {cx:.1f},{yd + 7:.1f}" fill="#c92a2a"/>'
     )
-    parts.append(f'<text x="{right + 8}" y="{yd + 4:.1f}" font-size="11" font-weight="700" fill="#111">{fmt(pooled["estimate"])}</text>')
-    parts.append(f'<text x="20" y="{height - 12}" font-size="10" fill="#666">Heterogeneity: I²={pooled["i2"]:.0f}%, τ²={pooled["tau2"]:.3f}, Q={pooled["q"]:.2f}</text>')
+    parts.append(f'<text x="{est_x}" y="{yd + 4:.1f}" font-size="11" font-weight="700" fill="#111">{fmt(pooled["estimate"])} [{fmt(pooled["ci_low"])}, {fmt(pooled["ci_high"])}]</text>')
+
+    # X axis with ticks.
+    parts.append(f'<line x1="{left}" y1="{axis_y:.1f}" x2="{right}" y2="{axis_y:.1f}" stroke="#444" stroke-width="1"/>')
+    for tick in _nice_axis_ticks(x_min, x_max, log_scale):
+        tx = sx(tick)
+        parts.append(f'<line x1="{tx:.1f}" y1="{axis_y:.1f}" x2="{tx:.1f}" y2="{axis_y + 4:.1f}" stroke="#444"/>')
+        parts.append(f'<text x="{tx:.1f}" y="{axis_y + 16:.1f}" font-size="10" fill="#444" text-anchor="middle">{fmt(tick)}</text>')
+
+    # Favours labels around the null line.
+    parts.append(f'<text x="{null_x - 8:.1f}" y="{axis_y + 34:.1f}" font-size="10" fill="#666" text-anchor="end">◄ Favours {_xml_escape(favours_low)}</text>')
+    parts.append(f'<text x="{null_x + 8:.1f}" y="{axis_y + 34:.1f}" font-size="10" fill="#666">Favours {_xml_escape(favours_high)} ►</text>')
+    parts.append(f'<text x="20" y="{height - 6}" font-size="10" fill="#666">Heterogeneity: I²={pooled["i2"]:.0f}%, τ²={pooled["tau2"]:.3f}, Q={pooled["q"]:.2f} (df={pooled["df"]}), p={pooled["p_value"]:.3f}</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -542,6 +636,10 @@ def _local_meta_fallback(*, preset: str, rows: list[dict[str, Any]], input_param
     if not points:
         return None
 
+    measure_label = str((rows[0].get("effect_measure") if rows else "") or ("OR" if log_scale else "Effect")).upper()
+    # For ratio measures, < null favours the intervention (fewer events).
+    favours_low, favours_high = ("intervention", "control") if log_scale else ("control", "intervention")
+
     pooled = _pool_effects(points, random_effects=random_effects)
     null_value = 0.0
     estimate_natural = math.exp(pooled["estimate"]) if log_scale else pooled["estimate"]
@@ -575,7 +673,17 @@ def _local_meta_fallback(*, preset: str, rows: list[dict[str, Any]], input_param
         "engine_version": "python-local-fallback/1.0",
         "warnings": ["R engine unavailable; results computed with the built-in Python fallback engine."],
         "figure_artifacts": {
-            "forest": {"svg": _forest_svg(points=points, pooled=pooled, null_value=null_value, log_scale=log_scale)},
+            "forest": {
+                "svg": _forest_svg(
+                    points=points,
+                    pooled=pooled,
+                    null_value=null_value,
+                    log_scale=log_scale,
+                    measure_label=measure_label,
+                    favours_low=favours_low,
+                    favours_high=favours_high,
+                )
+            },
         },
     }
 
