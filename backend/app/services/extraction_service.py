@@ -11,7 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.document import PaperChunk
-from app.models.extraction import ExtractionFieldValue, ExtractionRecord, ExtractionTemplate
+from app.models.extraction import (
+    ExtractionFieldValue,
+    ExtractionRecord,
+    ExtractionTemplate,
+)
 from app.models.paper import Paper
 
 UNIVERSAL_FIELDS = [
@@ -66,6 +70,55 @@ COUNTRY_TRAILING_TOKENS = (
     "clinics",
 )
 
+RE_WHITESPACE = re.compile(r"\s+")
+RE_THE_PREFIX = re.compile(r"^(?:the)\s+", flags=re.IGNORECASE)
+RE_COUNTRY_TRAILING = re.compile(
+    rf"\s+(?:{'|'.join(COUNTRY_TRAILING_TOKENS)})\b.*$",
+    flags=re.IGNORECASE,
+)
+
+RE_COUNTRY_1 = re.compile(
+    r"\bcountry(?:\s+of\s+(?:study|origin|recruitment|setting))?\s*[:=-]\s*([A-Za-z][A-Za-z .'\-]{1,60}?)(?:[\.,;\n]|$)",
+    re.IGNORECASE,
+)
+RE_COUNTRY_2 = re.compile(
+    r"\b(?:conducted|performed|carried out|implemented)\s+in\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:among|with|across|at|participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
+    re.IGNORECASE,
+)
+RE_COUNTRY_3 = re.compile(
+    r"\bfrom\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
+    re.IGNORECASE,
+)
+RE_COUNTRY_4 = re.compile(
+    r"\bin\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
+    re.IGNORECASE,
+)
+
+RE_POPULATION_1 = re.compile(r"\bpopulation\s*[:=-]\s*([^\n.;]{8,220})", re.IGNORECASE)
+RE_POPULATION_2 = re.compile(
+    r"\bparticipants?\s*(?:were|included|comprised|consisted of|enrolled|recruited|:)?\s*([^\n.;]{8,220})",
+    re.IGNORECASE,
+)
+RE_POPULATION_3 = re.compile(
+    r"\bpatients?\s*(?:were|included|comprised|consisted of|with|undergoing|presenting with|:)?\s*([^\n.;]{8,220})",
+    re.IGNORECASE,
+)
+RE_POPULATION_4 = re.compile(
+    r"\b((?:adults?|children|women|men)\s+with\s+[^\n.;]{8,220})", re.IGNORECASE
+)
+
+RE_SAMPLE = re.compile(r"\b(?:n|sample size)\s*[=:]\s*(\d+)", re.IGNORECASE)
+RE_INTERVENTION = re.compile(r"\bintervention[s]?:\s*([^\n.]+)", re.IGNORECASE)
+RE_COMPARATOR = re.compile(r"\bcomparator[s]?:\s*([^\n.]+)", re.IGNORECASE)
+RE_OUTCOMES = re.compile(r"\boutcome[s]?:\s*([^\n.]+)", re.IGNORECASE)
+RE_RESULTS = re.compile(r"\bresults?\b[:\s]*([^\n]{20,250})", re.IGNORECASE)
+RE_FOLLOW_UP = re.compile(r"\bfollow[- ]?up\b[:\s]*([^\n.]+)", re.IGNORECASE)
+RE_LIMITATIONS = re.compile(r"\blimitations?\b[:\s]*([^\n]{15,250})", re.IGNORECASE)
+RE_CONCLUSIONS = re.compile(r"\bconclusions?\b[:\s]*([^\n]{15,250})", re.IGNORECASE)
+
+RE_YEAR_VALIDATION = re.compile(r"(19|20)\d{2}")
+RE_SAMPLE_VALIDATION = re.compile(r"\d+")
+
 
 def universal_template_schema() -> dict:
     return {
@@ -73,12 +126,16 @@ def universal_template_schema() -> dict:
         "fields": [
             {"name": name, "label": name.replace("_", " ").title(), "type": "text"}
             for name in UNIVERSAL_FIELDS
-        ]
+        ],
     }
 
 
 async def ensure_builtin_template(db: AsyncSession) -> ExtractionTemplate:
-    existing = await db.execute(select(ExtractionTemplate).where(ExtractionTemplate.slug == "universal-study-template"))
+    existing = await db.execute(
+        select(ExtractionTemplate).where(
+            ExtractionTemplate.slug == "universal-study-template"
+        )
+    )
     template = existing.scalars().first()
     if template:
         return template
@@ -96,7 +153,9 @@ async def ensure_builtin_template(db: AsyncSession) -> ExtractionTemplate:
     return template
 
 
-def _first_matching_chunk(chunks: list[PaperChunk], terms: list[str]) -> tuple[int | None, dict | None]:
+def _first_matching_chunk(
+    chunks: list[PaperChunk], terms: list[str]
+) -> tuple[int | None, dict | None]:
     lowered_terms = [term.lower() for term in terms if term]
     for chunk in chunks:
         lowered = chunk.text.lower()
@@ -105,7 +164,9 @@ def _first_matching_chunk(chunks: list[PaperChunk], terms: list[str]) -> tuple[i
     return None, None
 
 
-def _candidate_spans(chunks: list[PaperChunk], *, field_name: str, value: str | None, limit: int = 3) -> list[dict]:
+def _candidate_spans(
+    chunks: list[PaperChunk], *, field_name: str, value: str | None, limit: int = 3
+) -> list[dict]:
     candidates: list[dict] = []
     terms = [token for token in [value, field_name] if token]
     lowered_terms = [term.lower() for term in terms]
@@ -126,19 +187,23 @@ def _candidate_spans(chunks: list[PaperChunk], *, field_name: str, value: str | 
 
 
 def _normalize_inline_text(value: str, *, max_len: int | None = None) -> str:
-    text = re.sub(r"\s+", " ", value or "").strip()
+    text = RE_WHITESPACE.sub(" ", value or "").strip()
     if max_len is not None and len(text) > max_len:
         return text[: max_len - 1].rstrip() + "…"
     return text
 
 
-def _extract_context_window(text: str, start: int, end: int, *, max_len: int = 480) -> str:
+def _extract_context_window(
+    text: str, start: int, end: int, *, max_len: int = 480
+) -> str:
     if not text:
         return ""
 
     boundaries = ".!?\n"
     left_candidates = [text.rfind(char, 0, start) for char in boundaries]
-    right_candidates = [text.find(char, end) for char in boundaries if text.find(char, end) != -1]
+    right_candidates = [
+        text.find(char, end) for char in boundaries if text.find(char, end) != -1
+    ]
 
     left = max(left_candidates)
     left = 0 if left < 0 else left + 1
@@ -147,10 +212,10 @@ def _extract_context_window(text: str, start: int, end: int, *, max_len: int = 4
     fragment = text[left:right].strip()
     if not fragment:
         half = max_len // 2
-        fragment = text[max(0, start - half):min(len(text), end + half)].strip()
+        fragment = text[max(0, start - half) : min(len(text), end + half)].strip()
     if len(fragment) > max_len:
         half = max_len // 2
-        fragment = text[max(0, start - half):min(len(text), end + half)].strip()
+        fragment = text[max(0, start - half) : min(len(text), end + half)].strip()
     return _normalize_inline_text(fragment, max_len=max_len)
 
 
@@ -170,30 +235,27 @@ def _best_quoted_text(text: str, terms: list[str], *, max_len: int = 480) -> str
 
 def _normalize_country_name(raw_value: str) -> str | None:
     cleaned = _normalize_inline_text(raw_value.strip(" ,;:."))
-    cleaned = re.sub(r"^(?:the)\s+", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(
-        rf"\s+(?:{'|'.join(COUNTRY_TRAILING_TOKENS)})\b.*$",
-        "",
-        cleaned,
-        flags=re.IGNORECASE,
-    ).strip(" ,;:.")
+    cleaned = RE_THE_PREFIX.sub("", cleaned)
+    cleaned = RE_COUNTRY_TRAILING.sub("", cleaned).strip(" ,;:.")
     if not cleaned:
         return None
     alias = COUNTRY_ALIASES.get(cleaned.lower())
     if alias:
         return alias
-    return " ".join(part.capitalize() if part.islower() else part for part in cleaned.split())
+    return " ".join(
+        part.capitalize() if part.islower() else part for part in cleaned.split()
+    )
 
 
 def _extract_country_value(text: str) -> str | None:
     patterns = [
-        r"\bcountry(?:\s+of\s+(?:study|origin|recruitment|setting))?\s*[:=-]\s*([A-Za-z][A-Za-z .'\-]{1,60}?)(?:[\.,;\n]|$)",
-        r"\b(?:conducted|performed|carried out|implemented)\s+in\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:among|with|across|at|participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
-        r"\bfrom\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
-        r"\bin\s+([A-Z][A-Za-z .'\-]{1,60}?)(?:\s+(?:participants?|patients?|adults?|children|women|men|hospitals?|cent(?:ers|res)|clinics?)\b|[\.,;\n]|$)",
+        RE_COUNTRY_1,
+        RE_COUNTRY_2,
+        RE_COUNTRY_3,
+        RE_COUNTRY_4,
     ]
     for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
+        match = pattern.search(text)
         if not match:
             continue
         country = _normalize_country_name(match.group(1))
@@ -204,13 +266,13 @@ def _extract_country_value(text: str) -> str | None:
 
 def _extract_population_value(text: str) -> str | None:
     patterns = [
-        r"\bpopulation\s*[:=-]\s*([^\n.;]{8,220})",
-        r"\bparticipants?\s*(?:were|included|comprised|consisted of|enrolled|recruited|:)?\s*([^\n.;]{8,220})",
-        r"\bpatients?\s*(?:were|included|comprised|consisted of|with|undergoing|presenting with|:)?\s*([^\n.;]{8,220})",
-        r"\b((?:adults?|children|women|men)\s+with\s+[^\n.;]{8,220})",
+        RE_POPULATION_1,
+        RE_POPULATION_2,
+        RE_POPULATION_3,
+        RE_POPULATION_4,
     ]
     for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
+        match = pattern.search(text)
         if match:
             return _normalize_inline_text(match.group(1), max_len=220)
     return None
@@ -227,33 +289,40 @@ def _extract_value(name: str, paper: Paper, text: str) -> str | None:
     if name == "country":
         return _extract_country_value(text)
     if name == "design":
-        for candidate in ["randomized", "cohort", "case-control", "cross-sectional", "systematic review", "meta-analysis"]:
+        for candidate in [
+            "randomized",
+            "cohort",
+            "case-control",
+            "cross-sectional",
+            "systematic review",
+            "meta-analysis",
+        ]:
             if candidate in lowered:
                 return candidate
         return None
     if name == "sample":
-        match = re.search(r"\b(?:n|sample size)\s*[=:]\s*(\d+)", lowered)
+        match = RE_SAMPLE.search(lowered)
         return match.group(1) if match else None
     if name == "intervention":
-        match = re.search(r"\bintervention[s]?:\s*([^\n.]+)", text, re.IGNORECASE)
+        match = RE_INTERVENTION.search(text)
         return match.group(1).strip() if match else None
     if name == "comparator":
-        match = re.search(r"\bcomparator[s]?:\s*([^\n.]+)", text, re.IGNORECASE)
+        match = RE_COMPARATOR.search(text)
         return match.group(1).strip() if match else None
     if name == "outcomes":
-        match = re.search(r"\boutcome[s]?:\s*([^\n.]+)", text, re.IGNORECASE)
+        match = RE_OUTCOMES.search(text)
         return match.group(1).strip() if match else None
     if name == "results":
-        match = re.search(r"\bresults?\b[:\s]*([^\n]{20,250})", text, re.IGNORECASE)
+        match = RE_RESULTS.search(text)
         return match.group(1).strip() if match else None
     if name == "follow_up":
-        match = re.search(r"\bfollow[- ]?up\b[:\s]*([^\n.]+)", text, re.IGNORECASE)
+        match = RE_FOLLOW_UP.search(text)
         return match.group(1).strip() if match else None
     if name == "limitations":
-        match = re.search(r"\blimitations?\b[:\s]*([^\n]{15,250})", text, re.IGNORECASE)
+        match = RE_LIMITATIONS.search(text)
         return match.group(1).strip() if match else None
     if name == "conclusion":
-        match = re.search(r"\bconclusions?\b[:\s]*([^\n]{15,250})", text, re.IGNORECASE)
+        match = RE_CONCLUSIONS.search(text)
         return match.group(1).strip() if match else None
     if name == "population":
         return _extract_population_value(text)
@@ -265,10 +334,10 @@ def _validate_field(name: str, value: str | None) -> list[str]:
     if not value:
         return issues
     if name == "year":
-        if not re.fullmatch(r"(19|20)\d{2}", value.strip()):
+        if not RE_YEAR_VALIDATION.fullmatch(value.strip()):
             issues.append("invalid_year")
     if name == "sample":
-        if not re.fullmatch(r"\d+", value.strip()):
+        if not RE_SAMPLE_VALIDATION.fullmatch(value.strip()):
             issues.append("invalid_sample_size")
     if name in CONTROLLED_VOCAB and value.lower() not in CONTROLLED_VOCAB[name]:
         issues.append("outside_controlled_vocab")
@@ -282,7 +351,11 @@ async def create_extraction_record(
     paper_id: UUID | None,
     template_id: UUID | None,
 ) -> ExtractionRecord:
-    template = await ensure_builtin_template(db) if template_id is None else await db.get(ExtractionTemplate, template_id)
+    template = (
+        await ensure_builtin_template(db)
+        if template_id is None
+        else await db.get(ExtractionTemplate, template_id)
+    )
     if template is None:
         raise ValueError("Extraction template not found")
 
@@ -290,7 +363,11 @@ async def create_extraction_record(
     text = paper.full_text_extracted or "" if paper else ""
     chunks: list[PaperChunk] = []
     if paper_id is not None:
-        chunks_q = await db.execute(select(PaperChunk).where(PaperChunk.paper_id == paper_id).order_by(PaperChunk.page_number, PaperChunk.chunk_index))
+        chunks_q = await db.execute(
+            select(PaperChunk)
+            .where(PaperChunk.paper_id == paper_id)
+            .order_by(PaperChunk.page_number, PaperChunk.chunk_index)
+        )
         chunks = chunks_q.scalars().all()
 
     record = ExtractionRecord(
@@ -309,7 +386,11 @@ async def create_extraction_record(
 
     for field_name in UNIVERSAL_FIELDS:
         value = _extract_value(field_name, paper, text) if paper else None
-        page, locator = _first_matching_chunk(chunks, [value or field_name]) if chunks else (None, None)
+        page, locator = (
+            _first_matching_chunk(chunks, [value or field_name])
+            if chunks
+            else (None, None)
+        )
         candidate_spans = _candidate_spans(chunks, field_name=field_name, value=value)
         validations = _validate_field(field_name, value)
         db.add(
@@ -318,10 +399,15 @@ async def create_extraction_record(
                 field_name=field_name,
                 value_text=value,
                 auto_value_text=value,
-                confidence=0.8 if value and not validations else (0.55 if value else 0.1),
+                confidence=0.8
+                if value and not validations
+                else (0.55 if value else 0.1),
                 source_page=page,
                 source_locator=locator,
-                metadata_json={"candidate_spans": candidate_spans, "validation_issues": validations},
+                metadata_json={
+                    "candidate_spans": candidate_spans,
+                    "validation_issues": validations,
+                },
                 manually_edited=False,
             )
         )
@@ -346,7 +432,9 @@ async def list_records(db: AsyncSession, *, project_id: UUID) -> list[Extraction
     return list(result.scalars().all())
 
 
-async def patch_record(db: AsyncSession, *, record: ExtractionRecord, status: str | None, fields: dict) -> ExtractionRecord:
+async def patch_record(
+    db: AsyncSession, *, record: ExtractionRecord, status: str | None, fields: dict
+) -> ExtractionRecord:
     if status is not None:
         record.status = status
     if fields:
@@ -354,7 +442,9 @@ async def patch_record(db: AsyncSession, *, record: ExtractionRecord, status: st
         for field_name, payload in fields.items():
             current = field_map.get(field_name)
             if current is None:
-                current = ExtractionFieldValue(record_id=record.id, field_name=field_name)
+                current = ExtractionFieldValue(
+                    record_id=record.id, field_name=field_name
+                )
                 db.add(current)
                 field_map[field_name] = current
             if payload.value_text is not None:
@@ -367,7 +457,10 @@ async def patch_record(db: AsyncSession, *, record: ExtractionRecord, status: st
             if payload.source_locator is not None:
                 current.source_locator = payload.source_locator
             meta = dict(current.metadata_json or {})
-            meta["diff"] = {"auto": current.auto_value_text, "current": current.value_text}
+            meta["diff"] = {
+                "auto": current.auto_value_text,
+                "current": current.value_text,
+            }
             meta["validation_issues"] = _validate_field(field_name, current.value_text)
             meta["candidate_spans"] = meta.get("candidate_spans", [])
             current.metadata_json = meta
@@ -380,7 +473,11 @@ async def patch_record(db: AsyncSession, *, record: ExtractionRecord, status: st
 def export_records(records: list[ExtractionRecord], fmt: str) -> Response:
     rows: list[dict] = []
     for record in records:
-        row = {"record_id": str(record.id), "project_id": str(record.project_id), "paper_id": str(record.paper_id) if record.paper_id else None}
+        row = {
+            "record_id": str(record.id),
+            "project_id": str(record.project_id),
+            "paper_id": str(record.paper_id) if record.paper_id else None,
+        }
         for field in record.field_values:
             row[field.field_name] = field.value_text
         rows.append(row)
@@ -389,7 +486,11 @@ def export_records(records: list[ExtractionRecord], fmt: str) -> Response:
         return JSONResponse(rows)
     if fmt == "csv":
         output = io.StringIO()
-        fieldnames = sorted({key for row in rows for key in row.keys()}) if rows else ["record_id", "project_id", "paper_id"]
+        fieldnames = (
+            sorted({key for row in rows for key in row.keys()})
+            if rows
+            else ["record_id", "project_id", "paper_id"]
+        )
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
