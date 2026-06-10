@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { downloadBlob } from '../components/meta/exportUtils';
+import RunResultPreview from '../components/meta/RunResultPreview';
 
 type MatrixVersionRow = {
   id: string;
@@ -283,6 +284,10 @@ export default function MetaRunsPage() {
                     <div key={warning} className="rc-help">{warning}</div>
                   ))}
                 </div>
+              ) : null}
+
+              {selectedRun.status === 'completed' ? (
+                <RunResultPreview artifacts={selectedRun.artifacts} summary={selectedRun.summary || {}} />
               ) : null}
 
               {selectedRun.artifacts.length === 0 ? <div className="rc-muted">No artifacts.</div> : null}

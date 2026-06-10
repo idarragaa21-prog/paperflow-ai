@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StudyRow } from '../types/api';
 import { useParams } from 'react-router-dom';
 import StudyViewer from '../components/meta/StudyViewer';
+import ImportDataPanel from '../components/meta/ImportDataPanel';
 import { downloadBlob } from '../components/meta/exportUtils';
 import { api } from '../services/api';
 import { useJobPolling } from '../hooks/useJobPolling';
@@ -334,6 +335,14 @@ export default function MetaPage() {
             </button>
           </div>
         </div>
+
+        <ImportDataPanel
+          projectId={projectId || ''}
+          onImported={() => {
+            void loadStudies();
+            setNotice('Datos importados. Construye la matriz para sintetizar.');
+          }}
+        />
 
         <div className="rc-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
