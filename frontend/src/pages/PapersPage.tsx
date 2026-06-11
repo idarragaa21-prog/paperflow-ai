@@ -449,7 +449,7 @@ export default function PapersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--rc-border)', textAlign: 'left' }}>
-                <th style={{ padding: '8px 6px', width: 32 }}><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
+                <th style={{ padding: '8px 6px', width: 32 }}><input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all papers" /></th>
                 <th style={{ padding: '8px 6px' }}>Title</th>
                 <th style={{ padding: '8px 6px', width: 160 }}>Journal · Year</th>
                 <th style={{ padding: '8px 6px', width: 100 }}>Status</th>
@@ -481,7 +481,7 @@ export default function PapersPage() {
                 return (
                   <Fragment key={p.id}>
                     <tr style={{ borderBottom: '1px solid var(--rc-border)' }}>
-                      <td style={{ padding: '8px 6px' }}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} /></td>
+                      <td style={{ padding: '8px 6px' }}><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} aria-label={`Select paper: ${p.title}`} /></td>
                       <td style={{ padding: '8px 6px' }}>
                         <div title={p.title} style={{ fontWeight: 700, lineHeight: 1.3 }}>{truncate(p.title, 45)}</div>
                         {p.authors && <div style={{ fontSize: 11, color: 'var(--rc-muted)', marginTop: 2 }}>{truncate(p.authors, 60)}</div>}
