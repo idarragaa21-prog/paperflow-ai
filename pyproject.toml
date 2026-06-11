@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metaforge"
+version = "0.1.0"
+description = "Local-first meta-analysis tool for epidemiologists"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Diego Alejandro Idarraga" }]
+dependencies = [
+    "fastapi>=0.109",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.5",
+    "numpy>=1.26",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.26"]
+
+[tool.setuptools]
+packages = ["metaforge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
