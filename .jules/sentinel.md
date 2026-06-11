@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-25 - [Exception Details Leakage]
+**Vulnerability:** Several backend API endpoints (`jobs.py`, `papers.py`) were inadvertently exposing raw Python exception details (e.g., stack traces or internal file system paths) directly to clients within HTTP 500 or 404 response bodies via f-strings (e.g., `detail=f"Error: {e}"`).
+**Learning:** Returning unhandled exception messages directly to the client can leak sensitive information about the backend infrastructure, database structures, or file paths, which attackers can use to map the system.
+**Prevention:** Always log the full exception details internally using `logger.exception("Context")` and return a generic, sanitized error message to the client (e.g., `detail="Internal Server Error"` or `detail="Job could not be processed"`).
