@@ -74,7 +74,7 @@ const PaperTableRow = memo(function PaperTableRow({
     <Fragment>
       <tr style={{ borderBottom: '1px solid var(--rc-border)' }}>
         <td style={{ padding: '8px 6px' }}>
-          <input type="checkbox" checked={isSelected} onChange={() => onToggleOne(p.id)} />
+          <input type="checkbox" checked={isSelected} onChange={() => onToggleOne(p.id)} aria-label={`Select paper: ${p.title}`} />
         </td>
         <td style={{ padding: '8px 6px' }}>
           <div title={p.title} style={{ fontWeight: 700, lineHeight: 1.3 }}>{truncate(p.title, 45)}</div>
