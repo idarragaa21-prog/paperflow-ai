@@ -29,12 +29,16 @@ EXTRACTION_THRESHOLDS = {
 }
 
 
+_NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
 def normalize_text(value: str | None) -> str:
     if not value:
         return ""
     lowered = value.strip().lower()
-    lowered = re.sub(r"[^a-z0-9]+", " ", lowered)
-    lowered = re.sub(r"\s+", " ", lowered).strip()
+    lowered = _NON_ALNUM_RE.sub(" ", lowered)
+    lowered = _WHITESPACE_RE.sub(" ", lowered).strip()
     return lowered
 
 
@@ -56,21 +60,27 @@ def partial_match_score(predicted: str | None, gold: str | None) -> float:
 
 
 def evaluate_chat_cases(cases: list[dict[str, Any]], *, k: int = 5) -> dict[str, Any]:
-    answerable_cases = [case for case in cases if not bool(case.get("expected_blocked"))]
+    answerable_cases = [
+        case for case in cases if not bool(case.get("expected_blocked"))
+    ]
     blocked_correct = 0
     unsupported = 0
     hit_count = 0
     citation_precision_scores: list[float] = []
 
     for case in cases:
-        predicted_blocked = bool(case.get("blocked_reason")) or not bool(case.get("grounded", True))
+        predicted_blocked = bool(case.get("blocked_reason")) or not bool(
+            case.get("grounded", True)
+        )
         if predicted_blocked == bool(case.get("expected_blocked")):
             blocked_correct += 1
 
     for case in answerable_cases:
         retrieved = [str(item) for item in case.get("retrieved_chunk_ids", [])]
         gold_retrieved = {str(item) for item in case.get("gold_chunk_ids", [])}
-        predicted_citations = [str(item) for item in case.get("predicted_citation_ids", [])]
+        predicted_citations = [
+            str(item) for item in case.get("predicted_citation_ids", [])
+        ]
         gold_citations = {str(item) for item in case.get("gold_citation_ids", [])}
         grounded = bool(case.get("grounded", True))
 
@@ -92,7 +102,8 @@ def evaluate_chat_cases(cases: list[dict[str, Any]], *, k: int = 5) -> dict[str,
         "answerable_case_count": len(answerable_cases),
         "blocked_case_count": len(cases) - len(answerable_cases),
         "hit_at_5": hit_count / answerable_total,
-        "citation_precision": sum(citation_precision_scores) / max(len(citation_precision_scores), 1),
+        "citation_precision": sum(citation_precision_scores)
+        / max(len(citation_precision_scores), 1),
         "blocked_answer_correctness": blocked_correct / max(len(cases), 1),
         "unsupported_answer_rate": unsupported / answerable_total,
     }
@@ -151,8 +162,10 @@ def evaluate_extraction_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
 
     return {
         "field_metrics": normalized_fields,
-        "unsupported_extraction_rate": unsupported_predictions / max(supported_predictions, 1),
-        "mean_calibration_error": sum(calibration_errors) / max(len(calibration_errors), 1),
+        "unsupported_extraction_rate": unsupported_predictions
+        / max(supported_predictions, 1),
+        "mean_calibration_error": sum(calibration_errors)
+        / max(len(calibration_errors), 1),
         "record_count": len(cases),
     }
 
@@ -174,11 +187,15 @@ def assert_extraction_thresholds(metrics: dict[str, Any]) -> None:
     failures = []
     field_metrics = metrics.get("field_metrics") or {}
     for field_name, threshold in EXTRACTION_THRESHOLDS["exact_fields"].items():
-        rate = float((field_metrics.get(field_name) or {}).get("exact_match_rate") or 0.0)
+        rate = float(
+            (field_metrics.get(field_name) or {}).get("exact_match_rate") or 0.0
+        )
         if rate < threshold:
             failures.append(f"{field_name}.exact={rate:.3f} < {threshold:.3f}")
     for field_name, threshold in EXTRACTION_THRESHOLDS["partial_fields"].items():
-        rate = float((field_metrics.get(field_name) or {}).get("partial_match_rate") or 0.0)
+        rate = float(
+            (field_metrics.get(field_name) or {}).get("partial_match_rate") or 0.0
+        )
         if rate < threshold:
             failures.append(f"{field_name}.partial={rate:.3f} < {threshold:.3f}")
     unsupported_rate = float(metrics.get("unsupported_extraction_rate") or 0.0)
