@@ -1,4 +1,3 @@
-
-## 2024-04-05 - N+1 query resolved in batch updates
-**Learning:** Found a common N+1 query pattern where updating a batch of effect sizes fetched each effect size one by one using `db.get()`. This is particularly expensive when users use "grid pros" (batch edits).
-**Action:** Used `in_()` on an array of primary keys to fetch all records in a single query, then mapped them in memory for lookup. Mocked database test objects should be updated when refactoring `db.get()` to `db.execute()`.
+## 2025-02-12 - Pre-compiling Regex in Heavily Executed Loops Yields Material Performance Gains
+**Learning:** Compiling regular expressions inside functions that process large text or execute iteratively (like parsing PDFs or summaries) introduces measurable cache-lookup overhead. The overhead is exceptionally high when the `re.IGNORECASE` flag is used.
+**Action:** Move `re.compile()` calls and inline `re.search` or `re.sub` functions from block-level definitions or repeated execution lines to the module-level as constants (e.g. `_NON_ALNUM_RE = re.compile(r"...")`). Always do this for regexes used in processing pipelines.
