@@ -40,7 +40,7 @@ function goStep(n) {
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === 'view-' + n));
   document.querySelectorAll('.step').forEach((b) => b.classList.toggle('active', b.dataset.step === String(n)));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (n === 6 && S.result && !Object.keys(S.manuscript).length) $('draftBtn').click();
+  if (n === 7 && S.result && !Object.keys(S.manuscript).length) $('draftBtn').click();
 }
 $('steps').addEventListener('click', (e) => { const b = e.target.closest('.step'); if (b && !b.disabled) goStep(Number(b.dataset.step)); });
 
@@ -227,7 +227,8 @@ async function runAnalysis(advance) {
     S.result = data;
     S.measure = data.measure || S.measure;
     renderSynthesis(data); renderDiagnostics(data);
-    setStepEnabled(4, true); setStepEnabled(5, true); setStepEnabled(6, true);
+    setStepEnabled(4, true); setStepEnabled(5, true); setStepEnabled(6, true); setStepEnabled(7, true);
+    prepareQualityStep();
     markDone(3); $('noResult').style.display = 'none'; $('articleWrap').style.display = '';
     if (advance) goStep(4);
   } catch (e) { $('dataErr').textContent = e.message; } finally { busy(btn, false); }
@@ -256,7 +257,65 @@ function renderSynthesis(d) {
   $('forest').innerHTML = d.forest_svg;
 }
 $('toDiag').onclick = () => goStep(5);
-$('toArticle').onclick = () => goStep(6);
+$('toQuality').onclick = () => goStep(6);
+$('toArticle').onclick = () => goStep(7);
+
+// ---------- STEP 6: quality (PRISMA + RoB) ----------
+let ROB_TOOLS = {};
+async function prepareQualityStep() {
+  if (!Object.keys(ROB_TOOLS).length) {
+    try { ROB_TOOLS = await (await fetch('/rob/tools')).json(); } catch { return; }
+    const sel = $('robTool');
+    sel.innerHTML = Object.entries(ROB_TOOLS).map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
+    sel.onchange = buildRobGrid;
+  }
+  buildRobGrid();
+}
+function robStudies() { return (S.result && S.result.studies) ? S.result.studies.map((s) => s.label) : []; }
+function buildRobGrid() {
+  const tool = $('robTool').value || 'rob2';
+  const domains = (ROB_TOOLS[tool] || {}).domains || {};
+  const codes = Object.keys(domains);
+  const opts = (cur) => ['low', 'some', 'high', 'na'].map((r) => `<option value="${r}"${r === cur ? ' selected' : ''}>${{ low: 'Bajo', some: 'Dudas', high: 'Alto', na: 'Sin info.' }[r]}</option>`).join('');
+  const head = `<tr><th>Estudio</th>${codes.map((c) => `<th title="${esc(domains[c])}">${c}</th>`).join('')}</tr>`;
+  const rows = robStudies().map((st, i) => `<tr><td>${esc(st)}</td>${codes.map((c) => `<td><select data-rob="${i}" data-dom="${c}">${opts('low')}</select></td>`).join('')}</tr>`).join('');
+  $('robGrid').innerHTML = head + rows;
+}
+function collectRob() {
+  const ratings = {};
+  const studies = robStudies();
+  $('robGrid').querySelectorAll('select[data-rob]').forEach((s) => {
+    const st = studies[Number(s.dataset.rob)];
+    (ratings[st] = ratings[st] || {})[s.dataset.dom] = s.value;
+  });
+  return { studies, ratings };
+}
+$('prismaBtn').onclick = async () => {
+  const ids = ['identified_db', 'identified_other', 'duplicates', 'screened', 'excluded_screen', 'fulltext_assessed', 'fulltext_excluded', 'included'];
+  const counts = {};
+  ids.forEach((k) => { const v = $('pf_' + k).value; if (v !== '') counts[k] = v; });
+  counts.exclusion_reasons = $('pf_exclusion_reasons').value;
+  const btn = $('prismaBtn'); busy(btn, true, 'Generando…');
+  try {
+    const r = await fetch('/prisma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ counts, included_meta: S.result ? S.result.k : null }) });
+    const data = await r.json();
+    S.prismaSvg = data.svg;
+    $('prismaPlot').innerHTML = data.svg; $('prismaPlot').style.display = ''; $('prismaDl').style.display = '';
+  } catch (e) { alert(e.message); } finally { busy(btn, false); }
+};
+$('prismaDl').onclick = () => S.prismaSvg && downloadText('prisma.svg', S.prismaSvg, 'image/svg+xml');
+$('robBtn').onclick = async () => {
+  const { studies, ratings } = collectRob();
+  if (!studies.length) { alert('Ejecuta el análisis primero para tener estudios.'); return; }
+  const btn = $('robBtn'); busy(btn, true, 'Generando…');
+  try {
+    const r = await fetch('/rob', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studies, ratings, tool: $('robTool').value }) });
+    const data = await r.json();
+    S.robSvg = data.svg;
+    $('robPlot').innerHTML = data.svg; $('robPlot').style.display = ''; $('robDl').style.display = '';
+  } catch (e) { alert(e.message); } finally { busy(btn, false); }
+};
+$('robDl').onclick = () => S.robSvg && downloadText('riesgo_sesgo.svg', S.robSvg, 'image/svg+xml');
 
 // ---------- STEP 5: diagnostics ----------
 function renderDiagnostics(d) {
@@ -342,6 +401,24 @@ function manuscriptMarkdown() {
 }
 $('copyAll').onclick = (e) => copy(manuscriptMarkdown(), e.target);
 $('dlMd').onclick = () => downloadText('manuscrito_metaforge.md', manuscriptMarkdown(), 'text/markdown');
+$('dlDocx').onclick = async (e) => {
+  const btn = e.target; busy(btn, true, 'Word…');
+  try {
+    const r = await fetch('/manuscript/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sections: S.manuscript, facts: $('facts').textContent }) });
+    if (!r.ok) throw new Error('No se pudo generar el Word');
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'manuscrito_metaforge.docx'; a.click(); URL.revokeObjectURL(a.href);
+  } catch (err) { alert(err.message); } finally { busy(btn, false); }
+};
+$('printPdf').onclick = () => {
+  const html = SECTION_ORDER.map((sec) => {
+    const body = esc(S.manuscript[sec] || '').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^## (.+)$/gm, '<h3>$1</h3>').replace(/\n/g, '<br>');
+    return sec === 'title' ? `<h1>${body}</h1>` : `<h2>${SECTION_TITLES[sec]}</h2><p>${body}</p>`;
+  }).join('');
+  const w = window.open('', '_blank');
+  w.document.write(`<html><head><title>Manuscrito</title><style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;line-height:1.7;color:#1a1a22}h1{font-size:22px}h2{font-size:17px;margin-top:24px}h3{font-size:14px}</style></head><body>${html}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+};
 
 // ---------- downloads ----------
 $('dlForest').onclick = () => S.result && downloadText('forest.svg', S.result.forest_svg, 'image/svg+xml');

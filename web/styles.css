@@ -176,7 +176,19 @@ tbody tr:hover { background: var(--surface-2); }
 .sec-src.local { background: var(--surface-2); color: var(--muted); }
 .btn-mini { padding: 5px 10px; font-size: 12px; }
 
+/* PRISMA form */
+.prisma-form { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+.prisma-form label { font-size: 11.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.prisma-form label.wide { grid-column: 1 / -1; }
+.prisma-form input { padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); font-size: 13px; font-family: var(--font); outline: none; }
+.prisma-form input:focus { border-color: var(--primary); }
+/* RoB grid */
+#robGrid select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--font); }
+#robGrid td, #robGrid th { text-align: center; }
+#robGrid td:first-child, #robGrid th:first-child { text-align: left; }
+
 .error { color: var(--danger); font-size: 13px; margin-top: 10px; white-space: pre-wrap; }
+@media (max-width: 860px) { .prisma-form { grid-template-columns: 1fr 1fr; } }
 .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .empty { color: var(--muted); font-size: 13px; padding: 18px; text-align: center; }

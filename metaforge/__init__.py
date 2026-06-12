@@ -1,9 +1,12 @@
 """MetaForge — a local-first research workspace for epidemiologists:
 question forging, protocol, meta-analysis and manuscript drafting."""
 from . import diagnostics
+from .docx_export import manuscript_docx
 from .manuscript import generate_manuscript
+from .prisma import prisma_svg
 from .protocol import generate_protocol
 from .questions import generate_questions
+from .rob import rob_summary_svg
 from .effects import (
     correlation_z,
     effect_from_row,
@@ -15,7 +18,7 @@ from .effects import (
 from .pooling import egger_test, pool
 from .service import analyze, analyze_csv, effects_from_rows
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __all__ = [
     "analyze",
     "analyze_csv",
@@ -32,4 +35,7 @@ __all__ = [
     "generate_questions",
     "generate_protocol",
     "generate_manuscript",
+    "prisma_svg",
+    "rob_summary_svg",
+    "manuscript_docx",
 ]

@@ -8,9 +8,12 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 from .ai import ai_available
+from .docx_export import manuscript_docx
 from .manuscript import generate_manuscript, generate_section
+from .prisma import prisma_svg
 from .protocol import generate_protocol
 from .questions import generate_questions
+from .rob import TOOLS, domains_for, rob_summary_svg
 from .samples import EXAMPLES, TEMPLATES
 from .service import analyze, analyze_csv
 
@@ -18,7 +21,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.0.0",
+    version="2.1.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -58,6 +61,22 @@ class SectionRequest(BaseModel):
     section: str
     protocol: dict | None = None
     mode: str = "auto"
+
+
+class PrismaRequest(BaseModel):
+    counts: dict
+    included_meta: int | None = None
+
+
+class RobRequest(BaseModel):
+    studies: list[str]
+    ratings: dict
+    tool: str = "rob2"
+
+
+class DocxRequest(BaseModel):
+    sections: dict
+    facts: str | None = None
 
 
 @app.get("/health")
@@ -101,6 +120,32 @@ def section_endpoint(req: SectionRequest) -> dict:
         return generate_section(req.question, req.result, req.section, protocol=req.protocol, mode=req.mode)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/prisma")
+def prisma_endpoint(req: PrismaRequest) -> dict:
+    return {"svg": prisma_svg(req.counts, included_meta=req.included_meta)}
+
+
+@app.get("/rob/tools")
+def rob_tools() -> dict:
+    return {k: {"name": v["name"], "domains": v["domains"]} for k, v in TOOLS.items()}
+
+
+@app.post("/rob")
+def rob_endpoint(req: RobRequest) -> dict:
+    return {"svg": rob_summary_svg(req.studies, req.ratings, tool=req.tool),
+            "domains": domains_for(req.tool)}
+
+
+@app.post("/manuscript/docx")
+def manuscript_docx_endpoint(req: DocxRequest) -> Response:
+    data = manuscript_docx(req.sections, facts=req.facts)
+    return Response(
+        data,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": 'attachment; filename="manuscrito_metaforge.docx"'},
+    )
 
 
 @app.post("/analyze")

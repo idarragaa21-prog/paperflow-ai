@@ -17,8 +17,8 @@ numbers. No cloud, no API key, no data leaving your machine.
 ## The pipeline
 
 ```
-1. Question   →  2. Protocol  →  3. Data  →  4. Synthesis  →  5. Diagnostics  →  6. Manuscript
-   (AI)            (AI)            CSV          meta-analysis    sensitivity/bias    (AI, grounded)
+1. Question → 2. Protocol → 3. Data → 4. Synthesis → 5. Diagnostics → 6. Quality → 7. Manuscript
+   (AI)         (AI)          CSV       meta-analysis   sensitivity      PRISMA+RoB    (AI, grounded)
 ```
 
 1. **Question** — type a topic in any language; get specific, developable
@@ -34,9 +34,12 @@ numbers. No cloud, no API key, no data leaving your machine.
    a forest plot.
 5. **Diagnostics** — leave-one-out, cumulative MA, subgroup test, Egger's test,
    trim-and-fill and a Baujat influence plot.
-6. **Manuscript** — drafts Title, Abstract, Methods, **Results (with your exact
+6. **Quality & figures** — a **PRISMA 2020 flow diagram** from your screening
+   counts, and a **risk-of-bias** traffic-light plot (RoB 2 or ROBINS-I). Both
+   download as SVG.
+7. **Manuscript** — drafts Title, Abstract, Methods, **Results (with your exact
    numbers)**, Discussion, Limitations and Conclusion. Improve any section with
-   AI, edit inline, export Markdown.
+   AI, edit inline, export **Markdown, Word (.docx) or PDF**.
 
 ## AI, with no API key
 
@@ -104,14 +107,15 @@ print(draft["sections"]["results"])
 
 ## REST API
 
-`/questions`, `/protocol`, `/manuscript`, `/manuscript/section`, `/analyze`,
-`/examples`, `/templates`, `/ai-status`, `/health`. Interactive docs at `/docs`.
+`/questions`, `/protocol`, `/analyze`, `/manuscript`, `/manuscript/section`,
+`/manuscript/docx`, `/prisma`, `/rob`, `/rob/tools`, `/examples`, `/templates`,
+`/ai-status`, `/health`. Interactive docs at `/docs`.
 
 ## Tests
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 66 tests; statistics validated against known values
+pytest -q          # 76 tests; statistics validated against known values
 ```
 
 ## Scope & honesty

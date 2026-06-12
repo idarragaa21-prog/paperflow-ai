@@ -18,7 +18,8 @@
         <button class="step" data-step="3" id="navstep-3" disabled><span class="step-num">3</span><span class="step-text"><b>Datos</b><small>Carga tus estudios</small></span></button>
         <button class="step" data-step="4" id="navstep-4" disabled><span class="step-num">4</span><span class="step-text"><b>Síntesis</b><small>Efecto combinado</small></span></button>
         <button class="step" data-step="5" id="navstep-5" disabled><span class="step-num">5</span><span class="step-text"><b>Diagnóstico</b><small>Sensibilidad y sesgo</small></span></button>
-        <button class="step" data-step="6" id="navstep-6" disabled><span class="step-num">6</span><span class="step-text"><b>Artículo</b><small>Redacta el manuscrito</small></span></button>
+        <button class="step" data-step="6" id="navstep-6" disabled><span class="step-num">6</span><span class="step-text"><b>Calidad</b><small>PRISMA y riesgo de sesgo</small></span></button>
+        <button class="step" data-step="7" id="navstep-7" disabled><span class="step-num">7</span><span class="step-text"><b>Artículo</b><small>Redacta el manuscrito</small></span></button>
       </nav>
       <div class="rail-foot">
         <div class="ai-pill" id="aiPill" title="">···</div>
@@ -147,12 +148,52 @@
           <div class="card-head"><h3>Estimaciones por estudio</h3><a class="link" id="dlCsv">descargar CSV</a></div>
           <div class="tbl-wrap"><table id="studies"></table></div>
         </div>
+        <div class="row end"><button class="btn btn-primary" id="toQuality">Calidad y figuras →</button></div>
+      </section>
+
+      <!-- ---------- STEP 6: QUALITY (PRISMA + RoB) ---------- -->
+      <section class="view" id="view-6">
+        <p class="eyebrow">Paso 6 · Calidad y figuras</p>
+        <h2 class="view-title">PRISMA y riesgo de sesgo</h2>
+
+        <div class="card">
+          <div class="card-head"><h3>Diagrama de flujo PRISMA 2020</h3>
+            <div class="row"><button class="btn btn-sm" id="prismaDl" style="display:none">Descargar SVG</button><button class="btn btn-primary btn-sm" id="prismaBtn">Generar diagrama</button></div>
+          </div>
+          <p class="muted">Escribe los conteos de tu cribado. Lo que dejes en blanco se omite.</p>
+          <div class="prisma-form" id="prismaForm">
+            <label>Identificados en bases<input type="number" id="pf_identified_db" min="0" /></label>
+            <label>Otras fuentes<input type="number" id="pf_identified_other" min="0" /></label>
+            <label>Duplicados eliminados<input type="number" id="pf_duplicates" min="0" /></label>
+            <label>Registros cribados<input type="number" id="pf_screened" min="0" /></label>
+            <label>Excluidos en cribado<input type="number" id="pf_excluded_screen" min="0" /></label>
+            <label>Evaluados texto completo<input type="number" id="pf_fulltext_assessed" min="0" /></label>
+            <label>Excluidos texto completo<input type="number" id="pf_fulltext_excluded" min="0" /></label>
+            <label>Incluidos en revisión<input type="number" id="pf_included" min="0" /></label>
+            <label class="wide">Razones de exclusión (texto completo)<input type="text" id="pf_exclusion_reasons" placeholder="p. ej. sin control (20); datos no extraíbles (24)" /></label>
+          </div>
+          <div class="plot" id="prismaPlot" style="margin-top:14px;display:none"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Riesgo de sesgo</h3>
+            <div class="row">
+              <select id="robTool" class="select select-sm"></select>
+              <button class="btn btn-sm" id="robDl" style="display:none">Descargar SVG</button>
+              <button class="btn btn-primary btn-sm" id="robBtn">Generar gráfico</button>
+            </div>
+          </div>
+          <p class="muted">Valora cada estudio incluido por dominio. La columna Global se calcula automáticamente.</p>
+          <div class="tbl-wrap"><table id="robGrid"></table></div>
+          <div class="plot" id="robPlot" style="margin-top:14px;display:none"></div>
+        </div>
+
         <div class="row end"><button class="btn btn-primary" id="toArticle">Redactar artículo →</button></div>
       </section>
 
-      <!-- ---------- STEP 6: ARTICLE ---------- -->
-      <section class="view" id="view-6">
-        <p class="eyebrow">Paso 6 · Artículo</p>
+      <!-- ---------- STEP 7: ARTICLE ---------- -->
+      <section class="view" id="view-7">
+        <p class="eyebrow">Paso 7 · Artículo</p>
         <h2 class="view-title">Manuscrito</h2>
         <div id="noResult" class="card empty">Ejecuta primero el meta-análisis (paso 3 y 4) para redactar el artículo con tus números reales.</div>
         <div id="articleWrap" style="display:none">
@@ -163,7 +204,9 @@
                 <button class="btn btn-sm" id="draftBtn">Generar borrador</button>
                 <button class="btn btn-primary btn-sm" id="aiAllBtn" style="display:none">✦ Redactar todo con IA</button>
                 <button class="btn btn-sm" id="copyAll">Copiar todo</button>
-                <button class="btn btn-sm" id="dlMd">Descargar .md</button>
+                <button class="btn btn-sm" id="dlMd">.md</button>
+                <button class="btn btn-sm" id="dlDocx">Word</button>
+                <button class="btn btn-sm" id="printPdf">PDF</button>
               </div>
             </div>
             <p class="muted">Se redacta con tus cifras reales. Pulsa <b>✦ Mejorar con IA</b> en cada sección para ampliarla con tu sesión de Claude. Edita libremente.</p>
