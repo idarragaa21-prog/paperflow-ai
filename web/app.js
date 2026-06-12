@@ -225,6 +225,7 @@ async function runAnalysis(advance) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Error en el análisis');
     S.result = data;
+    S.measure = data.measure || S.measure;
     renderSynthesis(data); renderDiagnostics(data);
     setStepEnabled(4, true); setStepEnabled(5, true); setStepEnabled(6, true);
     markDone(3); $('noResult').style.display = 'none'; $('articleWrap').style.display = '';
@@ -283,6 +284,7 @@ function renderDiagnostics(d) {
 }
 
 // ---------- STEP 6: article ----------
+function autoGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 2, 1200) + 'px'; }
 function questionForArticle() { return S.questionText || ('Meta-análisis de ' + (MEASURE_LABEL[S.measure] || S.measure)); }
 $('draftBtn').onclick = async () => {
   if (!S.result) return;
@@ -318,7 +320,7 @@ function renderSections() {
       </div>
       <textarea data-ta="${sec}">${esc(S.manuscript[sec] || '')}</textarea>
     </div>`).join('');
-  $('sections').querySelectorAll('textarea').forEach((ta) => { ta.oninput = () => { S.manuscript[ta.dataset.ta] = ta.value; }; });
+  $('sections').querySelectorAll('textarea').forEach((ta) => { autoGrow(ta); ta.oninput = () => { S.manuscript[ta.dataset.ta] = ta.value; autoGrow(ta); }; });
   $('sections').querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => copy(S.manuscript[b.dataset.copy] || '', b); });
   $('sections').querySelectorAll('[data-ai]').forEach((b) => { b.onclick = () => improveSection(b.dataset.ai, b); });
 }
@@ -329,7 +331,7 @@ async function improveSection(sec, btn, silent) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Error');
     S.manuscript[sec] = data.text;
-    const ta = $('sections').querySelector(`[data-ta="${sec}"]`); if (ta) ta.value = data.text;
+    const ta = $('sections').querySelector(`[data-ta="${sec}"]`); if (ta) { ta.value = data.text; autoGrow(ta); }
   } catch (e) { if (!silent) alert('IA: ' + e.message); } finally { busy(btn, false); }
 }
 function manuscriptMarkdown() {
