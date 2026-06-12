@@ -1,0 +1,3 @@
+## 2025-06-12 - Accessible Labels
+**Learning:** React Testing Library is highly sensitive to a11y regressions. When replacing div-based labels (`.rc-kicker`) with semantic `<label>` elements, RTL `getByPlaceholderText` tests should be proactively updated to `getByLabelText` to enforce and verify the accessibility improvement directly through the test suite. Also, when changing a block element to an inline `label`, applying `display: block` avoids unexpected layout shifting in highly structured CSS forms.
+**Action:** Always follow up semantic `<label>` changes with a pass over `.test.tsx` files to swap `getByPlaceholderText`/`getAllByDisplayValue` for `getByLabelText`.

@@ -54,8 +54,8 @@ describe('ProjectsPage', () => {
     renderPage();
 
     await userEvent.click(screen.getByRole('button', { name: /\+ New project/i }));
-    await userEvent.type(screen.getByPlaceholderText(/Distal radius fracture outcomes/i), 'New Project');
-    await userEvent.type(screen.getByPlaceholderText(/e.g. Orthopedics/i), 'Ortho');
+    await userEvent.type(screen.getByLabelText(/Title \*/i), 'New Project');
+    await userEvent.type(screen.getByLabelText(/Clinical area/i), 'Ortho');
     fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
     await waitFor(() => {
