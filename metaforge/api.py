@@ -7,6 +7,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
+from .ai import ai_available
+from .manuscript import generate_manuscript, generate_section
+from .protocol import generate_protocol
+from .questions import generate_questions
 from .samples import EXAMPLES, TEMPLATES
 from .service import analyze, analyze_csv
 
@@ -14,8 +18,8 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="1.0.0",
-    description="Local-first pairwise meta-analysis for epidemiologists.",
+    version="2.0.0",
+    description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
 
@@ -29,9 +33,74 @@ class AnalyzeRequest(BaseModel):
     favours_high: str = "control"
 
 
+class QuestionRequest(BaseModel):
+    topic: str
+    n: int = 5
+    mode: str = "auto"  # "auto" | "ai" | "local"
+
+
+class ProtocolRequest(BaseModel):
+    question: str
+    measure: str = "GEN"
+    mode: str = "auto"
+
+
+class ManuscriptRequest(BaseModel):
+    question: str
+    result: dict
+    protocol: dict | None = None
+    mode: str = "auto"
+
+
+class SectionRequest(BaseModel):
+    question: str
+    result: dict
+    section: str
+    protocol: dict | None = None
+    mode: str = "auto"
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "version": app.version}
+
+
+@app.get("/ai-status")
+def ai_status() -> dict:
+    """Whether the local Claude CLI is available to power AI question generation."""
+    return {"ai_available": ai_available()}
+
+
+@app.post("/questions")
+def questions_endpoint(req: QuestionRequest) -> dict:
+    try:
+        return generate_questions(req.topic, n=req.n, mode=req.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/protocol")
+def protocol_endpoint(req: ProtocolRequest) -> dict:
+    try:
+        return generate_protocol(req.question, measure=req.measure, mode=req.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/manuscript")
+def manuscript_endpoint(req: ManuscriptRequest) -> dict:
+    try:
+        return generate_manuscript(req.question, req.result, protocol=req.protocol, mode=req.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/manuscript/section")
+def section_endpoint(req: SectionRequest) -> dict:
+    try:
+        return generate_section(req.question, req.result, req.section, protocol=req.protocol, mode=req.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/analyze")
@@ -94,3 +163,8 @@ def index() -> FileResponse:
 @app.get("/app.js")
 def appjs() -> Response:
     return Response((WEB_DIR / "app.js").read_text(), media_type="application/javascript")
+
+
+@app.get("/styles.css")
+def styles() -> Response:
+    return Response((WEB_DIR / "styles.css").read_text(), media_type="text/css")

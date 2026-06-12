@@ -39,8 +39,21 @@ EXAMPLES: dict[str, dict] = {
             "Trial D,2020,SMD,72,15.5,5.0,70,18.8,5.3\n"
         ),
     },
+    "metformin_hr": {
+        "title": "Metformin & colorectal cancer (HR, effect+CI)",
+        "favours_low": "metformin",
+        "favours_high": "no metformin",
+        "csv": (
+            "study_label,year,effect_measure,effect_value,ci_lower_95,ci_upper_95\n"
+            "Cohort A,2011,HR,0.78,0.64,0.95\n"
+            "Cohort B,2013,HR,0.85,0.70,1.03\n"
+            "Cohort C,2015,HR,0.69,0.52,0.92\n"
+            "Cohort D,2018,HR,0.91,0.79,1.05\n"
+            "Cohort E,2020,HR,0.74,0.60,0.91\n"
+        ),
+    },
     "prevalence": {
-        "title": "Disease prevalence (proportion, logit)",
+        "title": "Disease prevalence (PLOGIT, logit)",
         "favours_low": "",
         "favours_high": "",
         "csv": (

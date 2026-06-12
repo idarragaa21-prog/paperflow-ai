@@ -50,6 +50,16 @@ def test_pool_proportion_runs():
     assert 0 < nat["estimate"] < 1
 
 
+def test_hr_from_effect_ci_log_scale():
+    from metaforge.effects import from_effect_and_ci
+    from metaforge.pooling import pool
+    eff = [from_effect_and_ci(0.78, 0.64, 0.95, measure="HR", label="A"),
+           from_effect_and_ci(0.85, 0.70, 1.03, measure="HR", label="B")]
+    r = pool(eff, model="fixed")
+    assert r.log_scale
+    assert 0.7 < r.natural()["estimate"] < 0.9
+
+
 def test_unknown_measure_raises():
     with pytest.raises(ValueError, match="Unknown effect_measure"):
         effect_from_row({"study_label": "S", "effect_measure": "BOGUS", "yi": 0.1, "se": 0.1})

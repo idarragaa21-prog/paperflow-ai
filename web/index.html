@@ -4,185 +4,176 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MetaForge</title>
-  <style>
-    :root {
-      --bg: #f7f7fb; --surface: #fff; --border: #e5e5ee; --text: #1a1a22;
-      --muted: #71717a; --primary: #6d4aff; --primary-weak: #efeaff; --ok: #15803d; --warn: #b45309;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
-    header { padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: baseline; gap: 12px; position: sticky; top: 0; z-index: 5; }
-    header h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: -0.02em; }
-    header .logo { color: var(--primary); }
-    header span.tag { color: var(--muted); font-size: 12.5px; }
-    main { max-width: 1240px; margin: 0 auto; padding: 22px; display: grid; grid-template-columns: 372px 1fr; gap: 20px; align-items: start; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
-    .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 12px; }
-    textarea { width: 100%; min-height: 168px; font-family: ui-monospace, monospace; font-size: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 10px; resize: vertical; }
-    label { font-size: 12px; color: var(--muted); display: block; margin: 10px 0 4px; }
-    select, input[type=text] { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: #fff; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .row.tight { gap: 6px; }
-    button { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 8px 13px; font-size: 13px; font-weight: 600; cursor: pointer; }
-    button:hover { border-color: #cfcfe0; }
-    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); width: 100%; padding: 11px; font-size: 14px; }
-    button.primary:hover { background: #5a37e6; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
-    .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 9px 12px; color: var(--muted); font-weight: 600; }
-    .tabs button.active { color: var(--primary); border-bottom-color: var(--primary); }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    .stats { display: flex; flex-wrap: wrap; gap: 22px; margin-bottom: 14px; }
-    .stat .k { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-    .stat .v { font-size: 18px; font-weight: 800; }
-    .stat.big .v { font-size: 24px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
-    th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 600; }
-    .plot { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: #fff; padding: 6px; }
-    .err { color: #b91c1c; font-size: 13px; margin-top: 10px; white-space: pre-wrap; }
-    .note { background: #fff8ec; border: 1px solid #f3e2bf; color: var(--warn); border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-top: 10px; }
-    .interp { background: #f4f1ff; border: 1px solid #e2dbff; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 12px 0; }
-    a.dl { font-size: 12px; color: var(--primary); cursor: pointer; font-weight: 600; }
-    .empty { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
-    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    @media (max-width: 960px) { main { grid-template-columns: 1fr; } .two { grid-template-columns: 1fr; } }
-  </style>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <header>
-    <h1><span class="logo">⬡</span> MetaForge</h1>
-    <span class="tag">meta-análisis local — tus datos no salen de tu equipo</span>
-  </header>
-  <main>
-    <!-- ============ INPUT PANEL ============ -->
-    <section class="card">
-      <h2>1 · Datos (CSV)</h2>
-      <div class="row tight">
-        <select id="exampleSel" style="flex:1">
-          <option value="">Cargar ejemplo…</option>
-        </select>
-        <button id="clear">Limpiar</button>
+  <div class="app">
+    <!-- ============ SIDEBAR / STEP RAIL ============ -->
+    <aside class="rail">
+      <div class="brand"><span class="brand-mark">⬡</span> MetaForge</div>
+      <p class="rail-tag">Del tema al manuscrito.</p>
+      <nav class="steps" id="steps">
+        <button class="step active" data-step="1" id="navstep-1"><span class="step-num">1</span><span class="step-text"><b>Pregunta</b><small>Forja tu pregunta</small></span></button>
+        <button class="step" data-step="2" id="navstep-2" disabled><span class="step-num">2</span><span class="step-text"><b>Protocolo</b><small>Criterios y búsqueda</small></span></button>
+        <button class="step" data-step="3" id="navstep-3" disabled><span class="step-num">3</span><span class="step-text"><b>Datos</b><small>Carga tus estudios</small></span></button>
+        <button class="step" data-step="4" id="navstep-4" disabled><span class="step-num">4</span><span class="step-text"><b>Síntesis</b><small>Efecto combinado</small></span></button>
+        <button class="step" data-step="5" id="navstep-5" disabled><span class="step-num">5</span><span class="step-text"><b>Diagnóstico</b><small>Sensibilidad y sesgo</small></span></button>
+        <button class="step" data-step="6" id="navstep-6" disabled><span class="step-num">6</span><span class="step-text"><b>Artículo</b><small>Redacta el manuscrito</small></span></button>
+      </nav>
+      <div class="rail-foot">
+        <div class="ai-pill" id="aiPill" title="">···</div>
+        <p class="rail-note">Todo corre en tu equipo.</p>
       </div>
-      <textarea id="csv" spellcheck="false" placeholder="Pega aquí tu CSV o carga un ejemplo. La primera fila son los encabezados."></textarea>
-      <details style="margin-top:8px">
-        <summary class="muted" style="cursor:pointer">Plantillas y formato de columnas</summary>
-        <p class="muted" style="margin:8px 0 4px">Descarga una plantilla en blanco según los datos que tengas:</p>
-        <div id="templates" class="row tight"></div>
-        <p class="muted" style="margin-top:8px">Siempre: <code>study_label</code>, <code>effect_measure</code>. Opcionales: <code>year</code> (acumulativo), <code>subgroup</code>.</p>
-      </details>
+    </aside>
 
-      <h2 style="margin-top:18px">2 · Modelo</h2>
-      <div class="grid2">
-        <div>
-          <label>Modelo</label>
-          <select id="model">
-            <option value="random">Efectos aleatorios</option>
-            <option value="fixed">Efecto fijo</option>
-          </select>
-        </div>
-        <div>
-          <label>Estimador τ²</label>
-          <select id="tau2">
-            <option value="REML">REML</option>
-            <option value="PM">Paule-Mandel</option>
-            <option value="DL">DerSimonian-Laird</option>
-          </select>
-        </div>
-      </div>
-      <label style="margin-top:10px"><input type="checkbox" id="kh" checked style="width:auto;margin-right:6px" />Ajuste de Knapp-Hartung</label>
-      <div class="grid2" style="margin-top:6px">
-        <div><label>Favorece (izq.)</label><input type="text" id="flow" value="intervención" /></div>
-        <div><label>Favorece (der.)</label><input type="text" id="fhigh" value="control" /></div>
-      </div>
-      <div class="row"><button class="primary" id="run">▶ Ejecutar meta-análisis</button></div>
-      <div id="err" class="err"></div>
-    </section>
-
-    <!-- ============ RESULTS ============ -->
-    <section>
-      <div id="welcome" class="card empty">
-        Carga un ejemplo o pega tus datos y pulsa <b>Ejecutar</b>.<br>
-        MetaForge calcula el efecto combinado, heterogeneidad, sensibilidad, subgrupos y sesgo de publicación.
-      </div>
-
-      <div id="results" style="display:none">
-        <div class="tabs" id="tabs">
-          <button data-tab="summary" class="active">Resumen</button>
-          <button data-tab="sensitivity">Sensibilidad</button>
-          <button data-tab="subgroups">Subgrupos</button>
-          <button data-tab="bias">Sesgo de publicación</button>
-          <button data-tab="data">Datos</button>
-        </div>
-
-        <!-- SUMMARY -->
-        <div class="panel active" id="panel-summary">
-          <div class="card">
-            <h2>Resultado combinado</h2>
-            <div class="stats" id="stats"></div>
-            <div class="interp" id="interp"></div>
-            <div id="hetero" class="muted"></div>
-            <div id="warnings"></div>
+    <main class="main">
+      <!-- ---------- STEP 1: QUESTION FORGE ---------- -->
+      <section class="view active" id="view-1">
+        <div class="hero">
+          <p class="eyebrow">Paso 1 · Forja tu pregunta</p>
+          <h1>¿Sobre qué quieres investigar?</h1>
+          <p class="lede">Escribe cualquier tema, en cualquier idioma. Te propongo preguntas de
+            investigación concretas y desarrollables — con su marco, diseño y medida de efecto.</p>
+          <div class="forge">
+            <textarea id="topic" rows="2" placeholder="p. ej. efecto del ejercicio sobre la presión arterial en adultos mayores"></textarea>
+            <div class="forge-actions">
+              <label class="count">Preguntas
+                <select id="nq"><option>3</option><option selected>5</option><option>6</option><option>8</option></select>
+              </label>
+              <button class="btn btn-primary" id="genBtn">✦ Generar preguntas</button>
+            </div>
+            <p class="forge-hint" id="forgeHint"></p>
           </div>
-          <div style="height:16px"></div>
-          <div class="card">
-            <h2>Forest plot <a class="dl" id="dlForest">descargar SVG</a></h2>
-            <div class="plot" id="forest"></div>
-          </div>
+          <div id="genErr" class="error"></div>
+          <p style="margin-top:14px"><a class="link" id="skipToData">Ya tengo mis datos, ir directo a cargar estudios →</a></p>
         </div>
+        <div id="questions" class="questions"></div>
+      </section>
 
-        <!-- SENSITIVITY -->
-        <div class="panel" id="panel-sensitivity">
-          <div class="card">
-            <h2>Leave-one-out (omitir un estudio)</h2>
-            <div class="plot" id="loo"></div>
+      <!-- ---------- STEP 2: PROTOCOL ---------- -->
+      <section class="view" id="view-2">
+        <p class="eyebrow">Paso 2 · Protocolo</p>
+        <h2 class="view-title">Protocolo de revisión</h2>
+        <div id="protoChosen" class="chosen" style="display:none"></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Genera el plan de tu revisión</h3>
+            <div class="row"><button class="btn btn-sm" id="protoDl" style="display:none">Descargar</button><button class="btn btn-primary btn-sm" id="protoBtn">✦ Generar protocolo</button></div>
           </div>
-          <div style="height:16px"></div>
-          <div class="card">
-            <h2>Meta-análisis acumulativo</h2>
-            <p class="muted" id="cumNote" style="margin-top:0"></p>
-            <div style="overflow-x:auto"><table id="cumTable"></table></div>
+          <p class="muted">Criterios de inclusión/exclusión, estrategia de búsqueda en PubMed y los campos a extraer de cada estudio.</p>
+          <div id="protoErr" class="error"></div>
+          <div id="protoBody"></div>
+        </div>
+        <div class="row end"><button class="btn btn-primary" id="toData">Continuar a datos →</button></div>
+      </section>
+
+      <!-- ---------- STEP 3: DATA ---------- -->
+      <section class="view" id="view-3">
+        <p class="eyebrow">Paso 3 · Datos</p>
+        <h2 class="view-title">Carga los estudios</h2>
+        <div id="chosenBanner" class="chosen" style="display:none"></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Tabla de datos (CSV)</h3>
+            <div class="row">
+              <select id="exampleSel" class="select select-sm"><option value="">Cargar ejemplo…</option></select>
+              <button class="btn btn-sm" id="tplBtn">Plantilla</button>
+              <button class="btn btn-sm" id="clearData">Limpiar</button>
+            </div>
           </div>
+          <p class="muted" id="measureHint"></p>
+          <textarea id="csv" class="mono" rows="9" placeholder="Pega tu CSV aquí. La primera fila son los encabezados."></textarea>
+          <div class="row between">
+            <a class="link" id="formatHelp">¿Qué columnas necesito?</a>
+            <button class="btn btn-primary" id="analyzeBtn">Analizar →</button>
+          </div>
+          <div id="dataErr" class="error"></div>
+          <div id="formatBox" class="format-box" style="display:none"></div>
         </div>
+      </section>
 
-        <!-- SUBGROUPS -->
-        <div class="panel" id="panel-subgroups">
-          <div class="card" id="subCard"></div>
+      <!-- ---------- STEP 4: SYNTHESIS ---------- -->
+      <section class="view" id="view-4">
+        <p class="eyebrow">Paso 4 · Síntesis</p>
+        <h2 class="view-title">Efecto combinado</h2>
+        <div class="card">
+          <div class="stats" id="stats"></div>
+          <div class="interp" id="interp"></div>
+          <p class="muted" id="hetero"></p>
+          <div id="warnings"></div>
+          <details class="advanced" id="advanced">
+            <summary>Ajustes avanzados del modelo</summary>
+            <div class="adv-grid">
+              <label>Modelo<select id="model"><option value="random">Efectos aleatorios</option><option value="fixed">Efecto fijo</option></select></label>
+              <label>Estimador τ²<select id="tau2"><option value="REML">REML</option><option value="PM">Paule-Mandel</option><option value="DL">DerSimonian-Laird</option></select></label>
+              <label class="check"><input type="checkbox" id="kh" checked /> Knapp-Hartung</label>
+              <label>Favorece izq. <input type="text" id="flow" class="input" /></label>
+              <label>Favorece der. <input type="text" id="fhigh" class="input" /></label>
+              <button class="btn btn-sm" id="rerunBtn">Recalcular</button>
+            </div>
+          </details>
         </div>
+        <div class="card">
+          <div class="card-head"><h3>Forest plot</h3><a class="link" id="dlForest">descargar SVG</a></div>
+          <div class="plot" id="forest"></div>
+        </div>
+        <div class="row end"><button class="btn btn-primary" id="toDiag">Ver diagnósticos →</button></div>
+      </section>
 
-        <!-- BIAS -->
-        <div class="panel" id="panel-bias">
+      <!-- ---------- STEP 5: DIAGNOSTICS ---------- -->
+      <section class="view" id="view-5">
+        <p class="eyebrow">Paso 5 · Diagnóstico</p>
+        <h2 class="view-title">Sensibilidad, subgrupos y sesgo</h2>
+        <div class="card">
+          <div class="card-head"><h3>Sensibilidad — leave-one-out</h3></div>
+          <p class="muted note-line">Cómo cambia el resultado si se omite cada estudio. Si cambia poco, es robusto.</p>
+          <div class="plot" id="loo"></div>
+          <h4 class="sub">Meta-análisis acumulativo</h4>
+          <p class="muted note-line" id="cumNote"></p>
+          <div class="tbl-wrap"><table id="cumTable"></table></div>
+        </div>
+        <div class="card" id="subCard"></div>
+        <div class="card">
+          <div class="card-head"><h3>Sesgo de publicación</h3></div>
+          <p class="muted note-line">¿Faltan estudios pequeños "negativos"? La asimetría en el funnel lo sugiere.</p>
           <div class="two">
-            <div class="card">
-              <h2>Funnel plot <a class="dl" id="dlFunnel">descargar SVG</a></h2>
-              <div class="plot" id="funnel"></div>
-            </div>
-            <div class="card">
-              <h2>Baujat (influencia)</h2>
-              <div class="plot" id="baujat"></div>
-            </div>
+            <div><div class="plot" id="funnel"></div><a class="link" id="dlFunnel">descargar funnel SVG</a></div>
+            <div><div class="plot" id="baujat"></div></div>
           </div>
-          <div style="height:16px"></div>
-          <div class="card">
-            <h2>Pruebas de sesgo</h2>
-            <div id="egger" class="muted"></div>
-            <div id="trimfill" style="margin-top:12px"></div>
-          </div>
+          <div id="egger" class="muted note-line"></div>
+          <div id="trimfill" class="interp" style="margin-top:10px"></div>
         </div>
+        <div class="card">
+          <div class="card-head"><h3>Estimaciones por estudio</h3><a class="link" id="dlCsv">descargar CSV</a></div>
+          <div class="tbl-wrap"><table id="studies"></table></div>
+        </div>
+        <div class="row end"><button class="btn btn-primary" id="toArticle">Redactar artículo →</button></div>
+      </section>
 
-        <!-- DATA -->
-        <div class="panel" id="panel-data">
+      <!-- ---------- STEP 6: ARTICLE ---------- -->
+      <section class="view" id="view-6">
+        <p class="eyebrow">Paso 6 · Artículo</p>
+        <h2 class="view-title">Manuscrito</h2>
+        <div id="noResult" class="card empty">Ejecuta primero el meta-análisis (paso 3 y 4) para redactar el artículo con tus números reales.</div>
+        <div id="articleWrap" style="display:none">
           <div class="card">
-            <h2>Estimaciones por estudio <a class="dl" id="dlCsv">descargar CSV</a></h2>
-            <div style="overflow-x:auto"><table id="studies"></table></div>
+            <div class="card-head">
+              <h3>Borrador del manuscrito</h3>
+              <div class="row">
+                <button class="btn btn-sm" id="draftBtn">Generar borrador</button>
+                <button class="btn btn-primary btn-sm" id="aiAllBtn" style="display:none">✦ Redactar todo con IA</button>
+                <button class="btn btn-sm" id="copyAll">Copiar todo</button>
+                <button class="btn btn-sm" id="dlMd">Descargar .md</button>
+              </div>
+            </div>
+            <p class="muted">Se redacta con tus cifras reales. Pulsa <b>✦ Mejorar con IA</b> en cada sección para ampliarla con tu sesión de Claude. Edita libremente.</p>
+            <details class="advanced"><summary>Cifras verificadas (la IA solo puede usar estas)</summary><pre class="facts" id="facts"></pre></details>
           </div>
+          <div id="sections"></div>
         </div>
-      </div>
-    </section>
-  </main>
+      </section>
+    </main>
+  </div>
   <script src="/app.js"></script>
 </body>
 </html>
