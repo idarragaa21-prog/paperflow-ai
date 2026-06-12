@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metaforge"
-version = "0.1.0"
-description = "Local-first meta-analysis tool for epidemiologists"
+version = "1.0.0"
+description = "Local-first pairwise meta-analysis for epidemiologists"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Diego Alejandro Idarraga" }]
+keywords = ["meta-analysis", "epidemiology", "forest-plot", "evidence-synthesis", "statistics"]
 dependencies = [
     "fastapi>=0.109",
     "uvicorn[standard]>=0.27",
@@ -21,8 +22,15 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.26"]
 
+[project.scripts]
+metaforge = "metaforge.cli:main"
+
 [tool.setuptools]
 packages = ["metaforge"]
 
+[tool.setuptools.package-data]
+metaforge = ["../web/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

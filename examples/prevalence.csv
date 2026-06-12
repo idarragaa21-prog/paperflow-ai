@@ -1,0 +1,5 @@
+study_label,year,effect_measure,events,n_total
+Region A,2018,PLOGIT,42,512
+Region B,2019,PLOGIT,67,498
+Region C,2020,PLOGIT,38,605
+Region D,2021,PLOGIT,55,540

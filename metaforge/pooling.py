@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy import stats
 
-from .effects import Effect, is_log_scale
+from .effects import Effect, back_transform, is_log_scale
 
 
 @dataclass
@@ -38,19 +38,19 @@ class PoolResult:
     knapp_hartung: bool
     weights_pct: list[float] = field(default_factory=list)
 
-    def _exp(self, v: float | None) -> float | None:
+    def _bt(self, v: float | None) -> float | None:
         if v is None:
             return None
-        return float(np.exp(v)) if self.log_scale else float(v)
+        return float(back_transform(self.measure, v))
 
     def natural(self) -> dict:
         """Estimates back-transformed to the reporting scale (e.g. OR rather than logOR)."""
         return {
-            "estimate": self._exp(self.estimate),
-            "ci_low": self._exp(self.ci_low),
-            "ci_high": self._exp(self.ci_high),
-            "pi_low": self._exp(self.pi_low),
-            "pi_high": self._exp(self.pi_high),
+            "estimate": self._bt(self.estimate),
+            "ci_low": self._bt(self.ci_low),
+            "ci_high": self._bt(self.ci_high),
+            "pi_low": self._bt(self.pi_low),
+            "pi_high": self._bt(self.pi_high),
         }
 
 

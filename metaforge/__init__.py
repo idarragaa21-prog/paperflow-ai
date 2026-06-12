@@ -1,9 +1,17 @@
 """MetaForge — a local-first meta-analysis engine for epidemiologists."""
+from . import diagnostics
+from .effects import (
+    correlation_z,
+    effect_from_row,
+    from_2x2,
+    irr_from_person_time,
+    proportion_logit,
+    smd_hedges_g,
+)
+from .pooling import egger_test, pool
 from .service import analyze, analyze_csv, effects_from_rows
-from .pooling import pool, egger_test
-from .effects import effect_from_row, from_2x2, smd_hedges_g
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __all__ = [
     "analyze",
     "analyze_csv",
@@ -12,5 +20,9 @@ __all__ = [
     "egger_test",
     "effect_from_row",
     "from_2x2",
+    "irr_from_person_time",
     "smd_hedges_g",
+    "proportion_logit",
+    "correlation_z",
+    "diagnostics",
 ]

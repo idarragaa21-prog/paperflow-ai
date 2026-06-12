@@ -1,0 +1,5 @@
+study_label,year,effect_measure,n_intervention,mean_intervention,sd_intervention,n_control,mean_control,sd_control
+Trial A,2015,SMD,40,18.2,6.1,38,22.5,6.4
+Trial B,2017,SMD,55,16.8,5.4,52,19.9,5.8
+Trial C,2018,SMD,30,20.1,7.0,31,21.0,7.2
+Trial D,2020,SMD,72,15.5,5.0,70,18.8,5.3

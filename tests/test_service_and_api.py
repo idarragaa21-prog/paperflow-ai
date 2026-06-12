@@ -19,8 +19,32 @@ def test_analyze_csv_end_to_end():
     assert out["pooled"]["estimate"] > 0
     assert "<svg" in out["forest_svg"]
     assert "<svg" in out["funnel_svg"]
+    assert "<svg" in out["loo_forest_svg"]
+    assert "<svg" in out["baujat_svg"]
     assert out["egger"] is not None
     assert len(out["studies"]) == 4
+    assert len(out["leave_one_out"]) == 4
+    assert len(out["cumulative"]) == 4
+    assert out["trim_fill"] is not None
+    assert out["measure_label"] == "Odds ratio"
+
+
+def test_subgroups_in_output():
+    csv = (
+        "study_label,subgroup,effect_measure,a_events,b_non_events,c_events,d_non_events\n"
+        "A,G1,OR,20,80,28,72\nB,G1,OR,24,76,30,70\n"
+        "C,G2,OR,15,85,22,78\nD,G2,OR,30,70,34,66\n"
+    )
+    out = analyze_csv(csv)
+    assert out["subgroups"] is not None
+    assert out["subgroups"]["df"] == 1
+
+
+def test_mixed_measures_rejected():
+    import pytest
+    csv = "study_label,effect_measure,yi,se\nA,OR,0.1,0.1\nB,MD,0.2,0.1\n"
+    with pytest.raises(ValueError, match="share one effect_measure"):
+        analyze_csv(csv)
 
 
 def test_api_health():
@@ -51,7 +75,37 @@ def test_api_bad_request():
     assert r.status_code == 400
 
 
+def test_api_invalid_model():
+    r = client.post("/analyze", json={"csv": CSV, "model": "bogus"})
+    assert r.status_code == 400
+
+
+def test_api_examples_listed_and_fetchable():
+    listed = client.get("/examples").json()
+    assert "doac_or" in listed
+    ex = client.get("/examples/doac_or").json()
+    assert "csv" in ex and "study_label" in ex["csv"]
+    # And it actually analyses.
+    r = client.post("/analyze", json={"csv": ex["csv"]})
+    assert r.status_code == 200
+
+
+def test_api_templates():
+    kinds = client.get("/templates").json()["templates"]
+    assert "2x2" in kinds
+    r = client.get("/templates/2x2")
+    assert r.status_code == 200
+    assert "study_label" in r.text
+    assert client.get("/templates/nope").status_code == 404
+
+
 def test_index_served():
     r = client.get("/")
     assert r.status_code == 200
     assert "MetaForge" in r.text
+
+
+def test_appjs_served():
+    r = client.get("/app.js")
+    assert r.status_code == 200
+    assert "application/javascript" in r.headers["content-type"]
