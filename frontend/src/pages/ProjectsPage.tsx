@@ -122,10 +122,10 @@ export default function ProjectsPage() {
         <div className="rc-card" style={{ borderColor:'rgba(99,102,241,0.25)',background:'rgba(99,102,241,0.02)' }}>
           <div className="rc-card-title">New project</div>
           <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
-            <div><div className="rc-kicker">Title *</div>
-              <input className="rc-input" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" autoFocus onKeyDown={e=>e.key==='Enter'&&createMut.mutate()}/></div>
-            <div><div className="rc-kicker">Clinical area</div>
-              <input className="rc-input" value={newArea} onChange={e=>setNewArea(e.target.value)} placeholder="e.g. Orthopedics"/></div>
+            <div><label htmlFor="new-project-title" className="rc-kicker" style={{ display: 'block' }}>Title *</label>
+              <input id="new-project-title" className="rc-input" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="e.g. Distal radius fracture outcomes in older adults" autoFocus onKeyDown={e=>e.key==='Enter'&&createMut.mutate()}/></div>
+            <div><label htmlFor="new-project-area" className="rc-kicker" style={{ display: 'block' }}>Clinical area</label>
+              <input id="new-project-area" className="rc-input" value={newArea} onChange={e=>setNewArea(e.target.value)} placeholder="e.g. Orthopedics"/></div>
             <div style={{ display:'flex',gap:10 }}>
               <button className="rc-btn rc-btn--primary" onClick={() => createMut.mutate()} disabled={createMut.isPending || !newTitle.trim()}>
                 {createMut.isPending ? <><span className="rc-spinner" style={{ borderTopColor:'white' }}/> Creating…</> : 'Create project'}
@@ -141,7 +141,7 @@ export default function ProjectsPage() {
       <div style={{ display:'flex',gap:10,alignItems:'center',flexWrap:'wrap' }}>
         <div style={{ flex:'1 1 220px',position:'relative' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--rc-muted)" strokeWidth="2" strokeLinecap="round" style={{ position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',pointerEvents:'none' }}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input className="rc-input" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search projects…" style={{ paddingLeft:32 }}/>
+          <input className="rc-input" aria-label="Search projects" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search projects…" style={{ paddingLeft:32 }}/>
         </div>
         <div style={{ display:'flex',gap:2,background:'var(--rc-surface-3)',padding:3,borderRadius:10 }}>
           {(['active','archived'] as const).map(t=>(
