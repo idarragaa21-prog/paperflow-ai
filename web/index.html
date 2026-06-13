@@ -248,6 +248,19 @@
             <label>Incluidos en revisión<input type="number" id="pf_included" min="0" /></label>
             <label class="wide">Razones de exclusión (separa con «;»)<input type="text" id="pf_exclusion_reasons" placeholder="p. ej. sin control (18); población no relevante (14); datos no extraíbles (11)" /></label>
           </div>
+          <details style="margin-top:10px">
+            <summary class="muted" style="cursor:pointer">Otras fuentes (búsqueda en citas, webs, organizaciones) — activa el PRISMA de 2 columnas</summary>
+            <div class="prisma-form" style="margin-top:8px">
+              <label>Búsqueda en citas<input type="number" id="pf_other_citation" min="0" /></label>
+              <label>Sitios web<input type="number" id="pf_other_websites" min="0" /></label>
+              <label>Organizaciones<input type="number" id="pf_other_orgs" min="0" /></label>
+              <label>Informes buscados (otras)<input type="number" id="pf_other_sought" min="0" /></label>
+              <label>No recuperados (otras)<input type="number" id="pf_other_not_retrieved" min="0" /></label>
+              <label>Evaluados (otras)<input type="number" id="pf_other_assessed" min="0" /></label>
+              <label>Excluidos (otras)<input type="number" id="pf_other_excluded" min="0" /></label>
+              <label class="wide">Razones de exclusión (otras)<input type="text" id="pf_other_reasons" placeholder="p. ej. texto completo no disponible (12); no cumple PICO (13)" /></label>
+            </div>
+          </details>
           <div class="plot" id="prismaPlot" style="margin-top:14px;display:none"></div>
         </div>
 

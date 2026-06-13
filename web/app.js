@@ -492,10 +492,9 @@ function collectRob() {
   return { studies, ratings };
 }
 $('prismaBtn').onclick = async () => {
-  const ids = ['identified_db', 'identified_other', 'duplicates', 'screened', 'excluded_screen', 'fulltext_assessed', 'fulltext_excluded', 'included'];
+  const form = collectPrismaForm();
   const counts = {};
-  ids.forEach((k) => { const v = $('pf_' + k).value; if (v !== '') counts[k] = v; });
-  counts.exclusion_reasons = $('pf_exclusion_reasons').value;
+  Object.entries(form).forEach(([k, v]) => { if (v !== '' && v != null) counts[k] = v; });
   const btn = $('prismaBtn'); busy(btn, true, 'Generando…');
   try {
     const r = await fetch('/prisma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ counts, included_meta: S.result ? S.result.k : null }) });
@@ -696,9 +695,13 @@ $('dlCsv').onclick = () => {
 };
 
 // ---------- Projects: save / resume ----------
-const PRISMA_FIELDS = ['identified_db', 'identified_registers', 'identified_other', 'duplicates', 'screened', 'excluded_screen', 'sought', 'not_retrieved', 'fulltext_assessed', 'fulltext_excluded', 'included'];
+const PRISMA_FIELDS = ['identified_db', 'identified_registers', 'identified_other', 'duplicates', 'screened', 'excluded_screen', 'sought', 'not_retrieved', 'fulltext_assessed', 'fulltext_excluded', 'included',
+  'other_citation', 'other_websites', 'other_orgs', 'other_sought', 'other_not_retrieved', 'other_assessed', 'other_excluded'];
 function collectPrismaForm() {
-  const o = {}; PRISMA_FIELDS.forEach((k) => { o[k] = $('pf_' + k).value; }); o.exclusion_reasons = $('pf_exclusion_reasons').value; return o;
+  const o = {}; PRISMA_FIELDS.forEach((k) => { const el = $('pf_' + k); if (el) o[k] = el.value; });
+  o.exclusion_reasons = $('pf_exclusion_reasons').value;
+  o.other_reasons = ($('pf_other_reasons') || {}).value || '';
+  return o;
 }
 function collectState() {
   return {

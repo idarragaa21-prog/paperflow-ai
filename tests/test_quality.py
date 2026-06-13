@@ -23,6 +23,19 @@ def test_prisma_tolerates_missing():
     assert svg.startswith("<svg")
 
 
+def test_prisma_two_column_when_other_sources():
+    svg = prisma_svg({"identified_db": 600, "other_citation": 20, "other_assessed": 18,
+                      "included": 5}, included_meta=4)
+    assert "otras fuentes" in svg.lower()
+    assert "bases de datos" in svg.lower()
+    assert svg.startswith("<svg") and svg.endswith("</svg>")
+
+
+def test_prisma_stays_single_without_other():
+    svg = prisma_svg({"identified_db": 400, "duplicates": 50, "included": 4})
+    assert "otras fuentes" not in svg.lower()
+
+
 def test_api_prisma():
     r = client.post("/prisma", json={"counts": {"identified_db": 200, "duplicates": 20}, "included_meta": 4})
     assert r.status_code == 200

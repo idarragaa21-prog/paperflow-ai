@@ -47,7 +47,7 @@ numbers. No cloud, no API key, no data leaving your machine.
    a forest plot.
 6. **Diagnostics** — leave-one-out, cumulative MA, subgroup test, Egger's test,
    trim-and-fill and a Baujat influence plot.
-7. **Quality & figures** — a **PRISMA 2020 flow diagram**, a **risk-of-bias**
+7. **Quality & figures** — a **PRISMA 2020 flow diagram** (single- or two-column with "other methods"), a **risk-of-bias**
    traffic-light plot (RoB 2 / ROBINS-I), and a **GRADE** certainty assessment
    (auto-suggested downgrades + manual override). All download as SVG.
 8. **Manuscript** — drafts Title, Abstract, Methods, **Results (with your exact
@@ -130,7 +130,7 @@ print(draft["sections"]["results"])
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 108 tests; statistics validated against known values
+pytest -q          # 110 tests; statistics validated against known values
 ```
 
 ## Scope & honesty

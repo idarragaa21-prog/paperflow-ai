@@ -28,7 +28,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.5.0",
+    version="2.6.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
