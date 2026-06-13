@@ -317,6 +317,69 @@ $('robBtn').onclick = async () => {
 };
 $('robDl').onclick = () => S.robSvg && downloadText('riesgo_sesgo.svg', S.robSvg, 'image/svg+xml');
 
+// ---------- GRADE ----------
+const GRADE_DOMS = ['risk_of_bias', 'inconsistency', 'indirectness', 'imprecision', 'publication_bias'];
+const GRADE_LABELS = { risk_of_bias: 'Riesgo de sesgo', inconsistency: 'Inconsistencia', indirectness: 'Evidencia indirecta', imprecision: 'Imprecisión', publication_bias: 'Sesgo de publicación' };
+const DOWN_OPTS = { none: 'No rebajar', serious: 'Serio (−1)', very_serious: 'Muy serio (−2)' };
+const DOWN_VAL = { none: 0, serious: -1, very_serious: -2 };
+const UP_DOMS = ['large_effect', 'dose_response', 'confounding'];
+const UP_LABELS = { large_effect: 'Magnitud del efecto', dose_response: 'Gradiente dosis-respuesta', confounding: 'Confusión residual' };
+const UP_OPTS = {
+  large_effect: { none: 'Sin ajuste', large: 'Grande (+1)', very_large: 'Muy grande (+2)' },
+  dose_response: { none: 'Sin ajuste', yes: 'Presente (+1)' },
+  confounding: { none: 'Sin ajuste', yes: 'Subestima el efecto (+1)' },
+};
+const UP_VAL = { none: 0, yes: 1, large: 1, very_large: 2 };
+const CERT_LABEL = { 4: 'Alta', 3: 'Moderada', 2: 'Baja', 1: 'Muy baja' };
+function computeCertainty(design, downgrades, upgrades) {
+  let total = design === 'rct' ? 4 : 2;
+  GRADE_DOMS.forEach((d) => { total += DOWN_VAL[downgrades[d] || 'none']; });
+  if (design !== 'rct' && upgrades) UP_DOMS.forEach((u) => { total += UP_VAL[upgrades[u] || 'none']; });
+  const level = Math.max(1, Math.min(4, total));
+  return { level, label: CERT_LABEL[level] };
+}
+$('gradeBtn').onclick = async () => {
+  if (!S.result) { alert('Ejecuta el análisis primero.'); return; }
+  const rob = collectRob(); rob.tool = $('robTool').value;
+  const btn = $('gradeBtn'); busy(btn, true, 'Evaluando…');
+  try {
+    const r = await fetch('/grade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ result: S.result, design: $('gradeDesign').value, rob }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error');
+    S.grade = data; renderGrade(data);
+  } catch (e) { alert(e.message); } finally { busy(btn, false); }
+};
+$('gradeDesign').onchange = () => { if (S.grade && S.grade.domains) renderGrade(S.grade); };
+function renderGrade(g) {
+  g.domains = g.domains || {}; g.upgrades = g.upgrades || {};
+  const design = $('gradeDesign').value;
+  const downRows = GRADE_DOMS.map((d) => {
+    const info = g.domains[d] || { rating: 'none', reason: '' };
+    const opts = Object.entries(DOWN_OPTS).map(([v, l]) => `<option value="${v}"${v === info.rating ? ' selected' : ''}>${l}</option>`).join('');
+    return `<div class="grade-row"><b>${GRADE_LABELS[d]}</b><select data-gd="${d}">${opts}</select><span class="reason">${esc(info.reason)}</span></div>`;
+  }).join('');
+  let upBlock = '';
+  if (design !== 'rct') {
+    const upRows = UP_DOMS.map((u) => {
+      const cur = g.upgrades[u] || 'none';
+      const opts = Object.entries(UP_OPTS[u]).map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`).join('');
+      return `<div class="grade-row"><b>${UP_LABELS[u]}</b><select data-gu="${u}">${opts}</select><span class="reason">Subir certeza (solo evidencia observacional)</span></div>`;
+    }).join('');
+    upBlock = `<p class="sub" style="margin-top:14px">Subir certeza</p>${upRows}`;
+  }
+  $('gradeBody').innerHTML = `<div id="gradeCertBox"></div><p class="sub">Bajar certeza</p>${downRows}${upBlock}`;
+  $('gradeBody').querySelectorAll('[data-gd]').forEach((s) => { s.onchange = () => { (S.grade.domains[s.dataset.gd] = S.grade.domains[s.dataset.gd] || {}).rating = s.value; recomputeGrade(); }; });
+  $('gradeBody').querySelectorAll('[data-gu]').forEach((s) => { s.onchange = () => { S.grade.upgrades[s.dataset.gu] = s.value; recomputeGrade(); }; });
+  recomputeGrade();
+}
+function recomputeGrade() {
+  const design = $('gradeDesign').value;
+  const dg = {}; GRADE_DOMS.forEach((d) => { dg[d] = (S.grade.domains[d] || {}).rating || 'none'; });
+  const c = computeCertainty(design, dg, S.grade.upgrades); S.grade.certainty = c; S.grade.design = design;
+  const pips = '⊕'.repeat(c.level) + '⊝'.repeat(4 - c.level);
+  $('gradeCertBox').innerHTML = `<div class="grade-cert l${c.level}"><span class="grade-pips">${pips}</span> Certeza de la evidencia: ${c.label} (${c.level}/4)</div>`;
+}
+
 // ---------- STEP 5: diagnostics ----------
 function renderDiagnostics(d) {
   const m = d.measure;
@@ -404,7 +467,8 @@ $('dlMd').onclick = () => downloadText('manuscrito_metaforge.md', manuscriptMark
 $('dlDocx').onclick = async (e) => {
   const btn = e.target; busy(btn, true, 'Word…');
   try {
-    const r = await fetch('/manuscript/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sections: S.manuscript, facts: $('facts').textContent }) });
+    const figures = { forest: S.result && S.result.forest_svg, prisma: S.prismaSvg, rob: S.robSvg };
+    const r = await fetch('/manuscript/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sections: S.manuscript, facts: $('facts').textContent, figures, grade: S.grade }) });
     if (!r.ok) throw new Error('No se pudo generar el Word');
     const blob = await r.blob();
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'manuscrito_metaforge.docx'; a.click(); URL.revokeObjectURL(a.href);
@@ -430,4 +494,86 @@ $('dlCsv').onclick = () => {
   downloadText('metaforge_estimates.csv', header + lines, 'text/csv');
 };
 
+// ---------- Projects: save / resume ----------
+const PRISMA_FIELDS = ['identified_db', 'identified_other', 'duplicates', 'screened', 'excluded_screen', 'fulltext_assessed', 'fulltext_excluded', 'included'];
+function collectPrismaForm() {
+  const o = {}; PRISMA_FIELDS.forEach((k) => { o[k] = $('pf_' + k).value; }); o.exclusion_reasons = $('pf_exclusion_reasons').value; return o;
+}
+function collectState() {
+  return {
+    v: 2, step: S.step, topic: $('topic').value, questionText: S.questionText, measure: S.measure,
+    chosen: S.chosen, questions: S.questions || [], protocol: S.protocol,
+    csv: $('csv').value, model: $('model').value, tau2: $('tau2').value, kh: $('kh').checked,
+    flow: $('flow').value, fhigh: $('fhigh').value,
+    result: S.result, prisma: collectPrismaForm(), prismaSvg: S.prismaSvg,
+    robTool: $('robTool').value, robRatings: collectRob().ratings, robSvg: S.robSvg,
+    grade: S.grade, manuscript: S.manuscript, facts: $('facts').textContent,
+  };
+}
+function setProjStatus(msg, ok) { const e = $('projStatus'); e.textContent = msg; e.className = 'proj-status' + (ok ? ' ok' : ''); if (ok) setTimeout(() => { e.textContent = ''; }, 2500); }
+async function refreshProjects() {
+  try {
+    const { projects } = await (await fetch('/projects')).json();
+    const sel = $('loadProj');
+    sel.innerHTML = '<option value="">Cargar proyecto…</option>' + projects.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  } catch {}
+}
+$('saveProj').onclick = async () => {
+  const name = $('projName').value.trim() || 'Proyecto sin título';
+  const btn = $('saveProj'); busy(btn, true, 'Guardando…');
+  try {
+    const r = await fetch('/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, state: collectState(), id: S.projectId || null }) });
+    const data = await r.json(); if (!r.ok) throw new Error(data.detail || 'Error');
+    S.projectId = data.id; setProjStatus('Guardado ✓', true); await refreshProjects(); $('loadProj').value = data.id;
+  } catch (e) { setProjStatus(e.message, false); } finally { busy(btn, false); }
+};
+$('loadProj').onchange = async (e) => {
+  const id = e.target.value; if (!id) return;
+  try {
+    const rec = await (await fetch('/projects/' + id)).json();
+    await restoreState(rec.state || {});
+    S.projectId = rec.id; $('projName').value = rec.name || ''; setProjStatus('Cargado ✓', true);
+  } catch (err) { setProjStatus('No se pudo cargar', false); }
+};
+$('delProj').onclick = async () => {
+  if (!S.projectId) { setProjStatus('No hay proyecto cargado', false); return; }
+  if (!confirm('¿Eliminar este proyecto guardado?')) return;
+  await fetch('/projects/' + S.projectId, { method: 'DELETE' });
+  S.projectId = null; setProjStatus('Eliminado', true); await refreshProjects();
+};
+function restoreRobRatings(ratings) {
+  const studies = robStudies();
+  $('robGrid').querySelectorAll('select[data-rob]').forEach((s) => {
+    const st = studies[Number(s.dataset.rob)]; const v = (ratings[st] || {})[s.dataset.dom];
+    if (v) s.value = v;
+  });
+}
+async function restoreState(st) {
+  $('topic').value = st.topic || ''; S.questionText = st.questionText || ''; S.measure = st.measure || 'OR';
+  S.chosen = st.chosen || null; S.questions = st.questions || []; S.protocol = st.protocol || null;
+  $('csv').value = st.csv || ''; if (st.model) $('model').value = st.model; if (st.tau2) $('tau2').value = st.tau2; $('kh').checked = st.kh !== false;
+  S.flow = st.flow || S.flow; S.fhigh = st.fhigh || S.fhigh; $('flow').value = st.flow || ''; $('fhigh').value = st.fhigh || '';
+  if (S.questions.length) renderQuestions({ source: 'ai', questions: S.questions });
+  if (S.chosen || S.questionText) { setStepEnabled(2, true); setStepEnabled(3, true); markDone(1); prepareProtocolStep(); prepareDataStep(); }
+  else { setStepEnabled(3, true); prepareDataStep(); }
+  if (S.protocol) renderProtocol({ source: 'ai', protocol: S.protocol });
+  if (st.prisma) Object.entries(st.prisma).forEach(([k, v]) => { const el = $('pf_' + k); if (el) el.value = v; });
+  if (st.result) {
+    S.result = st.result; S.prismaSvg = st.prismaSvg || null; S.robSvg = st.robSvg || null; S.grade = st.grade || null;
+    renderSynthesis(st.result); renderDiagnostics(st.result);
+    setStepEnabled(4, true); setStepEnabled(5, true); setStepEnabled(6, true); setStepEnabled(7, true); markDone(3);
+    $('noResult').style.display = 'none'; $('articleWrap').style.display = '';
+    await prepareQualityStep();
+    if (st.robTool) { $('robTool').value = st.robTool; buildRobGrid(); }
+    if (st.robRatings) restoreRobRatings(st.robRatings);
+    if (S.prismaSvg) { $('prismaPlot').innerHTML = S.prismaSvg; $('prismaPlot').style.display = ''; $('prismaDl').style.display = ''; }
+    if (S.robSvg) { $('robPlot').innerHTML = S.robSvg; $('robPlot').style.display = ''; $('robDl').style.display = ''; }
+    if (S.grade) { if (S.grade.design) $('gradeDesign').value = S.grade.design; renderGrade(S.grade); }
+  }
+  if (st.facts) $('facts').textContent = st.facts;
+  if (st.manuscript && Object.keys(st.manuscript).length) { S.manuscript = st.manuscript; renderSections(); if (S.ai) $('aiAllBtn').style.display = ''; }
+  goStep(st.step || 1);
+}
+
 init();
+refreshProjects();

@@ -9,8 +9,10 @@ from pydantic import BaseModel
 
 from .ai import ai_available
 from .docx_export import manuscript_docx
+from .grade import auto_grade, grade_from_judgements
 from .manuscript import generate_manuscript, generate_section
 from .prisma import prisma_svg
+from .projects import delete_project, list_projects, load_project, save_project
 from .protocol import generate_protocol
 from .questions import generate_questions
 from .rob import TOOLS, domains_for, rob_summary_svg
@@ -21,7 +23,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.1.0",
+    version="2.2.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -77,6 +79,22 @@ class RobRequest(BaseModel):
 class DocxRequest(BaseModel):
     sections: dict
     facts: str | None = None
+    figures: dict | None = None
+    grade: dict | None = None
+
+
+class GradeRequest(BaseModel):
+    result: dict
+    design: str = "rct"
+    rob: dict | None = None
+    downgrades: dict | None = None
+    upgrades: dict | None = None
+
+
+class ProjectRequest(BaseModel):
+    name: str
+    state: dict
+    id: str | None = None
 
 
 @app.get("/health")
@@ -138,9 +156,48 @@ def rob_endpoint(req: RobRequest) -> dict:
             "domains": domains_for(req.tool)}
 
 
+@app.post("/grade")
+def grade_endpoint(req: GradeRequest) -> dict:
+    try:
+        if req.downgrades is not None:
+            return grade_from_judgements(req.result, req.design, req.downgrades, req.upgrades)
+        return auto_grade(req.result, design=req.design, rob=req.rob)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/projects")
+def projects_list() -> dict:
+    return {"projects": list_projects()}
+
+
+@app.post("/projects")
+def projects_save(req: ProjectRequest) -> dict:
+    try:
+        return save_project(req.state, req.name, req.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/projects/{project_id}")
+def projects_load(project_id: str) -> dict:
+    try:
+        return load_project(project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.delete("/projects/{project_id}")
+def projects_delete(project_id: str) -> dict:
+    try:
+        return {"deleted": delete_project(project_id)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/manuscript/docx")
 def manuscript_docx_endpoint(req: DocxRequest) -> Response:
-    data = manuscript_docx(req.sections, facts=req.facts)
+    data = manuscript_docx(req.sections, facts=req.facts, figures=req.figures, grade=req.grade)
     return Response(
         data,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

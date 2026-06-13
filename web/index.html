@@ -28,6 +28,14 @@
     </aside>
 
     <main class="main">
+      <div class="topbar">
+        <input id="projName" class="input proj-name" placeholder="Nombre del proyecto…" />
+        <button class="btn btn-sm" id="saveProj">💾 Guardar</button>
+        <select id="loadProj" class="select select-sm"><option value="">Cargar proyecto…</option></select>
+        <button class="btn btn-sm" id="delProj" title="Eliminar proyecto cargado">🗑</button>
+        <span id="projStatus" class="proj-status"></span>
+      </div>
+
       <!-- ---------- STEP 1: QUESTION FORGE ---------- -->
       <section class="view active" id="view-1">
         <div class="hero">
@@ -186,6 +194,20 @@
           <p class="muted">Valora cada estudio incluido por dominio. La columna Global se calcula automáticamente.</p>
           <div class="tbl-wrap"><table id="robGrid"></table></div>
           <div class="plot" id="robPlot" style="margin-top:14px;display:none"></div>
+        </div>
+
+        <div class="card" id="gradeCard">
+          <div class="card-head"><h3>Certeza de la evidencia (GRADE)</h3>
+            <button class="btn btn-primary btn-sm" id="gradeBtn">Evaluar GRADE</button>
+          </div>
+          <p class="muted">MetaForge sugiere las rebajas a partir del análisis y del riesgo de sesgo. Ajusta cada dominio; la certeza se recalcula sola.</p>
+          <label class="muted" style="display:inline-flex;gap:8px;align-items:center">Diseño base
+            <select id="gradeDesign" class="select select-sm">
+              <option value="rct">Ensayos aleatorizados (parte de Alta)</option>
+              <option value="observational">Observacional (parte de Baja)</option>
+            </select>
+          </label>
+          <div id="gradeBody"></div>
         </div>
 
         <div class="row end"><button class="btn btn-primary" id="toArticle">Redactar artículo →</button></div>

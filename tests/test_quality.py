@@ -65,3 +65,17 @@ def test_api_docx():
     assert r.status_code == 200
     assert "wordprocessingml" in r.headers["content-type"]
     assert r.content[:2] == b"PK"
+
+
+def test_svg_to_png():
+    from metaforge.figures import svg_to_png
+    png = svg_to_png('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="#333"/></svg>')
+    assert png is not None and png[:4] == b"\x89PNG"
+
+
+def test_docx_with_figures_is_larger():
+    from metaforge.docx_export import manuscript_docx
+    forest = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#eee"/><circle cx="200" cy="100" r="40" fill="#1c2d8c"/></svg>'
+    plain = manuscript_docx({"title": "T", "results": "R."})
+    withfig = manuscript_docx({"title": "T", "results": "R."}, figures={"forest": forest})
+    assert len(withfig) > len(plain) + 1000   # an image was embedded
