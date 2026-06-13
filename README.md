@@ -37,7 +37,9 @@ numbers. No cloud, no API key, no data leaving your machine.
    First-pass only — you verify every decision (PRISMA/Cochrane). For included
    open-access studies, **AI extracts the effect data from the full text** (2×2,
    means/SDs or effect+CI) with the supporting quote, seeding the data table.
-   Counts flow into the PRISMA diagram.
+   Counts flow into the PRISMA diagram. **Zotero integration**: import RIS/BibTeX
+   to screen references you already have, and export included studies to RIS,
+   BibTeX or straight to your **Zotero library** (Web API).
 4. **Data** — paste a CSV (or load an example / download a template). One row per
    study; MetaForge computes the effect sizes for you.
 5. **Synthesis** — fixed/random-effects pooling (REML, Paule-Mandel or DL),
@@ -121,14 +123,14 @@ print(draft["sections"]["results"])
 
 `/questions`, `/protocol`, `/search`, `/screen`, `/analyze`, `/manuscript`,
 `/manuscript/section`, `/manuscript/docx`, `/prisma`, `/rob`, `/rob/tools`,
-`/extract`, `/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
+`/extract`, `/citations/export`, `/citations/import`, `/zotero/push`, `/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
 `/health`. Interactive docs at `/docs`.
 
 ## Tests
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 101 tests; statistics validated against known values
+pytest -q          # 108 tests; statistics validated against known values
 ```
 
 ## Scope & honesty

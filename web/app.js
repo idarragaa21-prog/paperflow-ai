@@ -304,12 +304,62 @@ $('extractBtn').onclick = async () => {
     prepareDataStep(); goStep(4);
   }
 };
-$('exportIncl').onclick = () => {
+function includedRecords() {
   const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
-  if (!incl.length) { alert('No hay artículos marcados como incluir.'); return; }
+  if (!incl.length) alert('No hay artículos marcados como «Incluir».');
+  return incl;
+}
+$('exportIncl').onclick = () => {
+  const incl = includedRecords(); if (!incl.length) return;
   const header = 'study_label,year,doi,pmid,title,journal\n';
   const lines = incl.map((r) => `"${(r.authors.split(',')[0] || 'Estudio')} ${r.year}",${r.year},${r.doi || ''},${r.pmid || ''},"${r.title.replace(/"/g, "'")}","${r.journal}"`).join('\n');
   downloadText('estudios_incluidos.csv', header + lines, 'text/csv');
+};
+async function exportCitations(format) {
+  const incl = includedRecords(); if (!incl.length) return;
+  const r = await fetch('/citations/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records: incl, format }) });
+  const blob = await r.blob();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `referencias.${format === 'bibtex' ? 'bib' : 'ris'}`; a.click(); URL.revokeObjectURL(a.href);
+}
+$('exportRis').onclick = () => exportCitations('ris');
+$('exportBib').onclick = () => exportCitations('bibtex');
+
+// import RIS/BibTeX -> records to screen
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const text = await file.text();
+  try {
+    const r = await fetch('/citations/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    const data = await r.json();
+    if (!data.count) { alert('No se reconocieron referencias en el archivo.'); return; }
+    S.searchRecords = data.records.map((x) => ({ ...x, decision: null, reason: '' }));
+    S.searchMeta = { hit_count: data.count, returned: data.count, hit_europepmc: null, pubmed_count: null, duplicates_removed: 0 };
+    $('searchMeta').innerHTML = `Importadas <b>${data.count}</b> referencias desde archivo.`;
+    renderResults(); $('screenCard').style.display = '';
+  } catch (err) { alert('No se pudo importar: ' + err.message); }
+  e.target.value = '';
+};
+
+// Zotero
+$('zoteroBtn').onclick = () => {
+  const box = $('zoteroCfg');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  $('zoteroKey').value = localStorage.getItem('mf_zotero_key') || '';
+  $('zoteroUser').value = localStorage.getItem('mf_zotero_user') || '';
+};
+$('zoteroPush').onclick = async () => {
+  const incl = includedRecords(); if (!incl.length) return;
+  const api_key = $('zoteroKey').value.trim(), user_id = $('zoteroUser').value.trim();
+  if (!api_key || !user_id) { $('zoteroStatus').textContent = 'Falta la clave o el ID.'; return; }
+  localStorage.setItem('mf_zotero_key', api_key); localStorage.setItem('mf_zotero_user', user_id);
+  const btn = $('zoteroPush'); busy(btn, true, 'Enviando…');
+  try {
+    const r = await fetch('/zotero/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records: incl, api_key, user_id, collection: $('zoteroColl').value.trim() || null }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error');
+    $('zoteroStatus').innerHTML = `✓ Enviadas <b>${data.created}</b> referencias a Zotero${data.collection ? ` (colección «${esc(data.collection)}»)` : ''}.${data.failed ? ` ${data.failed} fallaron.` : ''}`;
+  } catch (e) { $('zoteroStatus').textContent = 'Error: ' + e.message; } finally { busy(btn, false); }
 };
 $('fillPrisma').onclick = () => {
   const recs = S.searchRecords || [];

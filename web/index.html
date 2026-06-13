@@ -97,6 +97,11 @@
           </div>
           <div id="searchErr" class="error"></div>
           <div id="searchMeta" class="muted" style="margin-top:10px"></div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn btn-sm" id="importBtn">⇪ Importar RIS/BibTeX</button>
+            <input type="file" id="importFile" accept=".ris,.bib,.bibtex,.txt" style="display:none" />
+            <span class="muted">¿Ya tienes referencias (Zotero, PubMed…)? Impórtalas para cribarlas aquí.</span>
+          </div>
         </div>
 
         <div class="card" id="screenCard" style="display:none">
@@ -112,10 +117,24 @@
           <div class="tbl-wrap"><table id="resultsTable"></table></div>
           <div class="row between" style="margin-top:12px">
             <div class="row">
-              <button class="btn btn-sm" id="exportIncl">Exportar incluidos (CSV)</button>
-              <button class="btn btn-sm" id="extractBtn">✦ Extraer datos de incluidos (IA)</button>
+              <span class="muted">Incluidos:</span>
+              <button class="btn btn-sm" id="exportIncl">CSV</button>
+              <button class="btn btn-sm" id="exportRis">RIS</button>
+              <button class="btn btn-sm" id="exportBib">BibTeX</button>
+              <button class="btn btn-sm" id="zoteroBtn">⇪ Zotero</button>
+              <button class="btn btn-sm" id="extractBtn">✦ Extraer datos (IA)</button>
             </div>
             <button class="btn btn-sm" id="fillPrisma">Volcar conteos a PRISMA →</button>
+          </div>
+          <div id="zoteroCfg" class="format-box" style="display:none">
+            <p class="muted" style="margin-top:0">Conecta tu Zotero — clave de API e ID de usuario (en <code>zotero.org/settings/keys</code>). Se guardan solo en este navegador.</p>
+            <div class="row">
+              <input id="zoteroKey" class="input" placeholder="Clave de API" style="max-width:220px" />
+              <input id="zoteroUser" class="input" placeholder="ID de usuario" style="max-width:130px" />
+              <input id="zoteroColl" class="input" placeholder="Colección (opcional)" style="max-width:180px" />
+              <button id="zoteroPush" class="btn btn-primary btn-sm">Enviar incluidos</button>
+            </div>
+            <div id="zoteroStatus" class="muted" style="margin-top:8px"></div>
           </div>
         </div>
 

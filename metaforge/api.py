@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 from .ai import ai_available
+from .citations import parse_references, to_bibtex, to_ris
 from .docx_export import manuscript_docx
 from .grade import auto_grade, grade_from_judgements
 from .manuscript import generate_manuscript, generate_section
@@ -21,12 +22,13 @@ from .extract import extract_data, extract_to_csv_row
 from .screen import dual_screen, screen_records
 from .search import search_literature
 from .service import analyze, analyze_csv
+from .zotero import push_to_zotero
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.4.0",
+    version="2.5.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -123,6 +125,23 @@ class ExtractRequest(BaseModel):
     mode: str = "auto"
 
 
+class CitationsExportRequest(BaseModel):
+    records: list[dict]
+    format: str = "ris"  # "ris" | "bibtex"
+
+
+class CitationsImportRequest(BaseModel):
+    text: str
+
+
+class ZoteroPushRequest(BaseModel):
+    records: list[dict]
+    api_key: str
+    user_id: str
+    library_type: str = "user"
+    collection: str | None = None
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "version": app.version}
@@ -203,6 +222,31 @@ def extract_endpoint(req: ExtractRequest) -> dict:
     out = extract_data(req.record, measure=req.measure, outcome=req.outcome, mode=req.mode)
     out["csv_row"] = extract_to_csv_row(out)
     return out
+
+
+@app.post("/citations/export")
+def citations_export(req: CitationsExportRequest) -> Response:
+    if req.format == "bibtex":
+        body, ext, ctype = to_bibtex(req.records), "bib", "application/x-bibtex"
+    else:
+        body, ext, ctype = to_ris(req.records), "ris", "application/x-research-info-systems"
+    return Response(body, media_type=ctype,
+                    headers={"Content-Disposition": f'attachment; filename="metaforge_referencias.{ext}"'})
+
+
+@app.post("/citations/import")
+def citations_import(req: CitationsImportRequest) -> dict:
+    records = parse_references(req.text)
+    return {"records": records, "count": len(records)}
+
+
+@app.post("/zotero/push")
+def zotero_push(req: ZoteroPushRequest) -> dict:
+    try:
+        return push_to_zotero(req.records, req.api_key, req.user_id,
+                              library_type=req.library_type, collection=req.collection)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/grade")
