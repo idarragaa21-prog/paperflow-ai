@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-18 - Path Traversal Incomplete Fixes in Endpoints
+**Vulnerability:** Found two endpoints (`download_project_zip` in `api/projects.py` and `download_export` in `api/meta.py`) doing manual path traversal checks with `.resolve()` and `.relative_to()` which skips the S3 backend compat checks that exist in the canonical implementation.
+**Learning:** Incomplete local abstractions for path validation bypass the canonical, globally secured mechanism, potentially causing 500s or security gaps if backends (like S3) change.
+**Prevention:** Always use `storage_manager.safe_abs_path` for local file resolutions requiring bounds checking; never manually re-implement path validation checks within routers.
