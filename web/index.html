@@ -89,6 +89,7 @@
           <textarea id="searchQ" class="mono" rows="3" placeholder="Consulta de búsqueda (se prellena desde el protocolo)"></textarea>
           <div class="row between" style="margin-top:10px">
             <div class="row">
+              <label class="muted">Fuente <select id="searchSource" class="select select-sm"><option value="europepmc">Europe PMC</option><option value="pubmed">PubMed (MeSH)</option><option value="both">Ambas + dedup</option></select></label>
               <label class="muted">Resultados <select id="searchN" class="select select-sm"><option>15</option><option selected>25</option><option>50</option></select></label>
               <label class="muted"><input type="checkbox" id="searchOA" /> Solo acceso abierto</label>
             </div>
@@ -101,14 +102,19 @@
         <div class="card" id="screenCard" style="display:none">
           <div class="card-head"><h3>Cribado por título y resumen</h3>
             <div class="row">
+              <label class="muted"><input type="checkbox" id="dualScreen" /> Doble revisor (κ)</label>
               <span id="screenCounts" class="muted"></span>
               <button class="btn btn-primary btn-sm" id="screenBtn">✦ Cribar con IA</button>
             </div>
           </div>
           <div class="note" id="screenNote">El cribado por IA es una <b>primera pasada</b>: PRISMA/Cochrane exigen que verifiques cada decisión. Pulsa cada fila para cambiarla.</div>
+          <div id="kappaBox" class="muted" style="margin-bottom:8px"></div>
           <div class="tbl-wrap"><table id="resultsTable"></table></div>
           <div class="row between" style="margin-top:12px">
-            <button class="btn btn-sm" id="exportIncl">Exportar incluidos (CSV)</button>
+            <div class="row">
+              <button class="btn btn-sm" id="exportIncl">Exportar incluidos (CSV)</button>
+              <button class="btn btn-sm" id="extractBtn">✦ Extraer datos de incluidos (IA)</button>
+            </div>
             <button class="btn btn-sm" id="fillPrisma">Volcar conteos a PRISMA →</button>
           </div>
         </div>
@@ -211,14 +217,17 @@
           <p class="muted">Escribe los conteos de tu cribado. Lo que dejes en blanco se omite.</p>
           <div class="prisma-form" id="prismaForm">
             <label>Identificados en bases<input type="number" id="pf_identified_db" min="0" /></label>
+            <label>Identificados en registros<input type="number" id="pf_identified_registers" min="0" /></label>
             <label>Otras fuentes<input type="number" id="pf_identified_other" min="0" /></label>
             <label>Duplicados eliminados<input type="number" id="pf_duplicates" min="0" /></label>
             <label>Registros cribados<input type="number" id="pf_screened" min="0" /></label>
             <label>Excluidos en cribado<input type="number" id="pf_excluded_screen" min="0" /></label>
-            <label>Evaluados texto completo<input type="number" id="pf_fulltext_assessed" min="0" /></label>
+            <label>Informes buscados<input type="number" id="pf_sought" min="0" /></label>
+            <label>No recuperados<input type="number" id="pf_not_retrieved" min="0" /></label>
+            <label>Evaluados (elegibilidad)<input type="number" id="pf_fulltext_assessed" min="0" /></label>
             <label>Excluidos texto completo<input type="number" id="pf_fulltext_excluded" min="0" /></label>
             <label>Incluidos en revisión<input type="number" id="pf_included" min="0" /></label>
-            <label class="wide">Razones de exclusión (texto completo)<input type="text" id="pf_exclusion_reasons" placeholder="p. ej. sin control (20); datos no extraíbles (24)" /></label>
+            <label class="wide">Razones de exclusión (separa con «;»)<input type="text" id="pf_exclusion_reasons" placeholder="p. ej. sin control (18); población no relevante (14); datos no extraíbles (11)" /></label>
           </div>
           <div class="plot" id="prismaPlot" style="margin-top:14px;display:none"></div>
         </div>

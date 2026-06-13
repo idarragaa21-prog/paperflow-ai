@@ -15,7 +15,7 @@ def test_prisma_svg_basic():
                       "fulltext_excluded": 44, "included": 6}, included_meta=5)
     assert svg.startswith("<svg") and svg.endswith("</svg>")
     assert "n = 410" in svg          # identified = 400 + 10
-    assert "meta-análisis: 5" in svg
+    assert "meta-análisis (n = 5)" in svg
 
 
 def test_prisma_tolerates_missing():

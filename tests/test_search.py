@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 from metaforge.api import app
 from metaforge.screen import screen_records
-from metaforge.search import _parse_record, europepmc_query
+from metaforge.search import _parse_epmc, europepmc_query
 
 client = TestClient(app)
 
@@ -22,7 +22,7 @@ def test_parse_record():
         "isOpenAccess": "Y", "pubTypeList": {"pubType": ["Journal Article"]},
         "fullTextUrlList": {"fullTextUrl": [{"url": "http://x/p.pdf", "documentStyle": "pdf", "availability": "Open access"}]},
     }
-    p = _parse_record(rec)
+    p = _parse_epmc(rec)
     assert p["title"] == "A cohort study"      # trailing dot stripped
     assert p["is_oa"] is True
     assert p["pdf_url"] == "http://x/p.pdf"

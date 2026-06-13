@@ -203,18 +203,22 @@ $('searchBtn').onclick = async () => {
   if (!query) { $('searchErr').textContent = 'Escribe una consulta.'; return; }
   const btn = $('searchBtn'); busy(btn, true, 'Buscando…');
   try {
-    const r = await fetch('/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, page_size: Number($('searchN').value), only_oa: $('searchOA').checked, pubmed_query: (S.protocol || {}).search_pubmed || null }) });
+    const r = await fetch('/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, source: $('searchSource').value, page_size: Number($('searchN').value), only_oa: $('searchOA').checked, pubmed_query: (S.protocol || {}).search_pubmed || null }) });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Error de búsqueda');
-    S.searchMeta = data;
+    S.searchMeta = data; S.searchDuplicates = data.duplicates_removed || 0;
     S.searchRecords = data.records.map((x) => ({ ...x, decision: null, reason: '' }));
     renderSearchMeta(data); renderResults();
     $('screenCard').style.display = '';
   } catch (e) { $('searchErr').textContent = e.message; } finally { busy(btn, false); }
 };
 function renderSearchMeta(d) {
-  const pm = d.pubmed_count != null ? `PubMed (consulta MeSH): <b>${d.pubmed_count}</b>. ` : '';
-  $('searchMeta').innerHTML = `Europe PMC: <b>${d.hit_count.toLocaleString()}</b> resultados. ${pm}Mostrando los <b>${d.returned}</b> más relevantes.`;
+  const parts = [];
+  if (d.hit_europepmc != null) parts.push(`Europe PMC: <b>${d.hit_europepmc.toLocaleString()}</b>`);
+  if (d.pubmed_count != null) parts.push(`PubMed (MeSH): <b>${d.pubmed_count.toLocaleString()}</b>`);
+  let s = parts.join(' · ');
+  if (d.duplicates_removed) s += ` · ${d.duplicates_removed} duplicado(s) eliminado(s)`;
+  $('searchMeta').innerHTML = `${s}. Mostrando <b>${d.returned}</b> registros (orden por relevancia).`;
 }
 const DEC_LABEL = { include: 'Incluir', exclude: 'Excluir', maybe: 'Quizá', null: '—' };
 function renderResults() {
@@ -222,12 +226,14 @@ function renderResults() {
   const rows = recs.map((r, i) => {
     const oa = r.is_oa ? '<span class="badge measure" style="background:#def7e8;color:#15803d;border-color:#bce9cf">OA</span>' : '';
     const link = r.pdf_url ? `<a class="link" href="${r.pdf_url}" target="_blank" rel="noopener">PDF</a>` : (r.doi_url ? `<a class="link" href="${r.doi_url}" target="_blank" rel="noopener">DOI</a>` : '');
-    const decClass = r.decision === 'include' ? 'dec-inc' : r.decision === 'exclude' ? 'dec-exc' : r.decision === 'maybe' ? 'dec-may' : '';
+    const conflict = r.decision2 && !r.agree;
+    const decClass = conflict ? 'dec-conflict' : r.decision === 'include' ? 'dec-inc' : r.decision === 'exclude' ? 'dec-exc' : r.decision === 'maybe' ? 'dec-may' : '';
     const sel = ['include', 'maybe', 'exclude'].map((d) => `<option value="${d}"${r.decision === d ? ' selected' : ''}>${DEC_LABEL[d]}</option>`).join('');
     return `<tr class="${decClass}">
       <td><div style="font-weight:600">${esc(r.title)}</div><div class="muted" style="font-size:11.5px">${esc(r.authors.slice(0, 70))} · ${esc(r.journal)} ${esc(String(r.year))} ${oa}</div>
         ${r.abstract ? `<details><summary class="link" style="font-size:11.5px">resumen</summary><div class="muted" style="font-size:12px;margin-top:4px">${esc(r.abstract.slice(0, 800))}…</div></details>` : ''}
-        ${r.reason ? `<div class="muted" style="font-size:11.5px;margin-top:3px">🤖 ${esc(r.reason)}</div>` : ''}</td>
+        ${r.reason ? `<div class="muted" style="font-size:11.5px;margin-top:3px">🤖 ${esc(r.reason)}</div>` : ''}
+        ${conflict ? `<div style="font-size:11.5px;margin-top:3px;color:var(--warn)">⚠ Revisor 2: <b>${DEC_LABEL[r.decision2]}</b> — ${esc(r.reason2 || '')}</div>` : ''}</td>
       <td style="white-space:nowrap"><select data-dec="${i}">${sel}<option value=""${r.decision ? '' : ' selected'}>—</option></select></td>
       <td style="white-space:nowrap">${link}</td></tr>`;
   }).join('');
@@ -244,20 +250,59 @@ function updateScreenCounts() {
 $('screenBtn').onclick = async () => {
   const recs = S.searchRecords || [];
   if (!recs.length) return;
+  const dual = $('dualScreen').checked;
   const btn = $('screenBtn'); btn.disabled = true;
-  const chunk = 8; let failures = 0;
+  const chunk = dual ? 6 : 8; let failures = 0;
   for (let i = 0; i < recs.length; i += chunk) {
-    btn.innerHTML = `<span class="spinner"></span> Cribando ${Math.min(i + chunk, recs.length)}/${recs.length}…`;
+    btn.innerHTML = `<span class="spinner"></span> ${dual ? '2× ' : ''}Cribando ${Math.min(i + chunk, recs.length)}/${recs.length}…`;
     const slice = recs.slice(i, i + chunk).map((r) => ({ id: r.id, title: r.title, abstract: r.abstract }));
     try {
-      const r = await fetch('/screen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records: slice, inclusion: inclusionList(), exclusion: exclusionList(), mode: 'auto' }) });
+      const r = await fetch('/screen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records: slice, inclusion: inclusionList(), exclusion: exclusionList(), mode: 'auto', dual }) });
       const data = await r.json();
-      (data.decisions || []).forEach((d) => { const rec = recs.find((x) => String(x.id) === String(d.id)); if (rec) { rec.decision = d.decision; rec.reason = d.reason; } });
+      (data.decisions || []).forEach((d) => { const rec = recs.find((x) => String(x.id) === String(d.id)); if (rec) { rec.decision = d.decision; rec.reason = d.reason; rec.decision2 = d.decision2 || null; rec.reason2 = d.reason2 || ''; rec.agree = d.agree !== false; } });
     } catch (e) { failures++; }
     renderResults();
   }
   btn.disabled = false; btn.innerHTML = '✦ Cribar con IA';
+  if (dual) updateKappa(); else $('kappaBox').textContent = '';
   if (failures) setProjStatus(`${failures} lote(s) sin cribar; reintenta`, false);
+};
+function cohenKappa(a, b) {
+  const n = a.length; if (!n) return null;
+  const cats = [...new Set([...a, ...b])];
+  let po = 0; for (let i = 0; i < n; i++) if (a[i] === b[i]) po++; po /= n;
+  let pe = 0; cats.forEach((c) => { pe += (a.filter((x) => x === c).length / n) * (b.filter((x) => x === c).length / n); });
+  return pe >= 1 ? 1 : Math.round((po - pe) / (1 - pe) * 1000) / 1000;
+}
+function kappaLabel(k) { return k < 0.2 ? 'pobre' : k < 0.4 ? 'débil' : k < 0.6 ? 'moderada' : k < 0.8 ? 'buena' : 'muy buena'; }
+function updateKappa() {
+  const recs = (S.searchRecords || []).filter((r) => r.decision2);
+  if (recs.length < 2) { $('kappaBox').textContent = ''; return; }
+  const k = cohenKappa(recs.map((r) => r.decision), recs.map((r) => r.decision2));
+  const conflicts = recs.filter((r) => !r.agree).length;
+  $('kappaBox').innerHTML = `Concordancia entre revisores IA: <b>κ = ${k}</b> (${kappaLabel(k)}). <b>${conflicts}</b> conflicto(s) a resolver (resaltados en naranja).`;
+}
+$('extractBtn').onclick = async () => {
+  const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
+  if (!incl.length) { alert('Marca artículos como «Incluir» primero.'); return; }
+  if (S.measure === 'GEN') { alert('Define una medida de efecto (no GEN) para extraer datos.'); return; }
+  const btn = $('extractBtn'); btn.disabled = true;
+  const outcome = (S.protocol && S.protocol.outcomes && S.protocol.outcomes[0]) || '';
+  const rows = []; let found = 0;
+  for (let i = 0; i < incl.length; i++) {
+    btn.innerHTML = `<span class="spinner"></span> Extrayendo ${i + 1}/${incl.length}…`;
+    try {
+      const r = await fetch('/extract', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ record: incl[i], measure: S.measure, outcome, mode: 'auto' }) });
+      const data = await r.json(); rows.push(data); if (data.found) found++;
+    } catch (e) { /* skip */ }
+  }
+  btn.disabled = false; btn.innerHTML = '✦ Extraer datos de incluidos (IA)';
+  if (rows.length) {
+    const fields = Object.keys(rows[0].fields);
+    $('csv').value = `study_label,effect_measure,${fields.join(',')}\n` + rows.map((r) => r.csv_row).join('\n');
+    setProjStatus(`Extraídos ${found}/${incl.length}; revisa y completa en Datos`, true);
+    prepareDataStep(); goStep(4);
+  }
 };
 $('exportIncl').onclick = () => {
   const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
@@ -270,10 +315,13 @@ $('fillPrisma').onclick = () => {
   const recs = S.searchRecords || [];
   const incl = recs.filter((r) => r.decision === 'include').length;
   const exc = recs.filter((r) => r.decision === 'exclude').length;
-  $('pf_identified_db').value = S.searchMeta ? S.searchMeta.hit_count : recs.length;
+  const maybe = recs.filter((r) => r.decision === 'maybe').length;
+  if (S.searchMeta) $('pf_identified_db').value = S.searchMeta.hit_count;
+  if (S.searchDuplicates != null) $('pf_duplicates').value = S.searchDuplicates;
   $('pf_screened').value = recs.length;
   $('pf_excluded_screen').value = exc;
-  $('pf_fulltext_assessed').value = incl + recs.filter((r) => r.decision === 'maybe').length;
+  $('pf_sought').value = incl + maybe;
+  $('pf_fulltext_assessed').value = incl + maybe;
   $('pf_included').value = incl;
   setProjStatus('Conteos volcados a PRISMA (paso Calidad)', true);
 };
@@ -598,7 +646,7 @@ $('dlCsv').onclick = () => {
 };
 
 // ---------- Projects: save / resume ----------
-const PRISMA_FIELDS = ['identified_db', 'identified_other', 'duplicates', 'screened', 'excluded_screen', 'fulltext_assessed', 'fulltext_excluded', 'included'];
+const PRISMA_FIELDS = ['identified_db', 'identified_registers', 'identified_other', 'duplicates', 'screened', 'excluded_screen', 'sought', 'not_retrieved', 'fulltext_assessed', 'fulltext_excluded', 'included'];
 function collectPrismaForm() {
   const o = {}; PRISMA_FIELDS.forEach((k) => { o[k] = $('pf_' + k).value; }); o.exclusion_reasons = $('pf_exclusion_reasons').value; return o;
 }

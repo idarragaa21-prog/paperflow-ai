@@ -209,6 +209,7 @@ tbody tr:hover { background: var(--surface-2); }
 #resultsTable tr.dec-inc td { background: #f0fdf4; }
 #resultsTable tr.dec-exc td { background: #fef2f2; opacity: .72; }
 #resultsTable tr.dec-may td { background: #fffbeb; }
+#resultsTable tr.dec-conflict td { background: #fff7ed; box-shadow: inset 3px 0 0 var(--warn); }
 #resultsTable td { vertical-align: top; }
 #resultsTable select { padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12.5px; font-family: var(--font); }
 #resultsTable details summary { cursor: pointer; }

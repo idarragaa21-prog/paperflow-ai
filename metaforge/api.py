@@ -17,7 +17,8 @@ from .protocol import generate_protocol
 from .questions import generate_questions
 from .rob import TOOLS, domains_for, rob_summary_svg
 from .samples import EXAMPLES, TEMPLATES
-from .screen import screen_records
+from .extract import extract_data, extract_to_csv_row
+from .screen import dual_screen, screen_records
 from .search import search_literature
 from .service import analyze, analyze_csv
 
@@ -25,7 +26,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.3.0",
+    version="2.4.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -101,6 +102,7 @@ class ProjectRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str
+    source: str = "europepmc"  # "europepmc" | "pubmed" | "both"
     page_size: int = 25
     only_oa: bool = False
     pubmed_query: str | None = None
@@ -110,6 +112,14 @@ class ScreenRequest(BaseModel):
     records: list[dict]
     inclusion: list[str] = []
     exclusion: list[str] = []
+    mode: str = "auto"
+    dual: bool = False
+
+
+class ExtractRequest(BaseModel):
+    record: dict
+    measure: str = "OR"
+    outcome: str = ""
     mode: str = "auto"
 
 
@@ -175,15 +185,24 @@ def rob_endpoint(req: RobRequest) -> dict:
 @app.post("/search")
 def search_endpoint(req: SearchRequest) -> dict:
     try:
-        return search_literature(req.query, page_size=req.page_size, only_oa=req.only_oa,
-                                 pubmed_query=req.pubmed_query)
+        return search_literature(req.query, source=req.source, page_size=req.page_size,
+                                 only_oa=req.only_oa, pubmed_query=req.pubmed_query)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/screen")
 def screen_endpoint(req: ScreenRequest) -> dict:
+    if req.dual:
+        return dual_screen(req.records, req.inclusion, req.exclusion)
     return screen_records(req.records, req.inclusion, req.exclusion, mode=req.mode)
+
+
+@app.post("/extract")
+def extract_endpoint(req: ExtractRequest) -> dict:
+    out = extract_data(req.record, measure=req.measure, outcome=req.outcome, mode=req.mode)
+    out["csv_row"] = extract_to_csv_row(out)
+    return out
 
 
 @app.post("/grade")

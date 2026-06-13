@@ -28,12 +28,16 @@ numbers. No cloud, no API key, no data leaving your machine.
 2. **Protocol** — for the chosen question: objective, inclusion/exclusion
    criteria, eligible designs, a ready-to-paste **PubMed search string**, and the
    exact data-extraction columns.
-3. **Search & screening** — actually queries **Europe PMC** (MEDLINE + PMC) and
-   reports the **PubMed hit count** for the same strategy. Retrieves real records
-   with abstracts and open-access links, then **AI-screens each title/abstract
-   against your protocol's inclusion/exclusion criteria** (include / exclude /
-   maybe + reason). First-pass only — you verify every decision (PRISMA/Cochrane).
-   Counts flow into the PRISMA diagram; included studies seed the data table.
+3. **Search & screening** — actually queries **Europe PMC** and/or **PubMed**
+   (native MeSH via E-utilities), **deduplicates** across sources, and retrieves
+   real records with abstracts and open-access links. **AI-screens each title/
+   abstract against your protocol's inclusion/exclusion criteria** (include /
+   exclude / maybe + reason); an optional **dual-reviewer mode** runs two
+   independent AI passes and reports **Cohen's κ** with conflicts flagged.
+   First-pass only — you verify every decision (PRISMA/Cochrane). For included
+   open-access studies, **AI extracts the effect data from the full text** (2×2,
+   means/SDs or effect+CI) with the supporting quote, seeding the data table.
+   Counts flow into the PRISMA diagram.
 4. **Data** — paste a CSV (or load an example / download a template). One row per
    study; MetaForge computes the effect sizes for you.
 5. **Synthesis** — fixed/random-effects pooling (REML, Paule-Mandel or DL),
@@ -117,14 +121,14 @@ print(draft["sections"]["results"])
 
 `/questions`, `/protocol`, `/search`, `/screen`, `/analyze`, `/manuscript`,
 `/manuscript/section`, `/manuscript/docx`, `/prisma`, `/rob`, `/rob/tools`,
-`/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
+`/extract`, `/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
 `/health`. Interactive docs at `/docs`.
 
 ## Tests
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 95 tests; statistics validated against known values
+pytest -q          # 101 tests; statistics validated against known values
 ```
 
 ## Scope & honesty

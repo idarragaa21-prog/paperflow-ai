@@ -54,6 +54,57 @@ def _screen_batch_ai(records: list[dict], inclusion, exclusion) -> dict:
     return {"decisions": out}
 
 
+def cohen_kappa(labels_a: list[str], labels_b: list[str]) -> float | None:
+    """Cohen's kappa for inter-reviewer agreement over categorical decisions."""
+    n = len(labels_a)
+    if n == 0 or n != len(labels_b):
+        return None
+    cats = set(labels_a) | set(labels_b)
+    po = sum(1 for a, b in zip(labels_a, labels_b) if a == b) / n
+    pe = sum((labels_a.count(c) / n) * (labels_b.count(c) / n) for c in cats)
+    if pe >= 1.0:
+        return 1.0
+    return round((po - pe) / (1 - pe), 3)
+
+
+def _screen_once(records, inclusion, exclusion) -> dict:
+    out = {}
+    for d in _screen_batch_ai(records, inclusion, exclusion)["decisions"]:
+        out[str(d["id"])] = d
+    return out
+
+
+def dual_screen(records: list[dict], inclusion: list[str], exclusion: list[str]) -> dict:
+    """Two independent AI screening passes + Cohen's kappa, flagging conflicts.
+
+    Mirrors dual independent screening (Cochrane): disagreements are surfaced for
+    human resolution rather than silently resolved.
+    """
+    if not records or not ai_available():
+        base = screen_records(records, inclusion, exclusion, mode="local")
+        for d in base["decisions"]:
+            d.update({"decision2": d["decision"], "reason2": "", "agree": True})
+        base["dual"] = True
+        base["kappa"] = None
+        return base
+    try:
+        a = _screen_once(records, inclusion, exclusion)
+        b = _screen_once(records, inclusion, exclusion)
+    except Exception:  # noqa: BLE001
+        return {**screen_records(records, inclusion, exclusion, mode="local"), "dual": True, "kappa": None}
+    decisions, la, lb = [], [], []
+    for r in records:
+        rid = str(r["id"])
+        da, db = a.get(rid, {}), b.get(rid, {})
+        d1, d2 = da.get("decision", "maybe"), db.get("decision", "maybe")
+        la.append(d1)
+        lb.append(d2)
+        decisions.append({"id": r["id"], "decision": d1, "reason": da.get("reason", ""),
+                          "decision2": d2, "reason2": db.get("reason", ""), "agree": d1 == d2})
+    return {"source": "ai", "dual": True, "decisions": decisions, "kappa": cohen_kappa(la, lb),
+            "note": "Doble cribado independiente por IA — resuelve los conflictos (κ mide la concordancia)."}
+
+
 def screen_records(records: list[dict], inclusion: list[str], exclusion: list[str],
                    *, mode: str = "auto", batch_size: int = 6) -> dict:
     if not records:
