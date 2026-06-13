@@ -40,7 +40,7 @@ function goStep(n) {
   document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === 'view-' + n));
   document.querySelectorAll('.step').forEach((b) => b.classList.toggle('active', b.dataset.step === String(n)));
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (n === 7 && S.result && !Object.keys(S.manuscript).length) $('draftBtn').click();
+  if (n === 8 && S.result && !Object.keys(S.manuscript).length) $('draftBtn').click();
 }
 $('steps').addEventListener('click', (e) => { const b = e.target.closest('.step'); if (b && !b.disabled) goStep(Number(b.dataset.step)); });
 
@@ -115,13 +115,13 @@ function renderQuestions(data) {
 
 function useQuestion(q) {
   S.chosen = q; S.questionText = q.question; S.measure = q.measure || 'OR'; S.protocol = null;
-  setStepEnabled(2, true); setStepEnabled(3, true); markDone(1);
+  setStepEnabled(2, true); setStepEnabled(3, true); setStepEnabled(4, true); markDone(1);
   prepareProtocolStep(); prepareDataStep();
   goStep(2);
 }
 $('skipToData').onclick = () => {
   S.chosen = null; S.questionText = ''; S.measure = 'OR';
-  setStepEnabled(3, true); markDone(1); prepareDataStep(); goStep(3);
+  setStepEnabled(3, true); setStepEnabled(4, true); markDone(1); prepareSearchStep(); prepareDataStep(); goStep(4);
 };
 
 // ---------- STEP 2: protocol ----------
@@ -184,9 +184,112 @@ function protocolMarkdown(p) {
     (p.prisma_note ? `## PRISMA\n${p.prisma_note}\n` : '');
 }
 $('protoDl').onclick = () => S.protocol && downloadText('protocolo_metaforge.md', protocolMarkdown(S.protocol), 'text/markdown');
-$('toData').onclick = () => goStep(3);
+$('toSearch').onclick = () => { prepareSearchStep(); goStep(3); };
 
-// ---------- STEP 3: data ----------
+// ---------- STEP 3: search & screening ----------
+function stripTags(q) { return (q || '').replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim(); }
+function prepareSearchStep() {
+  if (!$('searchQ').value && S.protocol && S.protocol.search_pubmed) {
+    $('searchQ').value = stripTags(S.protocol.search_pubmed);
+  } else if (!$('searchQ').value && S.questionText) {
+    $('searchQ').value = S.questionText.replace(/[¿?]/g, '').trim();
+  }
+}
+function inclusionList() { return (S.protocol && S.protocol.inclusion_criteria) || []; }
+function exclusionList() { return (S.protocol && S.protocol.exclusion_criteria) || []; }
+$('searchBtn').onclick = async () => {
+  $('searchErr').textContent = '';
+  const query = $('searchQ').value.trim();
+  if (!query) { $('searchErr').textContent = 'Escribe una consulta.'; return; }
+  const btn = $('searchBtn'); busy(btn, true, 'Buscando…');
+  try {
+    const r = await fetch('/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, page_size: Number($('searchN').value), only_oa: $('searchOA').checked, pubmed_query: (S.protocol || {}).search_pubmed || null }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error de búsqueda');
+    S.searchMeta = data;
+    S.searchRecords = data.records.map((x) => ({ ...x, decision: null, reason: '' }));
+    renderSearchMeta(data); renderResults();
+    $('screenCard').style.display = '';
+  } catch (e) { $('searchErr').textContent = e.message; } finally { busy(btn, false); }
+};
+function renderSearchMeta(d) {
+  const pm = d.pubmed_count != null ? `PubMed (consulta MeSH): <b>${d.pubmed_count}</b>. ` : '';
+  $('searchMeta').innerHTML = `Europe PMC: <b>${d.hit_count.toLocaleString()}</b> resultados. ${pm}Mostrando los <b>${d.returned}</b> más relevantes.`;
+}
+const DEC_LABEL = { include: 'Incluir', exclude: 'Excluir', maybe: 'Quizá', null: '—' };
+function renderResults() {
+  const recs = S.searchRecords || [];
+  const rows = recs.map((r, i) => {
+    const oa = r.is_oa ? '<span class="badge measure" style="background:#def7e8;color:#15803d;border-color:#bce9cf">OA</span>' : '';
+    const link = r.pdf_url ? `<a class="link" href="${r.pdf_url}" target="_blank" rel="noopener">PDF</a>` : (r.doi_url ? `<a class="link" href="${r.doi_url}" target="_blank" rel="noopener">DOI</a>` : '');
+    const decClass = r.decision === 'include' ? 'dec-inc' : r.decision === 'exclude' ? 'dec-exc' : r.decision === 'maybe' ? 'dec-may' : '';
+    const sel = ['include', 'maybe', 'exclude'].map((d) => `<option value="${d}"${r.decision === d ? ' selected' : ''}>${DEC_LABEL[d]}</option>`).join('');
+    return `<tr class="${decClass}">
+      <td><div style="font-weight:600">${esc(r.title)}</div><div class="muted" style="font-size:11.5px">${esc(r.authors.slice(0, 70))} · ${esc(r.journal)} ${esc(String(r.year))} ${oa}</div>
+        ${r.abstract ? `<details><summary class="link" style="font-size:11.5px">resumen</summary><div class="muted" style="font-size:12px;margin-top:4px">${esc(r.abstract.slice(0, 800))}…</div></details>` : ''}
+        ${r.reason ? `<div class="muted" style="font-size:11.5px;margin-top:3px">🤖 ${esc(r.reason)}</div>` : ''}</td>
+      <td style="white-space:nowrap"><select data-dec="${i}">${sel}<option value=""${r.decision ? '' : ' selected'}>—</option></select></td>
+      <td style="white-space:nowrap">${link}</td></tr>`;
+  }).join('');
+  $('resultsTable').innerHTML = `<tr><th>Artículo</th><th>Decisión</th><th></th></tr>${rows}`;
+  $('resultsTable').querySelectorAll('[data-dec]').forEach((s) => { s.onchange = () => { S.searchRecords[Number(s.dataset.dec)].decision = s.value || null; renderResults(); updateScreenCounts(); }; });
+  updateScreenCounts();
+}
+function updateScreenCounts() {
+  const recs = S.searchRecords || [];
+  const c = { include: 0, exclude: 0, maybe: 0, none: 0 };
+  recs.forEach((r) => c[r.decision || 'none']++);
+  $('screenCounts').textContent = `${recs.length} registros · ${c.include} incluir · ${c.maybe} quizá · ${c.exclude} excluir`;
+}
+$('screenBtn').onclick = async () => {
+  const recs = S.searchRecords || [];
+  if (!recs.length) return;
+  const btn = $('screenBtn'); btn.disabled = true;
+  const chunk = 8; let failures = 0;
+  for (let i = 0; i < recs.length; i += chunk) {
+    btn.innerHTML = `<span class="spinner"></span> Cribando ${Math.min(i + chunk, recs.length)}/${recs.length}…`;
+    const slice = recs.slice(i, i + chunk).map((r) => ({ id: r.id, title: r.title, abstract: r.abstract }));
+    try {
+      const r = await fetch('/screen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records: slice, inclusion: inclusionList(), exclusion: exclusionList(), mode: 'auto' }) });
+      const data = await r.json();
+      (data.decisions || []).forEach((d) => { const rec = recs.find((x) => String(x.id) === String(d.id)); if (rec) { rec.decision = d.decision; rec.reason = d.reason; } });
+    } catch (e) { failures++; }
+    renderResults();
+  }
+  btn.disabled = false; btn.innerHTML = '✦ Cribar con IA';
+  if (failures) setProjStatus(`${failures} lote(s) sin cribar; reintenta`, false);
+};
+$('exportIncl').onclick = () => {
+  const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
+  if (!incl.length) { alert('No hay artículos marcados como incluir.'); return; }
+  const header = 'study_label,year,doi,pmid,title,journal\n';
+  const lines = incl.map((r) => `"${(r.authors.split(',')[0] || 'Estudio')} ${r.year}",${r.year},${r.doi || ''},${r.pmid || ''},"${r.title.replace(/"/g, "'")}","${r.journal}"`).join('\n');
+  downloadText('estudios_incluidos.csv', header + lines, 'text/csv');
+};
+$('fillPrisma').onclick = () => {
+  const recs = S.searchRecords || [];
+  const incl = recs.filter((r) => r.decision === 'include').length;
+  const exc = recs.filter((r) => r.decision === 'exclude').length;
+  $('pf_identified_db').value = S.searchMeta ? S.searchMeta.hit_count : recs.length;
+  $('pf_screened').value = recs.length;
+  $('pf_excluded_screen').value = exc;
+  $('pf_fulltext_assessed').value = incl + recs.filter((r) => r.decision === 'maybe').length;
+  $('pf_included').value = incl;
+  setProjStatus('Conteos volcados a PRISMA (paso Calidad)', true);
+};
+function prepareDataFromSearch() {
+  const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
+  if (incl.length && !$('csv').value.trim()) {
+    const kind = MEASURE_KIND[S.measure] || '2x2';
+    const cols = KIND_COLS[kind].split(', ').slice(2);  // drop study_label, effect_measure
+    const header = `study_label,effect_measure,${cols.join(',')}\n`;
+    const rows = incl.map((r) => `"${(r.authors.split(',')[0] || 'Estudio')} ${r.year}",${S.measure},${cols.map(() => '').join(',')}`).join('\n');
+    $('csv').value = header + rows;
+  }
+}
+$('toData').onclick = () => { prepareDataFromSearch(); goStep(4); };
+
+// ---------- STEP 4: data ----------
 function prepareDataStep() {
   const ml = MEASURE_LABEL[S.measure] || S.measure;
   const kind = MEASURE_KIND[S.measure] || '2x2';
@@ -227,10 +330,10 @@ async function runAnalysis(advance) {
     S.result = data;
     S.measure = data.measure || S.measure;
     renderSynthesis(data); renderDiagnostics(data);
-    setStepEnabled(4, true); setStepEnabled(5, true); setStepEnabled(6, true); setStepEnabled(7, true);
+    setStepEnabled(5, true); setStepEnabled(6, true); setStepEnabled(7, true); setStepEnabled(8, true);
     prepareQualityStep();
-    markDone(3); $('noResult').style.display = 'none'; $('articleWrap').style.display = '';
-    if (advance) goStep(4);
+    markDone(4); $('noResult').style.display = 'none'; $('articleWrap').style.display = '';
+    if (advance) goStep(5);
   } catch (e) { $('dataErr').textContent = e.message; } finally { busy(btn, false); }
 }
 
@@ -256,9 +359,9 @@ function renderSynthesis(d) {
   $('warnings').innerHTML = (d.warnings && d.warnings.length) ? `<div class="note"><b>Avisos:</b> ${d.warnings.map(esc).join(' · ')}</div>` : '';
   $('forest').innerHTML = d.forest_svg;
 }
-$('toDiag').onclick = () => goStep(5);
-$('toQuality').onclick = () => goStep(6);
-$('toArticle').onclick = () => goStep(7);
+$('toDiag').onclick = () => goStep(6);
+$('toQuality').onclick = () => goStep(7);
+$('toArticle').onclick = () => goStep(8);
 
 // ---------- STEP 6: quality (PRISMA + RoB) ----------
 let ROB_TOOLS = {};
@@ -505,6 +608,7 @@ function collectState() {
     chosen: S.chosen, questions: S.questions || [], protocol: S.protocol,
     csv: $('csv').value, model: $('model').value, tau2: $('tau2').value, kh: $('kh').checked,
     flow: $('flow').value, fhigh: $('fhigh').value,
+    searchQ: $('searchQ').value, searchMeta: S.searchMeta, searchRecords: S.searchRecords,
     result: S.result, prisma: collectPrismaForm(), prismaSvg: S.prismaSvg,
     robTool: $('robTool').value, robRatings: collectRob().ratings, robSvg: S.robSvg,
     grade: S.grade, manuscript: S.manuscript, facts: $('facts').textContent,
@@ -554,14 +658,18 @@ async function restoreState(st) {
   $('csv').value = st.csv || ''; if (st.model) $('model').value = st.model; if (st.tau2) $('tau2').value = st.tau2; $('kh').checked = st.kh !== false;
   S.flow = st.flow || S.flow; S.fhigh = st.fhigh || S.fhigh; $('flow').value = st.flow || ''; $('fhigh').value = st.fhigh || '';
   if (S.questions.length) renderQuestions({ source: 'ai', questions: S.questions });
-  if (S.chosen || S.questionText) { setStepEnabled(2, true); setStepEnabled(3, true); markDone(1); prepareProtocolStep(); prepareDataStep(); }
-  else { setStepEnabled(3, true); prepareDataStep(); }
+  if (S.chosen || S.questionText) { setStepEnabled(2, true); setStepEnabled(3, true); setStepEnabled(4, true); markDone(1); prepareProtocolStep(); prepareDataStep(); }
+  else { setStepEnabled(3, true); setStepEnabled(4, true); prepareDataStep(); }
   if (S.protocol) renderProtocol({ source: 'ai', protocol: S.protocol });
+  prepareSearchStep();
+  if (st.searchMeta) { S.searchMeta = st.searchMeta; renderSearchMeta(st.searchMeta); }
+  if (st.searchRecords && st.searchRecords.length) { S.searchRecords = st.searchRecords; $('screenCard').style.display = ''; renderResults(); }
+  if (st.searchQ) $('searchQ').value = st.searchQ;
   if (st.prisma) Object.entries(st.prisma).forEach(([k, v]) => { const el = $('pf_' + k); if (el) el.value = v; });
   if (st.result) {
     S.result = st.result; S.prismaSvg = st.prismaSvg || null; S.robSvg = st.robSvg || null; S.grade = st.grade || null;
     renderSynthesis(st.result); renderDiagnostics(st.result);
-    setStepEnabled(4, true); setStepEnabled(5, true); setStepEnabled(6, true); setStepEnabled(7, true); markDone(3);
+    setStepEnabled(5, true); setStepEnabled(6, true); setStepEnabled(7, true); setStepEnabled(8, true); markDone(4);
     $('noResult').style.display = 'none'; $('articleWrap').style.display = '';
     await prepareQualityStep();
     if (st.robTool) { $('robTool').value = st.robTool; buildRobGrid(); }

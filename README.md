@@ -17,8 +17,9 @@ numbers. No cloud, no API key, no data leaving your machine.
 ## The pipeline
 
 ```
-1. Question → 2. Protocol → 3. Data → 4. Synthesis → 5. Diagnostics → 6. Quality → 7. Manuscript
-   (AI)         (AI)          CSV       meta-analysis   sensitivity      PRISMA+RoB    (AI, grounded)
+1.Question → 2.Protocol → 3.Search → 4.Data → 5.Synthesis → 6.Diagnostics → 7.Quality → 8.Manuscript
+  (AI)        (AI)         real DB     CSV      meta-analysis  sensitivity     PRISMA+RoB   (AI, grounded)
+                          +AI screen                                          +GRADE
 ```
 
 1. **Question** — type a topic in any language; get specific, developable
@@ -27,19 +28,26 @@ numbers. No cloud, no API key, no data leaving your machine.
 2. **Protocol** — for the chosen question: objective, inclusion/exclusion
    criteria, eligible designs, a ready-to-paste **PubMed search string**, and the
    exact data-extraction columns.
-3. **Data** — paste a CSV (or load an example / download a template). One row per
+3. **Search & screening** — actually queries **Europe PMC** (MEDLINE + PMC) and
+   reports the **PubMed hit count** for the same strategy. Retrieves real records
+   with abstracts and open-access links, then **AI-screens each title/abstract
+   against your protocol's inclusion/exclusion criteria** (include / exclude /
+   maybe + reason). First-pass only — you verify every decision (PRISMA/Cochrane).
+   Counts flow into the PRISMA diagram; included studies seed the data table.
+4. **Data** — paste a CSV (or load an example / download a template). One row per
    study; MetaForge computes the effect sizes for you.
-4. **Synthesis** — fixed/random-effects pooling (REML, Paule-Mandel or DL),
+5. **Synthesis** — fixed/random-effects pooling (REML, Paule-Mandel or DL),
    Knapp-Hartung, prediction interval, I²/τ²/Q, plain-language interpretation and
    a forest plot.
-5. **Diagnostics** — leave-one-out, cumulative MA, subgroup test, Egger's test,
+6. **Diagnostics** — leave-one-out, cumulative MA, subgroup test, Egger's test,
    trim-and-fill and a Baujat influence plot.
-6. **Quality & figures** — a **PRISMA 2020 flow diagram** from your screening
-   counts, and a **risk-of-bias** traffic-light plot (RoB 2 or ROBINS-I). Both
-   download as SVG.
-7. **Manuscript** — drafts Title, Abstract, Methods, **Results (with your exact
+7. **Quality & figures** — a **PRISMA 2020 flow diagram**, a **risk-of-bias**
+   traffic-light plot (RoB 2 / ROBINS-I), and a **GRADE** certainty assessment
+   (auto-suggested downgrades + manual override). All download as SVG.
+8. **Manuscript** — drafts Title, Abstract, Methods, **Results (with your exact
    numbers)**, Discussion, Limitations and Conclusion. Improve any section with
-   AI, edit inline, export **Markdown, Word (.docx) or PDF**.
+   AI, edit inline, **save/resume the whole review as a project**, and export
+   **Markdown, Word (.docx with embedded figures + GRADE table) or PDF**.
 
 ## AI, with no API key
 
@@ -107,15 +115,16 @@ print(draft["sections"]["results"])
 
 ## REST API
 
-`/questions`, `/protocol`, `/analyze`, `/manuscript`, `/manuscript/section`,
-`/manuscript/docx`, `/prisma`, `/rob`, `/rob/tools`, `/examples`, `/templates`,
-`/ai-status`, `/health`. Interactive docs at `/docs`.
+`/questions`, `/protocol`, `/search`, `/screen`, `/analyze`, `/manuscript`,
+`/manuscript/section`, `/manuscript/docx`, `/prisma`, `/rob`, `/rob/tools`,
+`/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
+`/health`. Interactive docs at `/docs`.
 
 ## Tests
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 76 tests; statistics validated against known values
+pytest -q          # 95 tests; statistics validated against known values
 ```
 
 ## Scope & honesty

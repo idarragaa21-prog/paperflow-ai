@@ -7,6 +7,8 @@ from .prisma import prisma_svg
 from .protocol import generate_protocol
 from .questions import generate_questions
 from .rob import rob_summary_svg
+from .screen import screen_records
+from .search import search_literature
 from .effects import (
     correlation_z,
     effect_from_row,
@@ -18,7 +20,7 @@ from .effects import (
 from .pooling import egger_test, pool
 from .service import analyze, analyze_csv, effects_from_rows
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 __all__ = [
     "analyze",
     "analyze_csv",
@@ -38,4 +40,6 @@ __all__ = [
     "prisma_svg",
     "rob_summary_svg",
     "manuscript_docx",
+    "search_literature",
+    "screen_records",
 ]

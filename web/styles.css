@@ -205,6 +205,15 @@ tbody tr:hover { background: var(--surface-2); }
 .grade-row select { padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12.5px; font-family: var(--font); }
 .grade-row .reason { color: var(--muted); font-size: 12px; }
 
+/* search results / screening */
+#resultsTable tr.dec-inc td { background: #f0fdf4; }
+#resultsTable tr.dec-exc td { background: #fef2f2; opacity: .72; }
+#resultsTable tr.dec-may td { background: #fffbeb; }
+#resultsTable td { vertical-align: top; }
+#resultsTable select { padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12.5px; font-family: var(--font); }
+#resultsTable details summary { cursor: pointer; }
+#searchQ { font-size: 12px; }
+
 .error { color: var(--danger); font-size: 13px; margin-top: 10px; white-space: pre-wrap; }
 @media (max-width: 860px) { .prisma-form { grid-template-columns: 1fr 1fr; } .grade-row { grid-template-columns: 1fr; gap: 4px; } }
 .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; display: inline-block; }

@@ -14,12 +14,13 @@
       <p class="rail-tag">Del tema al manuscrito.</p>
       <nav class="steps" id="steps">
         <button class="step active" data-step="1" id="navstep-1"><span class="step-num">1</span><span class="step-text"><b>Pregunta</b><small>Forja tu pregunta</small></span></button>
-        <button class="step" data-step="2" id="navstep-2" disabled><span class="step-num">2</span><span class="step-text"><b>Protocolo</b><small>Criterios y búsqueda</small></span></button>
-        <button class="step" data-step="3" id="navstep-3" disabled><span class="step-num">3</span><span class="step-text"><b>Datos</b><small>Carga tus estudios</small></span></button>
-        <button class="step" data-step="4" id="navstep-4" disabled><span class="step-num">4</span><span class="step-text"><b>Síntesis</b><small>Efecto combinado</small></span></button>
-        <button class="step" data-step="5" id="navstep-5" disabled><span class="step-num">5</span><span class="step-text"><b>Diagnóstico</b><small>Sensibilidad y sesgo</small></span></button>
-        <button class="step" data-step="6" id="navstep-6" disabled><span class="step-num">6</span><span class="step-text"><b>Calidad</b><small>PRISMA y riesgo de sesgo</small></span></button>
-        <button class="step" data-step="7" id="navstep-7" disabled><span class="step-num">7</span><span class="step-text"><b>Artículo</b><small>Redacta el manuscrito</small></span></button>
+        <button class="step" data-step="2" id="navstep-2" disabled><span class="step-num">2</span><span class="step-text"><b>Protocolo</b><small>Criterios y estrategia</small></span></button>
+        <button class="step" data-step="3" id="navstep-3" disabled><span class="step-num">3</span><span class="step-text"><b>Búsqueda</b><small>Buscar y cribar</small></span></button>
+        <button class="step" data-step="4" id="navstep-4" disabled><span class="step-num">4</span><span class="step-text"><b>Datos</b><small>Carga tus estudios</small></span></button>
+        <button class="step" data-step="5" id="navstep-5" disabled><span class="step-num">5</span><span class="step-text"><b>Síntesis</b><small>Efecto combinado</small></span></button>
+        <button class="step" data-step="6" id="navstep-6" disabled><span class="step-num">6</span><span class="step-text"><b>Diagnóstico</b><small>Sensibilidad y sesgo</small></span></button>
+        <button class="step" data-step="7" id="navstep-7" disabled><span class="step-num">7</span><span class="step-text"><b>Calidad</b><small>PRISMA y riesgo de sesgo</small></span></button>
+        <button class="step" data-step="8" id="navstep-8" disabled><span class="step-num">8</span><span class="step-text"><b>Artículo</b><small>Redacta el manuscrito</small></span></button>
       </nav>
       <div class="rail-foot">
         <div class="ai-pill" id="aiPill" title="">···</div>
@@ -73,12 +74,51 @@
           <div id="protoErr" class="error"></div>
           <div id="protoBody"></div>
         </div>
+        <div class="row end"><button class="btn btn-primary" id="toSearch">Buscar artículos →</button></div>
+      </section>
+
+      <!-- ---------- STEP 3: SEARCH & SCREENING ---------- -->
+      <section class="view" id="view-3">
+        <p class="eyebrow">Paso 3 · Búsqueda y cribado</p>
+        <h2 class="view-title">Buscar y seleccionar artículos</h2>
+        <div class="card">
+          <div class="card-head"><h3>Búsqueda en la literatura</h3>
+            <span class="muted">Europe PMC (MEDLINE + PMC) · con conteo de PubMed</span>
+          </div>
+          <p class="muted">Ejecuta la estrategia de búsqueda y recupera artículos reales. Se ordenan por relevancia.</p>
+          <textarea id="searchQ" class="mono" rows="3" placeholder="Consulta de búsqueda (se prellena desde el protocolo)"></textarea>
+          <div class="row between" style="margin-top:10px">
+            <div class="row">
+              <label class="muted">Resultados <select id="searchN" class="select select-sm"><option>15</option><option selected>25</option><option>50</option></select></label>
+              <label class="muted"><input type="checkbox" id="searchOA" /> Solo acceso abierto</label>
+            </div>
+            <button class="btn btn-primary" id="searchBtn">🔍 Buscar</button>
+          </div>
+          <div id="searchErr" class="error"></div>
+          <div id="searchMeta" class="muted" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card" id="screenCard" style="display:none">
+          <div class="card-head"><h3>Cribado por título y resumen</h3>
+            <div class="row">
+              <span id="screenCounts" class="muted"></span>
+              <button class="btn btn-primary btn-sm" id="screenBtn">✦ Cribar con IA</button>
+            </div>
+          </div>
+          <div class="note" id="screenNote">El cribado por IA es una <b>primera pasada</b>: PRISMA/Cochrane exigen que verifiques cada decisión. Pulsa cada fila para cambiarla.</div>
+          <div class="tbl-wrap"><table id="resultsTable"></table></div>
+          <div class="row between" style="margin-top:12px">
+            <button class="btn btn-sm" id="exportIncl">Exportar incluidos (CSV)</button>
+            <button class="btn btn-sm" id="fillPrisma">Volcar conteos a PRISMA →</button>
+          </div>
+        </div>
+
         <div class="row end"><button class="btn btn-primary" id="toData">Continuar a datos →</button></div>
       </section>
 
-      <!-- ---------- STEP 3: DATA ---------- -->
-      <section class="view" id="view-3">
-        <p class="eyebrow">Paso 3 · Datos</p>
+      <!-- ---------- STEP 4: DATA ---------- -->
+      <section class="view" id="view-4">
+        <p class="eyebrow">Paso 4 · Datos</p>
         <h2 class="view-title">Carga los estudios</h2>
         <div id="chosenBanner" class="chosen" style="display:none"></div>
         <div class="card">
@@ -101,9 +141,9 @@
         </div>
       </section>
 
-      <!-- ---------- STEP 4: SYNTHESIS ---------- -->
-      <section class="view" id="view-4">
-        <p class="eyebrow">Paso 4 · Síntesis</p>
+      <!-- ---------- STEP 5: SYNTHESIS ---------- -->
+      <section class="view" id="view-5">
+        <p class="eyebrow">Paso 5 · Síntesis</p>
         <h2 class="view-title">Efecto combinado</h2>
         <div class="card">
           <div class="stats" id="stats"></div>
@@ -129,9 +169,9 @@
         <div class="row end"><button class="btn btn-primary" id="toDiag">Ver diagnósticos →</button></div>
       </section>
 
-      <!-- ---------- STEP 5: DIAGNOSTICS ---------- -->
-      <section class="view" id="view-5">
-        <p class="eyebrow">Paso 5 · Diagnóstico</p>
+      <!-- ---------- STEP 6: DIAGNOSTICS ---------- -->
+      <section class="view" id="view-6">
+        <p class="eyebrow">Paso 6 · Diagnóstico</p>
         <h2 class="view-title">Sensibilidad, subgrupos y sesgo</h2>
         <div class="card">
           <div class="card-head"><h3>Sensibilidad — leave-one-out</h3></div>
@@ -159,9 +199,9 @@
         <div class="row end"><button class="btn btn-primary" id="toQuality">Calidad y figuras →</button></div>
       </section>
 
-      <!-- ---------- STEP 6: QUALITY (PRISMA + RoB) ---------- -->
-      <section class="view" id="view-6">
-        <p class="eyebrow">Paso 6 · Calidad y figuras</p>
+      <!-- ---------- STEP 7: QUALITY (PRISMA + RoB) ---------- -->
+      <section class="view" id="view-7">
+        <p class="eyebrow">Paso 7 · Calidad y figuras</p>
         <h2 class="view-title">PRISMA y riesgo de sesgo</h2>
 
         <div class="card">
@@ -213,9 +253,9 @@
         <div class="row end"><button class="btn btn-primary" id="toArticle">Redactar artículo →</button></div>
       </section>
 
-      <!-- ---------- STEP 7: ARTICLE ---------- -->
-      <section class="view" id="view-7">
-        <p class="eyebrow">Paso 7 · Artículo</p>
+      <!-- ---------- STEP 8: ARTICLE ---------- -->
+      <section class="view" id="view-8">
+        <p class="eyebrow">Paso 8 · Artículo</p>
         <h2 class="view-title">Manuscrito</h2>
         <div id="noResult" class="card empty">Ejecuta primero el meta-análisis (paso 3 y 4) para redactar el artículo con tus números reales.</div>
         <div id="articleWrap" style="display:none">

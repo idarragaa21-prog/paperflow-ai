@@ -17,13 +17,15 @@ from .protocol import generate_protocol
 from .questions import generate_questions
 from .rob import TOOLS, domains_for, rob_summary_svg
 from .samples import EXAMPLES, TEMPLATES
+from .screen import screen_records
+from .search import search_literature
 from .service import analyze, analyze_csv
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.2.0",
+    version="2.3.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -97,6 +99,20 @@ class ProjectRequest(BaseModel):
     id: str | None = None
 
 
+class SearchRequest(BaseModel):
+    query: str
+    page_size: int = 25
+    only_oa: bool = False
+    pubmed_query: str | None = None
+
+
+class ScreenRequest(BaseModel):
+    records: list[dict]
+    inclusion: list[str] = []
+    exclusion: list[str] = []
+    mode: str = "auto"
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "version": app.version}
@@ -154,6 +170,20 @@ def rob_tools() -> dict:
 def rob_endpoint(req: RobRequest) -> dict:
     return {"svg": rob_summary_svg(req.studies, req.ratings, tool=req.tool),
             "domains": domains_for(req.tool)}
+
+
+@app.post("/search")
+def search_endpoint(req: SearchRequest) -> dict:
+    try:
+        return search_literature(req.query, page_size=req.page_size, only_oa=req.only_oa,
+                                 pubmed_query=req.pubmed_query)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/screen")
+def screen_endpoint(req: ScreenRequest) -> dict:
+    return screen_records(req.records, req.inclusion, req.exclusion, mode=req.mode)
 
 
 @app.post("/grade")
