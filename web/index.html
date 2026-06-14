@@ -127,12 +127,16 @@
             <button class="btn btn-sm" id="fillPrisma">Volcar conteos a PRISMA →</button>
           </div>
           <div id="zoteroCfg" class="format-box" style="display:none">
-            <p class="muted" style="margin-top:0">Conecta tu Zotero — clave de API e ID de usuario (en <code>zotero.org/settings/keys</code>). Se guardan solo en este navegador.</p>
+            <div class="row" style="margin-top:0">
+              <button id="zoteroLocal" class="btn btn-primary btn-sm">⇪ Enviar a Zotero de escritorio (sin clave)</button>
+              <span id="zoteroLocalStatus" class="muted">comprobando…</span>
+            </div>
+            <p class="muted" style="margin-top:12px">…o por la Web API — clave e ID de usuario (en <code>zotero.org/settings/keys</code>; se guardan solo en este navegador):</p>
             <div class="row">
-              <input id="zoteroKey" class="input" placeholder="Clave de API" style="max-width:220px" />
-              <input id="zoteroUser" class="input" placeholder="ID de usuario" style="max-width:130px" />
-              <input id="zoteroColl" class="input" placeholder="Colección (opcional)" style="max-width:180px" />
-              <button id="zoteroPush" class="btn btn-primary btn-sm">Enviar incluidos</button>
+              <input id="zoteroKey" class="input" placeholder="Clave de API" style="max-width:200px" />
+              <input id="zoteroUser" class="input" placeholder="ID de usuario" style="max-width:120px" />
+              <input id="zoteroColl" class="input" placeholder="Colección (opcional)" style="max-width:170px" />
+              <button id="zoteroPush" class="btn btn-sm">Enviar (Web API)</button>
             </div>
             <div id="zoteroStatus" class="muted" style="margin-top:8px"></div>
           </div>

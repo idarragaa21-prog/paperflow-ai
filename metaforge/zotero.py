@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.error
 import urllib.request
+import uuid
 
 API = "https://api.zotero.org"
+LOCAL = "http://127.0.0.1:23119"  # Zotero desktop connector server
 
 
 def _creators(authors: str) -> list[dict]:
@@ -28,7 +31,7 @@ def _creators(authors: str) -> list[dict]:
     return out or [{"creatorType": "author", "name": authors.strip()}] if authors else []
 
 
-def _item(record: dict, collection_key: str | None) -> dict:
+def _item(record: dict, collection_key: str | None = None) -> dict:
     extra = []
     if record.get("pmid"):
         extra.append(f"PMID: {record['pmid']}")
@@ -89,3 +92,51 @@ def push_to_zotero(records: list[dict], api_key: str, user_id: str, *,
         raise ValueError(f"No se pudo conectar con Zotero: {exc}") from exc
 
     return {"created": created, "failed": failed, "collection": collection if collection_key else None}
+
+
+# --- Local connector (Zotero desktop, no API key) ---------------------------
+_LOCAL_HEADERS = {
+    "Content-Type": "application/json",
+    "User-Agent": "MetaForge",
+    "X-Zotero-Connector-API-Version": "3",
+    "Zotero-Allowed-Request": "true",
+}
+
+
+def local_available(timeout: int = 2) -> bool:
+    """Whether the Zotero desktop connector is running on this machine."""
+    try:
+        req = urllib.request.Request(f"{LOCAL}/connector/ping", headers=_LOCAL_HEADERS)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def push_local(records: list[dict], *, timeout: int = 25) -> dict:
+    """Send items to the running Zotero desktop via its local connector.
+
+    No API key needed — Zotero just has to be open. Items are saved to the
+    collection currently selected in Zotero.
+    """
+    if not records:
+        raise ValueError("No hay referencias para enviar.")
+    if not local_available():
+        raise ValueError("Zotero de escritorio no está abierto (conector local 127.0.0.1:23119 no responde).")
+    payload = {
+        "sessionID": uuid.uuid4().hex,
+        "uri": "http://localhost/metaforge",
+        "items": [_item(r) for r in records],
+    }
+    req = urllib.request.Request(f"{LOCAL}/connector/saveItems",
+                                 data=json.dumps(payload).encode("utf-8"),
+                                 method="POST", headers=_LOCAL_HEADERS)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp.read()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "ignore")[:160] if hasattr(exc, "read") else ""
+        raise ValueError(f"Zotero local rechazó la petición ({exc.code}). {detail}") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"No se pudo conectar con el Zotero local: {exc}") from exc
+    return {"created": len(records), "via": "local"}

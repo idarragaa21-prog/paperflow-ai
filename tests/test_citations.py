@@ -59,3 +59,15 @@ def test_api_citations_export_and_import():
 def test_api_zotero_push_missing_creds():
     r = client.post("/zotero/push", json={"records": RECS, "api_key": "", "user_id": ""})
     assert r.status_code == 400
+
+
+def test_zotero_item_omits_collections_without_key():
+    assert "collections" not in _item(RECS[0])
+
+
+def test_api_zotero_local_status_and_push():
+    # No Zotero desktop in the test environment -> not available, push fails cleanly.
+    st = client.get("/zotero/local-status")
+    assert st.status_code == 200 and st.json()["available"] is False
+    r = client.post("/zotero/local-push", json={"records": RECS})
+    assert r.status_code == 400

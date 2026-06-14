@@ -22,13 +22,13 @@ from .extract import extract_data, extract_to_csv_row
 from .screen import dual_screen, screen_records
 from .search import search_literature
 from .service import analyze, analyze_csv
-from .zotero import push_to_zotero
+from .zotero import local_available, push_local, push_to_zotero
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.6.0",
+    version="2.7.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -142,6 +142,10 @@ class ZoteroPushRequest(BaseModel):
     collection: str | None = None
 
 
+class ZoteroLocalRequest(BaseModel):
+    records: list[dict]
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "version": app.version}
@@ -245,6 +249,19 @@ def zotero_push(req: ZoteroPushRequest) -> dict:
     try:
         return push_to_zotero(req.records, req.api_key, req.user_id,
                               library_type=req.library_type, collection=req.collection)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/zotero/local-status")
+def zotero_local_status() -> dict:
+    return {"available": local_available()}
+
+
+@app.post("/zotero/local-push")
+def zotero_local_push(req: ZoteroLocalRequest) -> dict:
+    try:
+        return push_local(req.records)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

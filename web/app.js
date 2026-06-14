@@ -342,11 +342,29 @@ $('importFile').onchange = async (e) => {
 };
 
 // Zotero
-$('zoteroBtn').onclick = () => {
+$('zoteroBtn').onclick = async () => {
   const box = $('zoteroCfg');
   box.style.display = box.style.display === 'none' ? 'block' : 'none';
   $('zoteroKey').value = localStorage.getItem('mf_zotero_key') || '';
   $('zoteroUser').value = localStorage.getItem('mf_zotero_user') || '';
+  if (box.style.display !== 'none') {
+    $('zoteroLocalStatus').textContent = 'comprobando…';
+    try {
+      const s = await (await fetch('/zotero/local-status')).json();
+      $('zoteroLocal').disabled = !s.available;
+      $('zoteroLocalStatus').textContent = s.available ? 'Zotero detectado ✓' : 'Zotero de escritorio no detectado (ábrelo y reintenta)';
+    } catch { $('zoteroLocalStatus').textContent = ''; }
+  }
+};
+$('zoteroLocal').onclick = async () => {
+  const incl = includedRecords(); if (!incl.length) return;
+  const btn = $('zoteroLocal'); busy(btn, true, 'Enviando…');
+  try {
+    const r = await fetch('/zotero/local-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records: incl }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error');
+    $('zoteroStatus').innerHTML = `✓ Enviadas <b>${data.created}</b> referencias a Zotero de escritorio.`;
+  } catch (e) { $('zoteroStatus').textContent = 'Error: ' + e.message; } finally { busy(btn, false); }
 };
 $('zoteroPush').onclick = async () => {
   const incl = includedRecords(); if (!incl.length) return;

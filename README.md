@@ -39,7 +39,7 @@ numbers. No cloud, no API key, no data leaving your machine.
    means/SDs or effect+CI) with the supporting quote, seeding the data table.
    Counts flow into the PRISMA diagram. **Zotero integration**: import RIS/BibTeX
    to screen references you already have, and export included studies to RIS,
-   BibTeX or straight to your **Zotero library** (Web API).
+   BibTeX or straight to your **Zotero library** — via the Web API, or the local desktop connector with **no API key** (just have Zotero open).
 4. **Data** — paste a CSV (or load an example / download a template). One row per
    study; MetaForge computes the effect sizes for you.
 5. **Synthesis** — fixed/random-effects pooling (REML, Paule-Mandel or DL),
@@ -130,7 +130,7 @@ print(draft["sections"]["results"])
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 110 tests; statistics validated against known values
+pytest -q          # 112 tests; statistics validated against known values
 ```
 
 ## Scope & honesty
