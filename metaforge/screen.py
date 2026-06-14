@@ -34,6 +34,40 @@ def _build_prompt(records: list[dict], inclusion: list[str], exclusion: list[str
     )
 
 
+def _fulltext_prompt(text: str, inclusion: list[str], exclusion: list[str]) -> str:
+    inc = "\n".join(f"- {c}" for c in inclusion) or "- (no especificados)"
+    exc = "\n".join(f"- {c}" for c in exclusion) or "- (no especificados)"
+    return (
+        "Eres un revisor experto haciendo el cribado a TEXTO COMPLETO (segunda fase). "
+        "Decide, leyendo el artículo completo, si cumple los criterios de elegibilidad. "
+        "Sé estricto y cita el criterio decisivo.\n\n"
+        f"CRITERIOS DE INCLUSIÓN:\n{inc}\n\nCRITERIOS DE EXCLUSIÓN:\n{exc}\n\n"
+        f"TEXTO DEL ARTÍCULO (puede estar truncado):\n{text[:14000]}\n\n"
+        'Devuelve SOLO un objeto JSON: {"decision":"include|exclude","reason":"<motivo citando el criterio>"}\n'
+        "Responde en español."
+    )
+
+
+def screen_fulltext(record: dict, inclusion: list[str], exclusion: list[str], *, mode: str = "auto") -> dict:
+    """Second-phase screening against the full text (open access)."""
+    from .extract import fetch_fulltext
+    rid = record.get("id")
+    full = fetch_fulltext(record)
+    if not full:
+        return {"id": rid, "decision": "maybe", "phase": "fulltext",
+                "reason": "Sin texto completo (no es de acceso abierto); evalúa manualmente."}
+    if not (mode != "local" and (mode == "ai" or ai_available())):
+        return {"id": rid, "decision": "maybe", "phase": "fulltext", "reason": "IA no disponible."}
+    try:
+        obj = run_claude_json(_fulltext_prompt(full, inclusion, exclusion), timeout=120)
+        dec = str(obj.get("decision", "")).lower().strip()
+        if dec not in ("include", "exclude"):
+            dec = "maybe"
+        return {"id": rid, "decision": dec, "phase": "fulltext", "reason": str(obj.get("reason", "")).strip()}
+    except Exception as exc:  # noqa: BLE001
+        return {"id": rid, "decision": "maybe", "phase": "fulltext", "reason": f"No se pudo cribar: {exc}"}
+
+
 def _local(records: list[dict]) -> list[dict]:
     return [{"id": r["id"], "decision": "maybe",
              "reason": "Requiere cribado manual (IA no disponible)."} for r in records]

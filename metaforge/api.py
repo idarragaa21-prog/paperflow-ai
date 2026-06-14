@@ -19,16 +19,16 @@ from .questions import generate_questions
 from .rob import TOOLS, domains_for, rob_summary_svg
 from .samples import EXAMPLES, TEMPLATES
 from .extract import extract_data, extract_to_csv_row
-from .screen import dual_screen, screen_records
+from .screen import dual_screen, screen_fulltext, screen_records
 from .search import search_literature
-from .service import analyze, analyze_csv
+from .service import analyze, analyze_csv, meta_regression_csv, meta_regression_rows
 from .zotero import local_available, push_local, push_to_zotero
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.7.0",
+    version="2.8.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -123,6 +123,20 @@ class ExtractRequest(BaseModel):
     measure: str = "OR"
     outcome: str = ""
     mode: str = "auto"
+
+
+class FulltextScreenRequest(BaseModel):
+    record: dict
+    inclusion: list[str] = []
+    exclusion: list[str] = []
+    mode: str = "auto"
+
+
+class MetaRegRequest(BaseModel):
+    csv: str | None = None
+    rows: list[dict] | None = None
+    moderator: str
+    knapp_hartung: bool = True
 
 
 class CitationsExportRequest(BaseModel):
@@ -226,6 +240,23 @@ def extract_endpoint(req: ExtractRequest) -> dict:
     out = extract_data(req.record, measure=req.measure, outcome=req.outcome, mode=req.mode)
     out["csv_row"] = extract_to_csv_row(out)
     return out
+
+
+@app.post("/screen/fulltext")
+def screen_fulltext_endpoint(req: FulltextScreenRequest) -> dict:
+    return screen_fulltext(req.record, req.inclusion, req.exclusion, mode=req.mode)
+
+
+@app.post("/meta-regression")
+def meta_regression_endpoint(req: MetaRegRequest) -> dict:
+    try:
+        if req.rows:
+            return meta_regression_rows(req.rows, req.moderator, knapp_hartung=req.knapp_hartung)
+        if req.csv:
+            return meta_regression_csv(req.csv, req.moderator, knapp_hartung=req.knapp_hartung)
+        raise ValueError("Provide 'csv' or 'rows'.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/citations/export")

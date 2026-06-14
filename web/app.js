@@ -403,6 +403,22 @@ function prepareDataFromSearch() {
     $('csv').value = header + rows;
   }
 }
+$('fulltextBtn').onclick = async () => {
+  const recs = (S.searchRecords || []).filter((r) => ['include', 'maybe'].includes(r.decision));
+  if (!recs.length) { alert('Primero criba por título/resumen y marca candidatos (incluir/quizá).'); return; }
+  const btn = $('fulltextBtn'); btn.disabled = true;
+  for (let i = 0; i < recs.length; i++) {
+    btn.innerHTML = `<span class="spinner"></span> Texto completo ${i + 1}/${recs.length}…`;
+    try {
+      const r = await fetch('/screen/fulltext', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ record: recs[i], inclusion: inclusionList(), exclusion: exclusionList(), mode: 'auto' }) });
+      const d = await r.json();
+      const rec = (S.searchRecords || []).find((x) => String(x.id) === String(d.id));
+      if (rec) { rec.decision = d.decision; rec.reason = '[Texto completo] ' + (d.reason || ''); rec.phase = 'fulltext'; }
+    } catch (e) { /* skip */ }
+    renderResults();
+  }
+  btn.disabled = false; btn.innerHTML = 'Texto completo';
+};
 $('toData').onclick = () => { prepareDataFromSearch(); goStep(4); };
 
 // ---------- STEP 4: data ----------
@@ -621,6 +637,59 @@ function renderDiagnostics(d) {
   else { $('trimfill').innerHTML = '<span class="muted">Trim-and-fill: ≥3 estudios.</span>'; }
   const rows = d.studies.map((s) => `<tr><td>${esc(s.label)}</td>${d.subgroups ? `<td>${esc(s.subgroup || '—')}</td>` : ''}<td>${fmt(s.estimate)}</td><td>[${fmt(s.ci_low)}, ${fmt(s.ci_high)}]</td><td>${fmt(s.weight_pct, 1)}%</td><td class="muted">${esc(s.note || '')}</td></tr>`).join('');
   $('studies').innerHTML = `<tr><th>Estudio</th>${d.subgroups ? '<th>Subgrupo</th>' : ''}<th>${m}</th><th>IC 95%</th><th>Peso</th><th>Nota</th></tr>${rows}`;
+  populateModerators();
+}
+
+// ---------- Meta-regression ----------
+const _NON_MOD = new Set(['study_label', 'label', 'effect_measure', 'outcome_type', 'subgroup', 'group', 'authors', 'design', 'doi', 'pmid', 'notes', 'a_events', 'b_non_events', 'c_events', 'd_non_events']);
+function detectModerators() {
+  const text = $('csv').value.trim(); if (!text) return [];
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const rows = lines.slice(1).map((l) => l.split(','));
+  const out = [];
+  headers.forEach((h, i) => {
+    if (_NON_MOD.has(h) || !h) return;
+    let numeric = 0;
+    rows.forEach((r) => { const v = (r[i] || '').trim(); if (v !== '' && !Number.isNaN(Number(v))) numeric++; });
+    if (numeric >= 3) out.push(h);
+  });
+  return out;
+}
+function populateModerators() {
+  const mods = detectModerators();
+  const sel = $('modSel');
+  if (!mods.length) { sel.innerHTML = '<option value="">(añade una columna numérica)</option>'; $('metaregBtn').disabled = true; return; }
+  sel.innerHTML = mods.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  $('metaregBtn').disabled = false;
+}
+$('metaregBtn').onclick = async () => {
+  const moderator = $('modSel').value; if (!moderator) return;
+  const btn = $('metaregBtn'); busy(btn, true, 'Calculando…');
+  try {
+    const r = await fetch('/meta-regression', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csv: $('csv').value, moderator, knapp_hartung: $('kh').checked }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Error');
+    renderMetareg(data, moderator);
+  } catch (e) { $('metaregBody').innerHTML = `<div class="error">${esc(e.message)}</div>`; } finally { busy(btn, false); }
+};
+function renderMetareg(d, moderator) {
+  const s = d.slice ? d.slice : d.slope;
+  const sig = d.slope.p_value < 0.05;
+  const interp = sig
+    ? `<b>${esc(moderator)} se asocia con el efecto</b> (pendiente ${fmt(d.slope.estimate, 3)}, p=${fmt(d.slope.p_value, 3)}); explica ≈${fmt(d.r2, 0)}% de la heterogeneidad.`
+    : `No hay evidencia de que <b>${esc(moderator)}</b> modere el efecto (pendiente ${fmt(d.slope.estimate, 3)}, p=${fmt(d.slope.p_value, 3)}).`;
+  const scaleNote = d.log_scale ? ' (escala log del efecto)' : '';
+  $('metaregBody').innerHTML = `
+    <div class="interp">${interp}</div>
+    <table style="max-width:520px">
+      <tr><th>Término</th><th>Coef.${scaleNote}</th><th>IC 95%</th><th>p</th></tr>
+      <tr><td>Intercepto</td><td>${fmt(d.intercept.estimate, 3)}</td><td>[${fmt(d.intercept.ci_low, 3)}, ${fmt(d.intercept.ci_high, 3)}]</td><td>${fmt(d.intercept.p_value, 3)}</td></tr>
+      <tr><td>${esc(moderator)}</td><td>${fmt(d.slope.estimate, 3)}</td><td>[${fmt(d.slope.ci_low, 3)}, ${fmt(d.slope.ci_high, 3)}]</td><td>${fmt(d.slope.p_value, 3)}</td></tr>
+    </table>
+    <p class="muted" style="margin-top:8px">R²=${fmt(d.r2, 0)}% de τ² explicado · τ² residual=${fmt(d.tau2_residual, 4)} · Q residual p=${fmt(d.qe_p, 3)} · ${d.knapp_hartung ? 'prueba t (Knapp-Hartung)' : 'prueba z'} · k=${d.k}</p>
+    <div class="plot" style="margin-top:10px">${d.bubble_svg}</div>`;
 }
 
 // ---------- STEP 6: article ----------

@@ -109,3 +109,29 @@ def analyze(
 
 def analyze_csv(text: str, **kwargs) -> dict:
     return analyze(parse_csv(text), **kwargs)
+
+
+def meta_regression_rows(rows: list[dict], moderator: str, *, knapp_hartung: bool = True) -> dict:
+    from .metareg import bubble_svg, meta_regression
+    effects, xs = [], []
+    for row in rows:
+        try:
+            e = effect_from_row(row)
+        except ValueError:
+            continue
+        try:
+            xv = float(row.get(moderator))
+        except (TypeError, ValueError):
+            continue
+        effects.append(e)
+        xs.append(xv)
+    if len(effects) < 3:
+        raise ValueError(f"Se necesitan ≥3 estudios con '{moderator}' numérico (hay {len(effects)}).")
+    reg = meta_regression(effects, xs, knapp_hartung=knapp_hartung)
+    reg["moderator"] = moderator
+    reg["bubble_svg"] = bubble_svg(effects, xs, reg, moderator)
+    return reg
+
+
+def meta_regression_csv(text: str, moderator: str, **kwargs) -> dict:
+    return meta_regression_rows(parse_csv(text), moderator, **kwargs)

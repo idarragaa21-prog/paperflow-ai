@@ -34,9 +34,10 @@ numbers. No cloud, no API key, no data leaving your machine.
    abstract against your protocol's inclusion/exclusion criteria** (include /
    exclude / maybe + reason); an optional **dual-reviewer mode** runs two
    independent AI passes and reports **Cohen's κ** with conflicts flagged.
-   First-pass only — you verify every decision (PRISMA/Cochrane). For included
-   open-access studies, **AI extracts the effect data from the full text** (2×2,
-   means/SDs or effect+CI) with the supporting quote, seeding the data table.
+   First-pass only — you verify every decision (PRISMA/Cochrane), with an optional
+   **full-text screening** second phase. For included open-access studies, **AI
+   extracts the effect data from the full text — parsing the tables, not just the
+   narrative** (2×2, means/SDs or effect+CI) with the supporting quote.
    Counts flow into the PRISMA diagram. **Zotero integration**: import RIS/BibTeX
    to screen references you already have, and export included studies to RIS,
    BibTeX or straight to your **Zotero library** — via the Web API, or the local desktop connector with **no API key** (just have Zotero open).
@@ -46,7 +47,8 @@ numbers. No cloud, no API key, no data leaving your machine.
    Knapp-Hartung, prediction interval, I²/τ²/Q, plain-language interpretation and
    a forest plot.
 6. **Diagnostics** — leave-one-out, cumulative MA, subgroup test, Egger's test,
-   trim-and-fill and a Baujat influence plot.
+   trim-and-fill, a Baujat influence plot, and **meta-regression** (moderator
+   analysis with a bubble plot, residual τ² and R²).
 7. **Quality & figures** — a **PRISMA 2020 flow diagram** (single- or two-column with "other methods"), a **risk-of-bias**
    traffic-light plot (RoB 2 / ROBINS-I), and a **GRADE** certainty assessment
    (auto-suggested downgrades + manual override). All download as SVG.
@@ -123,14 +125,14 @@ print(draft["sections"]["results"])
 
 `/questions`, `/protocol`, `/search`, `/screen`, `/analyze`, `/manuscript`,
 `/manuscript/section`, `/manuscript/docx`, `/prisma`, `/rob`, `/rob/tools`,
-`/extract`, `/citations/export`, `/citations/import`, `/zotero/push`, `/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
+`/extract`, `/screen/fulltext`, `/meta-regression`, `/citations/export`, `/citations/import`, `/zotero/push`, `/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
 `/health`. Interactive docs at `/docs`.
 
 ## Tests
 
 ```bash
 pip install -r requirements.txt
-pytest -q          # 112 tests; statistics validated against known values
+pytest -q          # 121 tests; statistics validated against known values
 ```
 
 ## Scope & honesty

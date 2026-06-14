@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import urllib.request
+import xml.etree.ElementTree as ET
 
 from .ai import ai_available, run_claude_json
 
@@ -34,20 +35,75 @@ def fields_for(measure: str) -> list[str]:
     return FIELDS_BY_MEASURE.get((measure or "GEN").upper(), FIELDS_BY_MEASURE["GEN"])
 
 
-def fetch_fulltext(record: dict, *, timeout: int = 30) -> str | None:
+def _fetch_xml(record: dict, *, timeout: int = 30) -> str | None:
     pmcid = record.get("pmcid")
     if not pmcid:
         return None
-    url = FULLTEXT.format(id=pmcid)
     try:
-        req = urllib.request.Request(url, headers=_UA)
+        req = urllib.request.Request(FULLTEXT.format(id=pmcid), headers=_UA)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            xml = resp.read().decode("utf-8", "ignore")
+            return resp.read().decode("utf-8", "ignore")
     except Exception:  # noqa: BLE001 — not OA / not retrievable
         return None
-    text = re.sub(r"<[^>]+>", " ", xml)        # strip JATS tags
-    text = re.sub(r"\s+", " ", text).strip()
-    return text or None
+
+
+def _narrative(xml: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", xml)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _txt(el) -> str:
+    return " ".join("".join(el.itertext()).split())
+
+
+def extract_tables(xml: str) -> list[str]:
+    """Parse JATS/HTML tables into readable pipe-delimited grids with captions."""
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return []
+    for el in root.iter():
+        el.tag = el.tag.rpartition("}")[2]  # drop namespaces
+
+    out, seen = [], set()
+    for wrap in root.iter():
+        if wrap.tag not in ("table-wrap", "table"):
+            continue
+        if id(wrap) in seen:
+            continue
+        if wrap.tag == "table-wrap":
+            caption = " ".join(_txt(e) for e in list(wrap.findall("label")) + list(wrap.findall("caption")))
+            tables = list(wrap.iter("table"))
+            for t in tables:
+                seen.add(id(t))
+        else:
+            caption, tables = "", [wrap]
+        grids = []
+        for table in tables:
+            rows = []
+            for tr in table.iter("tr"):
+                cells = [_txt(c) for c in tr if c.tag in ("td", "th")]
+                if any(cells):
+                    rows.append(" | ".join(cells))
+            if rows:
+                grids.append("\n".join(rows))
+        if grids:
+            out.append((caption.strip() + "\n" if caption.strip() else "") + "\n".join(grids))
+    return out
+
+
+def fetch_fulltext(record: dict, *, timeout: int = 30) -> str | None:
+    """Narrative full text (tables stripped) — used by full-text screening."""
+    xml = _fetch_xml(record, timeout=timeout)
+    return _narrative(xml) or None if xml else None
+
+
+def fetch_fulltext_parts(record: dict, *, timeout: int = 30) -> tuple[str, list[str]]:
+    """(narrative text, list of table grids) from the open-access full text."""
+    xml = _fetch_xml(record, timeout=timeout)
+    if not xml:
+        return "", []
+    return _narrative(xml), extract_tables(xml)
 
 
 def _label(record: dict) -> str:
@@ -55,39 +111,45 @@ def _label(record: dict) -> str:
     return f"{first} {record.get('year', '')}".strip()
 
 
-def _build_prompt(text: str, measure: str, outcome: str, fields: list[str]) -> str:
+def _build_prompt(tables: list[str], narrative: str, measure: str, outcome: str, fields: list[str]) -> str:
+    tables_block = "\n\n".join(f"[TABLA {i + 1}]\n{t}" for i, t in enumerate(tables))[:9000]
     return (
-        "Eres un revisor experto extrayendo datos para un meta-análisis. A partir del "
-        "texto del artículo, extrae ÚNICAMENTE los números necesarios para calcular el "
-        f"efecto «{measure}» para el desenlace «{outcome or 'el desenlace principal'}». "
-        "No inventes valores: si un dato no aparece con claridad, ponlo en null.\n\n"
+        "Eres un revisor experto extrayendo datos para un meta-análisis. Extrae "
+        "ÚNICAMENTE los números necesarios para calcular el efecto "
+        f"«{measure}» para el desenlace «{outcome or 'el desenlace principal'}». "
+        "Los datos suelen estar en las TABLAS: revísalas primero. No inventes "
+        "valores: si un dato no aparece con claridad, ponlo en null.\n\n"
         f"Campos a extraer (numéricos): {', '.join(fields)}.\n"
         "Para tablas 2x2: a=eventos en el grupo de intervención/expuesto, b=no eventos en "
         "ese grupo, c=eventos en control/no expuesto, d=no eventos en control.\n\n"
-        f"TEXTO DEL ARTÍCULO (puede estar truncado):\n{text[:14000]}\n\n"
+        f"=== TABLAS DEL ARTÍCULO ===\n{tables_block or '(sin tablas extraíbles)'}\n\n"
+        f"=== TEXTO (puede estar truncado) ===\n{narrative[:8000]}\n\n"
         "Devuelve SOLO un objeto JSON (sin markdown) con esta forma:\n"
         '{"found": true|false, "fields": {' + ", ".join(f'"{f}": <número|null>' for f in fields) +
-        '}, "quote": "frase o celda exacta de donde sale el dato", "note": "aclaración breve"}'
+        '}, "quote": "celda o frase exacta de donde sale el dato (indica la tabla)", "note": "aclaración breve"}'
     )
 
 
 def extract_data(record: dict, *, measure: str = "OR", outcome: str = "", mode: str = "auto") -> dict:
     measure = (measure or "OR").upper()
     fields = fields_for(measure)
-    full = fetch_fulltext(record)
-    source_text = full or record.get("abstract", "")
+    narrative, tables = fetch_fulltext_parts(record)
+    has_full = bool(narrative or tables)
+    if not narrative and not tables:
+        narrative = record.get("abstract", "")
     base = {"study_label": _label(record), "effect_measure": measure,
-            "source": "fulltext" if full else "abstract", "doi": record.get("doi"),
-            "fields": {f: None for f in fields}, "found": False, "quote": "", "note": ""}
+            "source": "fulltext" if has_full else "abstract", "n_tables": len(tables),
+            "doi": record.get("doi"), "fields": {f: None for f in fields},
+            "found": False, "quote": "", "note": ""}
 
-    if not source_text:
+    if not narrative and not tables:
         base["note"] = "Sin texto disponible (no es de acceso abierto)."
         return base
     if not (mode != "local" and (mode == "ai" or ai_available())):
         base["note"] = "Extracción manual: la IA no está disponible."
         return base
     try:
-        obj = run_claude_json(_build_prompt(source_text, measure, outcome, fields), timeout=120)
+        obj = run_claude_json(_build_prompt(tables, narrative, measure, outcome, fields), timeout=120)
     except Exception as exc:  # noqa: BLE001
         base["note"] = f"No se pudo extraer con IA: {exc}"
         return base
