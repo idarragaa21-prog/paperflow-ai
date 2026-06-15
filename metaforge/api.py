@@ -11,7 +11,7 @@ from .ai import ai_available
 from .citations import parse_references, to_bibtex, to_ris
 from .demo import demo_state
 from .docx_export import manuscript_docx
-from .grade import auto_grade, grade_from_judgements
+from .grade import auto_grade, grade_from_judgements, sof_svg
 from .manuscript import generate_manuscript, generate_section
 from .prisma import prisma_svg
 from .projects import delete_project, list_projects, load_project, save_project
@@ -29,7 +29,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.9.1",
+    version="2.10.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -95,6 +95,12 @@ class GradeRequest(BaseModel):
     rob: dict | None = None
     downgrades: dict | None = None
     upgrades: dict | None = None
+
+
+class SofRequest(BaseModel):
+    result: dict
+    grade: dict
+    outcome: str = "Desenlace principal"
 
 
 class ProjectRequest(BaseModel):
@@ -304,6 +310,14 @@ def grade_endpoint(req: GradeRequest) -> dict:
         if req.downgrades is not None:
             return grade_from_judgements(req.result, req.design, req.downgrades, req.upgrades)
         return auto_grade(req.result, design=req.design, rob=req.rob)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/grade/sof")
+def grade_sof(req: SofRequest) -> dict:
+    try:
+        return {"svg": sof_svg(req.result, req.grade, outcome=req.outcome)}
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

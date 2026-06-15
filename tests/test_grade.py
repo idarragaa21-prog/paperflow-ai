@@ -56,3 +56,14 @@ def test_api_grade_auto_and_override():
                                      "downgrades": {"risk_of_bias": "serious", "inconsistency": "none",
                                                     "indirectness": "none", "imprecision": "none", "publication_bias": "none"}})
     assert r2.json()["certainty"]["level"] == 1  # observational(2) - 1
+
+
+def test_sof_svg_and_api():
+    from metaforge.grade import auto_grade, sof_svg
+    res = _res()
+    g = auto_grade(res, design="rct")
+    svg = sof_svg(res, g, outcome="Ictus")
+    assert svg.startswith("<svg") and svg.endswith("</svg>")
+    assert "0.81" in svg and "Ictus" in svg
+    r = client.post("/grade/sof", json={"result": res, "grade": g, "outcome": "Ictus"})
+    assert r.status_code == 200 and r.json()["svg"].startswith("<svg")

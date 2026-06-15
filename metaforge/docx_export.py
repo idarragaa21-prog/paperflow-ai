@@ -116,11 +116,15 @@ def manuscript_docx(sections: dict, *, facts: str | None = None,
         if sec == "results":
             if figures.get("forest"):
                 _add_figure(doc, figures["forest"], f"Figura {next_fig()}. Forest plot del efecto combinado.")
+            if figures.get("funnel"):
+                _add_figure(doc, figures["funnel"], f"Figura {next_fig()}. Funnel plot (sesgo de publicación).")
             if figures.get("rob"):
                 _add_figure(doc, figures["rob"], f"Figura {next_fig()}. Evaluación del riesgo de sesgo.")
 
     if grade:
         _add_grade_table(doc, grade)
+        if figures.get("sof"):
+            _add_figure(doc, figures["sof"], "Tabla. Resumen de hallazgos (GRADE).")
 
     if facts:
         doc.add_page_break()

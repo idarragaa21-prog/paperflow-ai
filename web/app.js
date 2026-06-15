@@ -620,6 +620,18 @@ function recomputeGrade() {
   const c = computeCertainty(design, dg, S.grade.upgrades); S.grade.certainty = c; S.grade.design = design;
   const pips = '⊕'.repeat(c.level) + '⊝'.repeat(4 - c.level);
   $('gradeCertBox').innerHTML = `<div class="grade-cert l${c.level}"><span class="grade-pips">${pips}</span> Certeza de la evidencia: ${c.label} (${c.level}/4)</div>`;
+  clearTimeout(S._sofTimer); S._sofTimer = setTimeout(refreshSof, 400);
+}
+async function refreshSof() {
+  if (!S.result || !S.grade) return;
+  const outcome = (S.chosen && S.chosen.outcome) || 'Desenlace principal';
+  try {
+    const r = await fetch('/grade/sof', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ result: S.result, grade: S.grade, outcome }) });
+    const data = await r.json(); if (!r.ok) return;
+    S.sofSvg = data.svg;
+    $('sofBox').innerHTML = `<div class="plot">${data.svg}</div><a class="link" id="dlSof">descargar tabla SoF (SVG)</a>`;
+    $('dlSof').onclick = () => downloadText('resumen_hallazgos_grade.svg', S.sofSvg, 'image/svg+xml');
+  } catch (e) { /* non-blocking */ }
 }
 
 // ---------- STEP 5: diagnostics ----------
@@ -776,7 +788,7 @@ $('dlMd').onclick = () => downloadText('manuscrito_metaforge.md', manuscriptMark
 $('dlDocx').onclick = async (e) => {
   const btn = e.target; busy(btn, true, 'Word…');
   try {
-    const figures = { forest: S.result && S.result.forest_svg, prisma: S.prismaSvg, rob: S.robSvg };
+    const figures = { forest: S.result && S.result.forest_svg, funnel: S.result && S.result.funnel_svg, prisma: S.prismaSvg, rob: S.robSvg, sof: S.sofSvg };
     const r = await fetch('/manuscript/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sections: S.manuscript, facts: $('facts').textContent, figures, grade: S.grade }) });
     if (!r.ok) throw new Error('No se pudo generar el Word');
     const blob = await r.blob();

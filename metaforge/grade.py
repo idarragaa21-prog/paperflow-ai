@@ -143,3 +143,57 @@ def _summary_text(result: dict, certainty: dict) -> str:
         f"Efecto combinado {m} = {p['estimate']:.2f} (IC 95% {p['ci_low']:.2f}–{p['ci_high']:.2f}) "
         f"a partir de {result['k']} estudios."
     )
+
+
+_CERT_COLOR = {4: ("#15803d", "#def7e8"), 3: ("#0369a1", "#e0f2fe"),
+               2: ("#b45309", "#ffedd5"), 1: ("#b91c1c", "#fee2e2")}
+
+
+def sof_svg(result: dict, grade: dict, *, outcome: str = "Desenlace principal") -> str:
+    """A compact GRADE Summary of Findings (SoF) table as an SVG."""
+    p = result["pooled"]
+    m = result["measure"]
+    cert = grade.get("certainty", {})
+    level = max(1, min(4, int(cert.get("level", 4))))
+    label = cert.get("label", certainty_label(level))
+    color, bg = _CERT_COLOR[level]
+    pips = "⊕" * level + "⊝" * (4 - level)
+    effect = f"{m} {p['estimate']:.2f}  [{p['ci_low']:.2f}, {p['ci_high']:.2f}]"
+    studies = f"{result['k']} estudios"
+    downgrades = [DOMAIN_LABELS_ES[d] for d in DOWNGRADE_DOMAINS
+                  if (grade.get("domains", {}).get(d, {}) or {}).get("rating", "none") != "none"]
+    foot = ("Se rebajó por: " + ", ".join(downgrades) + "." if downgrades
+            else "Sin rebajas en los dominios GRADE.")
+
+    cols = [("Desenlace", 250), ("Nº de estudios", 130), (f"Efecto ({m})", 230), ("Certeza (GRADE)", 160)]
+    x0, header_y, row_y, h = 16, 56, 84, 46
+    xs, x = [], x0
+    for _, w in cols:
+        xs.append(x)
+        x += w
+    total_w = x - x0
+    W = x0 + total_w + 16
+    height = row_y + h + 56
+
+    def esc(t):
+        return str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    p_ = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{height}" viewBox="0 0 {W} {height}" font-family="Helvetica, Arial, sans-serif">',
+          f'<rect width="{W}" height="{height}" fill="#ffffff"/>',
+          '<text x="16" y="28" font-size="14" font-weight="800" fill="#111">Resumen de hallazgos (GRADE)</text>',
+          f'<rect x="{x0}" y="{header_y - 18}" width="{total_w}" height="24" fill="#f4f4f5"/>']
+    for (name, w), xi in zip(cols, xs):
+        p_.append(f'<text x="{xi + 8}" y="{header_y - 1}" font-size="11" font-weight="700" fill="#555">{esc(name)}</text>')
+    p_.append(f'<rect x="{x0}" y="{row_y - 18}" width="{total_w}" height="{h}" fill="#ffffff" stroke="#e4e4e7"/>')
+    vals = [outcome, studies, effect, ""]
+    for (name, w), xi, val in zip(cols, xs, vals):
+        if val:
+            p_.append(f'<text x="{xi + 8}" y="{row_y + 6}" font-size="12" fill="#1a1a22">{esc(val)}</text>')
+    # certainty cell (coloured pill)
+    cx = xs[3]
+    p_.append(f'<rect x="{cx + 6}" y="{row_y - 10}" width="138" height="28" rx="6" fill="{bg}" stroke="{color}"/>')
+    p_.append(f'<text x="{cx + 14}" y="{row_y + 8}" font-size="12" font-weight="800" fill="{color}">{pips} {esc(label)}</text>')
+    p_.append(f'<text x="16" y="{row_y + h + 24}" font-size="10.5" fill="#666">{esc(foot)}</text>')
+    p_.append("</svg>")
+    return "".join(p_)
+
