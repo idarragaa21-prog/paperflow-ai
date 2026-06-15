@@ -109,3 +109,21 @@ def test_appjs_served():
     r = client.get("/app.js")
     assert r.status_code == 200
     assert "application/javascript" in r.headers["content-type"]
+
+
+def test_demo_state_complete():
+    from metaforge.demo import demo_state
+    s = demo_state()
+    assert s["result"]["k"] == 4
+    assert s["protocol"]["inclusion_criteria"]
+    assert s["grade"]["certainty"]["label"]
+    assert "0.81" in s["manuscript"]["results"]
+    assert len(s["robRatings"]) == 4
+    import json
+    json.dumps(s)  # must be serialisable
+
+
+def test_api_demo():
+    r = client.get("/demo")
+    assert r.status_code == 200
+    assert r.json()["result"]["k"] == 4

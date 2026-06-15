@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from .ai import ai_available
 from .citations import parse_references, to_bibtex, to_ris
+from .demo import demo_state
 from .docx_export import manuscript_docx
 from .grade import auto_grade, grade_from_judgements
 from .manuscript import generate_manuscript, generate_section
@@ -367,6 +368,11 @@ def analyze_endpoint(req: AnalyzeRequest) -> dict:
         raise ValueError("Provide either 'csv' or 'rows'.")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/demo")
+def demo() -> dict:
+    return demo_state()
 
 
 @app.get("/examples")

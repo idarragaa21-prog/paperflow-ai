@@ -123,6 +123,14 @@ $('skipToData').onclick = () => {
   S.chosen = null; S.questionText = ''; S.measure = 'OR';
   setStepEnabled(3, true); setStepEnabled(4, true); markDone(1); prepareSearchStep(); prepareDataStep(); goStep(4);
 };
+$('demoBtn').onclick = async () => {
+  const btn = $('demoBtn'); busy(btn, true, 'Cargando ejemplo…');
+  try {
+    const st = await (await fetch('/demo')).json();
+    await restoreState(st);
+    setProjStatus('Ejemplo cargado — explora los 8 pasos', true);
+  } catch (e) { alert('No se pudo cargar el ejemplo: ' + e.message); } finally { busy(btn, false); }
+};
 
 // ---------- STEP 2: protocol ----------
 function prepareProtocolStep() {
