@@ -214,6 +214,11 @@ def egger_test(effects: list[Effect]) -> EggerResult:
     # Regress standardised effect (yi/sei) on precision (1/sei); test the intercept.
     y = yi / sei
     x = 1.0 / sei
+    # Egger's test is undefined when every study has the same precision (e.g. all
+    # studies share one sample size, common for correlations/proportions).
+    if np.allclose(x, x[0]):
+        return EggerResult(intercept=0.0, se=0.0, t=0.0, p_value=1.0, k=k,
+                           note="No evaluable: todos los estudios tienen el mismo error estándar.")
     res = stats.linregress(x, y)
     note = "" if k >= 10 else "k < 10: low power, interpret with caution"
     return EggerResult(

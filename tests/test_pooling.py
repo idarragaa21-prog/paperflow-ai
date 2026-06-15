@@ -64,6 +64,14 @@ def test_egger_runs():
     assert math.isfinite(res.p_value)
 
 
+def test_egger_equal_standard_errors_does_not_crash():
+    # All studies share one SE (e.g. equal n) -> Egger is undefined; must degrade.
+    eff = [from_yi_se(y, 0.1, measure="GEN", label=f"S{i}") for i, y in enumerate([0.1, 0.2, 0.3, 0.15])]
+    res = egger_test(eff)
+    assert res.p_value == 1.0
+    assert "No evaluable" in res.note
+
+
 def test_empty_raises():
     with pytest.raises(ValueError):
         pool([])
