@@ -22,18 +22,18 @@ const SOURCE_LABELS: Record<string, string> = {
   semantic_scholar: 'Semantic Scholar',
   unpaywall: 'Unpaywall',
   doi_content_negotiation: 'DOI direct',
-  user_provided_oa: 'OA provista por el usuario',
+  user_provided_oa: 'User provided OA',
 };
 
 function providerLabel(source?: string | null) {
-  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
+  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'External source';
 }
 
 function batchStatusLabel(status: BatchDownloadTraceItem['final_status']) {
-  if (status === 'downloaded') return 'Descargado';
-  if (status === 'existing') return 'Ya existía';
-  if (status === 'unavailable') return 'No disponible';
-  return 'Fallido';
+  if (status === 'downloaded') return 'Downloaded';
+  if (status === 'existing') return 'Already existed';
+  if (status === 'unavailable') return 'Unavailable';
+  return 'Failed';
 }
 
 function batchStatusClass(status: BatchDownloadTraceItem['final_status']) {
@@ -533,10 +533,10 @@ export default function SearchPage() {
             {batch.batchJob?.output && (
               <>
                 <div className="rc-row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                  <span className="rc-badge rc-badge--success">Descargados: <b>{batch.batchJob.output.downloaded.length}</b></span>
-                  <span className="rc-badge">Ya existían: <b>{batch.batchJob.output.already_exists.length}</b></span>
-                  <span className="rc-badge">No disponibles: <b>{batch.batchJob.output.not_available.length}</b></span>
-                  <span className="rc-badge rc-badge--danger">Fallidos: <b>{batch.batchJob.output.failed.length}</b></span>
+                  <span className="rc-badge rc-badge--success">Downloaded: <b>{batch.batchJob.output.downloaded.length}</b></span>
+                  <span className="rc-badge">Already existed: <b>{batch.batchJob.output.already_exists.length}</b></span>
+                  <span className="rc-badge">Unavailable: <b>{batch.batchJob.output.not_available.length}</b></span>
+                  <span className="rc-badge rc-badge--danger">Failed: <b>{batch.batchJob.output.failed.length}</b></span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '48vh', overflowY: 'auto', paddingRight: 4 }}>
                   {batch.batchJob.output.items.map((item, index) => {
@@ -553,15 +553,15 @@ export default function SearchPage() {
                           <div>
                             <div style={{ fontWeight: 700 }}>{item.title}</div>
                             <div className="rc-help">
-                              {item.paper_id ? `Paper ID: ${item.paper_id}` : 'Paper aún no persistido'}
+                              {item.paper_id ? `Paper ID: ${item.paper_id}` : 'Paper not yet persisted'}
                             </div>
                             <div className="rc-help">
-                              {item.source_provider ? `Proveedor: ${providerLabel(item.source_provider)}` : 'Proveedor no resuelto'}
+                              {item.source_provider ? `Provider: ${providerLabel(item.source_provider)}` : 'Provider not resolved'}
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             <span className={batchStatusClass(item.final_status)}>{batchStatusLabel(item.final_status)}</span>
-                            {item.used_fallback ? <span className="rc-badge">Usó fallback</span> : null}
+                            {item.used_fallback ? <span className="rc-badge">Used fallback</span> : null}
                           </div>
                         </div>
                         <div className="rc-help" style={{ display: 'grid', gap: 6 }}>

@@ -35,14 +35,14 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 function providerLabel(source?: string | null) {
-  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
+  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'External source';
 }
 
 function traceStatusLabel(status?: string | null) {
-  if (status === 'downloaded') return 'Descargado';
-  if (status === 'existing') return 'Ya existía';
-  if (status === 'unavailable') return 'No disponible';
-  return 'Fallido';
+  if (status === 'downloaded') return 'Downloaded';
+  if (status === 'existing') return 'Already existed';
+  if (status === 'unavailable') return 'Unavailable';
+  return 'Failed';
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -194,7 +194,7 @@ export default function PapersPage() {
         (prev ?? []).map(p => p.id === id ? { ...p, favorite } : p)
       );
     },
-    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Error al cambiar favorito'),
+    onError: (e: any) => setMutError(e?.response?.data?.detail || 'Error toggling favorite'),
   });
 
   const deleteMut = useMutation({
@@ -289,7 +289,7 @@ export default function PapersPage() {
             [p.id]: {
               ...(prev2[p.id] || { expanded: false }),
               loading: false,
-              error: errorDetail(error, 'No se pudo cargar la traza de descarga'),
+              error: errorDetail(error, 'Could not load download trace'),
             }
           }));
         }
@@ -509,12 +509,12 @@ export default function PapersPage() {
                                 try {
                                   const r = await api.post(`/references/sync-paper/${p.id}`);
                                   if ((r.data as any)?.created > 0) {
-                                    toast.success('Sincronizado', 'Referencia creada en el proyecto.');
+                                    toast.success('Synchronized', 'Reference created in the project.');
                                   } else {
-                                    toast.info('Ya existe', 'Este paper ya está en Referencias.');
+                                    toast.info('Already exists', 'This paper is already in References.');
                                   }
                                 } catch (e: any) {
-                                  toast.error('Error', e?.response?.data?.detail || 'No se pudo sincronizar a Referencias.');
+                                  toast.error('Error', e?.response?.data?.detail || 'Could not synchronize to References.');
                                 }
                               }}>🔗 to References</button>
                             </>
@@ -523,7 +523,7 @@ export default function PapersPage() {
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => void toggleTrace(p)}>
                             {traceState[p.id]?.expanded ? 'Hide trace' : 'Trace'}
                           </button>
-                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => favoriteMut.mutate(p)} title={p.favorite ? 'Quitar favorito' : 'Favorito'}>
+                          <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => favoriteMut.mutate(p)} aria-label={p.favorite ? 'Remove favorite' : 'Favorite'} title={p.favorite ? 'Remove favorite' : 'Favorite'}>
                             {p.favorite ? '★' : '☆'}
                           </button>
                           <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => deleteWithConfirm(p)}>Del</button>
@@ -534,7 +534,7 @@ export default function PapersPage() {
                       <tr style={{ background: 'var(--rc-surface-2)' }}>
                         <td colSpan={6} style={{ padding: 12 }}>
                           {traceState[p.id]?.loading ? (
-                            <div className="rc-help">Cargando traza…</div>
+                            <div className="rc-help">Loading trace…</div>
                           ) : traceState[p.id]?.error ? (
                             <div className="rc-error">{traceState[p.id]?.error}</div>
                           ) : traceState[p.id]?.trace ? (
@@ -542,16 +542,16 @@ export default function PapersPage() {
                               <div className="rc-row" style={{ gap: 8, flexWrap: 'wrap' }}>
                                 <span className="rc-badge">{traceStatusLabel(traceState[p.id]!.trace!.final_status)}</span>
                                 <span className="rc-badge">{providerLabel(traceState[p.id]!.trace!.source_provider)}</span>
-                                {traceState[p.id]!.trace!.used_fallback ? <span className="rc-badge">Usó fallback</span> : null}
+                                {traceState[p.id]!.trace!.used_fallback ? <span className="rc-badge">Used fallback</span> : null}
                               </div>
-                              <div className="rc-help">Auditado: {formatDate(traceState[p.id]!.trace!.audited_at)}</div>
+                              <div className="rc-help">Audited: {formatDate(traceState[p.id]!.trace!.audited_at)}</div>
                               <div className="rc-help">OA URL: {traceState[p.id]!.trace!.oa_url ? <a href={traceState[p.id]!.trace!.oa_url!} target="_blank" rel="noopener noreferrer">{traceState[p.id]!.trace!.oa_url}</a> : '—'}</div>
                               <div className="rc-help">Landing URL: {traceState[p.id]!.trace!.landing_url ? <a href={traceState[p.id]!.trace!.landing_url!} target="_blank" rel="noopener noreferrer">{traceState[p.id]!.trace!.landing_url}</a> : '—'}</div>
                               <div className="rc-help">Resolved URL: {traceState[p.id]!.trace!.resolved_url ? <a href={traceState[p.id]!.trace!.resolved_url!} target="_blank" rel="noopener noreferrer">{traceState[p.id]!.trace!.resolved_url}</a> : '—'}</div>
-                              <div className="rc-help">Resultado: {traceState[p.id]!.trace!.failure_reason || traceStatusLabel(traceState[p.id]!.trace!.final_status)}</div>
+                              <div className="rc-help">Result: {traceState[p.id]!.trace!.failure_reason || traceStatusLabel(traceState[p.id]!.trace!.final_status)}</div>
                             </div>
                           ) : (
-                            <div className="rc-help">Este paper no tiene una auditoría de descarga OA registrada.</div>
+                            <div className="rc-help">This paper has no recorded OA download audit.</div>
                           )}
                         </td>
                       </tr>
