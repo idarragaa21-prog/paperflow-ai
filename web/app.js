@@ -718,21 +718,35 @@ $('aiAllBtn').onclick = async () => {
   }
   btn.disabled = false; btn.innerHTML = orig;
 };
+function mdInline(s) { return s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(?<!\*)\*(?!\*)(.+?)\*(?!\*)/g, '<em>$1</em>'); }
+function mdToHtml(md) {
+  return String(md || '').split(/\n{2,}/).map((block) => {
+    const lines = block.split('\n');
+    if (lines.length && lines.every((l) => /^\s*[-*]\s+/.test(l))) {
+      return '<ul>' + lines.map((l) => `<li>${mdInline(esc(l.replace(/^\s*[-*]\s+/, '')))}</li>`).join('') + '</ul>';
+    }
+    const h = block.match(/^(#{2,4})\s+(.*)$/);
+    if (h && lines.length === 1) { const lvl = h[1].length + 1; return `<h${lvl}>${mdInline(esc(h[2]))}</h${lvl}>`; }
+    return `<p>${lines.map((l) => mdInline(esc(l))).join('<br>')}</p>`;
+  }).join('');
+}
 function renderSections() {
-  $('sections').innerHTML = SECTION_ORDER.map((sec) => `
-    <div class="sec" data-sec="${sec}">
+  const editable = !S.preview;
+  $('sections').innerHTML = SECTION_ORDER.map((sec) => {
+    const body = S.manuscript[sec] || '';
+    const content = editable
+      ? `<textarea data-ta="${sec}">${esc(body)}</textarea>`
+      : `<div class="sec-preview rc-markdown">${body.trim() ? mdToHtml(body) : '<span class="muted">(vacío)</span>'}</div>`;
+    return `<div class="sec" data-sec="${sec}">
       <div class="sec-head"><h4>${SECTION_TITLES[sec]}</h4>
-        <div class="sec-actions">
-          ${S.ai ? `<button class="btn btn-mini" data-ai="${sec}">✦ Mejorar con IA</button>` : ''}
-          <button class="btn btn-mini" data-copy="${sec}">Copiar</button>
-        </div>
-      </div>
-      <textarea data-ta="${sec}">${esc(S.manuscript[sec] || '')}</textarea>
-    </div>`).join('');
-  $('sections').querySelectorAll('textarea').forEach((ta) => { autoGrow(ta); ta.oninput = () => { S.manuscript[ta.dataset.ta] = ta.value; autoGrow(ta); }; });
+        <div class="sec-actions">${S.ai ? `<button class="btn btn-mini" data-ai="${sec}">✦ Mejorar con IA</button>` : ''}<button class="btn btn-mini" data-copy="${sec}">Copiar</button></div>
+      </div>${content}</div>`;
+  }).join('');
+  if (editable) $('sections').querySelectorAll('textarea').forEach((ta) => { autoGrow(ta); ta.oninput = () => { S.manuscript[ta.dataset.ta] = ta.value; autoGrow(ta); }; });
   $('sections').querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => copy(S.manuscript[b.dataset.copy] || '', b); });
   $('sections').querySelectorAll('[data-ai]').forEach((b) => { b.onclick = () => improveSection(b.dataset.ai, b); });
 }
+$('previewToggle').onclick = () => { S.preview = !S.preview; $('previewToggle').textContent = S.preview ? '✎ Editar' : '👁 Vista previa'; renderSections(); };
 async function improveSection(sec, btn, silent) {
   busy(btn, true, 'IA…');
   try {
@@ -740,7 +754,7 @@ async function improveSection(sec, btn, silent) {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || 'Error');
     S.manuscript[sec] = data.text;
-    const ta = $('sections').querySelector(`[data-ta="${sec}"]`); if (ta) { ta.value = data.text; autoGrow(ta); }
+    if (S.preview) { renderSections(); } else { const ta = $('sections').querySelector(`[data-ta="${sec}"]`); if (ta) { ta.value = data.text; autoGrow(ta); } }
   } catch (e) { if (!silent) alert('IA: ' + e.message); } finally { busy(btn, false); }
 }
 function manuscriptMarkdown() {
