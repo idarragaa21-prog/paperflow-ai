@@ -82,10 +82,10 @@ def forest_svg(
     p = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
-        f'<text x="20" y="26" font-size="14" font-weight="700" fill="#111">Forest plot — {em} (95% CI)</text>',
-        '<text x="20" y="46" font-size="10" fill="#888" font-weight="600">Study</text>',
-        f'<text x="{est_x}" y="46" font-size="10" fill="#888" font-weight="600">{em} [95% CI]</text>',
-        f'<text x="{weight_x}" y="46" font-size="10" fill="#888" font-weight="600" text-anchor="end">Weight</text>',
+        f'<text x="20" y="26" font-size="14" font-weight="700" fill="#111">Forest plot — {em} (IC 95%)</text>',
+        '<text x="20" y="46" font-size="10" fill="#888" font-weight="600">Estudio</text>',
+        f'<text x="{est_x}" y="46" font-size="10" fill="#888" font-weight="600">{em} [IC 95%]</text>',
+        f'<text x="{weight_x}" y="46" font-size="10" fill="#888" font-weight="600" text-anchor="end">Peso</text>',
     ]
     if show_null:
         nx = sx(null_v)
@@ -105,15 +105,16 @@ def forest_svg(
 
     yd = top + len(effects) * row_h + row_h / 2
     cx, lo_x, hi_x = sx(result.estimate), sx(result.ci_low), sx(result.ci_high)
-    model_label = f"{result.model}-effects" + (f", {result.tau2_method}" if result.model == "random" else "")
-    p.append(f'<text x="20" y="{yd + 4:.1f}" font-size="12" font-weight="700" fill="#111">Pooled ({_esc(model_label)})</text>')
+    model_label = ("efectos aleatorios" + (f", {result.tau2_method}" if result.model == "random" else "")
+                   if result.model == "random" else "efecto fijo")
+    p.append(f'<text x="20" y="{yd + 4:.1f}" font-size="12" font-weight="700" fill="#111">Combinado ({_esc(model_label)})</text>')
     p.append(f'<polygon points="{lo_x:.1f},{yd:.1f} {cx:.1f},{yd - 7:.1f} {hi_x:.1f},{yd:.1f} {cx:.1f},{yd + 7:.1f}" fill="#c92a2a"/>')
     p.append(f'<text x="{est_x}" y="{yd + 4:.1f}" font-size="11" font-weight="700" fill="#111">{_fmt(result.estimate, measure)} [{_fmt(result.ci_low, measure)}, {_fmt(result.ci_high, measure)}]</text>')
 
     if result.pi_low is not None:
         yp = yd + 14
         p.append(f'<line x1="{sx(result.pi_low):.1f}" y1="{yp:.1f}" x2="{sx(result.pi_high):.1f}" y2="{yp:.1f}" stroke="#c92a2a" stroke-width="1.4" stroke-dasharray="3 2"/>')
-        p.append(f'<text x="{est_x}" y="{yp + 4:.1f}" font-size="9" fill="#c92a2a">95% PI [{_fmt(result.pi_low, measure)}, {_fmt(result.pi_high, measure)}]</text>')
+        p.append(f'<text x="{est_x}" y="{yp + 4:.1f}" font-size="9" fill="#c92a2a">IP 95% [{_fmt(result.pi_low, measure)}, {_fmt(result.pi_high, measure)}]</text>')
 
     p.append(f'<line x1="{left}" y1="{axis_y:.1f}" x2="{right}" y2="{axis_y:.1f}" stroke="#444"/>')
     for t in _axis_ticks(x_min, x_max, measure):
@@ -122,9 +123,9 @@ def forest_svg(
         p.append(f'<text x="{tx:.1f}" y="{axis_y + 16:.1f}" font-size="10" fill="#444" text-anchor="middle">{_fmt(t, measure)}</text>')
     if show_null:
         nx = sx(null_v)
-        p.append(f'<text x="{nx - 8:.1f}" y="{axis_y + 34:.1f}" font-size="10" fill="#666" text-anchor="end">◄ Favours {_esc(favours_low)}</text>')
-        p.append(f'<text x="{nx + 8:.1f}" y="{axis_y + 34:.1f}" font-size="10" fill="#666">Favours {_esc(favours_high)} ►</text>')
-    p.append(f'<text x="20" y="{height - 8}" font-size="10" fill="#666">Heterogeneity: I²={result.i2:.0f}%, τ²={result.tau2:.3f}, Q={result.q:.2f} (df={result.q_df}), p={result.q_p:.3f}</text>')
+        p.append(f'<text x="{nx - 8:.1f}" y="{axis_y + 34:.1f}" font-size="10" fill="#666" text-anchor="end">◄ Favorece {_esc(favours_low)}</text>')
+        p.append(f'<text x="{nx + 8:.1f}" y="{axis_y + 34:.1f}" font-size="10" fill="#666">Favorece {_esc(favours_high)} ►</text>')
+    p.append(f'<text x="20" y="{height - 8}" font-size="10" fill="#666">Heterogeneidad: I²={result.i2:.0f}%, τ²={result.tau2:.3f}, Q={result.q:.2f} (gl={result.q_df}), p={result.q_p:.3f}</text>')
     p.append("</svg>")
     return "".join(p)
 
@@ -155,7 +156,7 @@ def funnel_svg(effects: list[Effect], result: PoolResult, imputed: list[dict] | 
     p = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
-        '<text x="16" y="20" font-size="13" font-weight="700" fill="#111">Funnel plot</text>',
+        '<text x="16" y="20" font-size="13" font-weight="700" fill="#111">Funnel plot (sesgo de publicación)</text>',
     ]
     bl = sx(x_center - 1.96 * se_max)
     br = sx(x_center + 1.96 * se_max)
@@ -165,14 +166,14 @@ def funnel_svg(effects: list[Effect], result: PoolResult, imputed: list[dict] | 
     p.append(f'<line x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{height - pad_b}" stroke="#444"/>')
     p.append(f'<line x1="{pad_l}" y1="{height - pad_b}" x2="{width - pad_r}" y2="{height - pad_b}" stroke="#444"/>')
     mid_y = (pad_t + by) / 2
-    p.append(f'<text x="14" y="{mid_y:.0f}" font-size="10" fill="#444" transform="rotate(-90 14 {mid_y:.0f})" text-anchor="middle">Standard error</text>')
-    p.append(f'<text x="{(pad_l + width - pad_r) / 2:.0f}" y="{height - 14}" font-size="10" fill="#444" text-anchor="middle">{_esc(measure)} (analysis scale)</text>')
+    p.append(f'<text x="14" y="{mid_y:.0f}" font-size="10" fill="#444" transform="rotate(-90 14 {mid_y:.0f})" text-anchor="middle">Error estándar</text>')
+    p.append(f'<text x="{(pad_l + width - pad_r) / 2:.0f}" y="{height - 14}" font-size="10" fill="#444" text-anchor="middle">{_esc(measure)} (escala del análisis)</text>')
     for e in effects:
         p.append(f'<circle cx="{sx(e.yi):.1f}" cy="{sy(e.sei):.1f}" r="4" fill="#1c2d8c" fill-opacity="0.75"/>')
     for y, se in imp_pts:
         p.append(f'<circle cx="{sx(y):.1f}" cy="{sy(se):.1f}" r="4.5" fill="none" stroke="#c92a2a" stroke-width="1.6"/>')
     if imp_pts:
-        p.append(f'<text x="{width - pad_r:.0f}" y="20" font-size="9" fill="#c92a2a" text-anchor="end">○ imputed (trim-and-fill)</text>')
+        p.append(f'<text x="{width - pad_r:.0f}" y="20" font-size="9" fill="#c92a2a" text-anchor="end">○ imputado (trim-and-fill)</text>')
     p.append("</svg>")
     return "".join(p)
 
@@ -204,7 +205,7 @@ def loo_forest_svg(loo: list[dict], result: PoolResult) -> str:
     p = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
-        '<text x="16" y="26" font-size="13" font-weight="700" fill="#111">Leave-one-out sensitivity</text>',
+        '<text x="16" y="26" font-size="13" font-weight="700" fill="#111">Sensibilidad — omitir un estudio</text>',
         f'<line x1="{sx(result.estimate):.1f}" y1="{top - 6}" x2="{sx(result.estimate):.1f}" y2="{top + len(rows) * row_h:.1f}" stroke="#c92a2a" stroke-dasharray="4 3"/>',
     ]
     for i, (lbl, est, lo, hi) in enumerate(rows):
@@ -213,7 +214,7 @@ def loo_forest_svg(loo: list[dict], result: PoolResult) -> str:
         p.append(f'<line x1="{sx(lo):.1f}" y1="{y:.1f}" x2="{sx(hi):.1f}" y2="{y:.1f}" stroke="#3b5bdb" stroke-width="1.4"/>')
         p.append(f'<circle cx="{sx(est):.1f}" cy="{y:.1f}" r="3.4" fill="#1c2d8c"/>')
         p.append(f'<text x="{est_x}" y="{y + 4:.1f}" font-size="10" fill="#555">{back_transform(measure, est):.2f} [{back_transform(measure, lo):.2f}, {back_transform(measure, hi):.2f}]</text>')
-    p.append(f'<text x="16" y="{height - 10}" font-size="9" fill="#888">Dashed red line = pooled estimate with all studies</text>')
+    p.append(f'<text x="16" y="{height - 10}" font-size="9" fill="#888">Línea roja discontinua = estimación combinada con todos los estudios</text>')
     p.append("</svg>")
     return "".join(p)
 
@@ -238,11 +239,11 @@ def baujat_svg(influence: list[dict]) -> str:
     p = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" font-family="Helvetica, Arial, sans-serif">',
         f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
-        '<text x="16" y="22" font-size="13" font-weight="700" fill="#111">Baujat plot (influence)</text>',
+        '<text x="16" y="22" font-size="13" font-weight="700" fill="#111">Gráfico de Baujat (influencia)</text>',
         f'<line x1="{pad}" y1="24" x2="{pad}" y2="{height - pad}" stroke="#444"/>',
         f'<line x1="{pad}" y1="{height - pad}" x2="{width - 20}" y2="{height - pad}" stroke="#444"/>',
-        f'<text x="{(pad + width - 20) / 2:.0f}" y="{height - 16}" font-size="10" fill="#444" text-anchor="middle">Contribution to heterogeneity</text>',
-        f'<text x="16" y="{(24 + height - pad) / 2:.0f}" font-size="10" fill="#444" transform="rotate(-90 16 {(24 + height - pad) / 2:.0f})" text-anchor="middle">Influence on result</text>',
+        f'<text x="{(pad + width - 20) / 2:.0f}" y="{height - 16}" font-size="10" fill="#444" text-anchor="middle">Contribución a la heterogeneidad</text>',
+        f'<text x="16" y="{(24 + height - pad) / 2:.0f}" font-size="10" fill="#444" transform="rotate(-90 16 {(24 + height - pad) / 2:.0f})" text-anchor="middle">Influencia en el resultado</text>',
     ]
     for d in influence:
         x, y = sx(d["baujat_x"]), sy(d["baujat_y"])
