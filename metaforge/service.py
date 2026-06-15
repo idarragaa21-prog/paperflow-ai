@@ -74,6 +74,8 @@ def analyze(
         "tau2_method": result.tau2_method,
         "knapp_hartung": result.knapp_hartung,
         "k": result.k,
+        "participants": (int(sum(e.n_total for e in effects))
+                         if all(e.n_total is not None for e in effects) else None),
         "warnings": warnings,
         "pooled": {
             "estimate": natural["estimate"],

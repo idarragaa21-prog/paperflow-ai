@@ -96,6 +96,7 @@ class Effect:
     subgroup: str | None = None
     sort_key: float | None = None      # e.g. publication year, for cumulative MA
     note: str | None = None
+    n_total: float | None = None       # participants in the study, when known
 
     @property
     def sei(self) -> float:
@@ -128,6 +129,7 @@ def from_2x2(a, b, c, d, *, measure="OR", label="", **meta) -> Effect:
     for name, val in (("a", a), ("b", b), ("c", c), ("d", d)):
         if val < 0:
             raise ValueError(f"2x2 cell '{name}' must be >= 0")
+    n_total = a + b + c + d        # participants (before any continuity correction)
     note = None
     if min(a, b, c, d) == 0 and measure != "RD":
         a, b, c, d = a + 0.5, b + 0.5, c + 0.5, d + 0.5
@@ -146,7 +148,7 @@ def from_2x2(a, b, c, d, *, measure="OR", label="", **meta) -> Effect:
     else:  # OR (default); also a robust fallback for HR given only counts
         yi = math.log((a * d) / (b * c))
         vi = (1.0 / a) + (1.0 / b) + (1.0 / c) + (1.0 / d)
-    return Effect(label=label, yi=yi, vi=vi, measure=measure, note=note, **meta)
+    return Effect(label=label, yi=yi, vi=vi, measure=measure, note=note, n_total=n_total, **meta)
 
 
 def irr_from_person_time(a, t1, c, t2, *, label="", **meta) -> Effect:
@@ -174,14 +176,14 @@ def smd_hedges_g(n1, m1, sd1, n2, m2, sd2, *, label="", **meta) -> Effect:
     j = 1.0 - (3.0 / (4.0 * df - 1.0))  # small-sample bias correction
     g = j * cohen_d
     vi = ((n1 + n2) / (n1 * n2)) + (g ** 2) / (2.0 * df)
-    return Effect(label=label, yi=g, vi=vi, measure="SMD", note="Hedges' g", **meta)
+    return Effect(label=label, yi=g, vi=vi, measure="SMD", note="Hedges' g", n_total=n1 + n2, **meta)
 
 
 def mean_difference(n1, m1, sd1, n2, m2, sd2, *, label="", **meta) -> Effect:
     """Raw mean difference."""
     yi = m1 - m2
     vi = (sd1 ** 2 / n1) + (sd2 ** 2 / n2)
-    return Effect(label=label, yi=yi, vi=vi, measure="MD", **meta)
+    return Effect(label=label, yi=yi, vi=vi, measure="MD", n_total=n1 + n2, **meta)
 
 
 def proportion_logit(events, n, *, label="", **meta) -> Effect:
@@ -198,7 +200,7 @@ def proportion_logit(events, n, *, label="", **meta) -> Effect:
     p = e / nn
     yi = math.log(p / (1 - p))
     vi = 1.0 / (nn * p) + 1.0 / (nn * (1 - p))
-    return Effect(label=label, yi=yi, vi=vi, measure="PLOGIT", note=note, **meta)
+    return Effect(label=label, yi=yi, vi=vi, measure="PLOGIT", note=note, n_total=n, **meta)
 
 
 def correlation_z(r, n, *, label="", **meta) -> Effect:
