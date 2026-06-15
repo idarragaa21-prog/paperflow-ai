@@ -20,7 +20,7 @@ from .effects import (
 from .pooling import egger_test, pool
 from .service import analyze, analyze_csv, effects_from_rows
 
-__version__ = "2.8.0"
+__version__ = "2.8.1"
 __all__ = [
     "analyze",
     "analyze_csv",

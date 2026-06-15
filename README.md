@@ -68,16 +68,26 @@ real data).
 
 Check status in the app (the "IA activa / Modo local" pill) or via `GET /ai-status`.
 
-## Quick start
+## Quick start (macOS / Linux)
 
 ```bash
-git clone <your-repo-url> metaforge   # or: git clone metaforge.bundle metaforge
+git clone metaforge.bundle metaforge   # or your repo URL
 cd metaforge
-./run.sh                               # venv + deps + server
-# (optional, for AI features) make sure you've run `claude login` once
+./run.sh
 ```
 
-Open **http://127.0.0.1:8000** and start at step 1.
+`run.sh` creates a virtual environment, installs the (lean, wheels-only)
+dependencies, starts the server and **opens your browser** at
+**http://127.0.0.1:8000**. First launch takes ~20 s to install; afterwards it
+starts instantly. No system libraries needed.
+
+- **AI features** (questions, protocol, screening, extraction, manuscript) use
+  the `claude` CLI — run `claude login` once. Without it, the app still runs in
+  local mode.
+- **Sharper figures inside the Word export** are optional: `pip install cairosvg`
+  (needs `brew install cairo`). The default `svglib` renderer needs nothing.
+
+If a previous attempt left a broken environment: `rm -rf .venv && ./run.sh`.
 
 <details><summary>Manual / make / docker</summary>
 

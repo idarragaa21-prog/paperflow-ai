@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metaforge"
-version = "2.8.0"
+version = "2.8.1"
 description = "Local-first research workspace: question, protocol, meta-analysis and manuscript drafting"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,12 +18,15 @@ dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
     "python-docx>=1.1",
-    "cairosvg>=2.7",
     "svglib>=1.5",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.26"]
+# Higher-fidelity figure rasterisation for Word export. Needs the system
+# 'cairo' library (macOS: `brew install cairo`). Optional — svglib is the
+# default and needs no system libraries.
+hifig = ["cairosvg>=2.7"]
 
 [project.scripts]
 metaforge = "metaforge.cli:main"
