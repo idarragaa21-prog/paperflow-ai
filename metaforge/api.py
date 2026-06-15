@@ -19,7 +19,8 @@ from .protocol import generate_protocol
 from .questions import generate_questions
 from .rob import TOOLS, domains_for, rob_summary_svg
 from .samples import EXAMPLES, TEMPLATES
-from .extract import extract_data, extract_to_csv_row
+from .excel_export import extractions_to_xlsx
+from .extract import extract_data, extract_full, extract_to_csv_row
 from .screen import dual_screen, screen_fulltext, screen_records
 from .search import search_literature
 from .service import analyze, analyze_csv, meta_regression_csv, meta_regression_rows
@@ -29,7 +30,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.10.0",
+    version="2.11.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -137,6 +138,15 @@ class FulltextScreenRequest(BaseModel):
     inclusion: list[str] = []
     exclusion: list[str] = []
     mode: str = "auto"
+
+
+class FullExtractRequest(BaseModel):
+    record: dict
+    mode: str = "auto"
+
+
+class ExcelRequest(BaseModel):
+    extractions: list[dict]
 
 
 class MetaRegRequest(BaseModel):
@@ -252,6 +262,21 @@ def extract_endpoint(req: ExtractRequest) -> dict:
 @app.post("/screen/fulltext")
 def screen_fulltext_endpoint(req: FulltextScreenRequest) -> dict:
     return screen_fulltext(req.record, req.inclusion, req.exclusion, mode=req.mode)
+
+
+@app.post("/extract/full")
+def extract_full_endpoint(req: FullExtractRequest) -> dict:
+    return extract_full(req.record, mode=req.mode)
+
+
+@app.post("/extract/excel")
+def extract_excel_endpoint(req: ExcelRequest) -> Response:
+    data = extractions_to_xlsx(req.extractions)
+    return Response(
+        data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="extraccion_metaforge.xlsx"'},
+    )
 
 
 @app.post("/meta-regression")

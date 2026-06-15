@@ -37,7 +37,12 @@ numbers. No cloud, no API key, no data leaving your machine.
    First-pass only — you verify every decision (PRISMA/Cochrane), with an optional
    **full-text screening** second phase. For included open-access studies, **AI
    extracts the effect data from the full text — parsing the tables, not just the
-   narrative** (2×2, means/SDs or effect+CI) with the supporting quote.
+   narrative** (2×2, means/SDs or effect+CI) with the supporting quote. For a full
+   data sheet, **«Extraer TODO a Excel»** reads every table, the text and the figure
+   captions of each open-access article and fills a three-sheet workbook
+   (study characteristics · every reported outcome · a ready-for-meta-analysis
+   sheet) — fanning each article out into small parallel AI calls so it captures
+   *everything* without timing out. Nothing is invented: blank means not reported.
    Counts flow into the PRISMA diagram. **Zotero integration**: import RIS/BibTeX
    to screen references you already have, and export included studies to RIS,
    BibTeX or straight to your **Zotero library** — via the Web API, or the local desktop connector with **no API key** (just have Zotero open).
@@ -135,7 +140,7 @@ print(draft["sections"]["results"])
 
 `/questions`, `/protocol`, `/search`, `/screen`, `/analyze`, `/manuscript`,
 `/manuscript/section`, `/manuscript/docx`, `/prisma`, `/rob`, `/rob/tools`,
-`/extract`, `/screen/fulltext`, `/meta-regression`, `/citations/export`, `/citations/import`, `/zotero/push`, `/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
+`/extract`, `/extract/full`, `/extract/excel`, `/screen/fulltext`, `/meta-regression`, `/citations/export`, `/citations/import`, `/zotero/push`, `/grade`, `/projects`(+`/{id}`), `/examples`, `/templates`, `/ai-status`,
 `/health`. Interactive docs at `/docs`.
 
 ## Tests

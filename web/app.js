@@ -312,6 +312,37 @@ $('extractBtn').onclick = async () => {
     prepareDataStep(); goStep(4);
   }
 };
+// Comprehensive extraction → Excel: reads tables, text and figure captions of
+// every included open-access article and fills a workbook with everything,
+// ready for the meta-analysis. Each article is fanned out into small parallel
+// AI calls server-side, so it is thorough without timing out.
+$('extractExcelBtn').onclick = async () => {
+  const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
+  if (!incl.length) { alert('Marca artículos como «Incluir» primero.'); return; }
+  const btn = $('extractExcelBtn'); btn.disabled = true;
+  const status = $('excelStatus');
+  const extractions = []; let outcomes = 0, noFull = 0;
+  for (let i = 0; i < incl.length; i++) {
+    btn.innerHTML = `<span class="spinner"></span> Extrayendo ${i + 1}/${incl.length}…`;
+    status.textContent = `Leyendo tablas, texto y figuras del artículo ${i + 1} de ${incl.length}… (puede tardar ~1–2 min por artículo)`;
+    try {
+      const r = await fetch('/extract/full', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ record: incl[i], mode: 'auto' }) });
+      const data = await r.json();
+      extractions.push(data);
+      if (data.data) outcomes += (data.data.outcomes || []).length;
+      if (!data.has_fulltext) noFull++;
+    } catch (e) { extractions.push({ study_label: `${(incl[i].authors || '').split(',')[0]} ${incl[i].year}`, data: null, note: 'Error: ' + e.message }); }
+  }
+  btn.disabled = false; btn.innerHTML = '✦ Extraer TODO a Excel (IA)';
+  try {
+    const r = await fetch('/extract/excel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ extractions }) });
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'extraccion_metaforge.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+    const warn = noFull ? ` · ${noFull} sin texto de acceso abierto (sólo resumen)` : '';
+    status.innerHTML = `✓ Excel generado: <b>${incl.length}</b> estudios · <b>${outcomes}</b> desenlaces extraídos${warn}. Revisa siempre contra la fuente antes de sintetizar.`;
+    S.fullExtractions = extractions;
+  } catch (e) { status.textContent = 'No se pudo generar el Excel: ' + e.message; }
+};
 function includedRecords() {
   const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
   if (!incl.length) alert('No hay artículos marcados como «Incluir».');
