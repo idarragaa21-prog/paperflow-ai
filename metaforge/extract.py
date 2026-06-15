@@ -9,6 +9,7 @@ is available. Every extraction must be checked against the source by a human.
 from __future__ import annotations
 
 import re
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -35,16 +36,27 @@ def fields_for(measure: str) -> list[str]:
     return FIELDS_BY_MEASURE.get((measure or "GEN").upper(), FIELDS_BY_MEASURE["GEN"])
 
 
-def _fetch_xml(record: dict, *, timeout: int = 30) -> str | None:
+def _fetch_xml(record: dict, *, timeout: int = 30, retries: int = 2) -> str | None:
     pmcid = record.get("pmcid")
     if not pmcid:
         return None
-    try:
-        req = urllib.request.Request(FULLTEXT.format(id=pmcid), headers=_UA)
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.read().decode("utf-8", "ignore")
-    except Exception:  # noqa: BLE001 — not OA / not retrievable
-        return None
+    import time
+    req = urllib.request.Request(FULLTEXT.format(id=pmcid), headers=_UA)
+    for attempt in range(retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read().decode("utf-8", "ignore")
+        except urllib.error.HTTPError as exc:
+            # 404/410/403 = genuinely not retrievable (not OA). 429/5xx = transient.
+            if exc.code in (429, 500, 502, 503, 504) and attempt < retries:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            return None
+        except Exception:  # noqa: BLE001 — transient network/timeout: retry with backoff
+            if attempt < retries:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            return None
 
 
 def _narrative(xml: str) -> str:
@@ -381,14 +393,30 @@ def _clean_full(obj: dict, record: dict) -> dict:
 _MAX_TABLES = 12  # cap fan-out so very long supplements don't explode call count
 
 
-def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_workers: int = 4) -> dict:
+def _run_jobs(jobs: list[tuple[str, str]], *, timeout: int, max_workers: int) -> tuple[dict, list[str]]:
+    """Run prompt jobs in parallel; return ({key: result}, [failed_keys])."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    results: dict[str, dict] = {}
+    failed: list[str] = []
+    with ThreadPoolExecutor(max_workers=max(1, max_workers)) as ex:
+        futs = {ex.submit(run_claude_json, prompt, timeout=timeout): key for key, prompt in jobs}
+        for fut in as_completed(futs):
+            key = futs[fut]
+            try:
+                results[key] = fut.result()
+            except Exception:  # noqa: BLE001 — record the key so we can retry it once
+                failed.append(key)
+    return results, failed
+
+
+def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_workers: int = 6) -> dict:
     """Comprehensive structured extraction of everything in an article.
 
     Fans out into small parallel AI calls (study characteristics + one per table
     + narrative/figures) so each finishes fast, then merges and de-duplicates.
+    Any section that fails on the first pass is retried once so nothing is lost.
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
     parts = fetch_fulltext_full(record)
     base = {"study_label": _label(record), "doi": record.get("doi"), "pmid": record.get("pmid"),
             "source": "fulltext" if parts["has_fulltext"] else "abstract",
@@ -401,21 +429,17 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_wo
         base["note"] = "La extracción comprehensiva requiere IA (ejecuta `claude login`)."
         return base
 
-    jobs: list[tuple[str, str]] = [("study", _build_study_prompt(parts, record))]
+    job_prompts: dict[str, str] = {"study": _build_study_prompt(parts, record)}
     for i, t in enumerate(parts["tables"][:_MAX_TABLES]):
-        jobs.append((f"table{i}", _build_table_prompt(t, i)))
-    jobs.append(("narrative", _build_narrative_outcomes_prompt(parts, record)))
+        job_prompts[f"table{i}"] = _build_table_prompt(t, i)
+    job_prompts["narrative"] = _build_narrative_outcomes_prompt(parts, record)
 
-    results: dict[str, dict] = {}
-    errors: list[str] = []
-    with ThreadPoolExecutor(max_workers=max(1, max_workers)) as ex:
-        futs = {ex.submit(run_claude_json, prompt, timeout=timeout): key for key, prompt in jobs}
-        for fut in as_completed(futs):
-            key = futs[fut]
-            try:
-                results[key] = fut.result()
-            except Exception as exc:  # noqa: BLE001 — keep whatever else succeeded
-                errors.append(f"{key}: {str(exc)[:80]}")
+    results, failed = _run_jobs(list(job_prompts.items()), timeout=timeout, max_workers=max_workers)
+    if failed:  # one retry pass for the stragglers, so nothing is silently dropped
+        retry_jobs = [(k, job_prompts[k]) for k in failed]
+        retried, failed = _run_jobs(retry_jobs, timeout=timeout, max_workers=max_workers)
+        results.update(retried)
+    errors = list(failed)
 
     study_obj = results.get("study", {}) if isinstance(results.get("study"), dict) else {}
     outcomes: list[dict] = []
@@ -428,7 +452,8 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_wo
     base["data"] = data
     base["found"] = bool(data["outcomes"])
     if errors and not data["outcomes"]:
-        base["note"] = "No se pudo extraer con IA: " + "; ".join(errors[:3])
+        base["note"] = "No se pudo extraer con IA (revisa la conexión o reintenta)."
     elif errors:
-        base["note"] = f"Extracción parcial: {len(errors)} de {len(jobs)} secciones fallaron."
+        base["note"] = (f"Extracción parcial: {len(errors)} de {len(job_prompts)} secciones "
+                        "no se pudieron leer tras un reintento; revisa esas tablas a mano.")
     return base

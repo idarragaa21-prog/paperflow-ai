@@ -123,6 +123,24 @@ def test_excel_three_sheets_and_meta_mapping(monkeypatch):
     assert (r[4], r[5], r[6], r[7]) == (10, 90, 20, 80)
 
 
+def test_meta_measure_normalisation():
+    from metaforge.excel_export import _meta_row, _norm_measure
+    assert _norm_measure("aHR", "time-to-event") == "HR"
+    assert _norm_measure("adjusted hazard ratio", "") == "HR"
+    assert _norm_measure("Rate ratio", "") == "IRR"
+    assert _norm_measure("aOR", "") == "OR"
+    assert _norm_measure("", "time-to-event") == "HR"
+    assert _norm_measure("nonsense", "") == "GEN"
+    # an outcome carrying only an adjusted HR + CI maps to a valid HR row
+    o = {"name": "CRC", "type": "time-to-event", "timepoint": "",
+         "intervention": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+         "control": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+         "effect": {"measure": "aHR", "value": 0.35, "ci_lower": 0.24, "ci_upper": 0.52, "p": None}}
+    row = _meta_row("Huang 2026", o)
+    assert row["effect_measure"] == "HR"
+    assert row["effect_value"] == 0.35 and row["ci_lower_95"] == 0.24
+
+
 def test_excel_handles_empty_extraction():
     xlsx = extractions_to_xlsx([{"data": None, "study_label": "X 2020"}])
     from openpyxl import load_workbook

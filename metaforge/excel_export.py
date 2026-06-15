@@ -37,6 +37,35 @@ def _arm_lookup(outcome: dict, arm: str) -> dict:
     return outcome.get(arm) or {}
 
 
+# MetaForge's analyzer accepts these measure codes. Articles report many spellings
+# ("aHR", "adjusted hazard ratio", "rate ratio", …) — normalise to the code so the
+# "Para meta-análisis" sheet is ready to synthesise. Unknown → GEN (effect+CI generic).
+_VALID_MEASURES = {"OR", "RR", "RD", "HR", "IRR", "MD", "SMD", "PLOGIT", "ZCOR", "GEN"}
+
+
+def _norm_measure(raw: str, typ: str) -> str:
+    m = (raw or "").strip().lower()
+    # strip "adjusted" markers: aHR, adj. OR, adjusted hazard ratio…
+    m = m.replace("adjusted", "").replace("adj.", "").replace("adj ", "").strip()
+    if m.startswith("a") and m[1:].upper() in _VALID_MEASURES:
+        m = m[1:]
+    table = {
+        "hazard ratio": "HR", "hr": "HR",
+        "odds ratio": "OR", "or": "OR",
+        "risk ratio": "RR", "relative risk": "RR", "rr": "RR",
+        "risk difference": "RD", "rd": "RD",
+        "incidence rate ratio": "IRR", "rate ratio": "IRR", "irr": "IRR",
+        "standardized mean difference": "SMD", "standardised mean difference": "SMD", "smd": "SMD",
+        "mean difference": "MD", "md": "MD",
+    }
+    if m in table:
+        return table[m]
+    up = (raw or "").strip().upper()
+    if up in _VALID_MEASURES:
+        return up
+    return "HR" if "time" in (typ or "").lower() else "GEN"
+
+
 def _meta_row(study_label: str, o: dict) -> dict:
     """Map one extracted outcome to MetaForge's analysis columns where possible."""
     iv, ct = _arm_lookup(o, "intervention"), _arm_lookup(o, "control")
@@ -57,8 +86,7 @@ def _meta_row(study_label: str, o: dict) -> dict:
                     "events_control": ct["events"], "time_control": ct["person_time"]})
     # precomputed effect + CI
     elif eff.get("value") is not None and eff.get("ci_lower") is not None and eff.get("ci_upper") is not None:
-        m = (eff.get("measure") or ("HR" if "time" in typ else "OR")).upper()
-        row.update({"effect_measure": m, "effect_value": eff["value"],
+        row.update({"effect_measure": _norm_measure(eff.get("measure"), typ), "effect_value": eff["value"],
                     "ci_lower_95": eff["ci_lower"], "ci_upper_95": eff["ci_upper"]})
     return row
 
