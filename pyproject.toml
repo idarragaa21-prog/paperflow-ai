@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metaforge"
-version = "2.8.1"
+version = "2.8.2"
 description = "Local-first research workspace: question, protocol, meta-analysis and manuscript drafting"
 readme = "README.md"
 requires-python = ">=3.10"
