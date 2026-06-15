@@ -37,32 +37,33 @@ def facts_summary(result: dict) -> str:
     """A compact, verified factual brief the writer must ground on."""
     p, h = result["pooled"], result["heterogeneity"]
     m = result["measure"]
+    side = {"left": "izquierdo", "right": "derecho"}
     lines = [
-        f"Effect measure: {result.get('measure_label', m)} ({m}).",
-        f"Number of studies (k): {result['k']}.",
-        f"Model: {result['model']}-effects"
-        + (f", tau2 estimator {result['tau2_method']}" if result["model"] == "random" else "")
-        + (", Knapp-Hartung adjustment" if result.get("knapp_hartung") else "") + ".",
-        f"Pooled {m}: {_fmt(p['estimate'])} (95% CI {_fmt(p['ci_low'])} to {_fmt(p['ci_high'])}), p = {_fmt(p['p_value'], 4)}.",
+        f"Medida de efecto: {result.get('measure_label', m)} ({m}).",
+        f"Número de estudios (k): {result['k']}.",
+        f"Modelo: {'efectos aleatorios' if result['model'] == 'random' else 'efecto fijo'}"
+        + (f", estimador de τ² {result['tau2_method']}" if result["model"] == "random" else "")
+        + (", ajuste de Knapp-Hartung" if result.get("knapp_hartung") else "") + ".",
+        f"{m} combinado: {_fmt(p['estimate'])} (IC 95% {_fmt(p['ci_low'])} a {_fmt(p['ci_high'])}), p = {_fmt(p['p_value'], 4)}.",
     ]
     if p.get("pi_low") is not None:
-        lines.append(f"95% prediction interval: {_fmt(p['pi_low'])} to {_fmt(p['pi_high'])}.")
+        lines.append(f"Intervalo de predicción 95%: {_fmt(p['pi_low'])} a {_fmt(p['pi_high'])}.")
     lines.append(
-        f"Heterogeneity: I2 = {_fmt(h['i2'], 0)}%, tau2 = {_fmt(h['tau2'], 4)}, "
-        f"Q = {_fmt(h['q'])} (df = {h['q_df']}, p = {_fmt(h['q_p'], 3)})."
+        f"Heterogeneidad: I² = {_fmt(h['i2'], 0)}%, τ² = {_fmt(h['tau2'], 4)}, "
+        f"Q = {_fmt(h['q'])} (gl = {h['q_df']}, p = {_fmt(h['q_p'], 3)})."
     )
     if result.get("egger"):
-        lines.append(f"Egger's test for small-study effects: p = {_fmt(result['egger']['p_value'], 3)}.")
+        lines.append(f"Prueba de Egger (efectos de estudios pequeños): p = {_fmt(result['egger']['p_value'], 3)}.")
     if result.get("trim_fill") and result["trim_fill"]["k0"] > 0:
         t = result["trim_fill"]
-        lines.append(f"Trim-and-fill imputed {t['k0']} study(ies) on the {t['side']}; adjusted estimate {_fmt(t['adjusted_estimate'])}.")
+        lines.append(f"Trim-and-fill imputó {t['k0']} estudio(s) al lado {side.get(t['side'], t['side'])}; estimación ajustada {_fmt(t['adjusted_estimate'])}.")
     if result.get("subgroups"):
         s = result["subgroups"]
         groups = "; ".join(f"{g['subgroup']}: {_fmt(g['estimate'])} (k={g['k']})" for g in s["groups"])
-        lines.append(f"Subgroups [{groups}]; between-group test p = {_fmt(s['p_value'], 3)}.")
+        lines.append(f"Subgrupos [{groups}]; prueba entre subgrupos p = {_fmt(s['p_value'], 3)}.")
     labels = ", ".join(s["label"] for s in result.get("studies", []))
     if labels:
-        lines.append(f"Included studies: {labels}.")
+        lines.append(f"Estudios incluidos: {labels}.")
     return "\n".join(lines)
 
 

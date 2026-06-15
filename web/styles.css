@@ -20,6 +20,9 @@ body {
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
 h1, h2, h3, h4 { letter-spacing: -0.02em; }
+/* keyboard accessibility: visible focus ring */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+button:focus-visible, a:focus-visible, .step:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* ---- Layout ---- */
 .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }

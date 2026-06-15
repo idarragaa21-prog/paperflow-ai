@@ -44,7 +44,7 @@ def test_api_protocol(result):
 def test_facts_summary_grounded(result):
     facts = facts_summary(result)
     assert "0.81" in facts          # the real pooled OR
-    assert "I2 = 43%" in facts
+    assert "I² = 43%" in facts
     assert "Connolly" in facts
 
 
