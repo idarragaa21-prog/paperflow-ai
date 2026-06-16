@@ -28,11 +28,15 @@ def ai_available() -> bool:
     return claude_bin() is not None
 
 
-def run_claude(prompt: str, *, timeout: int = DEFAULT_TIMEOUT, model: str | None = None) -> str:
+def run_claude(prompt: str, *, timeout: int = DEFAULT_TIMEOUT, model: str | None = None,
+               cwd: str | None = None) -> str:
     """Run a single non-interactive Claude turn and return its text result.
 
     `model` overrides the model for this call (e.g. a faster model for bulk data
     extraction); falls back to METAFORGE_CLAUDE_MODEL, then the account default.
+    `cwd` runs the CLI in that directory — needed so it can read local files
+    (e.g. figure images) without an interactive permission prompt, since the CLI
+    trusts files inside its working directory.
     """
     binary = claude_bin()
     if not binary:
@@ -42,7 +46,7 @@ def run_claude(prompt: str, *, timeout: int = DEFAULT_TIMEOUT, model: str | None
     if model:
         cmd += ["--model", model]
     proc = subprocess.run(
-        cmd, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL
+        cmd, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL, cwd=cwd
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude CLI failed: {(proc.stderr or '')[:200]}")
@@ -66,5 +70,6 @@ def extract_json(text: str) -> dict:
         return json.loads(match.group(0))
 
 
-def run_claude_json(prompt: str, *, timeout: int = DEFAULT_TIMEOUT, model: str | None = None) -> dict:
-    return extract_json(run_claude(prompt, timeout=timeout, model=model))
+def run_claude_json(prompt: str, *, timeout: int = DEFAULT_TIMEOUT, model: str | None = None,
+                    cwd: str | None = None) -> dict:
+    return extract_json(run_claude(prompt, timeout=timeout, model=model, cwd=cwd))

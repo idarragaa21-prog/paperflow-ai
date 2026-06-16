@@ -38,11 +38,14 @@ numbers. No cloud, no API key, no data leaving your machine.
    **full-text screening** second phase. For included open-access studies, **AI
    extracts the effect data from the full text — parsing the tables, not just the
    narrative** (2×2, means/SDs or effect+CI) with the supporting quote. For a full
-   data sheet, **«Extraer TODO a Excel»** reads every table, the text and the figure
-   captions of each open-access article and fills a three-sheet workbook
-   (study characteristics · every reported outcome · a ready-for-meta-analysis
-   sheet) — fanning each article out into small parallel AI calls so it captures
-   *everything* without timing out. Nothing is invented: blank means not reported.
+   data sheet, **«Extraer TODO a Excel»** reads every table, the text, the figure
+   captions **and the figure images themselves** of each open-access article and
+   fills a three-sheet workbook (study characteristics · every reported outcome ·
+   a ready-for-meta-analysis sheet) — fanning each article out into small parallel
+   AI calls so it captures *everything* without timing out. It even reads data off
+   plotted curves and bar charts (vision); because those values are approximate
+   they are flagged in the outcomes sheet and kept out of the synthesis sheet until
+   you verify them. Nothing is invented: blank means not reported.
    Counts flow into the PRISMA diagram. **Zotero integration**: import RIS/BibTeX
    to screen references you already have, and export included studies to RIS,
    BibTeX or straight to your **Zotero library** — via the Web API, or the local desktop connector with **no API key** (just have Zotero open).

@@ -128,26 +128,28 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
                    d.get("notes", ""), ext.get("source", "")])
     _autosize(ws, {1: 24, 2: 20, 4: 22, 7: 18, 12: 30, 16: 28, 17: 28, 18: 26, 19: 30, 20: 26})
 
-    # ---- Sheet 2: Desenlaces ----
+    # ---- Sheet 2: Desenlaces (TODO lo reportado, incluido lo leído de figuras) ----
     ws2 = wb.create_sheet("Desenlaces")
     cols2 = ["Estudio", "Desenlace", "Tipo", "Momento",
              "Int: eventos", "Int: N", "Int: media", "Int: DE", "Int: persona-tiempo",
              "Ctrl: eventos", "Ctrl: N", "Ctrl: media", "Ctrl: DE", "Ctrl: persona-tiempo",
-             "Medida", "Efecto", "IC inf", "IC sup", "p", "Fuente", "Notas"]
+             "Medida", "Efecto", "IC inf", "IC sup", "p", "Origen", "Fuente", "Notas"]
     _header(ws2, cols2)
     for ext in extractions:
         d = ext.get("data") or {}
         label = d.get("label", ext.get("study_label", ""))
         for o in d.get("outcomes", []):
             iv, ct, eff = o.get("intervention", {}), o.get("control", {}), o.get("effect", {})
+            origen = "imagen de figura (aprox.)" if o.get("from_figure") else "texto/tabla"
             ws2.append([label, o.get("name", ""), o.get("type", ""), o.get("timepoint", ""),
                         iv.get("events"), iv.get("n"), iv.get("mean"), iv.get("sd"), iv.get("person_time"),
                         ct.get("events"), ct.get("n"), ct.get("mean"), ct.get("sd"), ct.get("person_time"),
                         eff.get("measure", ""), eff.get("value"), eff.get("ci_lower"), eff.get("ci_upper"),
-                        eff.get("p"), o.get("source", ""), o.get("notes", "")])
-    _autosize(ws2, {1: 22, 2: 30, 3: 14, 15: 10, 20: 16, 21: 26})
+                        eff.get("p"), origen, o.get("source", ""), o.get("notes", "")])
+    _autosize(ws2, {1: 22, 2: 30, 3: 14, 15: 10, 20: 22, 21: 16, 22: 28})
 
-    # ---- Sheet 3: Para meta-análisis ----
+    # ---- Sheet 3: Para meta-análisis (sólo datos exactos; las lecturas de figura
+    #      son aproximadas y se dejan fuera hasta verificarlas a mano) ----
     ws3 = wb.create_sheet("Para meta-análisis")
     _header(ws3, _META_COLS)
     for ext in extractions:
@@ -155,6 +157,8 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
         label = d.get("label", ext.get("study_label", ""))
         year = d.get("study", {}).get("year", "")
         for o in d.get("outcomes", []):
+            if o.get("from_figure"):
+                continue  # approximate graph reads must be human-verified first
             row = _meta_row(label, o)
             row["year"] = year
             ws3.append([row.get(c, "") for c in _META_COLS])

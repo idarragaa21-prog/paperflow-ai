@@ -151,10 +151,11 @@ def fetch_fulltext_full(record: dict, *, timeout: int = 30) -> dict:
         return _FULLTEXT_CACHE[pmcid]
     xml = _fetch_xml(record, timeout=timeout)
     if not xml:
-        result = {"narrative": record.get("abstract", ""), "tables": [], "captions": [], "has_fulltext": False}
+        result = {"narrative": record.get("abstract", ""), "tables": [], "captions": [],
+                  "xml": "", "has_fulltext": False}
     else:
         result = {"narrative": _narrative(xml), "tables": extract_tables(xml),
-                  "captions": extract_captions(xml), "has_fulltext": True}
+                  "captions": extract_captions(xml), "xml": xml, "has_fulltext": True}
     if pmcid and result["has_fulltext"]:
         _FULLTEXT_CACHE[pmcid] = result
     return result
@@ -323,6 +324,7 @@ def _clean_outcome(o: dict) -> dict | None:
                    "value": _num(eff.get("value")), "ci_lower": _num(eff.get("ci_lower")),
                    "ci_upper": _num(eff.get("ci_upper")), "p": _num(eff.get("p"))},
         "source": str(o.get("source", "")).strip(), "notes": str(o.get("notes", "")).strip(),
+        "from_figure": bool(o.get("from_figure")),
     }
 
 
@@ -357,13 +359,21 @@ def _dedup_outcomes(outcomes: list[dict]) -> list[dict]:
 
     kept: list[dict] = []
     for key in order:
-        members = sorted(groups[key], key=_outcome_data_count, reverse=True)
+        # Prefer exact (text/table) outcomes over approximate figure reads, then
+        # richer over poorer. Figure reads thus survive only when nothing exact
+        # covers the same outcome+timepoint (i.e. they fill a real gap).
+        members = sorted(groups[key],
+                         key=lambda o: (not o.get("from_figure"), _outcome_data_count(o)),
+                         reverse=True)
         richest = members[0]
         kept.append(richest)
         seen_effects = {richest["effect"]["value"]}
         for o in members[1:]:
             val = o["effect"]["value"]
-            if _outcome_data_count(o) >= 4 and val is not None and val not in seen_effects:
+            # keep a second EXACT analysis (e.g. adjusted vs unadjusted); never add
+            # an approximate figure duplicate of something already captured.
+            if (not o.get("from_figure") and _outcome_data_count(o) >= 4
+                    and val is not None and val not in seen_effects):
                 kept.append(o)
                 seen_effects.add(val)
     return kept
@@ -425,19 +435,48 @@ def _run_jobs(jobs: list[tuple[str, str]], *, timeout: int, max_workers: int,
     return results, failed
 
 
-def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_workers: int = 8) -> dict:
+_READ_FIGURES = os.environ.get("METAFORGE_READ_FIGURES", "on").lower() != "off"
+
+
+def _figure_outcomes(record: dict, parts: dict, *, timeout: int, max_workers: int) -> tuple[list[dict], int]:
+    """Download the article's figure images and read quantitative data off them.
+
+    Returns (outcomes, n_figures_read). Vision runs on the account's default
+    (stronger) model — there are only a few figures and accuracy matters most.
+    Any failure degrades silently to no figure data; text extraction is unaffected.
+    """
+    import tempfile
+    from . import figvision
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="mf_figs_") as tmp:
+            figs = figvision.fetch_figure_images(record, parts.get("xml", ""), tmp)
+            if not figs:
+                return [], 0
+            outs = figvision.extract_from_figures(figs, model=None, timeout=timeout,
+                                                  max_workers=max_workers, cwd=tmp)
+            return outs, len(figs)
+    except Exception:  # noqa: BLE001 — figures are a bonus, never block the run
+        return [], 0
+
+
+def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
+                 max_workers: int = 8, read_figures: bool | None = None) -> dict:
     """Comprehensive structured extraction of everything in an article.
 
     Fans out into small parallel AI calls — one merged study+narrative call plus
     one per table — so each finishes fast, then merges and de-duplicates. The
     first pass uses a fast model for speed; any section that fails is retried
-    once on the account's default model, so nothing is lost.
+    once on the account's default model, so nothing is lost. If the article has
+    figure images, their quantitative data is also read with a vision call and
+    added (flagged as approximate, read from the figure).
     """
     parts = fetch_fulltext_full(record)
     base = {"study_label": _label(record), "doi": record.get("doi"), "pmid": record.get("pmid"),
             "source": "fulltext" if parts["has_fulltext"] else "abstract",
             "has_fulltext": parts["has_fulltext"], "n_tables": len(parts["tables"]),
-            "n_captions": len(parts["captions"]), "data": None, "found": False, "note": ""}
+            "n_captions": len(parts["captions"]), "n_figures": 0,
+            "data": None, "found": False, "note": ""}
     if not (parts["narrative"] or parts["tables"]):
         base["note"] = "Sin texto disponible (no es de acceso abierto)."
         return base
@@ -462,6 +501,12 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_wo
     for obj in results.values():
         if isinstance(obj, dict):
             outcomes.extend(obj.get("outcomes") or [])
+
+    want_figs = _READ_FIGURES if read_figures is None else read_figures
+    if want_figs and parts.get("xml"):
+        fig_outs, n_figs = _figure_outcomes(record, parts, timeout=timeout, max_workers=4)
+        base["n_figures"] = n_figs
+        outcomes.extend(fig_outs)
 
     data = _assemble_full(study_obj, outcomes, record)
     base["data"] = data
