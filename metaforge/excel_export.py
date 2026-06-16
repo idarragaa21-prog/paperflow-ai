@@ -88,6 +88,10 @@ def _meta_row(study_label: str, o: dict) -> dict:
     elif eff.get("value") is not None and eff.get("ci_lower") is not None and eff.get("ci_upper") is not None:
         row.update({"effect_measure": _norm_measure(eff.get("measure"), typ), "effect_value": eff["value"],
                     "ci_lower_95": eff["ci_lower"], "ci_upper_95": eff["ci_upper"]})
+    # effect value present but the CI is incomplete — still surface it (CI to fill by hand)
+    elif eff.get("value") is not None:
+        row.update({"effect_measure": _norm_measure(eff.get("measure"), typ), "effect_value": eff["value"],
+                    "ci_lower_95": eff.get("ci_lower"), "ci_upper_95": eff.get("ci_upper")})
     return row
 
 

@@ -141,6 +141,18 @@ def test_meta_measure_normalisation():
     assert row["effect_value"] == 0.35 and row["ci_lower_95"] == 0.24
 
 
+def test_meta_row_surfaces_effect_without_full_ci():
+    from metaforge.excel_export import _meta_row
+    o = {"name": "SLR", "type": "time-to-event", "timepoint": "",
+         "intervention": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+         "control": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+         "effect": {"measure": "HR", "value": 0.6, "ci_lower": None, "ci_upper": None, "p": 0.04}}
+    row = _meta_row("X 2020", o)
+    assert row["effect_measure"] == "HR"
+    assert row["effect_value"] == 0.6
+    assert row["ci_lower_95"] is None  # left blank for manual completion
+
+
 def test_excel_handles_empty_extraction():
     xlsx = extractions_to_xlsx([{"data": None, "study_label": "X 2020"}])
     from openpyxl import load_workbook
