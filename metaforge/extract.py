@@ -8,6 +8,7 @@ is available. Every extraction must be checked against the source by a human.
 """
 from __future__ import annotations
 
+import os
 import re
 import urllib.error
 import urllib.request
@@ -136,13 +137,27 @@ def extract_captions(xml: str) -> list[str]:
     return out
 
 
+_FULLTEXT_CACHE: dict[str, dict] = {}
+
+
 def fetch_fulltext_full(record: dict, *, timeout: int = 30) -> dict:
-    """Everything extractable: narrative, tables and figure captions."""
+    """Everything extractable: narrative, tables and figure captions.
+
+    Cached per-PMCID in-process so screening + extraction (or a re-run) don't
+    re-download the same article.
+    """
+    pmcid = record.get("pmcid")
+    if pmcid and pmcid in _FULLTEXT_CACHE:
+        return _FULLTEXT_CACHE[pmcid]
     xml = _fetch_xml(record, timeout=timeout)
     if not xml:
-        return {"narrative": record.get("abstract", ""), "tables": [], "captions": [], "has_fulltext": False}
-    return {"narrative": _narrative(xml), "tables": extract_tables(xml),
-            "captions": extract_captions(xml), "has_fulltext": True}
+        result = {"narrative": record.get("abstract", ""), "tables": [], "captions": [], "has_fulltext": False}
+    else:
+        result = {"narrative": _narrative(xml), "tables": extract_tables(xml),
+                  "captions": extract_captions(xml), "has_fulltext": True}
+    if pmcid and result["has_fulltext"]:
+        _FULLTEXT_CACHE[pmcid] = result
+    return result
 
 
 def _label(record: dict) -> str:
@@ -247,21 +262,30 @@ _OUTCOME_SCHEMA = (
 )
 
 
-def _build_study_prompt(parts: dict, record: dict) -> str:
-    caps = "\n".join(f"- {c}" for c in parts["captions"])[:1800]
-    narr = parts["narrative"][:6500]
+def _build_main_prompt(parts: dict, record: dict) -> str:
+    """Study characteristics + outcomes reported in text/figures, in one call.
+
+    Merging these avoids reading the (long) narrative twice — one read, one set
+    of tokens — while the per-table calls handle the bulk of the numbers."""
+    caps = "\n".join(f"- {c}" for c in parts["captions"])[:2000]
+    narr = parts["narrative"][:7000]
     return (
-        "Eres un revisor experto extrayendo las CARACTERÍSTICAS de un estudio para una revisión "
-        "sistemática. Resume el estudio, su población, sus brazos/grupos y el seguimiento. "
-        "NO extraigas resultados numéricos de desenlaces aquí. NO inventes: dato ausente = null/\"\".\n\n"
+        "Eres un revisor experto haciendo la extracción de datos de un artículo para una revisión "
+        "sistemática. Haz DOS cosas a la vez: (1) resume las CARACTERÍSTICAS del estudio, su "
+        "población, brazos/grupos y seguimiento; (2) extrae los DESENLACES cuantitativos que se "
+        "informen en el TEXTO o en los PIES DE FIGURA (no en tablas): números por brazo "
+        "(eventos/N, media/DE, persona-tiempo) y/o efecto con IC95%. Si un valor SOLO aparece "
+        "dibujado dentro de una figura, NO lo inventes: descríbelo en 'data_in_figures_only'. "
+        "NO inventes nada: dato ausente = null/\"\".\n\n"
         f"=== TEXTO ===\n{narr}\n\n"
         f"=== PIES DE FIGURA ===\n{caps or '(ninguno)'}\n\n"
         "Devuelve SOLO un objeto JSON (sin markdown) con esta forma EXACTA:\n"
         '{"study":{"authors":"","year":"","country":"","design":"","setting":"","funding":"","registration":""},'
         '"population":{"description":"","total_n":null,"age":"","sex":"","key_inclusion":"","key_exclusion":""},'
         '"arms":[{"name":"","description":"","n":null,"details":""}],'
-        '"followup":"","data_in_figures_only":"","notes":""}\n'
-        "Responde en español; los números como números (no texto)."
+        '"followup":"","data_in_figures_only":"","notes":"",'
+        '"outcomes":[' + _OUTCOME_SCHEMA + "]}\n"
+        "Pon source=\"texto\" o \"figura\" en cada desenlace. Responde en español; números como números."
     )
 
 
@@ -275,22 +299,6 @@ def _build_table_prompt(table: str, idx: int) -> str:
         f"=== TABLA {idx + 1} ===\n{table[:4500]}\n\n"
         'Devuelve SOLO un objeto JSON: {"outcomes":[' + _OUTCOME_SCHEMA + ", ...]}\n"
         "Pon en cada desenlace source=\"tabla " + str(idx + 1) + "\". Números como números."
-    )
-
-
-def _build_narrative_outcomes_prompt(parts: dict, record: dict) -> str:
-    caps = "\n".join(f"- {c}" for c in parts["captions"])[:2000]
-    narr = parts["narrative"][:7000]
-    return (
-        "Eres un revisor experto extrayendo datos para un meta-análisis. Extrae los desenlaces "
-        "cuantitativos que se informen EN EL TEXTO o en los PIES DE FIGURA (no en tablas): "
-        "números por brazo (eventos/N, media/DE, persona-tiempo) y/o efecto con IC95%. "
-        "Si un valor SOLO aparece dibujado dentro de la imagen de una figura, NO lo inventes. "
-        "NO inventes nada: dato ausente = null.\n\n"
-        f"=== TEXTO ===\n{narr}\n\n"
-        f"=== PIES DE FIGURA ===\n{caps or '(ninguno)'}\n\n"
-        'Devuelve SOLO un objeto JSON: {"outcomes":[' + _OUTCOME_SCHEMA + ", ...]}\n"
-        "Pon source=\"texto\" o source=\"figura\". Números como números."
     )
 
 
@@ -391,16 +399,23 @@ def _clean_full(obj: dict, record: dict) -> dict:
 
 
 _MAX_TABLES = 12  # cap fan-out so very long supplements don't explode call count
+# Bulk structured extraction is a great fit for a fast model: the numbers are
+# right there in the supplied text, so it's reading, not reasoning. Default to a
+# fast model for speed/economy on the user's account; override with the env var,
+# set it empty to use the account default. Failed calls retry on the default model.
+_EXTRACT_MODEL = os.environ.get("METAFORGE_EXTRACT_MODEL", "haiku")
 
 
-def _run_jobs(jobs: list[tuple[str, str]], *, timeout: int, max_workers: int) -> tuple[dict, list[str]]:
+def _run_jobs(jobs: list[tuple[str, str]], *, timeout: int, max_workers: int,
+              model: str | None = None) -> tuple[dict, list[str]]:
     """Run prompt jobs in parallel; return ({key: result}, [failed_keys])."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     results: dict[str, dict] = {}
     failed: list[str] = []
     with ThreadPoolExecutor(max_workers=max(1, max_workers)) as ex:
-        futs = {ex.submit(run_claude_json, prompt, timeout=timeout): key for key, prompt in jobs}
+        futs = {ex.submit(run_claude_json, prompt, timeout=timeout, model=model): key
+                for key, prompt in jobs}
         for fut in as_completed(futs):
             key = futs[fut]
             try:
@@ -410,12 +425,13 @@ def _run_jobs(jobs: list[tuple[str, str]], *, timeout: int, max_workers: int) ->
     return results, failed
 
 
-def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_workers: int = 6) -> dict:
+def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_workers: int = 8) -> dict:
     """Comprehensive structured extraction of everything in an article.
 
-    Fans out into small parallel AI calls (study characteristics + one per table
-    + narrative/figures) so each finishes fast, then merges and de-duplicates.
-    Any section that fails on the first pass is retried once so nothing is lost.
+    Fans out into small parallel AI calls — one merged study+narrative call plus
+    one per table — so each finishes fast, then merges and de-duplicates. The
+    first pass uses a fast model for speed; any section that fails is retried
+    once on the account's default model, so nothing is lost.
     """
     parts = fetch_fulltext_full(record)
     base = {"study_label": _label(record), "doi": record.get("doi"), "pmid": record.get("pmid"),
@@ -429,24 +445,23 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150, max_wo
         base["note"] = "La extracción comprehensiva requiere IA (ejecuta `claude login`)."
         return base
 
-    job_prompts: dict[str, str] = {"study": _build_study_prompt(parts, record)}
+    job_prompts: dict[str, str] = {"main": _build_main_prompt(parts, record)}
     for i, t in enumerate(parts["tables"][:_MAX_TABLES]):
         job_prompts[f"table{i}"] = _build_table_prompt(t, i)
-    job_prompts["narrative"] = _build_narrative_outcomes_prompt(parts, record)
 
-    results, failed = _run_jobs(list(job_prompts.items()), timeout=timeout, max_workers=max_workers)
-    if failed:  # one retry pass for the stragglers, so nothing is silently dropped
+    results, failed = _run_jobs(list(job_prompts.items()), timeout=timeout,
+                                max_workers=max_workers, model=_EXTRACT_MODEL or None)
+    if failed:  # retry the stragglers on the default model so nothing is silently dropped
         retry_jobs = [(k, job_prompts[k]) for k in failed]
-        retried, failed = _run_jobs(retry_jobs, timeout=timeout, max_workers=max_workers)
+        retried, failed = _run_jobs(retry_jobs, timeout=timeout, max_workers=max_workers, model=None)
         results.update(retried)
     errors = list(failed)
 
-    study_obj = results.get("study", {}) if isinstance(results.get("study"), dict) else {}
+    study_obj = results.get("main", {}) if isinstance(results.get("main"), dict) else {}
     outcomes: list[dict] = []
-    for key, obj in results.items():
-        if key == "study" or not isinstance(obj, dict):
-            continue
-        outcomes.extend(obj.get("outcomes") or [])
+    for obj in results.values():
+        if isinstance(obj, dict):
+            outcomes.extend(obj.get("outcomes") or [])
 
     data = _assemble_full(study_obj, outcomes, record)
     base["data"] = data

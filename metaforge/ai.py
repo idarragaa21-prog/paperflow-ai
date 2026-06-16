@@ -28,13 +28,17 @@ def ai_available() -> bool:
     return claude_bin() is not None
 
 
-def run_claude(prompt: str, *, timeout: int = DEFAULT_TIMEOUT) -> str:
-    """Run a single non-interactive Claude turn and return its text result."""
+def run_claude(prompt: str, *, timeout: int = DEFAULT_TIMEOUT, model: str | None = None) -> str:
+    """Run a single non-interactive Claude turn and return its text result.
+
+    `model` overrides the model for this call (e.g. a faster model for bulk data
+    extraction); falls back to METAFORGE_CLAUDE_MODEL, then the account default.
+    """
     binary = claude_bin()
     if not binary:
         raise RuntimeError("claude CLI not found (run `claude login`)")
     cmd = [binary, "-p", prompt, "--output-format", "json"]
-    model = os.environ.get("METAFORGE_CLAUDE_MODEL")
+    model = model or os.environ.get("METAFORGE_CLAUDE_MODEL")
     if model:
         cmd += ["--model", model]
     proc = subprocess.run(
@@ -62,5 +66,5 @@ def extract_json(text: str) -> dict:
         return json.loads(match.group(0))
 
 
-def run_claude_json(prompt: str, *, timeout: int = DEFAULT_TIMEOUT) -> dict:
-    return extract_json(run_claude(prompt, timeout=timeout))
+def run_claude_json(prompt: str, *, timeout: int = DEFAULT_TIMEOUT, model: str | None = None) -> dict:
+    return extract_json(run_claude(prompt, timeout=timeout, model=model))

@@ -19,13 +19,16 @@ def _parts():
     }
 
 
-def _fake_ai(prompt, timeout=150):
-    if "CARACTERÍSTICAS" in prompt:
+def _fake_ai(prompt, timeout=150, model=None):
+    if "DOS cosas a la vez" in prompt:  # merged study + narrative call
         return {
             "study": {"authors": "Smith", "year": "2020", "country": "España", "design": "ECA"},
             "population": {"description": "adultos", "total_n": 200, "age": "60"},
             "arms": [{"name": "Fármaco", "n": 100}, {"name": "Placebo", "n": 100}],
             "followup": "12 meses",
+            # a partial echo of the table outcome, reported in prose (should dedup away)
+            "outcomes": [{"name": "Mortalidad", "type": "binary", "timepoint": "12m",
+                          "intervention": {"events": 10}, "control": {}, "effect": {}, "source": "texto"}],
         }
     if "TABLA 1" in prompt:
         return {"outcomes": []}  # baseline table → nothing
@@ -35,10 +38,7 @@ def _fake_ai(prompt, timeout=150):
             "intervention": {"events": 10, "n": 100}, "control": {"events": 20, "n": 100},
             "effect": {"measure": "OR", "value": 0.44, "ci_lower": 0.2, "ci_upper": 0.98},
             "source": "tabla 2"}]}
-    # narrative call: a partial echo of the same outcome (should be deduped away)
-    return {"outcomes": [{
-        "name": "Mortalidad", "type": "binary", "timepoint": "12m",
-        "intervention": {"events": 10}, "control": {}, "effect": {}, "source": "texto"}]}
+    return {"outcomes": []}
 
 
 def _patch(monkeypatch):
@@ -68,10 +68,10 @@ def test_extract_full_keeps_partial_on_error(monkeypatch):
     monkeypatch.setattr(ex, "fetch_fulltext_full", lambda rec, **k: _parts())
     monkeypatch.setattr(ex, "ai_available", lambda: True)
 
-    def flaky(prompt, timeout=150):
+    def flaky(prompt, timeout=150, model=None):
         if "TABLA 1" in prompt:
             raise RuntimeError("timeout")  # one section fails
-        return _fake_ai(prompt, timeout=timeout)
+        return _fake_ai(prompt, timeout=timeout, model=model)
 
     monkeypatch.setattr(ex, "run_claude_json", flaky)
     out = ex.extract_full({"authors": "Smith", "year": 2020, "pmcid": "PMC1"}, mode="ai")
