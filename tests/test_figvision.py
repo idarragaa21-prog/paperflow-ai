@@ -77,21 +77,41 @@ def test_excel_routes_figure_reads_to_desenlaces_only():
                 "control": {"events": 88, "n": 598, "mean": None, "sd": None, "person_time": None},
                 "effect": {"measure": "HR", "value": 0.46, "ci_lower": 0.32, "ci_upper": 0.66, "p": None},
                 "source": "tabla 3", "notes": "", "from_figure": False},
-               {"name": "CRC de curva", "type": "time-to-event", "timepoint": "10a",
+               {"name": "CRC de curva", "type": "time-to-event", "timepoint": "5a",
                 "intervention": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
                 "control": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
-                "effect": {"measure": "", "value": None, "ci_lower": None, "ci_upper": None, "p": None},
-                "source": "Fig. 2", "notes": "aproximado", "from_figure": True}]}}
+                "effect": {"measure": "HR", "value": 0.4, "ci_lower": None, "ci_upper": None, "p": None},
+                "source": "Fig. 2", "notes": "aproximado", "from_figure": True, "approx": True}]}}
     from openpyxl import load_workbook
     wb = load_workbook(io.BytesIO(extractions_to_xlsx([ext])))
     des = list(wb["Desenlaces"].iter_rows(values_only=True))
     origins = [r[19] for r in des[1:]]  # "Origen" column
-    assert "imagen de figura (aprox.)" in origins and "texto/tabla" in origins
-    # meta sheet: only the exact outcome (figure read excluded)
+    assert "figura: estimado de gráfica (aprox.)" in origins and "texto/tabla" in origins
+    # meta sheet: only the exact outcome (the approximate curve read is excluded)
     meta = [r for r in wb["Para meta-análisis"].iter_rows(values_only=True)][1:]
     meta = [r for r in meta if r[0]]
     assert len(meta) == 1
     assert meta[0][2] == "CRC exacto"
+
+
+def test_excel_includes_printed_figure_values_in_meta():
+    # a value PRINTED on a figure (e.g. a subgroup forest-plot aHR) is exact and
+    # belongs in the synthesis sheet, flagged by provenance.
+    ext = {"study_label": "Y 2026", "data": {"label": "Y 2026", "study": {"year": "2026"},
+           "population": {}, "arms": [], "followup": "", "data_in_figures_only": "", "notes": "",
+           "outcomes": [
+               {"name": "CRC subgrupo varones", "type": "time-to-event", "timepoint": "",
+                "intervention": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+                "control": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+                "effect": {"measure": "HR", "value": 0.25, "ci_lower": 0.15, "ci_upper": 0.42, "p": None},
+                "source": "Fig. 4", "notes": "valor impreso", "from_figure": True, "approx": False}]}}
+    from openpyxl import load_workbook
+    wb = load_workbook(io.BytesIO(extractions_to_xlsx([ext])))
+    des = [r for r in wb["Desenlaces"].iter_rows(values_only=True)][1:]
+    assert des[0][19] == "figura: valor impreso"
+    meta = [r for r in wb["Para meta-análisis"].iter_rows(values_only=True)][1:]
+    meta = [r for r in meta if r[0]]
+    assert len(meta) == 1 and meta[0][3] == "HR" and meta[0][18] == 0.25
 
 
 def test_extract_full_adds_figure_outcomes(monkeypatch):

@@ -31,7 +31,7 @@ _FIG_OUTCOME_SCHEMA = (
     '"intervention":{"events":null,"n":null,"mean":null,"sd":null,"person_time":null},'
     '"control":{"events":null,"n":null,"mean":null,"sd":null,"person_time":null},'
     '"effect":{"measure":"","value":null,"ci_lower":null,"ci_upper":null,"p":null},'
-    '"notes":""}'
+    '"approx":true,"notes":""}'
 )
 
 
@@ -136,13 +136,23 @@ def _fig_prompt(fig: dict) -> str:
     label = fig["label"] or "Figura"
     name = os.path.basename(fig["path"])  # referenced relative to the CLI's cwd
     return (
-        "Eres un revisor experto extrayendo datos para un meta-análisis. Lee la IMAGEN del "
-        f"archivo «{name}» (está en tu directorio de trabajo) y extrae CADA dato cuantitativo que "
-        "puedas leer de la gráfica: valores en cada punto/tiempo, alturas de barras, números "
-        "impresos sobre el gráfico, y cualquier efecto (HR/OR/RR/IRR), IC95% o p que aparezca "
-        "dibujado. Si la figura es un diagrama de flujo o un esquema SIN datos cuantitativos de "
-        "desenlaces, devuelve la lista vacía. Los valores leídos de una curva o barra son "
-        "APROXIMADOS: indícalo en 'notes'. NO inventes lo que no se vea con claridad.\n\n"
+        "Eres un revisor experto extrayendo datos para un meta-análisis a partir de la IMAGEN de "
+        f"una figura. Lee con cuidado el archivo «{name}» (está en tu directorio de trabajo) y "
+        "extrae TODOS los datos cuantitativos que muestre. Procede así:\n"
+        "1) Identifica los ejes (qué representan, unidades y rango) y cada serie/curva/grupo "
+        "(por su color o leyenda).\n"
+        "2) Para curvas de supervivencia o de incidencia acumulada (Kaplan-Meier, Fine-Gray): "
+        "lee el valor de CADA curva en los tiempos relevantes (p. ej. 1, 3, 5, 10 años) — una "
+        "entrada por serie y tiempo. Si hay una tabla de «números en riesgo» (n at risk) debajo, "
+        "léela: esos son recuentos EXACTOS.\n"
+        "3) Para forest plots o gráficos de subgrupos: lee CADA fila (su etiqueta, el efecto "
+        "HR/OR/RR/IRR y su IC95%); estos suelen estar IMPRESOS como texto.\n"
+        "4) Para barras: lee la altura/valor de cada barra y cualquier número impreso encima.\n"
+        "5) Lee cualquier HR/OR/RR/IRR, IC95%, p o n impreso sobre el gráfico.\n"
+        "Marca approx=false cuando el valor está IMPRESO como número (texto legible en la figura "
+        "o tabla de n en riesgo); marca approx=true cuando lo ESTIMASTE de la posición de un "
+        "punto/curva/barra. Si la figura es un diagrama de flujo o un esquema SIN datos "
+        "cuantitativos, devuelve la lista vacía. NO inventes lo que no se vea con claridad.\n\n"
         f"Pie de figura (contexto): {fig['caption'][:600] or '(sin pie)'}\n\n"
         'Devuelve SOLO un objeto JSON: {"outcomes":[' + _FIG_OUTCOME_SCHEMA + ", ...]}\n"
         f'Pon source="{label}" en cada desenlace. Responde en español; números como números.'
@@ -177,9 +187,13 @@ def extract_from_figures(figs: list[dict], *, model: str | None = None,
                 if not isinstance(o, dict) or not str(o.get("name", "")).strip():
                     continue
                 o["from_figure"] = True
+                # default to approximate unless the model says it read a printed number
+                approx = o.get("approx", True)
+                o["approx"] = False if approx is False else True
                 o["source"] = o.get("source") or fig["label"] or "figura"
                 note = str(o.get("notes", "")).strip()
-                tag = "leído de la imagen de la figura (aproximado)"
+                tag = ("valor impreso en la figura" if not o["approx"]
+                       else "estimado de la gráfica (aproximado)")
                 o["notes"] = f"{note}; {tag}" if note and tag not in note else (note or tag)
                 outcomes.append(o)
     return outcomes

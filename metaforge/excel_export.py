@@ -140,7 +140,12 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
         label = d.get("label", ext.get("study_label", ""))
         for o in d.get("outcomes", []):
             iv, ct, eff = o.get("intervention", {}), o.get("control", {}), o.get("effect", {})
-            origen = "imagen de figura (aprox.)" if o.get("from_figure") else "texto/tabla"
+            if not o.get("from_figure"):
+                origen = "texto/tabla"
+            elif o.get("approx"):
+                origen = "figura: estimado de gráfica (aprox.)"
+            else:
+                origen = "figura: valor impreso"
             ws2.append([label, o.get("name", ""), o.get("type", ""), o.get("timepoint", ""),
                         iv.get("events"), iv.get("n"), iv.get("mean"), iv.get("sd"), iv.get("person_time"),
                         ct.get("events"), ct.get("n"), ct.get("mean"), ct.get("sd"), ct.get("person_time"),
@@ -148,8 +153,9 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
                         eff.get("p"), origen, o.get("source", ""), o.get("notes", "")])
     _autosize(ws2, {1: 22, 2: 30, 3: 14, 15: 10, 20: 22, 21: 16, 22: 28})
 
-    # ---- Sheet 3: Para meta-análisis (sólo datos exactos; las lecturas de figura
-    #      son aproximadas y se dejan fuera hasta verificarlas a mano) ----
+    # ---- Sheet 3: Para meta-análisis (datos exactos de texto/tabla y valores
+    #      impresos en figuras; lo estimado de una curva se deja fuera hasta
+    #      verificarlo a mano) ----
     ws3 = wb.create_sheet("Para meta-análisis")
     _header(ws3, _META_COLS)
     for ext in extractions:
@@ -157,8 +163,8 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
         label = d.get("label", ext.get("study_label", ""))
         year = d.get("study", {}).get("year", "")
         for o in d.get("outcomes", []):
-            if o.get("from_figure"):
-                continue  # approximate graph reads must be human-verified first
+            if o.get("from_figure") and o.get("approx"):
+                continue  # values estimated off a curve/bar need human checking first
             row = _meta_row(label, o)
             row["year"] = year
             ws3.append([row.get(c, "") for c in _META_COLS])

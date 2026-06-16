@@ -42,10 +42,12 @@ numbers. No cloud, no API key, no data leaving your machine.
    captions **and the figure images themselves** of each open-access article and
    fills a three-sheet workbook (study characteristics · every reported outcome ·
    a ready-for-meta-analysis sheet) — fanning each article out into small parallel
-   AI calls so it captures *everything* without timing out. It even reads data off
-   plotted curves and bar charts (vision); because those values are approximate
-   they are flagged in the outcomes sheet and kept out of the synthesis sheet until
-   you verify them. Nothing is invented: blank means not reported.
+   AI calls so it captures *everything* without timing out (figures are read in
+   parallel with the tables). It even reads data off plotted curves, subgroup
+   forest plots and bar charts (vision): numbers **printed** on a figure are kept
+   as exact and flow to the synthesis sheet, while values **estimated** off a curve
+   are flagged approximate and held out until you verify them. Nothing is invented:
+   blank means not reported.
    Counts flow into the PRISMA diagram. **Zotero integration**: import RIS/BibTeX
    to screen references you already have, and export included studies to RIS,
    BibTeX or straight to your **Zotero library** — via the Web API, or the local desktop connector with **no API key** (just have Zotero open).

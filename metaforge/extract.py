@@ -325,6 +325,9 @@ def _clean_outcome(o: dict) -> dict | None:
                    "ci_upper": _num(eff.get("ci_upper")), "p": _num(eff.get("p"))},
         "source": str(o.get("source", "")).strip(), "notes": str(o.get("notes", "")).strip(),
         "from_figure": bool(o.get("from_figure")),
+        # only meaningful for figure reads: True = estimated off a curve/bar,
+        # False = a number printed on the figure (exact). Default exact otherwise.
+        "approx": bool(o.get("approx")) if o.get("from_figure") else False,
     }
 
 
@@ -357,22 +360,24 @@ def _dedup_outcomes(outcomes: list[dict]) -> list[dict]:
             order.append(key)
         groups[key].append(o)
 
+    def _rank(o: dict) -> tuple:
+        # exact text/table first, then printed-on-figure, then estimated-from-curve,
+        # then richer over poorer.
+        return (not o.get("from_figure"), not o.get("approx"), _outcome_data_count(o))
+
     kept: list[dict] = []
     for key in order:
-        # Prefer exact (text/table) outcomes over approximate figure reads, then
-        # richer over poorer. Figure reads thus survive only when nothing exact
-        # covers the same outcome+timepoint (i.e. they fill a real gap).
-        members = sorted(groups[key],
-                         key=lambda o: (not o.get("from_figure"), _outcome_data_count(o)),
-                         reverse=True)
+        # Figure reads survive only when nothing more reliable covers the same
+        # outcome+timepoint (i.e. they fill a real gap).
+        members = sorted(groups[key], key=_rank, reverse=True)
         richest = members[0]
         kept.append(richest)
         seen_effects = {richest["effect"]["value"]}
         for o in members[1:]:
             val = o["effect"]["value"]
-            # keep a second EXACT analysis (e.g. adjusted vs unadjusted); never add
+            # keep a second reliable analysis (e.g. adjusted vs unadjusted); never add
             # an approximate figure duplicate of something already captured.
-            if (not o.get("from_figure") and _outcome_data_count(o) >= 4
+            if (not (o.get("from_figure") and o.get("approx")) and _outcome_data_count(o) >= 4
                     and val is not None and val not in seen_effects):
                 kept.append(o)
                 seen_effects.add(val)
@@ -441,8 +446,9 @@ _READ_FIGURES = os.environ.get("METAFORGE_READ_FIGURES", "on").lower() != "off"
 def _figure_outcomes(record: dict, parts: dict, *, timeout: int, max_workers: int) -> tuple[list[dict], int]:
     """Download the article's figure images and read quantitative data off them.
 
-    Returns (outcomes, n_figures_read). Vision runs on the account's default
-    (stronger) model — there are only a few figures and accuracy matters most.
+    Returns (outcomes, n_figures_read). Uses the fast vision model — it reads the
+    numbers printed on figures (forest plots, n-at-risk) accurately and quickly,
+    and curve estimates are approximate (and kept out of synthesis) regardless.
     Any failure degrades silently to no figure data; text extraction is unaffected.
     """
     import tempfile
@@ -453,8 +459,8 @@ def _figure_outcomes(record: dict, parts: dict, *, timeout: int, max_workers: in
             figs = figvision.fetch_figure_images(record, parts.get("xml", ""), tmp)
             if not figs:
                 return [], 0
-            outs = figvision.extract_from_figures(figs, model=None, timeout=timeout,
-                                                  max_workers=max_workers, cwd=tmp)
+            outs = figvision.extract_from_figures(figs, model=_EXTRACT_MODEL or None,
+                                                  timeout=timeout, max_workers=max_workers, cwd=tmp)
             return outs, len(figs)
     except Exception:  # noqa: BLE001 — figures are a bonus, never block the run
         return [], 0
@@ -488,6 +494,15 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
     for i, t in enumerate(parts["tables"][:_MAX_TABLES]):
         job_prompts[f"table{i}"] = _build_table_prompt(t, i)
 
+    # Kick off figure reading (download + vision) in the background so it overlaps
+    # with the text extraction instead of running after it.
+    from concurrent.futures import ThreadPoolExecutor
+    want_figs = _READ_FIGURES if read_figures is None else read_figures
+    fig_pool = fig_future = None
+    if want_figs and parts.get("xml"):
+        fig_pool = ThreadPoolExecutor(max_workers=1)
+        fig_future = fig_pool.submit(_figure_outcomes, record, parts, timeout=timeout, max_workers=4)
+
     results, failed = _run_jobs(list(job_prompts.items()), timeout=timeout,
                                 max_workers=max_workers, model=_EXTRACT_MODEL or None)
     if failed:  # retry the stragglers on the default model so nothing is silently dropped
@@ -502,11 +517,15 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
         if isinstance(obj, dict):
             outcomes.extend(obj.get("outcomes") or [])
 
-    want_figs = _READ_FIGURES if read_figures is None else read_figures
-    if want_figs and parts.get("xml"):
-        fig_outs, n_figs = _figure_outcomes(record, parts, timeout=timeout, max_workers=4)
-        base["n_figures"] = n_figs
-        outcomes.extend(fig_outs)
+    if fig_future is not None:
+        try:
+            fig_outs, n_figs = fig_future.result()
+            base["n_figures"] = n_figs
+            outcomes.extend(fig_outs)
+        except Exception:  # noqa: BLE001 — figures are a bonus, never block the run
+            pass
+        finally:
+            fig_pool.shutdown(wait=False)
 
     data = _assemble_full(study_obj, outcomes, record)
     base["data"] = data
