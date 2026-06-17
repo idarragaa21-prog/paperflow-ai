@@ -1,4 +1,5 @@
 """Search API — federated and PubMed endpoints."""
+
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -11,10 +12,15 @@ from app.middleware.rate_limit import limiter
 from app.models.project import Project
 from app.models.search import Search, SearchResult
 from app.models.user import User
-from app.schemas.search import SearchRecordResponse, SearchRequest, SearchResponse, SearchSynthesizeRequest, SearchSynthesizeResponse
+from app.schemas.search import (
+    SearchRecordResponse,
+    SearchRequest,
+    SearchResponse,
+    SearchSynthesizeRequest,
+    SearchSynthesizeResponse,
+)
 from app.services.cache import cache
 from app.services.llm.factory import llm_provider
-from app.config import settings
 from app.services.federated_search import (
     _metadata_score,
     _passes_filters,
@@ -22,6 +28,8 @@ from app.services.federated_search import (
     _relevance_score,
     federated_search,
 )
+import re
+
 from app.services.permissions import require_project_access
 from app.services.pubmed import pubmed_client
 
@@ -63,10 +71,14 @@ def _postprocess_pubmed(
         filtered.append(r)
 
     # Attach + sort by relevance
+    # ⚡ Bolt: Pre-compute tokenized query once to avoid O(N) regex compilations
+    query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
     for item in filtered:
-        item["relevance_score"] = _relevance_score(item, query)
+        item["relevance_score"] = _relevance_score(item, query, query_tokens)
 
-    filtered.sort(key=lambda x: (x["relevance_score"], _metadata_score(x)), reverse=True)
+    filtered.sort(
+        key=lambda x: (x["relevance_score"], _metadata_score(x)), reverse=True
+    )
     return filtered
 
 
@@ -78,12 +90,16 @@ async def search_pubmed(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await require_project_access(db, project_id=payload.project_id, user=user, required_role="viewer")
+    await require_project_access(
+        db, project_id=payload.project_id, user=user, required_role="viewer"
+    )
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
     cache_key = cache.generate_search_key(
-        payload.query, filters_dict,
-        max_results=payload.max_results, source="pubmed",
+        payload.query,
+        filters_dict,
+        max_results=payload.max_results,
+        source="pubmed",
     )
 
     cached_payload = await cache.get(cache_key)
@@ -151,12 +167,16 @@ async def search_federated(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await require_project_access(db, project_id=payload.project_id, user=user, required_role="viewer")
+    await require_project_access(
+        db, project_id=payload.project_id, user=user, required_role="viewer"
+    )
 
     filters_dict = payload.filters.model_dump() if payload.filters else None
     cache_key = cache.generate_search_key(
-        payload.query, filters_dict,
-        max_results=payload.max_results, source="federated",
+        payload.query,
+        filters_dict,
+        max_results=payload.max_results,
+        source="federated",
     )
     cached_payload = await cache.get(cache_key)
     if cached_payload:
@@ -218,7 +238,9 @@ async def get_search_results(
         raise HTTPException(status_code=404, detail="Search not found")
 
     search, project = row
-    await require_project_access(db, project_id=project.id, user=user, required_role="viewer")
+    await require_project_access(
+        db, project_id=project.id, user=user, required_role="viewer"
+    )
 
     # ORDER BY relevance_score DESC so history matches what user originally saw.
     # NULLS LAST handles legacy rows that predate the relevance_score column.
@@ -249,13 +271,17 @@ async def get_search_results(
     ]
 
 
-@router.get("/projects/{project_id}/searches", response_model=list[SearchRecordResponse])
+@router.get(
+    "/projects/{project_id}/searches", response_model=list[SearchRecordResponse]
+)
 async def list_searches(
     project_id: UUID,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    await require_project_access(db, project_id=project_id, user=user, required_role="viewer")
+    await require_project_access(
+        db, project_id=project_id, user=user, required_role="viewer"
+    )
 
     q = await db.execute(
         select(Search)
@@ -326,8 +352,8 @@ async def synthesize_search(
 
     if hasattr(provider, "chat"):
         try:
-            r = await provider.chat( # type: ignore[attr-defined]
-                model="default", # Or let OpenClaw fallback / route
+            r = await provider.chat(  # type: ignore[attr-defined]
+                model="default",  # Or let OpenClaw fallback / route
                 system=system_prompt,
                 user=user_prompt,
                 temperature=0.3,
@@ -337,10 +363,15 @@ async def synthesize_search(
         except Exception as e:
             # Fallback for LLM issues
             from app.core.logger import logger
+
             logger.error(f"Search synthesis LLM failed: {e}")
-            raise HTTPException(status_code=503, detail="LLM synthesis service unavailable.")
+            raise HTTPException(
+                status_code=503, detail="LLM synthesis service unavailable."
+            )
     else:
         # If using ClaudeProvider directly, which might only implement base methods:
-        raise HTTPException(status_code=501, detail="Synthesis requires a chat-capable LLM provider.")
+        raise HTTPException(
+            status_code=501, detail="Synthesis requires a chat-capable LLM provider."
+        )
 
     return SearchSynthesizeResponse(answer=answer)
