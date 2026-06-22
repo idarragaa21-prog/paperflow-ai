@@ -20,6 +20,12 @@ from app.models.document import PaperChunk, PaperCitationSpan, PaperFile, PaperP
 from app.models.paper import Paper
 from app.services.grobid import extract_tei_structure, process_fulltext
 
+_HEADING_RE = re.compile(
+    r"^(abstract|resumen|introduction|introducción|background|methods|m[eé]todos|materials|materiales|results|resultados|discussion|discusi[oó]n|conclusion|conclusi[oó]n|references|referencias)\b[:\s]*$",
+    re.IGNORECASE,
+)
+_CITATION_RE = re.compile(r"(\[[0-9,\-\s]+\]|\([A-Z][A-Za-z]+(?: et al\.)?,\s*\d{4}\))")
+
 
 @dataclass
 class PDFMetadata:
@@ -161,15 +167,11 @@ def _extract_layout(pdf_path: Path) -> tuple[list[dict], list[dict], list[dict],
 def _extract_sections_from_text(text: str) -> list[dict]:
     if not text:
         return []
-    heading_re = re.compile(
-        r"^(abstract|resumen|introduction|introducción|background|methods|m[eé]todos|materials|materiales|results|resultados|discussion|discusi[oó]n|conclusion|conclusi[oó]n|references|referencias)\b[:\s]*$",
-        re.IGNORECASE,
-    )
     sections: list[dict] = []
     current = {"heading": "body", "text": []}
     for line in text.splitlines():
         stripped = line.strip()
-        if heading_re.match(stripped):
+        if _HEADING_RE.match(stripped):
             if current["text"]:
                 sections.append({"heading": current["heading"], "text": "\n".join(current["text"]).strip()})
             current = {"heading": stripped, "text": []}
@@ -205,13 +207,12 @@ def _extract_tables(pdf_path: Path) -> list[dict]:
 
 def _extract_citation_spans(pages: list[dict]) -> list[dict]:
     spans: list[dict] = []
-    citation_re = re.compile(r"(\[[0-9,\-\s]+\]|\([A-Z][A-Za-z]+(?: et al\.)?,\s*\d{4}\))")
     for page in pages:
         page_number = int(page["page_number"])
         text = str(page["text"] or "").strip()
         if not text:
             continue
-        for match in citation_re.finditer(text):
+        for match in _CITATION_RE.finditer(text):
             start = max(0, match.start() - 120)
             end = min(len(text), match.end() + 120)
             spans.append(
