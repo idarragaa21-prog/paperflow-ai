@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -643,7 +642,7 @@ async def get_study(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    project = await _require_project_role(db, study.project_id, user, required_role="viewer")
+    await _require_project_role(db, study.project_id, user, required_role="viewer")
 
     q1 = await db.execute(select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == study.id))
     eff = q1.scalars().all()
@@ -966,11 +965,7 @@ async def download_export(
 
     await _require_project_role(db, export.project_id, user, required_role="viewer")
 
-    abs_path = (storage_manager.base_dir / export.file_path).resolve()
-    try:
-        abs_path.relative_to(storage_manager.base_dir)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid file path")
+    abs_path = storage_manager.safe_abs_path(export.file_path)
 
     if not abs_path.exists():
         raise HTTPException(status_code=404, detail="File not found")

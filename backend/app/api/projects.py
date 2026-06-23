@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 import secrets
 from uuid import UUID
 
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -33,15 +32,6 @@ from app.services.jobs import get_job_queue
 from app.services.permissions import list_accessible_projects, require_project_access
 
 router = APIRouter(prefix="/projects", tags=["projects"])
-
-
-def _safe_abs_path(relative_path: str) -> Path:
-    full_path = (storage_manager.base_dir / relative_path).resolve()
-    try:
-        full_path.relative_to(storage_manager.base_dir)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid file path")
-    return full_path
 
 
 def _project_response(project: Project) -> ProjectResponse:
@@ -669,7 +659,7 @@ async def download_project_zip(
     if job.status != "completed" or not zip_rel:
         raise HTTPException(status_code=400, detail="Export not ready")
 
-    abs_path = _safe_abs_path(zip_rel)
+    abs_path = storage_manager.safe_abs_path(zip_rel)
     if not abs_path.exists():
         raise HTTPException(status_code=404, detail="Export file not found")
 
