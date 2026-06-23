@@ -17,3 +17,8 @@
 **Vulnerability:** The `/register`, `/forgot-password`, and `/reset-password` endpoints lacked rate limiting, exposing the system to brute-force attacks and email enumeration (via timing or spam).
 **Learning:** While the `/login` endpoint had rate limits applied, other sensitive authentication mutation endpoints were overlooked. Security layers must be applied consistently across all endpoints that handle sensitive state transitions or external messaging.
 **Prevention:** Always verify that newly added authentication or identity-related endpoints utilize the established `auth_rate_limit` utility to enforce appropriate IP and identifier-based limits.
+
+## 2024-05-28 - Refactoring Safe Path Logic is not a Vulnerability Fix
+**Vulnerability:** None. The code already implemented inline path traversal protections utilizing `(base_dir / path).resolve()` and validating against `abs_path.relative_to(base_dir)`.
+**Learning:** Do not treat inline or custom-written path traversal protections that successfully mitigate the risk as vulnerabilities simply because they aren't using a centralized helper. Refactoring secure code for consistency is a good software engineering practice, but it does not qualify as fixing an active security issue for Sentinel tasks.
+**Prevention:** Thoroughly analyze the existing code's behavior. If it correctly prevents escaping the base directory (even if verbose or redundant), consider it secure and look for actual vulnerabilities elsewhere before defaulting to refactoring tasks.
