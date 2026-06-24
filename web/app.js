@@ -364,12 +364,19 @@ function metaRowsToCsv(rows) {
 // Group loaded rows by outcome × measure so the epidemiologist can isolate the
 // single outcome+measure to pool. Same-named outcomes across studies group
 // together; that group is what becomes one meta-analysis.
+// Light normalization so the SAME outcome aligns across studies despite trivial
+// naming differences (case, spacing, trailing punctuation). Deliberately gentle
+// — it never merges distinct outcomes, only harmonizes "Mortalidad"/"mortalidad.".
+function normOutcome(name) {
+  return String(name || '(sin nombre)').toLowerCase().trim()
+    .replace(/\s+/g, ' ').replace(/[.;,]+$/, '');
+}
 function outcomeGroups(rows) {
-  const groups = new Map();
+  const groups = new Map(); // normKey -> {label, measure, rows}
   rows.forEach((r) => {
-    const key = `${(r.outcome || '(sin nombre)').trim()} · ${r.effect_measure}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(r);
+    const key = `${normOutcome(r.outcome)} · ${r.effect_measure}`;
+    if (!groups.has(key)) groups.set(key, { label: (r.outcome || '(sin nombre)').trim(), measure: r.effect_measure, rows: [] });
+    groups.get(key).rows.push(r);
   });
   return groups;
 }
@@ -379,13 +386,13 @@ function populateOutcomeFilter(rows) {
   if (groups.size <= 1) { wrap.style.display = 'none'; return; }
   const opts = [`<option value="__all">Todos los desenlaces (${rows.length} filas)</option>`];
   // most studies first — the most poolable outcome floats to the top
-  [...groups.entries()].sort((a, b) => b[1].length - a[1].length)
-    .forEach(([k, rs]) => opts.push(`<option value="${k.replace(/"/g, '&quot;')}">${k} — ${rs.length} estudio(s)</option>`));
+  [...groups.entries()].sort((a, b) => b[1].rows.length - a[1].rows.length)
+    .forEach(([k, g]) => opts.push(`<option value="${k.replace(/"/g, '&quot;')}">${esc(g.label)} · ${g.measure} — ${g.rows.length} estudio(s)</option>`));
   sel.innerHTML = opts.join('');
   wrap.style.display = '';
   sel.onchange = () => {
-    const chosen = sel.value === '__all' ? rows : (groups.get(sel.value) || rows);
-    $('csv').value = metaRowsToCsv(chosen);
+    const g = groups.get(sel.value);
+    $('csv').value = metaRowsToCsv(sel.value === '__all' || !g ? rows : g.rows);
     updateDataStatus();
   };
 }
@@ -396,9 +403,9 @@ function loadMetaRowsToData(rows) {
   populateOutcomeFilter(sorted);
   goStep(4); updateDataStatus();
   const groups = outcomeGroups(sorted);
-  const top = [...groups.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+  const top = [...groups.values()].sort((a, b) => b.rows.length - a.rows.length)[0];
   const hint = groups.size > 1
-    ? `Cargadas ${rows.length} filas con ${groups.size} desenlaces. Elige uno arriba (sugerido: «${top[0]}», ${top[1].length} estudios) y pulsa Analizar.`
+    ? `Cargadas ${rows.length} filas con ${groups.size} desenlaces. Elige uno arriba (sugerido: «${top.label} · ${top.measure}», ${top.rows.length} estudios) y pulsa Analizar.`
     : `Cargadas ${rows.length} filas. Revisa y pulsa Analizar.`;
   setProjStatus(hint, true);
 }
