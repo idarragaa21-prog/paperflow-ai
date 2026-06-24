@@ -217,7 +217,7 @@ async def _generate_section(section_prompt: str, papers_context: str, query: str
                 response = await fallback.complete(request)
                 return response.text.strip()
         else:
-            return f"*LLM provider does not support direct chat. Configure OpenClaw or Claude provider.*"
+            return "*LLM provider does not support direct chat. Configure OpenClaw or Claude provider.*"
     except Exception as e:
         logger.error(f"LLM generation failed for section: {e}")
         return f"*Section could not be generated: {e}*"
