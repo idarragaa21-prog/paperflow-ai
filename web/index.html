@@ -166,9 +166,18 @@
             </div>
           </div>
           <p class="muted" id="measureHint"></p>
+          <div class="row" id="outcomeFilterRow" style="display:none; margin-bottom:10px; gap:10px; align-items:center">
+            <label class="muted" style="display:inline-flex; gap:8px; align-items:center">Desenlace a sintetizar
+              <select id="outcomeFilter" class="select select-sm"></select>
+            </label>
+            <span class="muted">Cada meta-análisis combina <b>un</b> desenlace y <b>una</b> medida.</span>
+          </div>
           <textarea id="csv" class="mono" rows="9" placeholder="Pega tu CSV aquí. La primera fila son los encabezados."></textarea>
           <div class="row between">
-            <a class="link" id="formatHelp">¿Qué columnas necesito?</a>
+            <div class="row" style="gap:14px">
+              <a class="link" id="formatHelp">¿Qué columnas necesito?</a>
+              <span class="muted" id="dataStatus"></span>
+            </div>
             <button class="btn btn-primary" id="analyzeBtn">Analizar →</button>
           </div>
           <div id="dataErr" class="error"></div>

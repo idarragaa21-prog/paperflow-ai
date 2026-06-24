@@ -357,13 +357,57 @@ const META_COLS = ['study_label', 'year', 'outcome', 'effect_measure',
   'n_control', 'mean_control', 'sd_control',
   'events_intervention', 'time_intervention', 'events_control', 'time_control',
   'effect_value', 'ci_lower_95', 'ci_upper_95'];
+function metaRowsToCsv(rows) {
+  const cell = (v) => (v === null || v === undefined || v === '') ? '' : String(v);
+  return [META_COLS.join(',')].concat(rows.map((r) => META_COLS.map((c) => cell(r[c])).join(','))).join('\n');
+}
+// Group loaded rows by outcome × measure so the epidemiologist can isolate the
+// single outcome+measure to pool. Same-named outcomes across studies group
+// together; that group is what becomes one meta-analysis.
+function outcomeGroups(rows) {
+  const groups = new Map();
+  rows.forEach((r) => {
+    const key = `${(r.outcome || '(sin nombre)').trim()} · ${r.effect_measure}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  });
+  return groups;
+}
+function populateOutcomeFilter(rows) {
+  const sel = $('outcomeFilter'); const wrap = $('outcomeFilterRow');
+  const groups = outcomeGroups(rows);
+  if (groups.size <= 1) { wrap.style.display = 'none'; return; }
+  const opts = [`<option value="__all">Todos los desenlaces (${rows.length} filas)</option>`];
+  // most studies first — the most poolable outcome floats to the top
+  [...groups.entries()].sort((a, b) => b[1].length - a[1].length)
+    .forEach(([k, rs]) => opts.push(`<option value="${k.replace(/"/g, '&quot;')}">${k} — ${rs.length} estudio(s)</option>`));
+  sel.innerHTML = opts.join('');
+  wrap.style.display = '';
+  sel.onchange = () => {
+    const chosen = sel.value === '__all' ? rows : (groups.get(sel.value) || rows);
+    $('csv').value = metaRowsToCsv(chosen);
+    updateDataStatus();
+  };
+}
 function loadMetaRowsToData(rows) {
   const sorted = [...rows].sort((a, b) => String(a.outcome || '').localeCompare(String(b.outcome || '')) || String(a.effect_measure).localeCompare(String(b.effect_measure)));
-  const cell = (v) => (v === null || v === undefined || v === '') ? '' : String(v);
-  const csv = [META_COLS.join(',')].concat(sorted.map((r) => META_COLS.map((c) => cell(r[c])).join(','))).join('\n');
-  $('csv').value = csv;
-  prepareDataStep(); goStep(4);
-  setProjStatus(`Cargadas ${rows.length} filas. Deja solo las del MISMO desenlace y medida, luego pulsa Analizar.`, true);
+  $('csv').value = metaRowsToCsv(sorted);
+  prepareDataStep();
+  populateOutcomeFilter(sorted);
+  goStep(4); updateDataStatus();
+  const groups = outcomeGroups(sorted);
+  const top = [...groups.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+  const hint = groups.size > 1
+    ? `Cargadas ${rows.length} filas con ${groups.size} desenlaces. Elige uno arriba (sugerido: «${top[0]}», ${top[1].length} estudios) y pulsa Analizar.`
+    : `Cargadas ${rows.length} filas. Revisa y pulsa Analizar.`;
+  setProjStatus(hint, true);
+}
+// Live read-out of how many usable study rows the CSV holds.
+function updateDataStatus() {
+  const el = $('dataStatus'); if (!el) return;
+  const lines = ($('csv').value || '').trim().split('\n').filter((l) => l.trim());
+  const n = Math.max(0, lines.length - 1);
+  el.textContent = n ? `${n} estudio(s) en la tabla` : '';
 }
 function includedRecords() {
   const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
@@ -498,10 +542,13 @@ $('exampleSel').onchange = async (e) => {
   const key = e.target.value; if (!key) return;
   const data = await (await fetch('/examples/' + key)).json();
   $('csv').value = data.csv.trim();
+  $('outcomeFilterRow').style.display = 'none';
   if (data.favours_low) S.flow = data.favours_low;
   if (data.favours_high) S.fhigh = data.favours_high;
+  updateDataStatus();
 };
-$('clearData').onclick = () => { $('csv').value = ''; };
+$('clearData').onclick = () => { $('csv').value = ''; $('outcomeFilterRow').style.display = 'none'; updateDataStatus(); };
+$('csv').addEventListener('input', updateDataStatus);
 $('tplBtn').onclick = () => { window.location = '/templates/' + (MEASURE_KIND[S.measure] || '2x2'); };
 $('formatHelp').onclick = () => {
   const box = $('formatBox'); const kind = MEASURE_KIND[S.measure] || '2x2';
