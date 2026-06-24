@@ -153,6 +153,48 @@ def test_meta_row_surfaces_effect_without_full_ci():
     assert row["ci_lower_95"] is None  # left blank for manual completion
 
 
+def test_meta_rows_for_filters_and_maps():
+    from metaforge.excel_export import meta_rows_for
+    data = {"label": "Z 2025", "study": {"year": "2025"}, "outcomes": [
+        {"name": "Mort", "type": "binary", "timepoint": "",
+         "intervention": {"events": 10, "n": 100}, "control": {"events": 20, "n": 100},
+         "effect": {"measure": "OR", "value": None, "ci_lower": None, "ci_upper": None, "p": None},
+         "from_figure": False, "approx": False},
+        # estimated-from-figure → excluded
+        {"name": "Curva", "type": "time-to-event", "timepoint": "5a",
+         "intervention": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+         "control": {"events": None, "n": None, "mean": None, "sd": None, "person_time": None},
+         "effect": {"measure": "HR", "value": 0.4, "ci_lower": None, "ci_upper": None, "p": None},
+         "from_figure": True, "approx": True},
+        # no usable data → excluded
+        {"name": "Vacío", "type": "other", "timepoint": "",
+         "intervention": {}, "control": {}, "effect": {"measure": "", "value": None}}]}
+    rows = meta_rows_for(data)
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["study_label"] == "Z 2025" and r["year"] == "2025"
+    assert r["effect_measure"] == "OR" and r["a_events"] == 10 and r["b_non_events"] == 90
+
+
+def test_extract_full_includes_meta_rows(monkeypatch):
+    import metaforge.extract as ex
+    parts = {"narrative": "t", "tables": ["Tabla 2 | x"], "captions": [], "xml": "", "has_fulltext": True}
+    monkeypatch.setattr(ex, "fetch_fulltext_full", lambda rec, **k: parts)
+    monkeypatch.setattr(ex, "ai_available", lambda: True)
+
+    def fake(prompt, timeout=150, model=None, cwd=None):
+        if "DOS cosas a la vez" in prompt:
+            return {"study": {"year": "2025"}, "population": {}, "arms": [], "followup": "", "outcomes": []}
+        return {"outcomes": [{"name": "Mort", "type": "binary", "timepoint": "",
+                              "intervention": {"events": 8, "n": 100}, "control": {"events": 16, "n": 100},
+                              "effect": {"measure": "OR"}}]}
+
+    monkeypatch.setattr(ex, "run_claude_json", fake)
+    out = ex.extract_full({"pmcid": "PMC1", "authors": "A", "year": 2025}, mode="ai", read_figures=False)
+    assert out["meta_rows"] and out["meta_rows"][0]["effect_measure"] == "OR"
+    assert out["meta_rows"][0]["a_events"] == 8
+
+
 def test_excel_handles_empty_extraction():
     xlsx = extractions_to_xlsx([{"data": None, "study_label": "X 2020"}])
     from openpyxl import load_workbook

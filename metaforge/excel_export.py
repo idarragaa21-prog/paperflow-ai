@@ -103,6 +103,28 @@ _META_COLS = ["study_label", "year", "outcome", "effect_measure",
               "effect_value", "ci_lower_95", "ci_upper_95"]
 
 
+def meta_rows_for(data: dict) -> list[dict]:
+    """Meta-analysis-ready rows for one extraction's data.
+
+    Returns only outcomes that map to a usable measure, excluding values merely
+    estimated off a figure (those need human verification first). Used to load
+    extracted data straight into the analysis step without the Excel round-trip.
+    """
+    if not data:
+        return []
+    label = data.get("label", "")
+    year = data.get("study", {}).get("year", "")
+    rows = []
+    for o in data.get("outcomes", []):
+        if o.get("from_figure") and o.get("approx"):
+            continue
+        row = _meta_row(label, o)
+        row["year"] = year
+        if row.get("effect_measure"):  # only rows with usable data
+            rows.append(row)
+    return rows
+
+
 def extractions_to_xlsx(extractions: list[dict]) -> bytes:
     from openpyxl import Workbook
 

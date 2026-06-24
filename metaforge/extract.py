@@ -530,6 +530,8 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
     data = _assemble_full(study_obj, outcomes, record)
     base["data"] = data
     base["found"] = bool(data["outcomes"])
+    from .excel_export import meta_rows_for
+    base["meta_rows"] = meta_rows_for(data)
     if errors and not data["outcomes"]:
         base["note"] = "No se pudo extraer con IA (revisa la conexión o reintenta)."
     elif errors:

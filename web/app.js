@@ -321,7 +321,7 @@ $('extractExcelBtn').onclick = async () => {
   if (!incl.length) { alert('Marca artículos como «Incluir» primero.'); return; }
   const btn = $('extractExcelBtn'); btn.disabled = true;
   const status = $('excelStatus');
-  const extractions = []; let outcomes = 0, noFull = 0, figs = 0;
+  const extractions = []; let outcomes = 0, noFull = 0, figs = 0; const metaRows = [];
   for (let i = 0; i < incl.length; i++) {
     btn.innerHTML = `<span class="spinner"></span> Extrayendo ${i + 1}/${incl.length}…`;
     status.textContent = `Leyendo tablas, texto, pies y las imágenes de las figuras del artículo ${i + 1} de ${incl.length}… (puede tardar ~1–2 min por artículo)`;
@@ -331,6 +331,7 @@ $('extractExcelBtn').onclick = async () => {
       extractions.push(data);
       if (data.data) outcomes += (data.data.outcomes || []).length;
       if (data.n_figures) figs += data.n_figures;
+      if (data.meta_rows) metaRows.push(...data.meta_rows);
       if (!data.has_fulltext) noFull++;
     } catch (e) { extractions.push({ study_label: `${(incl[i].authors || '').split(',')[0]} ${incl[i].year}`, data: null, note: 'Error: ' + e.message }); }
   }
@@ -341,10 +342,29 @@ $('extractExcelBtn').onclick = async () => {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'extraccion_metaforge.xlsx'; a.click(); URL.revokeObjectURL(a.href);
     const warn = noFull ? ` · ${noFull} sin texto de acceso abierto (sólo resumen)` : '';
     const figNote = figs ? ` · ${figs} figuras leídas (datos aprox. marcados aparte)` : '';
-    status.innerHTML = `✓ Excel generado: <b>${incl.length}</b> estudios · <b>${outcomes}</b> desenlaces${figNote}${warn}. Revisa siempre contra la fuente antes de sintetizar.`;
-    S.fullExtractions = extractions;
+    const loadBtn = metaRows.length ? ` <button class="btn btn-sm btn-primary" id="loadMetaBtn">Cargar ${metaRows.length} filas al paso Datos →</button>` : '';
+    status.innerHTML = `✓ Excel generado: <b>${incl.length}</b> estudios · <b>${outcomes}</b> desenlaces${figNote}${warn}. Revisa siempre contra la fuente antes de sintetizar.${loadBtn}`;
+    S.fullExtractions = extractions; S.metaRows = metaRows;
+    if (metaRows.length) $('loadMetaBtn').onclick = () => loadMetaRowsToData(metaRows);
   } catch (e) { status.textContent = 'No se pudo generar el Excel: ' + e.message; }
 };
+// Load the meta-analysis-ready rows straight into the Data step CSV — no Excel
+// round-trip. Rows are sorted by outcome so the same outcome sits together; the
+// epidemiologist keeps one outcome+measure and runs the synthesis.
+const META_COLS = ['study_label', 'year', 'outcome', 'effect_measure',
+  'a_events', 'b_non_events', 'c_events', 'd_non_events',
+  'n_intervention', 'mean_intervention', 'sd_intervention',
+  'n_control', 'mean_control', 'sd_control',
+  'events_intervention', 'time_intervention', 'events_control', 'time_control',
+  'effect_value', 'ci_lower_95', 'ci_upper_95'];
+function loadMetaRowsToData(rows) {
+  const sorted = [...rows].sort((a, b) => String(a.outcome || '').localeCompare(String(b.outcome || '')) || String(a.effect_measure).localeCompare(String(b.effect_measure)));
+  const cell = (v) => (v === null || v === undefined || v === '') ? '' : String(v);
+  const csv = [META_COLS.join(',')].concat(sorted.map((r) => META_COLS.map((c) => cell(r[c])).join(','))).join('\n');
+  $('csv').value = csv;
+  prepareDataStep(); goStep(4);
+  setProjStatus(`Cargadas ${rows.length} filas. Deja solo las del MISMO desenlace y medida, luego pulsa Analizar.`, true);
+}
 function includedRecords() {
   const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
   if (!incl.length) alert('No hay artículos marcados como «Incluir».');
