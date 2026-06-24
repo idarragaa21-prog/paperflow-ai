@@ -165,7 +165,9 @@ def search_literature(query: str, *, source: str = "europepmc", page_size: int =
     lists, hit_epmc, hit_pubmed = [], None, None
     try:
         if source in ("europepmc", "both"):
-            e = _search_europepmc(query, page_size, only_oa, timeout)
+            # Europe PMC's parser rejects PubMed field tags ([MeSH]/[tiab]/…) and
+            # returns 0 results, so always convert before querying it.
+            e = _search_europepmc(europepmc_query(query), page_size, only_oa, timeout)
             hit_epmc = e["hit_count"]
             lists.append(e["records"])
         if source in ("pubmed", "both"):

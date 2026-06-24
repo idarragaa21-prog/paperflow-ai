@@ -13,6 +13,24 @@ def test_europepmc_query_strips_field_tags():
     assert "Metformin" in q and "colorectal" in q
 
 
+def test_search_converts_pubmed_tags_for_europepmc(monkeypatch):
+    """A protocol's PubMed-syntax query must be tag-stripped before hitting Europe
+    PMC, or its parser returns 0 results (regression: default search path empty)."""
+    import metaforge.search as s
+    seen = {}
+
+    def fake_epmc(query, page_size, only_oa, timeout):
+        seen["query"] = query
+        return {"hit_count": 5, "records": []}
+
+    monkeypatch.setattr(s, "_search_europepmc", fake_epmc)
+    monkeypatch.setattr(s, "pubmed_count", lambda q, **k: None)
+    s.search_literature('("Coffee"[MeSH] OR coffee[tiab]) AND "type 2 diabetes"[tiab]',
+                        source="europepmc")
+    assert "[MeSH]" not in seen["query"] and "[tiab]" not in seen["query"]
+    assert "Coffee" in seen["query"] and "type 2 diabetes" in seen["query"]
+
+
 def test_parse_record():
     rec = {
         "id": "123", "source": "MED", "pmid": "123", "doi": "10.1/x",
