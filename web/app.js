@@ -108,7 +108,7 @@ function renderQuestions(data) {
       <div class="qtext">${esc(q.question)}</div>
       <div class="qbadges"><span class="badge primary">${esc(q.framework)}</span><span class="badge measure">${esc(ml)}</span>${q.design ? `<span class="badge">${esc(q.design.slice(0, 64))}</span>` : ''}</div>
       ${pico ? `<div class="pico">${pico}</div>` : ''}
-      ${q.finer ? `<p class="muted" style="margin:0 0 10px">⚖ ${esc(q.finer)}</p>` : ''}
+      ${q.finer ? `<p class="muted" style="margin:0 0 10px">${esc(q.finer)}</p>` : ''}
       <div class="qfoot"><span class="rationale">${esc(q.rationale || '')}</span><button class="btn btn-primary btn-sm" data-use="${i}">Usar esta pregunta →</button></div>
     </div>`;
   }).join('');
@@ -175,7 +175,7 @@ function renderProtocol(data) {
     (p.search_pubmed ? `<div class="proto-block"><h4>Búsqueda en PubMed</h4><div class="codebox">${esc(p.search_pubmed)}<button class="btn btn-sm copy" data-copy="pubmed">Copiar</button></div></div>` : '') +
     chipsBlock('Palabras clave', p.keywords) +
     chipsBlock('Campos a extraer (columnas del CSV)', p.extraction_fields) +
-    (p.prisma_note ? `<p class="muted" style="margin-top:12px">📋 ${esc(p.prisma_note)}</p>` : '');
+    (p.prisma_note ? `<p class="muted" style="margin-top:12px">${esc(p.prisma_note)}</p>` : '');
   const cp = $('protoBody').querySelector('[data-copy="pubmed"]');
   if (cp) cp.onclick = () => copy(p.search_pubmed, cp);
   $('protoDl').style.display = '';
@@ -243,7 +243,7 @@ function renderResults() {
     return `<tr class="${decClass}">
       <td><div style="font-weight:600">${esc(r.title)}</div><div class="muted" style="font-size:11.5px">${esc(r.authors.slice(0, 70))} · ${esc(r.journal)} ${esc(String(r.year))} ${oa}</div>
         ${r.abstract ? `<details><summary class="link" style="font-size:11.5px">resumen</summary><div class="muted" style="font-size:12px;margin-top:4px">${esc(r.abstract.slice(0, 800))}…</div></details>` : ''}
-        ${r.reason ? `<div class="muted" style="font-size:11.5px;margin-top:3px">🤖 ${esc(r.reason)}</div>` : ''}
+        ${r.reason ? `<div class="muted" style="font-size:11.5px;margin-top:3px">✦ ${esc(r.reason)}</div>` : ''}
         ${conflict ? `<div style="font-size:11.5px;margin-top:3px;color:var(--warn)">⚠ Revisor 2: <b>${DEC_LABEL[r.decision2]}</b> — ${esc(r.reason2 || '')}</div>` : ''}</td>
       <td style="white-space:nowrap"><select data-dec="${i}">${sel}<option value=""${r.decision ? '' : ' selected'}>—</option></select></td>
       <td style="white-space:nowrap">${link}</td></tr>`;
@@ -877,7 +877,9 @@ function renderSections() {
   $('sections').querySelectorAll('[data-copy]').forEach((b) => { b.onclick = () => copy(S.manuscript[b.dataset.copy] || '', b); });
   $('sections').querySelectorAll('[data-ai]').forEach((b) => { b.onclick = () => improveSection(b.dataset.ai, b); });
 }
-$('previewToggle').onclick = () => { S.preview = !S.preview; $('previewToggle').textContent = S.preview ? '✎ Editar' : '👁 Vista previa'; renderSections(); };
+const ICO_EYE = '<svg class="ico" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+const ICO_EDIT = '<svg class="ico" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+$('previewToggle').onclick = () => { S.preview = !S.preview; $('previewToggle').innerHTML = S.preview ? ICO_EDIT + ' Editar' : ICO_EYE + ' Vista previa'; renderSections(); };
 async function improveSection(sec, btn, silent) {
   busy(btn, true, 'IA…');
   try {

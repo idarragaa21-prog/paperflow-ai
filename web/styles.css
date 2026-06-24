@@ -243,6 +243,9 @@ tbody tr:hover { background: var(--surface-2); }
 @media (max-width: 860px) { .prisma-form { grid-template-columns: 1fr 1fr; } .grade-row { grid-template-columns: 1fr; gap: 4px; } }
 .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* crisp monochrome line icons (inherit text colour) */
+.ico { width: 15px; height: 15px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; }
+.ico-lg { width: 22px; height: 22px; }
 .empty { color: var(--muted); font-size: 13px; padding: 18px; text-align: center; }
 
 @media (max-width: 860px) {

@@ -32,9 +32,9 @@
     <main class="main">
       <div class="topbar">
         <input id="projName" class="input proj-name" placeholder="Nombre del proyecto…" />
-        <button class="btn btn-sm" id="saveProj">💾 Guardar</button>
+        <button class="btn btn-sm" id="saveProj"><svg class="ico" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Guardar</button>
         <select id="loadProj" class="select select-sm"><option value="">Cargar proyecto…</option></select>
-        <button class="btn btn-sm" id="delProj" title="Eliminar proyecto cargado" aria-label="Eliminar proyecto cargado">🗑</button>
+        <button class="btn btn-sm" id="delProj" title="Eliminar proyecto cargado" aria-label="Eliminar proyecto cargado"><svg class="ico" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg></button>
         <span id="projStatus" class="proj-status"></span>
       </div>
 
@@ -69,9 +69,9 @@
           </div>
         </div>
         <div class="hero-feats">
-          <div class="feat"><span class="feat-ic">🔎</span><b>Busca y criba</b><small>Europe PMC + PubMed, cribado con IA y κ entre revisores</small></div>
-          <div class="feat"><span class="feat-ic">📊</span><b>Extrae y sintetiza</b><small>Lee tablas y figuras a Excel; meta-análisis REML con forest plot</small></div>
-          <div class="feat"><span class="feat-ic">📄</span><b>Redacta</b><small>PRISMA, GRADE y manuscrito en Word con figuras</small></div>
+          <div class="feat"><span class="feat-ic"><svg class="ico ico-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span><b>Busca y criba</b><small>Europe PMC + PubMed, cribado con IA y κ entre revisores</small></div>
+          <div class="feat"><span class="feat-ic"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14v3M12 9v8M17 12v5"/></svg></span><b>Extrae y sintetiza</b><small>Lee tablas y figuras a Excel; meta-análisis REML con forest plot</small></div>
+          <div class="feat"><span class="feat-ic"><svg class="ico ico-lg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg></span><b>Redacta</b><small>PRISMA, GRADE y manuscrito en Word con figuras</small></div>
         </div>
         <div id="questions" class="questions"></div>
       </section>
@@ -109,12 +109,12 @@
               <label class="muted">Resultados <select id="searchN" class="select select-sm"><option>15</option><option selected>25</option><option>50</option></select></label>
               <label class="muted"><input type="checkbox" id="searchOA" /> Solo acceso abierto</label>
             </div>
-            <button class="btn btn-primary" id="searchBtn">🔍 Buscar</button>
+            <button class="btn btn-primary" id="searchBtn"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg> Buscar</button>
           </div>
           <div id="searchErr" class="error"></div>
           <div id="searchMeta" class="muted" style="margin-top:10px"></div>
           <div class="row" style="margin-top:10px">
-            <button class="btn btn-sm" id="importBtn">⇪ Importar RIS/BibTeX</button>
+            <button class="btn btn-sm" id="importBtn"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg> Importar RIS/BibTeX</button>
             <input type="file" id="importFile" accept=".ris,.bib,.bibtex,.txt" style="display:none" />
             <span class="muted">¿Ya tienes referencias (Zotero, PubMed…)? Impórtalas para cribarlas aquí.</span>
           </div>
@@ -138,7 +138,7 @@
               <button class="btn btn-sm" id="exportIncl">CSV</button>
               <button class="btn btn-sm" id="exportRis">RIS</button>
               <button class="btn btn-sm" id="exportBib">BibTeX</button>
-              <button class="btn btn-sm" id="zoteroBtn">⇪ Zotero</button>
+              <button class="btn btn-sm" id="zoteroBtn"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg> Zotero</button>
               <button class="btn btn-sm" id="extractBtn">✦ Extraer datos (IA)</button>
               <button class="btn btn-sm btn-primary" id="extractExcelBtn" title="Lee tablas, texto y pies de figura de cada artículo de acceso abierto y rellena un Excel con TODO lo extraíble, listo para el meta-análisis.">✦ Extraer TODO a Excel (IA)</button>
             </div>
@@ -147,7 +147,7 @@
           <div id="excelStatus" class="muted" style="margin-top:8px"></div>
           <div id="zoteroCfg" class="format-box" style="display:none">
             <div class="row" style="margin-top:0">
-              <button id="zoteroLocal" class="btn btn-primary btn-sm">⇪ Enviar a Zotero de escritorio (sin clave)</button>
+              <button id="zoteroLocal" class="btn btn-primary btn-sm"><svg class="ico" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg> Enviar a Zotero de escritorio (sin clave)</button>
               <span id="zoteroLocalStatus" class="muted">comprobando…</span>
             </div>
             <p class="muted" style="margin-top:12px">…o por la Web API — clave e ID de usuario (en <code>zotero.org/settings/keys</code>; se guardan solo en este navegador):</p>
@@ -344,7 +344,7 @@
             <div class="card-head">
               <h3>Borrador del manuscrito</h3>
               <div class="row">
-                <button class="btn btn-sm" id="previewToggle">👁 Vista previa</button>
+                <button class="btn btn-sm" id="previewToggle"><svg class="ico" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Vista previa</button>
                 <button class="btn btn-sm" id="draftBtn">Generar borrador</button>
                 <button class="btn btn-primary btn-sm" id="aiAllBtn" style="display:none">✦ Redactar todo con IA</button>
                 <button class="btn btn-sm" id="copyAll">Copiar todo</button>
