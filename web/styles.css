@@ -212,8 +212,10 @@ tbody tr:hover { background: var(--surface-2); }
 #robGrid td:first-child, #robGrid th:first-child { text-align: left; }
 
 /* project topbar */
-.topbar { display: flex; align-items: center; gap: 8px; padding: 0 0 18px; margin-bottom: 6px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.proj-name { width: auto; flex: 1; min-width: 180px; max-width: 280px; padding: 7px 11px; font-size: 13px; }
+.topbar { display: flex; align-items: center; gap: 6px; padding: 0 0 14px; margin-bottom: 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.proj-name { width: auto; flex: 1; min-width: 180px; max-width: 300px; padding: 7px 10px; font-size: 13px; border-color: transparent; background: transparent; font-weight: 600; }
+.proj-name:hover { background: var(--surface-2); }
+.proj-name:focus { border-color: var(--primary); background: var(--surface); font-weight: 400; }
 .proj-status { font-size: 12px; color: var(--muted); }
 .proj-status.ok { color: var(--success); }
 
