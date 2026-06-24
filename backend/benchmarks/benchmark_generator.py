@@ -1,8 +1,5 @@
 import asyncio
 import time
-import uuid
-import sys
-import os
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.database import Base

@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import ForeignKey, String, Index
-from sqlalchemy.dialects.postgresql import JSONB, UUID, INET
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
