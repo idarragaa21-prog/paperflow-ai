@@ -238,7 +238,7 @@ export default function MetaRunsPage() {
         <section className="rc-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="rc-card-title" style={{ margin: 0 }}>Runs</div>
-            <button className="rc-btn rc-btn--sm rc-btn--ghost" onClick={() => runsQuery.refetch()} disabled={runsQuery.isFetching}>
+            <button className="rc-btn rc-btn--sm rc-btn--ghost" aria-label="Refresh" title="Refresh" onClick={() => runsQuery.refetch()} disabled={runsQuery.isFetching}>
               {runsQuery.isFetching ? '…' : '↻'}
             </button>
           </div>
