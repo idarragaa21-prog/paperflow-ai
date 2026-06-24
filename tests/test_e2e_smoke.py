@@ -84,12 +84,20 @@ def test_step7_rob_and_grade_and_sof():
 
 
 def test_step8_manuscript_and_docx_export():
+    import io
+    import zipfile
     result = client.post("/analyze", json={"rows": ROWS}).json()
     ms = _ok(client.post("/manuscript", json={"question": "¿Estatinas y CCR?", "result": result,
                                               "mode": "local"})).json()
     sections = ms.get("sections") or {"Resumen": "x", "Métodos": "y"}
-    r = _ok(client.post("/manuscript/docx", json={"sections": sections, "facts": "I² = 30%"}))
+    # export with embedded figures, using the SAME keys the UI sends (forest/funnel)
+    figures = {"forest": result["forest_svg"], "funnel": result["funnel_svg"]}
+    grade = client.post("/grade", json={"result": result, "design": "observational"}).json()
+    r = _ok(client.post("/manuscript/docx", json={"sections": sections, "facts": "I² = 30%",
+                                                  "figures": figures, "grade": grade}))
     assert r.content[:2] == b"PK"  # a real .docx (zip)
+    imgs = [n for n in zipfile.ZipFile(io.BytesIO(r.content)).namelist() if n.startswith("word/media/")]
+    assert len(imgs) >= 2, "forest + funnel figures must be embedded in the Word export"
 
 
 def test_excel_export_endpoint_full_shape():
