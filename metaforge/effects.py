@@ -220,18 +220,29 @@ def from_effect_and_ci(effect, ci_low, ci_high, *, measure="OR", label="", **met
     yi = forward_transform(measure, effect)
     hi = forward_transform(measure, ci_high)
     lo = forward_transform(measure, ci_low)
+    if hi < lo:
+        lo, hi = hi, lo  # tolerate a swapped CI
     sei = (hi - lo) / (2 * 1.959963984540054)
+    if sei <= 0:
+        raise ValueError(
+            f"Row '{label}': the 95% CI has zero width (límite inferior = superior), "
+            "so no standard error can be derived. Provide a CI with lower < upper, or an SE."
+        )
     return Effect(label=label, yi=yi, vi=sei ** 2, measure=measure, note="from effect + 95% CI", **meta)
 
 
 def from_effect_and_se(effect, se, *, measure="OR", label="", **meta) -> Effect:
     measure = measure.upper()
+    if se is None or se <= 0:
+        raise ValueError(f"Row '{label}': the standard error must be > 0.")
     yi = forward_transform(measure, effect)
     return Effect(label=label, yi=yi, vi=se ** 2, measure=measure, note="from effect + SE", **meta)
 
 
 def from_yi_se(yi, se, *, measure="GEN", label="", **meta) -> Effect:
     """Generic inverse-variance: yi and its SE are already on the analysis scale."""
+    if se is None or se <= 0:
+        raise ValueError(f"Row '{label}': the standard error (se) must be > 0.")
     return Effect(label=label, yi=yi, vi=se ** 2, measure=measure.upper(), **meta)
 
 

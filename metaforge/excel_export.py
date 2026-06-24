@@ -13,6 +13,19 @@ from __future__ import annotations
 import io
 
 
+def _safe(v):
+    """Neutralise CSV/formula injection: a string cell starting with =, +, -, @
+    (or a control char) is executed as a formula by Excel/Sheets. Prefix it with
+    an apostrophe so it is always treated as literal text."""
+    if isinstance(v, str) and v and v[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + v
+    return v
+
+
+def _arow(ws, values) -> None:
+    ws.append([_safe(v) for v in values])
+
+
 def _autosize(ws, widths: dict[int, int]) -> None:
     from openpyxl.utils import get_column_letter
     for col, w in widths.items():
@@ -141,7 +154,7 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
         st, pop = d.get("study", {}), d.get("population", {})
         arms = "; ".join(f"{a.get('name', '')} (n={a.get('n') if a.get('n') is not None else '?'})"
                          for a in d.get("arms", []))
-        ws.append([d.get("label", ext.get("study_label", "")), ext.get("doi", ""), ext.get("pmid", ""),
+        _arow(ws, [d.get("label", ext.get("study_label", "")), ext.get("doi", ""), ext.get("pmid", ""),
                    st.get("authors", ""), st.get("year", ""), st.get("country", ""), st.get("design", ""),
                    st.get("setting", ""), st.get("funding", ""), st.get("registration", ""),
                    d.get("followup", ""), pop.get("description", ""), pop.get("total_n"),
@@ -168,7 +181,7 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
                 origen = "figura: estimado de gráfica (aprox.)"
             else:
                 origen = "figura: valor impreso"
-            ws2.append([label, o.get("name", ""), o.get("type", ""), o.get("timepoint", ""),
+            _arow(ws2, [label, o.get("name", ""), o.get("type", ""), o.get("timepoint", ""),
                         iv.get("events"), iv.get("n"), iv.get("mean"), iv.get("sd"), iv.get("person_time"),
                         ct.get("events"), ct.get("n"), ct.get("mean"), ct.get("sd"), ct.get("person_time"),
                         eff.get("measure", ""), eff.get("value"), eff.get("ci_lower"), eff.get("ci_upper"),
@@ -189,7 +202,7 @@ def extractions_to_xlsx(extractions: list[dict]) -> bytes:
                 continue  # values estimated off a curve/bar need human checking first
             row = _meta_row(label, o)
             row["year"] = year
-            ws3.append([row.get(c, "") for c in _META_COLS])
+            _arow(ws3, [row.get(c, "") for c in _META_COLS])
     _autosize(ws3, {1: 22, 3: 28, 4: 14})
 
     buf = io.BytesIO()

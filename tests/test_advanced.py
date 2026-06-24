@@ -104,3 +104,27 @@ def test_forest_truncates_long_labels_and_export_safe():
     assert "<title>" not in svg  # export-safe
     assert long_label not in svg  # the full long label never appears verbatim
     assert "…" in svg  # it was truncated
+
+
+def test_zero_width_ci_is_rejected_not_crash():
+    """A zero-width CI (lower == upper) has SE=0 → must raise a clear error, not
+    propagate NaN/inf into pooling."""
+    import pytest
+    from metaforge.effects import from_effect_and_ci, from_effect_and_se, from_yi_se
+    with pytest.raises(ValueError, match="zero width"):
+        from_effect_and_ci(0.8, 0.8, 0.8, measure="HR", label="A")
+    with pytest.raises(ValueError):
+        from_effect_and_se(0.8, 0.0, measure="HR", label="A")
+    with pytest.raises(ValueError):
+        from_yi_se(0.1, 0.0, label="A")
+    # swapped CI is tolerated (auto-ordered)
+    e = from_effect_and_ci(0.8, 0.98, 0.5, measure="HR", label="ok")
+    assert e.vi > 0
+
+
+def test_excel_neutralizes_formula_injection():
+    from metaforge.excel_export import _safe
+    assert _safe("=SUM(A1)") == "'=SUM(A1)"
+    assert _safe("@x") == "'@x" and _safe("+1") == "'+1" and _safe("-1") == "'-1"
+    assert _safe("Mortalidad") == "Mortalidad"  # normal text untouched
+    assert _safe(42) == 42  # numbers untouched
