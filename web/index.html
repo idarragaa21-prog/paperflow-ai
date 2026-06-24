@@ -120,6 +120,27 @@
           </div>
         </div>
 
+        <!-- Subir tus propios PDFs y extraerlos -->
+        <div class="card" id="uploadCard">
+          <div class="card-head"><h3>O sube tus propios artículos (PDF)</h3>
+            <span class="muted">Extracción rigurosa: texto · tablas · imágenes de figuras</span>
+          </div>
+          <p class="muted">¿Ya tienes tus artículos? Arrastra tus PDF aquí (varios a la vez). Leo cada uno — incluidas las imágenes de las figuras — y relleno los datos listos para el meta-análisis.</p>
+          <div id="dropZone" class="dropzone">
+            <svg class="ico ico-lg" viewBox="0 0 24 24" style="opacity:.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>
+            <p>Arrastra tus PDF aquí, o <button class="link" id="pdfPick" type="button">selecciona archivos</button></p>
+            <input type="file" id="pdfFiles" accept="application/pdf,.pdf" multiple style="display:none" />
+          </div>
+          <div id="pdfList" class="pdf-list"></div>
+          <div class="row between" id="pdfActions" style="display:none">
+            <span class="muted" id="pdfSummary"></span>
+            <div class="row">
+              <button class="btn btn-sm btn-primary" id="pdfExcel">✦ Exportar a Excel</button>
+              <button class="btn btn-sm" id="pdfToData">Cargar al paso Datos →</button>
+            </div>
+          </div>
+        </div>
+
         <div class="card" id="screenCard" style="display:none">
           <div class="card-head"><h3>Cribado por título y resumen</h3>
             <div class="row">
@@ -361,6 +382,33 @@
       </section>
     </main>
   </div>
+
+  <!-- ===== AI connection / account modal ===== -->
+  <div class="modal-backdrop" id="aiModal" style="display:none">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aiModalTitle">
+      <div class="modal-head">
+        <h3 id="aiModalTitle">Conexión con la IA</h3>
+        <button class="icon-btn" id="aiModalClose" aria-label="Cerrar">✕</button>
+      </div>
+      <div id="aiModalBody">
+        <div class="conn-status" id="connStatus"><span class="dot"></span><span id="connText">comprobando…</span></div>
+        <p class="muted" id="connHelp"></p>
+        <ol class="conn-steps">
+          <li>Instala la app de <b>Claude</b> y entra con tu cuenta (Claude Pro/Max), o en la terminal ejecuta <code>claude login</code>.</li>
+          <li>Vuelve aquí y pulsa <b>Comprobar conexión</b>.</li>
+        </ol>
+        <div class="note" style="margin-top:4px">MetaForge usa <b>tu propia sesión de Claude</b> — tus tokens, sin clave de API ni pagos extra. Tu sesión y tus datos no salen de tu equipo.</div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn btn-primary btn-sm" id="connCheck">Comprobar conexión</button>
+          <span class="muted" id="connNote"></span>
+        </div>
+        <details style="margin-top:14px"><summary class="muted" style="cursor:pointer">¿Y ChatGPT u otra IA?</summary>
+          <p class="muted" style="margin-top:8px">Hoy MetaForge se integra con <b>Claude</b> (es lo que mejor lee tablas y figuras). Si no tienes Claude conectado, la app sigue funcionando en <b>modo local</b> con plantillas — solo las funciones de IA (preguntas, cribado y extracción) quedan en pausa.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+
   <script src="/app.js"></script>
 </body>
 </html>

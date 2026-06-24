@@ -44,16 +44,40 @@ function goStep(n) {
 }
 $('steps').addEventListener('click', (e) => { const b = e.target.closest('.step'); if (b && !b.disabled) goStep(Number(b.dataset.step)); });
 
-// ---------- Init ----------
-async function init() {
-  try { S.ai = !!(await (await fetch('/ai-status')).json()).ai_available; } catch { S.ai = false; }
+// ---------- AI connection / account ----------
+function paintAi() {
   const pill = $('aiPill');
-  pill.classList.add(S.ai ? 'on' : 'off');
+  pill.classList.toggle('on', S.ai); pill.classList.toggle('off', !S.ai);
   pill.textContent = S.ai ? '● IA activa' : '○ Modo local';
-  pill.title = S.ai ? 'Usando tu sesión de Claude' : 'Inicia sesión con: claude login';
+  pill.title = S.ai ? 'Conectado a tu sesión de Claude — pulsa para gestionar' : 'Sin conexión de IA — pulsa para conectar';
   $('forgeHint').textContent = S.ai
     ? 'Usando tu sesión de Claude (tus tokens). Tarda unos segundos.'
-    : 'Modo local (plantillas). Para IA, ejecuta «claude login» en tu equipo.';
+    : 'Modo local (plantillas). Para IA, conéctate (pulsa «IA» abajo a la izquierda).';
+  const st = $('connStatus'), tx = $('connText'), help = $('connHelp');
+  if (st) {
+    st.classList.toggle('on', S.ai); st.classList.toggle('off', !S.ai);
+    tx.textContent = S.ai ? 'Conectado a Claude' : 'Sin conexión';
+    help.textContent = S.ai
+      ? 'Tu sesión de Claude está activa: las preguntas, el cribado y la extracción usan tu cuenta.'
+      : 'No detecto una sesión de Claude en tu equipo. Conéctala para activar la IA:';
+  }
+}
+async function checkAi() {
+  try { S.ai = !!(await (await fetch('/ai-status')).json()).ai_available; } catch { S.ai = false; }
+  paintAi();
+  return S.ai;
+}
+async function init() {
+  await checkAi();
+  $('aiPill').onclick = () => { $('aiModal').style.display = 'grid'; };
+  $('aiModalClose').onclick = () => { $('aiModal').style.display = 'none'; };
+  $('aiModal').addEventListener('click', (e) => { if (e.target === $('aiModal')) $('aiModal').style.display = 'none'; });
+  $('connCheck').onclick = async () => {
+    const btn = $('connCheck'); busy(btn, true, 'Comprobando…');
+    const ok = await checkAi();
+    busy(btn, false);
+    $('connNote').textContent = ok ? '✓ ¡Conectado!' : 'Aún no detecto la sesión. Abre Claude o ejecuta «claude login».';
+  };
   try {
     S.examples = await (await fetch('/examples')).json();
     const sel = $('exampleSel');
@@ -351,6 +375,66 @@ $('extractExcelBtn').onclick = async () => {
     if (metaRows.length) $('loadMetaBtn').onclick = () => loadMetaRowsToData(metaRows);
   } catch (e) { status.textContent = 'No se pudo generar el Excel: ' + e.message; }
 };
+// ---------- Upload your own PDFs and extract rigorously ----------
+S.pdfExtractions = S.pdfExtractions || [];
+function pdfMetaRows() { return S.pdfExtractions.flatMap((e) => e.meta_rows || []); }
+function refreshPdfActions() {
+  const acts = $('pdfActions');
+  const done = S.pdfExtractions.length;
+  if (!done) { acts.style.display = 'none'; return; }
+  const out = S.pdfExtractions.reduce((n, e) => n + ((e.data && e.data.outcomes) ? e.data.outcomes.length : 0), 0);
+  const rows = pdfMetaRows().length;
+  $('pdfSummary').innerHTML = `<b>${done}</b> PDF · <b>${out}</b> desenlaces · <b>${rows}</b> filas para meta-análisis`;
+  acts.style.display = 'flex';
+}
+async function handlePdfFiles(files) {
+  const list = $('pdfList');
+  for (const file of files) {
+    if (!file.name.toLowerCase().endsWith('.pdf')) continue;
+    const item = document.createElement('div');
+    item.className = 'pdf-item';
+    item.innerHTML = `<span class="nm">${esc(file.name)}</span><span class="st"><span class="spinner" style="border-color:rgba(109,74,255,.3);border-top-color:var(--primary)"></span> leyendo…</span>`;
+    list.appendChild(item);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await fetch('/extract/pdf', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Error');
+      S.pdfExtractions.push(d);
+      const no = (d.data && d.data.outcomes) ? d.data.outcomes.length : 0;
+      const fg = d.n_figures ? ` · ${d.n_figures} fig` : '';
+      item.className = 'pdf-item ok';
+      item.querySelector('.st').textContent = `✓ ${d.n_tables || 0} tablas${fg} · ${no} desenlaces`;
+    } catch (e) {
+      item.className = 'pdf-item err';
+      item.querySelector('.st').textContent = '✗ ' + e.message;
+    }
+    refreshPdfActions();
+  }
+}
+(function wirePdfUpload() {
+  const dz = $('dropZone'); const input = $('pdfFiles');
+  $('pdfPick').onclick = () => input.click();
+  input.onchange = (e) => { handlePdfFiles([...e.target.files]); e.target.value = ''; };
+  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('drag'); }));
+  dz.addEventListener('drop', (e) => { if (e.dataTransfer && e.dataTransfer.files) handlePdfFiles([...e.dataTransfer.files]); });
+})();
+$('pdfExcel').onclick = async () => {
+  if (!S.pdfExtractions.length) return;
+  const btn = $('pdfExcel'); busy(btn, true, 'Generando…');
+  try {
+    const r = await fetch('/extract/excel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ extractions: S.pdfExtractions }) });
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'extraccion_pdf_metaforge.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+  } catch (e) { alert('No se pudo generar el Excel: ' + e.message); } finally { busy(btn, false); }
+};
+$('pdfToData').onclick = () => {
+  const rows = pdfMetaRows();
+  if (!rows.length) { alert('Aún no hay datos extraíbles de los PDF.'); return; }
+  loadMetaRowsToData(rows);
+};
+
 // Load the meta-analysis-ready rows straight into the Data step CSV — no Excel
 // round-trip. Rows are sorted by outcome so the same outcome sits together; the
 // epidemiologist keeps one outcome+measure and runs the synthesis.

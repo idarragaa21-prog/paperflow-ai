@@ -444,17 +444,25 @@ _READ_FIGURES = os.environ.get("METAFORGE_READ_FIGURES", "on").lower() != "off"
 
 
 def _figure_outcomes(record: dict, parts: dict, *, timeout: int, max_workers: int) -> tuple[list[dict], int]:
-    """Download the article's figure images and read quantitative data off them.
+    """Read quantitative data off the article's figure images.
 
-    Returns (outcomes, n_figures_read). Uses the fast vision model — it reads the
-    numbers printed on figures (forest plots, n-at-risk) accurately and quickly,
-    and curve estimates are approximate (and kept out of synthesis) regardless.
-    Any failure degrades silently to no figure data; text extraction is unaffected.
+    Two sources: a list of local image paths already on disk (uploaded PDFs), or
+    figure URLs discovered in the JATS XML (open-access records, downloaded here).
+    Uses the fast vision model; any failure degrades silently to no figure data.
     """
+    import os
     import tempfile
     from . import figvision
 
     try:
+        imgs = parts.get("image_paths")
+        if imgs:  # uploaded PDF — images are already extracted to disk
+            d = os.path.dirname(imgs[0])
+            figs = [{"label": f"Figura {i + 1}", "caption": "", "path": p}
+                    for i, p in enumerate(imgs)]
+            outs = figvision.extract_from_figures(figs, model=_EXTRACT_MODEL or None,
+                                                  timeout=timeout, max_workers=max_workers, cwd=d)
+            return outs, len(figs)
         with tempfile.TemporaryDirectory(prefix="mf_figs_") as tmp:
             figs = figvision.fetch_figure_images(record, parts.get("xml", ""), tmp)
             if not figs:
@@ -466,7 +474,7 @@ def _figure_outcomes(record: dict, parts: dict, *, timeout: int, max_workers: in
         return [], 0
 
 
-def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
+def extract_full(record: dict, *, parts: dict | None = None, mode: str = "auto", timeout: int = 150,
                  max_workers: int = 8, read_figures: bool | None = None) -> dict:
     """Comprehensive structured extraction of everything in an article.
 
@@ -476,8 +484,13 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
     once on the account's default model, so nothing is lost. If the article has
     figure images, their quantitative data is also read with a vision call and
     added (flagged as approximate, read from the figure).
+
+    Pass `parts` (already containing narrative/tables/captions and optionally
+    image_paths) to extract from a source other than Europe PMC — e.g. an
+    uploaded PDF.
     """
-    parts = fetch_fulltext_full(record)
+    if parts is None:
+        parts = fetch_fulltext_full(record)
     base = {"study_label": _label(record), "doi": record.get("doi"), "pmid": record.get("pmid"),
             "source": "fulltext" if parts["has_fulltext"] else "abstract",
             "has_fulltext": parts["has_fulltext"], "n_tables": len(parts["tables"]),
@@ -494,12 +507,11 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
     for i, t in enumerate(parts["tables"][:_MAX_TABLES]):
         job_prompts[f"table{i}"] = _build_table_prompt(t, i)
 
-    # Kick off figure reading (download + vision) in the background so it overlaps
-    # with the text extraction instead of running after it.
+    # Kick off figure reading in the background so it overlaps with text extraction.
     from concurrent.futures import ThreadPoolExecutor
     want_figs = _READ_FIGURES if read_figures is None else read_figures
     fig_pool = fig_future = None
-    if want_figs and parts.get("xml"):
+    if want_figs and (parts.get("xml") or parts.get("image_paths")):
         fig_pool = ThreadPoolExecutor(max_workers=1)
         fig_future = fig_pool.submit(_figure_outcomes, record, parts, timeout=timeout, max_workers=4)
 
@@ -538,3 +550,34 @@ def extract_full(record: dict, *, mode: str = "auto", timeout: int = 150,
         base["note"] = (f"Extracción parcial: {len(errors)} de {len(job_prompts)} secciones "
                         "no se pudieron leer tras un reintento; revisa esas tablas a mano.")
     return base
+
+
+def extract_pdf(pdf_bytes: bytes, *, filename: str = "", mode: str = "auto", timeout: int = 150) -> dict:
+    """Rigorously extract everything from an UPLOADED PDF: text, tables and the
+    figure images (via vision). Returns the same structure as extract_full."""
+    import shutil
+
+    from . import pdf_extract
+
+    label = (os.path.basename(filename or "").rsplit(".", 1)[0] or "Documento")[:80]
+    try:
+        parts = pdf_extract.pdf_to_parts(pdf_bytes)
+    except Exception as exc:  # noqa: BLE001 — corrupt/encrypted PDF, etc.
+        return {"study_label": label, "doi": None, "pmid": None, "source": "pdf",
+                "has_fulltext": False, "n_tables": 0, "n_captions": 0, "n_figures": 0,
+                "data": None, "found": False, "meta_rows": [],
+                "note": f"No se pudo leer el PDF: {str(exc)[:120]}"}
+    image_dir = parts.get("image_dir")
+    record = {"authors": label, "year": "", "doi": None, "pmid": None}
+    try:
+        out = extract_full(record, parts=parts, mode=mode, timeout=timeout)
+        out["study_label"] = label
+        out["source"] = "pdf"
+        out["n_pages"] = parts.get("n_pages")
+        out["n_images"] = len(parts.get("image_paths") or [])
+        if out.get("data"):
+            out["data"]["label"] = label
+        return out
+    finally:
+        if image_dir:
+            shutil.rmtree(image_dir, ignore_errors=True)

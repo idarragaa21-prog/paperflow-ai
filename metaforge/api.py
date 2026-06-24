@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
@@ -20,7 +20,7 @@ from .questions import generate_questions
 from .rob import TOOLS, domains_for, rob_summary_svg
 from .samples import EXAMPLES, TEMPLATES
 from .excel_export import extractions_to_xlsx
-from .extract import extract_data, extract_full, extract_to_csv_row
+from .extract import extract_data, extract_full, extract_pdf, extract_to_csv_row
 from .screen import dual_screen, screen_fulltext, screen_records
 from .search import search_literature
 from .service import analyze, analyze_csv, meta_regression_csv, meta_regression_rows
@@ -30,7 +30,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.13.0",
+    version="2.14.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -267,6 +267,20 @@ def screen_fulltext_endpoint(req: FulltextScreenRequest) -> dict:
 @app.post("/extract/full")
 def extract_full_endpoint(req: FullExtractRequest) -> dict:
     return extract_full(req.record, mode=req.mode)
+
+
+@app.post("/extract/pdf")
+async def extract_pdf_endpoint(file: UploadFile = File(...), mode: str = "auto") -> dict:
+    """Rigorously extract data from an uploaded PDF (text + tables + figure images)."""
+    name = file.filename or "documento.pdf"
+    if not name.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Sube un archivo .pdf")
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="El archivo está vacío.")
+    if len(data) > 40 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El PDF supera 40 MB.")
+    return extract_pdf(data, filename=name, mode=mode)
 
 
 @app.post("/extract/excel")
