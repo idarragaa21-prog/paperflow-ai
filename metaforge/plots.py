@@ -17,6 +17,12 @@ def _esc(text: object) -> str:
     )
 
 
+def _truncate(text: object, n: int = 34) -> str:
+    """Clip a study label so it can't overflow into the plot area."""
+    s = str(text)
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
 def _fmt(value: float, measure: str) -> str:
     return f"{back_transform(measure, value):.2f}"
 
@@ -97,7 +103,7 @@ def forest_svg(
         lo, hi = e.ci
         w = result.weights_pct[i] if i < len(result.weights_pct) else 0.0
         size = 3.0 + 5.0 * math.sqrt((w / max_w) if max_w else 0)
-        p.append(f'<text x="20" y="{y + 4:.1f}" font-size="12" fill="#222">{_esc(e.label)}</text>')
+        p.append(f'<text x="20" y="{y + 4:.1f}" font-size="12" fill="#222">{_esc(_truncate(e.label))}</text>')
         p.append(f'<line x1="{sx(lo):.1f}" y1="{y:.1f}" x2="{sx(hi):.1f}" y2="{y:.1f}" stroke="#3b5bdb" stroke-width="1.6"/>')
         p.append(f'<rect x="{sx(e.yi) - size:.1f}" y="{y - size:.1f}" width="{2 * size:.1f}" height="{2 * size:.1f}" fill="#1c2d8c"/>')
         p.append(f'<text x="{est_x}" y="{y + 4:.1f}" font-size="11" fill="#444">{_fmt(e.yi, measure)} [{_fmt(lo, measure)}, {_fmt(hi, measure)}]</text>')
@@ -210,7 +216,7 @@ def loo_forest_svg(loo: list[dict], result: PoolResult) -> str:
     ]
     for i, (lbl, est, lo, hi) in enumerate(rows):
         y = top + i * row_h + row_h / 2
-        p.append(f'<text x="16" y="{y + 4:.1f}" font-size="11" fill="#333">− {_esc(lbl)}</text>')
+        p.append(f'<text x="16" y="{y + 4:.1f}" font-size="11" fill="#333">− {_esc(_truncate(lbl, 31))}</text>')
         p.append(f'<line x1="{sx(lo):.1f}" y1="{y:.1f}" x2="{sx(hi):.1f}" y2="{y:.1f}" stroke="#3b5bdb" stroke-width="1.4"/>')
         p.append(f'<circle cx="{sx(est):.1f}" cy="{y:.1f}" r="3.4" fill="#1c2d8c"/>')
         p.append(f'<text x="{est_x}" y="{y + 4:.1f}" font-size="10" fill="#555">{back_transform(measure, est):.2f} [{back_transform(measure, lo):.2f}, {back_transform(measure, hi):.2f}]</text>')

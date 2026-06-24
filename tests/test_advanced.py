@@ -83,3 +83,24 @@ def test_api_fulltext_screen_no_fulltext():
     body = r.json()
     assert body["phase"] == "fulltext"
     assert body["decision"] == "maybe"  # no pmcid -> no full text
+
+
+def test_forest_truncates_long_labels_and_export_safe():
+    """Long study labels must be clipped so they can't overflow the plot, and the
+    SVG must contain no <title> (svglib renders it as visible text, breaking the
+    PNG/Word export)."""
+    from metaforge.plots import _truncate, forest_svg
+    from metaforge.service import analyze
+    assert _truncate("x" * 80).endswith("…") and len(_truncate("x" * 80)) <= 34
+    assert _truncate("Corto 2020") == "Corto 2020"
+    long_label = "Huang Yan-Jiun, Lee Han-Hsiang, Chen Wan-Ming, Peng Szu-Ming 2026"
+    res = analyze([
+        {"study_label": long_label, "effect_measure": "OR", "a_events": 42,
+         "b_non_events": 610, "c_events": 88, "d_non_events": 598},
+        {"study_label": "X 2021", "effect_measure": "OR", "a_events": 12,
+         "b_non_events": 300, "c_events": 25, "d_non_events": 290},
+    ])
+    svg = res["forest_svg"]
+    assert "<title>" not in svg  # export-safe
+    assert long_label not in svg  # the full long label never appears verbatim
+    assert "…" in svg  # it was truncated
