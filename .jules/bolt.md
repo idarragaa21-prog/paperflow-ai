@@ -1,4 +1,3 @@
-
-## 2024-04-05 - N+1 query resolved in batch updates
-**Learning:** Found a common N+1 query pattern where updating a batch of effect sizes fetched each effect size one by one using `db.get()`. This is particularly expensive when users use "grid pros" (batch edits).
-**Action:** Used `in_()` on an array of primary keys to fetch all records in a single query, then mapped them in memory for lookup. Mocked database test objects should be updated when refactoring `db.get()` to `db.execute()`.
+## 2024-06-24 - Redundant regex compilation in federated search
+**Learning:** Python's `re` module internally caches compiled patterns, making hoisting `re.compile(pattern)` out of a function minimal. However, the overhead of applying `re.sub` and tokenization (`.split()`) *is* significant inside large inner loops like relevance ranking arrays.
+**Action:** Always verify if expensive text transformations (like regex substitutions and string splitting) acting on constant data (like a query string) are executed inside a mapping loop. Hoist the result of the transformation itself (e.g., `query_tokens`), rather than trying to hoist just the compilation of the regex pattern.

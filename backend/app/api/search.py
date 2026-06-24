@@ -1,4 +1,5 @@
 """Search API — federated and PubMed endpoints."""
+import re
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -14,7 +15,6 @@ from app.models.user import User
 from app.schemas.search import SearchRecordResponse, SearchRequest, SearchResponse, SearchSynthesizeRequest, SearchSynthesizeResponse
 from app.services.cache import cache
 from app.services.llm.factory import llm_provider
-from app.config import settings
 from app.services.federated_search import (
     _metadata_score,
     _passes_filters,
@@ -63,8 +63,9 @@ def _postprocess_pubmed(
         filtered.append(r)
 
     # Attach + sort by relevance
+    query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
     for item in filtered:
-        item["relevance_score"] = _relevance_score(item, query)
+        item["relevance_score"] = _relevance_score(item, query, query_tokens)
 
     filtered.sort(key=lambda x: (x["relevance_score"], _metadata_score(x)), reverse=True)
     return filtered

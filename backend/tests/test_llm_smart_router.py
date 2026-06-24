@@ -1,4 +1,3 @@
-import pytest
 
 from app.services.llm.model_registry import ModelRegistry, TaskType, Provider, ModelSpec
 from app.services.llm.smart_router import RateLimiter

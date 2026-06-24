@@ -186,7 +186,7 @@ class TestDownloadOAUrlPriority:
     @pytest.mark.asyncio
     async def test_oa_url_used_first(self):
         from unittest.mock import AsyncMock, MagicMock, patch
-        from app.services.paper_service import PaperDownloadService, DownloadResult
+        from app.services.paper_service import PaperDownloadService
 
         service = PaperDownloadService()
 
@@ -391,7 +391,7 @@ class TestDownloadOAUrlOnly:
     @pytest.mark.asyncio
     async def test_oa_url_only_download_succeeds(self):
         from unittest.mock import AsyncMock, MagicMock, patch
-        from app.services.paper_service import PaperDownloadService, DownloadResult
+        from app.services.paper_service import PaperDownloadService
 
         service = PaperDownloadService()
 
