@@ -547,6 +547,7 @@ function prepareDataStep() {
     : `Para <b>${esc(ml)}</b> usa columnas: <code>${esc(KIND_COLS[kind])}</code>`;
   const match = Object.entries(S.examples).find(([, v]) => (v.title || '').toUpperCase().includes(`(${S.measure}`));
   if (match) $('exampleSel').value = match[0];
+  updateDataStatus();
 }
 $('exampleSel').onchange = async (e) => {
   const key = e.target.value; if (!key) return;
