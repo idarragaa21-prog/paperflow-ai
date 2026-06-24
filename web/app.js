@@ -92,6 +92,9 @@ $('genBtn').onclick = async () => {
   } catch (e) { $('genErr').textContent = e.message; } finally { busy(btn, false); }
 };
 $('topic').onkeydown = (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('genBtn').click(); };
+document.querySelectorAll('.topic-chip').forEach((chip) => {
+  chip.onclick = () => { $('topic').value = chip.dataset.topic; $('topic').focus(); $('genBtn').click(); };
+});
 
 const picoRow = (label, val) => val ? `<div><b>${label}</b>${esc(val)}</div>` : '';
 function renderQuestions(data) {

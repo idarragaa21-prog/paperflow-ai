@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MetaForge</title>
+  <title>MetaForge — del tema al manuscrito</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l8.66 5v10L12 22l-8.66-5V7z' fill='none' stroke='%236d4aff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -55,10 +56,22 @@
             <p class="forge-hint" id="forgeHint"></p>
           </div>
           <div id="genErr" class="error"></div>
-          <div class="row" style="margin-top:16px; gap:18px">
+          <div class="suggest">
+            <span class="suggest-label">Prueba con</span>
+            <button class="topic-chip" data-topic="efecto de las estatinas en el riesgo de cáncer colorrectal">Estatinas y cáncer colorrectal</button>
+            <button class="topic-chip" data-topic="ejercicio aeróbico y presión arterial en adultos mayores">Ejercicio y presión arterial</button>
+            <button class="topic-chip" data-topic="anticoagulantes orales directos frente a warfarina en fibrilación auricular">ACOD vs warfarina</button>
+            <button class="topic-chip" data-topic="lactancia materna y riesgo de obesidad infantil">Lactancia y obesidad infantil</button>
+          </div>
+          <div class="row" style="margin-top:18px; gap:18px">
             <button class="btn btn-sm" id="demoBtn">▸ Ver ejemplo completo (revisión terminada)</button>
             <a class="link" id="skipToData">Ya tengo mis datos →</a>
           </div>
+        </div>
+        <div class="hero-feats">
+          <div class="feat"><span class="feat-ic">🔎</span><b>Busca y criba</b><small>Europe PMC + PubMed, cribado con IA y κ entre revisores</small></div>
+          <div class="feat"><span class="feat-ic">📊</span><b>Extrae y sintetiza</b><small>Lee tablas y figuras a Excel; meta-análisis REML con forest plot</small></div>
+          <div class="feat"><span class="feat-ic">📄</span><b>Redacta</b><small>PRISMA, GRADE y manuscrito en Word con figuras</small></div>
         </div>
         <div id="questions" class="questions"></div>
       </section>

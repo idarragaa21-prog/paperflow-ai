@@ -1,7 +1,7 @@
 :root {
-  --bg: #fafafa; --surface: #fff; --surface-2: #f4f4f5; --surface-3: #e9e9ec;
-  --text: #18181b; --text-2: #3f3f46; --muted: #71717a;
-  --border: #e4e4e7; --border-strong: #d4d4d8;
+  --bg: #f5f6f9; --surface: #fff; --surface-2: #f1f2f6; --surface-3: #e7e8ee;
+  --text: #1a1a23; --text-2: #3f3f4e; --muted: #71717f;
+  --border: #e6e7ee; --border-strong: #d3d4de;
   --primary: #6d4aff; --primary-hover: #5a38e8; --primary-weak: #f0ebff;
   --success: #15803d; --success-bg: #def7e8; --success-border: #bce9cf;
   --warn: #b45309; --warn-bg: #ffedd5; --warn-border: #fed7aa;
@@ -41,7 +41,8 @@ button:focus-visible, a:focus-visible, .step:focus-visible, input:focus-visible,
 }
 .step:hover:not(:disabled) { background: var(--surface-2); }
 .step:disabled { opacity: .4; cursor: not-allowed; }
-.step.active { background: var(--primary-weak); }
+.step.active { background: var(--primary-weak); box-shadow: inset 3px 0 0 var(--primary); }
+.step.active .step-text b { color: var(--primary); }
 .step.active .step-num { background: var(--primary); color: #fff; border-color: var(--primary); }
 .step-num {
   width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--border-strong);
@@ -68,8 +69,22 @@ button:focus-visible, a:focus-visible, .step:focus-visible, input:focus-visible,
 
 /* ---- Typography ---- */
 .eyebrow { font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); margin: 0 0 8px; }
-.hero h1 { font-size: clamp(28px, 3.4vw, 38px); font-weight: 900; letter-spacing: -0.04em; margin: 0 0 10px; line-height: 1.05; }
-.lede { font-size: 15px; color: var(--text-2); max-width: 620px; margin: 0 0 22px; }
+.hero h1 { font-size: clamp(26px, 2.8vw, 33px); font-weight: 800; letter-spacing: -0.035em; margin: 0 0 10px; line-height: 1.08; }
+.lede { font-size: 15px; color: var(--text-2); max-width: 600px; margin: 0 0 20px; }
+
+/* topic suggestion chips */
+.suggest { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.suggest-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 2px; }
+.topic-chip { font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-2); cursor: pointer; transition: all 150ms; box-shadow: var(--shadow-xs); }
+.topic-chip:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-weak); transform: translateY(-1px); }
+
+/* hero feature cards */
+.hero-feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 30px; }
+.feat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 16px 17px; box-shadow: var(--shadow-xs); display: flex; flex-direction: column; gap: 4px; transition: box-shadow 180ms, border-color 180ms; }
+.feat:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+.feat-ic { font-size: 20px; }
+.feat b { font-size: 14px; font-weight: 700; }
+.feat small { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
 .view-title { font-size: 24px; font-weight: 800; margin: 0 0 18px; }
 .muted { color: var(--muted); font-size: 13px; }
 .note-line { margin: 0 0 10px; }
