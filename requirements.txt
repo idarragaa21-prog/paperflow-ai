@@ -8,6 +8,10 @@ numpy>=1.26
 scipy>=1.11
 python-docx>=1.1
 openpyxl>=3.1
-svglib>=1.5
+# svglib 2.x pulls reportlab>=4.4 which dropped the built-in renderPM C backend
+# (it then needs system cairo via rlPyCairo). Pin to the pair that rasterises
+# figures with NO system libraries.
+svglib>=1.5,<2
+reportlab>=3.6,<4
 pymupdf>=1.24
 python-multipart>=0.0.9
