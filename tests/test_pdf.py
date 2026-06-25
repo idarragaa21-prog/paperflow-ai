@@ -5,7 +5,8 @@ import io
 
 import pytest
 
-pytest.importorskip("fitz")  # PyMuPDF
+pytest.importorskip("fitz")  # PyMuPDF (runtime)
+pytest.importorskip("reportlab")  # test-only: used to synthesise a sample PDF
 
 
 def _sample_pdf() -> bytes:

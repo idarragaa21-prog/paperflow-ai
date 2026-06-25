@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metaforge"
-version = "2.14.0"
+version = "2.14.1"
 description = "Local-first research workspace: question, protocol, meta-analysis and manuscript drafting"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,16 +19,16 @@ dependencies = [
     "scipy>=1.11",
     "python-docx>=1.1",
     "openpyxl>=3.1",
-    "svglib>=1.5,<2",
-    "reportlab>=3.6,<4",
     "pymupdf>=1.24",
     "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "httpx>=0.26"]
+# reportlab here is test-only (to synthesise sample PDFs); it is NOT a runtime
+# dependency — figures rasterise via PyMuPDF.
+dev = ["pytest>=8.0", "httpx>=0.26", "reportlab"]
 # Higher-fidelity figure rasterisation for Word export. Needs the system
-# 'cairo' library (macOS: `brew install cairo`). Optional — svglib is the
+# 'cairo' library (macOS: `brew install cairo`). Optional — PyMuPDF is the
 # default and needs no system libraries.
 hifig = ["cairosvg>=2.7"]
 
