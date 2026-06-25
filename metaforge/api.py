@@ -7,7 +7,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
-from .ai import ai_available
+from .ai import ai_available, ai_status_dict, save_ai_config, test_connection
 from .citations import parse_references, to_bibtex, to_ris
 from .demo import demo_state
 from .docx_export import manuscript_docx
@@ -30,7 +30,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 app = FastAPI(
     title="MetaForge",
-    version="2.14.1",
+    version="2.15.0",
     description="Local-first research workspace: question → protocol → meta-analysis → manuscript.",
 )
 
@@ -182,10 +182,31 @@ def health() -> dict:
     return {"status": "ok", "version": app.version}
 
 
+class AiConfigRequest(BaseModel):
+    provider: str  # "anthropic" | "openai" | "claude_cli"
+    api_key: str = ""
+    model: str = ""
+
+
 @app.get("/ai-status")
 def ai_status() -> dict:
-    """Whether the local Claude CLI is available to power AI question generation."""
-    return {"ai_available": ai_available()}
+    """AI connection status: provider, whether a key/CLI is available, etc."""
+    return ai_status_dict()
+
+
+@app.get("/ai/config")
+def ai_config_get() -> dict:
+    return ai_status_dict()
+
+
+@app.post("/ai/config")
+def ai_config_set(req: AiConfigRequest) -> dict:
+    return save_ai_config(req.provider, req.api_key, req.model)
+
+
+@app.post("/ai/test")
+def ai_test() -> dict:
+    return test_connection()
 
 
 @app.post("/questions")

@@ -72,38 +72,82 @@ function goStep(n) {
 $('steps').addEventListener('click', (e) => { const b = e.target.closest('.step'); if (b && !b.disabled) goStep(Number(b.dataset.step)); });
 
 // ---------- AI connection / account ----------
+const PROV_LABEL = { anthropic: 'Claude (Anthropic)', openai: 'ChatGPT (OpenAI)', claude_cli: 'sesión local de Claude' };
+const KEY_HINT = {
+  anthropic: 'Crea una clave en console.anthropic.com → Settings → API Keys (empieza por «sk-ant-…»).',
+  openai: 'Crea una clave en platform.openai.com → API Keys (empieza por «sk-…»). Requiere saldo/crédito en OpenAI.',
+};
 function paintAi() {
+  const s = S.aiStatus || {}; const on = !!s.ai_available;
   const pill = $('aiPill');
-  pill.classList.toggle('on', S.ai); pill.classList.toggle('off', !S.ai);
-  pill.textContent = S.ai ? '● IA activa' : '○ Modo local';
-  pill.title = S.ai ? 'Conectado a tu sesión de Claude — pulsa para gestionar' : 'Sin conexión de IA — pulsa para conectar';
-  $('forgeHint').textContent = S.ai
-    ? 'Usando tu sesión de Claude (tus tokens). Tarda unos segundos.'
+  pill.classList.toggle('on', on); pill.classList.toggle('off', !on);
+  pill.textContent = on ? '● IA activa' : '○ Modo local';
+  pill.title = on ? `Conectado vía ${PROV_LABEL[s.provider] || 'IA'} — pulsa para gestionar` : 'Sin conexión de IA — pulsa para conectar';
+  $('forgeHint').textContent = on
+    ? `Usando ${PROV_LABEL[s.provider] || 'tu IA'} (tu cuenta). Tarda unos segundos.`
     : 'Modo local (plantillas). Para IA, conéctate (pulsa «IA» abajo a la izquierda).';
-  const st = $('connStatus'), tx = $('connText'), help = $('connHelp');
+  const st = $('connStatus');
   if (st) {
-    st.classList.toggle('on', S.ai); st.classList.toggle('off', !S.ai);
-    tx.textContent = S.ai ? 'Conectado a Claude' : 'Sin conexión';
-    help.textContent = S.ai
-      ? 'Tu sesión de Claude está activa: las preguntas, el cribado y la extracción usan tu cuenta.'
-      : 'No detecto una sesión de Claude en tu equipo. Conéctala para activar la IA:';
+    st.classList.toggle('on', on); st.classList.toggle('off', !on);
+    $('connText').textContent = on ? `Conectado vía ${PROV_LABEL[s.provider] || 'IA'}` : 'Sin conexión';
   }
 }
 async function checkAi() {
-  try { S.ai = !!(await (await fetch('/ai-status')).json()).ai_available; } catch { S.ai = false; }
+  try { S.aiStatus = await (await fetch('/ai/config')).json(); } catch { S.aiStatus = { ai_available: false }; }
+  S.ai = !!(S.aiStatus && S.aiStatus.ai_available);
   paintAi();
   return S.ai;
 }
+function syncKeyRow() {
+  const v = (document.querySelector('input[name="aiProv"]:checked') || {}).value;
+  const show = v === 'anthropic' || v === 'openai';
+  $('aiKeyRow').style.display = show ? 'block' : 'none';
+  if (show) {
+    const s = S.aiStatus || {};
+    $('aiKeyHint').textContent = KEY_HINT[v] || '';
+    $('aiKey').placeholder = (s.provider === v && s.has_key) ? `Clave guardada (${s.masked_key}) — escribe una nueva para cambiarla` : 'Pega tu clave de API aquí (sk-…)';
+  }
+}
+function openAiModal() {
+  const s = S.aiStatus || {};
+  const prov = s.provider || (s.cli_available ? 'claude_cli' : 'anthropic');
+  const radio = document.querySelector(`input[name="aiProv"][value="${prov}"]`);
+  if (radio) radio.checked = true;
+  $('aiKey').value = ''; $('connNote').textContent = '';
+  syncKeyRow();
+  $('aiModal').style.display = 'grid';
+}
 async function init() {
   await checkAi();
-  $('aiPill').onclick = () => { $('aiModal').style.display = 'grid'; };
+  $('aiPill').onclick = openAiModal;
   $('aiModalClose').onclick = () => { $('aiModal').style.display = 'none'; };
   $('aiModal').addEventListener('click', (e) => { if (e.target === $('aiModal')) $('aiModal').style.display = 'none'; });
-  $('connCheck').onclick = async () => {
-    const btn = $('connCheck'); busy(btn, true, 'Comprobando…');
-    const ok = await checkAi();
-    busy(btn, false);
-    $('connNote').textContent = ok ? '✓ ¡Conectado!' : 'Aún no detecto la sesión. Abre Claude o ejecuta «claude login».';
+  document.querySelectorAll('input[name="aiProv"]').forEach((r) => (r.onchange = syncKeyRow));
+  $('aiSave').onclick = async () => {
+    const provider = (document.querySelector('input[name="aiProv"]:checked') || {}).value;
+    if (!provider) { $('connNote').textContent = 'Elige una opción.'; return; }
+    const api_key = $('aiKey').value.trim();
+    if ((provider === 'anthropic' || provider === 'openai') && !api_key && !(S.aiStatus.provider === provider && S.aiStatus.has_key)) {
+      $('connNote').textContent = 'Pega tu clave de API.'; return;
+    }
+    const btn = $('aiSave'); busy(btn, true, 'Guardando…');
+    try {
+      const body = { provider, api_key, model: '' };
+      // keep existing key if the field is left blank for the same provider
+      if (!api_key && S.aiStatus.provider === provider) delete body.api_key;
+      S.aiStatus = await (await fetch('/ai/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, api_key }) })).json();
+      S.ai = !!S.aiStatus.ai_available; paintAi();
+      $('connNote').innerHTML = '<span style="color:var(--success)">✓ Guardado.</span> Pulsa «Probar conexión».';
+      $('aiKey').value = ''; syncKeyRow();
+    } catch (e) { $('connNote').textContent = 'Error: ' + e.message; } finally { busy(btn, false); }
+  };
+  $('aiTest').onclick = async () => {
+    const btn = $('aiTest'); busy(btn, true, 'Probando…');
+    try {
+      const r = await (await fetch('/ai/test', { method: 'POST' })).json();
+      $('connNote').innerHTML = r.ok ? '<span style="color:var(--success)">✓ ¡Conexión correcta!</span>' : `<span style="color:var(--danger)">✗ ${esc(r.error || 'falló')}</span>`;
+      await checkAi();
+    } catch (e) { $('connNote').textContent = 'Error: ' + e.message; } finally { busy(btn, false); }
   };
   try {
     S.examples = await (await fetch('/examples')).json();

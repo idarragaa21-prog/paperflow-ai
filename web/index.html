@@ -392,19 +392,22 @@
       </div>
       <div id="aiModalBody">
         <div class="conn-status" id="connStatus"><span class="dot"></span><span id="connText">comprobando…</span></div>
-        <p class="muted" id="connHelp"></p>
-        <ol class="conn-steps">
-          <li>Instala la app de <b>Claude</b> y entra con tu cuenta (Claude Pro/Max), o en la terminal ejecuta <code>claude login</code>.</li>
-          <li>Vuelve aquí y pulsa <b>Comprobar conexión</b>.</li>
-        </ol>
-        <div class="note" style="margin-top:4px">MetaForge usa <b>tu propia sesión de Claude</b> — tus tokens, sin clave de API ni pagos extra. Tu sesión y tus datos no salen de tu equipo.</div>
+        <p class="muted" id="connHelp" style="margin-top:0">Conecta tu cuenta para activar las preguntas, el cribado y la extracción con IA. Elige una opción:</p>
+        <div class="conn-providers">
+          <label class="prov"><input type="radio" name="aiProv" value="anthropic" /><span><b>Clave de Claude (Anthropic)</b><small>Obtén tu clave en console.anthropic.com → API Keys</small></span></label>
+          <label class="prov"><input type="radio" name="aiProv" value="openai" /><span><b>Clave de ChatGPT (OpenAI)</b><small>Obtén tu clave en platform.openai.com → API Keys</small></span></label>
+          <label class="prov"><input type="radio" name="aiProv" value="claude_cli" /><span><b>Sesión local de Claude</b><small>App Claude o «claude login» — sin clave de API</small></span></label>
+        </div>
+        <div id="aiKeyRow" style="display:none; margin-top:12px">
+          <input type="password" id="aiKey" class="input" placeholder="Pega tu clave de API aquí (sk-…)" autocomplete="off" spellcheck="false" />
+          <p class="muted" id="aiKeyHint" style="margin:6px 2px 0"></p>
+        </div>
         <div class="row" style="margin-top:14px">
-          <button class="btn btn-primary btn-sm" id="connCheck">Comprobar conexión</button>
+          <button class="btn btn-primary btn-sm" id="aiSave">Guardar y conectar</button>
+          <button class="btn btn-sm" id="aiTest">Probar conexión</button>
           <span class="muted" id="connNote"></span>
         </div>
-        <details style="margin-top:14px"><summary class="muted" style="cursor:pointer">¿Y ChatGPT u otra IA?</summary>
-          <p class="muted" style="margin-top:8px">Hoy MetaForge se integra con <b>Claude</b> (es lo que mejor lee tablas y figuras). Si no tienes Claude conectado, la app sigue funcionando en <b>modo local</b> con plantillas — solo las funciones de IA (preguntas, cribado y extracción) quedan en pausa.</p>
-        </details>
+        <div class="note" style="margin-top:14px">Tu clave se guarda <b>solo en tu equipo</b> (<code>~/.metaforge</code>, permisos 600) y se envía únicamente al proveedor que elijas. Nada pasa por terceros. Sin clave, la app funciona en modo local con plantillas.</div>
       </div>
     </div>
   </div>
