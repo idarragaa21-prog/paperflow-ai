@@ -132,10 +132,10 @@ button:focus-visible, a:focus-visible, .step:focus-visible, input:focus-visible,
 .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn-sm { padding: 6px 12px; font-size: 12.5px; }
 .input, .select { width: 100%; padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-md); font-size: 14px; background: var(--surface); font-family: var(--font); outline: none; }
-.input:focus, .select:focus, .forge textarea:focus { border-color: var(--primary); }
+.input:focus, .select:focus, .forge textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak); }
 .select-sm { width: auto; padding: 6px 10px; font-size: 12.5px; }
 .mono { width: 100%; font-family: ui-monospace, 'SF Mono', monospace; font-size: 12.5px; border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 11px; resize: vertical; outline: none; }
-.mono:focus { border-color: var(--primary); }
+.mono:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak); }
 .link { color: var(--primary); font-weight: 600; font-size: 13px; cursor: pointer; text-decoration: none; }
 .link:hover { text-decoration: underline; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -188,7 +188,7 @@ tbody tr:hover { background: var(--surface-2); }
 .sec-head h4 { margin: 0; font-size: 14px; font-weight: 700; text-transform: capitalize; }
 .sec-actions { display: flex; gap: 6px; }
 .sec textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px; font-family: var(--font); font-size: 14px; line-height: 1.65; resize: vertical; min-height: 90px; outline: none; color: var(--text); background: var(--surface); }
-.sec textarea:focus { border-color: var(--primary); }
+.sec textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak); }
 .sec-preview { font-size: 14px; line-height: 1.7; color: var(--text); padding: 4px 2px; }
 .sec-preview p { margin: 0 0 10px; }
 .sec-preview h3 { font-size: 15px; margin: 4px 0 8px; }
@@ -205,7 +205,7 @@ tbody tr:hover { background: var(--surface-2); }
 .prisma-form label { font-size: 11.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .prisma-form label.wide { grid-column: 1 / -1; }
 .prisma-form input { padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); font-size: 13px; font-family: var(--font); outline: none; }
-.prisma-form input:focus { border-color: var(--primary); }
+.prisma-form input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak); }
 /* RoB grid */
 #robGrid select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--font); }
 #robGrid td, #robGrid th { text-align: center; }
