@@ -17,6 +17,33 @@ const KIND_COLS = {
   precomputed: 'study_label, effect_measure, effect_value, ci_lower_95, ci_upper_95',
   generic: 'study_label, effect_measure, yi, se',
 };
+// columns each measure-kind needs to be analysable (beyond study_label/effect_measure)
+const REQUIRED_BY_KIND = {
+  '2x2': ['a_events', 'b_non_events', 'c_events', 'd_non_events'],
+  person_time: ['events_intervention', 'time_intervention', 'events_control', 'time_control'],
+  continuous: ['n_intervention', 'mean_intervention', 'sd_intervention', 'n_control', 'mean_control', 'sd_control'],
+  proportion: ['events', 'n_total'],
+  correlation: ['r', 'n_total'],
+  precomputed: ['effect_value', 'ci_lower_95', 'ci_upper_95'],
+  generic: ['yi', 'se'],
+};
+function parseCsvLite(text) {
+  const lines = (text || '').trim().split('\n').filter((l) => l.trim());
+  if (!lines.length) return { header: [], rows: [] };
+  const split = (l) => {
+    const out = []; let cur = '', q = false;
+    for (const ch of l) {
+      if (ch === '"') q = !q;
+      else if (ch === ',' && !q) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map((s) => s.replace(/^"|"$/g, '').trim());
+  };
+  const header = split(lines[0]);
+  const rows = lines.slice(1).map((l) => { const c = split(l); const o = {}; header.forEach((h, i) => (o[h] = c[i] ?? '')); return o; });
+  return { header, rows };
+}
 const SECTION_TITLES = { title: 'Título', abstract: 'Resumen', introduction: 'Introducción', methods: 'Métodos', results: 'Resultados', discussion: 'Discusión', limitations: 'Limitaciones', conclusion: 'Conclusión' };
 const SECTION_ORDER = ['title', 'abstract', 'introduction', 'methods', 'results', 'discussion', 'limitations', 'conclusion'];
 
@@ -497,11 +524,30 @@ function loadMetaRowsToData(rows) {
   setProjStatus(hint, true);
 }
 // Live read-out of how many usable study rows the CSV holds.
+// Smart, live validation: detect the effect measure, check each row has the
+// columns its measure needs, and warn on mixed measures — before the user analyses.
 function updateDataStatus() {
   const el = $('dataStatus'); if (!el) return;
-  const lines = ($('csv').value || '').trim().split('\n').filter((l) => l.trim());
-  const n = Math.max(0, lines.length - 1);
-  el.textContent = n ? `${n} estudio(s) en la tabla` : '';
+  const { rows } = parseCsvLite($('csv').value);
+  if (!rows.length) { el.textContent = ''; el.className = 'muted'; return; }
+  const measures = [...new Set(rows.map((r) => (r.effect_measure || '').toUpperCase()).filter(Boolean))];
+  let complete = 0, incomplete = 0;
+  rows.forEach((r) => {
+    const kind = MEASURE_KIND[(r.effect_measure || '').toUpperCase()] || '2x2';
+    const req = REQUIRED_BY_KIND[kind] || [];
+    const ok = req.length && req.every((c) => String(r[c] ?? '').trim() !== '');
+    ok ? complete++ : incomplete++;
+  });
+  const mlabel = measures.length === 1 ? (MEASURE_LABEL[measures[0]] || measures[0])
+    : (measures.length > 1 ? `${measures.length} medidas` : '—');
+  const mixed = measures.length > 1 ? ' · <b>⚠ mezcla de medidas: deja una sola</b>' : '';
+  if (incomplete === 0 && !mixed) {
+    el.innerHTML = `✓ ${complete} estudio(s) · ${esc(mlabel)} · listo para analizar`;
+    el.className = 'data-ok';
+  } else {
+    el.innerHTML = `${complete} completo(s)` + (incomplete ? `, <b>${incomplete}</b> con datos faltantes` : '') + ` · ${esc(mlabel)}${mixed}`;
+    el.className = 'data-warn';
+  }
 }
 function includedRecords() {
   const incl = (S.searchRecords || []).filter((r) => r.decision === 'include');
