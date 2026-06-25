@@ -65,7 +65,7 @@ function SidebarContent({ onNav }: { onNav?: () => void }) {
         <div className="rc-user-row">
           <div className="rc-avatar">{initials}</div>
           <span className="rc-user-email">{user?.email || ''}</span>
-          <button className="rc-logout-btn" onClick={onLogout} title={t.auth.signOut}><Icons.LogOut /></button>
+          <button className="rc-logout-btn" onClick={onLogout} title={t.auth.signOut} aria-label={t.auth.signOut}><Icons.LogOut /></button>
         </div>
         <div style={{ padding:'2px 10px 4px',fontSize:10,color:'rgba(255,255,255,0.2)',letterSpacing:'0.03em' }}>
           {t.nav.localFirst}
@@ -80,6 +80,7 @@ export default function AuthedLayout() {
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { showOnboarding, dismissOnboarding } = useOnboarding();
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
@@ -98,7 +99,7 @@ export default function AuthedLayout() {
           </svg>
         </button>
         <span className="rc-mobile-topbar-title">PaperFlow</span>
-        <button className="rc-avatar-btn" onClick={onLogout} title="Sign out">{initials}</button>
+        <button className="rc-avatar-btn" onClick={onLogout} title={t.auth.signOut} aria-label={t.auth.signOut}>{initials}</button>
       </div>
 
       {drawerOpen && (
