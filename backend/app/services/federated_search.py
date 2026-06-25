@@ -345,9 +345,10 @@ async def _search_semantic_scholar(query: str, max_results: int) -> list[dict[st
     return results
 
 
-def _relevance_score(item: dict[str, Any], query: str) -> float:
+def _relevance_score(item: dict[str, Any], query: str, query_tokens: set[str] | None = None) -> float:
     score = 0.0
-    query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
+    if query_tokens is None:
+        query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
     title_tokens = set(re.sub(r"[^a-z0-9 ]+", "", (item.get("title") or "").lower()).split())
     if query_tokens and title_tokens:
         overlap = len(query_tokens & title_tokens)
@@ -429,12 +430,14 @@ async def federated_search(query: str, *, max_results: int, filters: SearchFilte
         deduped.setdefault(key, []).append(item)
 
     merged = [_merge_duplicate_group(group) for group in deduped.values()]
-    ranked = sorted(merged, key=lambda item: (_relevance_score(item, query), _metadata_score(item)), reverse=True)
+
+    query_tokens = set(re.sub(r"[^a-z0-9 ]+", "", query.lower()).split())
+    ranked = sorted(merged, key=lambda item: (_relevance_score(item, query, query_tokens), _metadata_score(item)), reverse=True)
 
     results: list[dict[str, Any]] = []
     for item in ranked[:max_results]:
         enriched = dict(item)
-        enriched["relevance_score"] = _relevance_score(enriched, query)
+        enriched["relevance_score"] = _relevance_score(enriched, query, query_tokens)
         results.append(enriched)
 
     return {
