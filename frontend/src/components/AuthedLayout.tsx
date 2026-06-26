@@ -103,7 +103,7 @@ export default function AuthedLayout() {
 
       {drawerOpen && (
         <>
-          <div className="rc-drawer-overlay" onClick={() => setDrawerOpen(false)} />
+          <div className="rc-drawer-overlay" aria-label="Close menu" role="button" tabIndex={0} onClick={() => setDrawerOpen(false)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawerOpen(false); } }} />
           <aside className="rc-sidebar rc-sidebar--drawer"><SidebarContent onNav={() => setDrawerOpen(false)} /></aside>
         </>
       )}
