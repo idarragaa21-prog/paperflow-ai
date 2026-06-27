@@ -7,21 +7,21 @@ const SOURCE_LABELS: Record<string, string> = {
   doaj: 'DOAJ',
   unpaywall: 'Unpaywall',
   doi_content_negotiation: 'DOI direct',
-  manual_upload: 'Carga manual',
-  user_provided_oa: 'OA provista',
+  manual_upload: 'Manual upload',
+  user_provided_oa: 'Provided OA',
 };
 
 function truncate(s: string, max: number) { return s.length > max ? s.slice(0, max) + '…' : s; }
 
 function providerLabel(source?: string | null) {
-  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'Fuente externa';
+  return SOURCE_LABELS[String(source || '').toLowerCase()] || 'External source';
 }
 
 function traceStatusLabel(status: PaperDownloadTrace['final_status']) {
-  if (status === 'downloaded') return 'Descargado';
-  if (status === 'existing') return 'Ya existía';
-  if (status === 'unavailable') return 'No disponible';
-  return 'Fallido';
+  if (status === 'downloaded') return 'Downloaded';
+  if (status === 'existing') return 'Already existed';
+  if (status === 'unavailable') return 'Unavailable';
+  return 'Failed';
 }
 
 function formatDate(value?: string | null) {
@@ -74,7 +74,7 @@ const PaperTableRow = memo(function PaperTableRow({
     <Fragment>
       <tr style={{ borderBottom: '1px solid var(--rc-border)' }}>
         <td style={{ padding: '8px 6px' }}>
-          <input type="checkbox" checked={isSelected} onChange={() => onToggleOne(p.id)} />
+          <input type="checkbox" aria-label={`Select ${p.title}`} checked={isSelected} onChange={() => onToggleOne(p.id)} />
         </td>
         <td style={{ padding: '8px 6px' }}>
           <div title={p.title} style={{ fontWeight: 700, lineHeight: 1.3 }}>{truncate(p.title, 45)}</div>
@@ -96,13 +96,13 @@ const PaperTableRow = memo(function PaperTableRow({
           <div className="rc-row" style={{ gap: 4, flexWrap: 'wrap' }}>
             {!isReady && <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => onProcessMutate(p.id)}>Process</button>}
             <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => onDownloadFile(p)}>Download</button>
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => onToggleTrace(p)}>
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} aria-expanded={isExpanded} onClick={() => onToggleTrace(p)}>
               {isExpanded ? 'Hide trace' : 'Trace'}
             </button>
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => onFavoriteMutate(p)} title={p.favorite ? 'Quitar favorito' : 'Favorito'}>
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => onFavoriteMutate(p)} aria-label={p.favorite ? `Remove ${p.title} from favorites` : `Add ${p.title} to favorites`} title={p.favorite ? 'Remove favorite' : 'Favorite'}>
               {p.favorite ? '★' : '☆'}
             </button>
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => onDeleteWithConfirm(p)}>Del</button>
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => onDeleteWithConfirm(p)} aria-label={`Delete ${p.title}`} title="Delete">Del</button>
           </div>
         </td>
       </tr>
@@ -110,7 +110,7 @@ const PaperTableRow = memo(function PaperTableRow({
         <tr style={{ background: 'var(--rc-surface-2)' }}>
           <td colSpan={6} style={{ padding: 12 }}>
             {isLoadingTrace ? (
-              <div className="rc-help">Cargando traza…</div>
+              <div className="rc-help">Loading trace…</div>
             ) : traceError ? (
               <div className="rc-error">{traceError}</div>
             ) : traceData ? (
@@ -118,16 +118,16 @@ const PaperTableRow = memo(function PaperTableRow({
                 <div className="rc-row" style={{ gap: 8, flexWrap: 'wrap' }}>
                   <span className="rc-badge">{traceStatusLabel(traceData.final_status)}</span>
                   <span className="rc-badge">{providerLabel(traceData.source_provider)}</span>
-                  {traceData.used_fallback ? <span className="rc-badge">Usó fallback</span> : null}
+                  {traceData.used_fallback ? <span className="rc-badge">Used fallback</span> : null}
                 </div>
-                <div className="rc-help">Auditado: {formatDate(traceData.audited_at)}</div>
+                <div className="rc-help">Audited: {formatDate(traceData.audited_at)}</div>
                 <div className="rc-help">OA URL: {traceData.oa_url ? <a href={traceData.oa_url} target="_blank" rel="noopener noreferrer">{traceData.oa_url}</a> : '—'}</div>
                 <div className="rc-help">Landing URL: {traceData.landing_url ? <a href={traceData.landing_url} target="_blank" rel="noopener noreferrer">{traceData.landing_url}</a> : '—'}</div>
                 <div className="rc-help">Resolved URL: {traceData.resolved_url ? <a href={traceData.resolved_url} target="_blank" rel="noopener noreferrer">{traceData.resolved_url}</a> : '—'}</div>
-                <div className="rc-help">Resultado: {traceData.failure_reason || traceStatusLabel(traceData.final_status)}</div>
+                <div className="rc-help">Result: {traceData.failure_reason || traceStatusLabel(traceData.final_status)}</div>
               </div>
             ) : (
-              <div className="rc-help">Este paper no tiene una auditoría de descarga OA registrada.</div>
+              <div className="rc-help">This paper does not have a registered OA download trace.</div>
             )}
           </td>
         </tr>
