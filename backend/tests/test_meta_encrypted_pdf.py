@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
 
-import pytest
 
 
 def test_encrypted_pdf_detected(tmp_path):

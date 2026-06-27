@@ -12,7 +12,6 @@ from app.workers.job_tracker import (
     job_mark_started,
     job_set_progress,
 )
-from app.core.logger import logger
 
 
 def process_pdf_job(job_db_id: str, paper_id: str) -> dict[str, Any]:
