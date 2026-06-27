@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import and_, or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -48,27 +48,51 @@ async def import_references(
     parser = parse_bibtex_entries if payload.format == "bibtex" else parse_ris_entries
     parsed = parser(payload.content)
 
+    # Pre-fetch existing identifiers to avoid N+1 query problem
+    existing_refs_q = await db.execute(
+        select(ReferenceItem.doi, ReferenceItem.pmid, ReferenceItem.title).where(
+            ReferenceItem.project_id == payload.project_id
+        )
+    )
+    existing_dois = set()
+    existing_pmids = set()
+    existing_titles = set()
+    for row in existing_refs_q.all():
+        if row.doi:
+            existing_dois.add(row.doi)
+        if row.pmid:
+            existing_pmids.add(row.pmid)
+        if row.title:
+            existing_titles.add(row.title)
+
     imported: list[ReferenceItem] = []
     skipped = 0
     for entry in parsed:
-        dedup_q = await db.execute(
-            select(ReferenceItem).where(
-                and_(
-                    ReferenceItem.project_id == payload.project_id,
-                    or_(
-                        and_(ReferenceItem.doi.is_not(None), ReferenceItem.doi == entry.get("doi")),
-                        and_(ReferenceItem.pmid.is_not(None), ReferenceItem.pmid == entry.get("pmid")),
-                        ReferenceItem.title == entry["title"],
-                    ),
-                )
-            )
-        )
-        if dedup_q.scalars().first():
+        # Check against pre-fetched sets for duplicates
+        is_duplicate = False
+        if entry.get("doi") and entry.get("doi") in existing_dois:
+            is_duplicate = True
+        elif entry.get("pmid") and entry.get("pmid") in existing_pmids:
+            is_duplicate = True
+        elif entry.get("title") and entry.get("title") in existing_titles:
+            is_duplicate = True
+
+        if is_duplicate:
             skipped += 1
             continue
+
         item = ReferenceItem(project_id=payload.project_id, **entry)
         db.add(item)
         imported.append(item)
+
+        # Also add to sets so we don't import duplicates from the same batch
+        if entry.get("doi"):
+            existing_dois.add(entry.get("doi"))
+        if entry.get("pmid"):
+            existing_pmids.add(entry.get("pmid"))
+        if entry.get("title"):
+            existing_titles.add(entry.get("title"))
+
     await db.commit()
     for item in imported:
         await db.refresh(item)
