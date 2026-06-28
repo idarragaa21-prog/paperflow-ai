@@ -1,5 +1,5 @@
 import asyncio
-from sqlalchemy import select, update
+from sqlalchemy import update
 from app.core.security import hash_password
 from app.database import async_session_maker
 from app.models.user import User

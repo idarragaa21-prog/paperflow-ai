@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from datetime import datetime
 import uuid
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, Index
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Index
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
