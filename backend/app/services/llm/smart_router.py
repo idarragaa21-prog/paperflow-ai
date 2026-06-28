@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.services.llm.model_registry import ModelRegistry, TaskType
-from app.services.llm.provider_adapters import LLMResponse, get_adapter, CompletionRequest
-from app.services.llm.provider_adapters import LLMResponse, get_adapter, LLMCompletionRequest
+from app.services.llm.provider_adapters import LLMResponse, get_adapter
+from app.services.llm.provider_adapters import LLMCompletionRequest
 
 
 logger = logging.getLogger(__name__)
@@ -132,7 +132,7 @@ class SmartRouter:
 
                 self.registry.record_result(model.id, 90.0, success=True, latency_ms=resp.latency_ms)
                 return resp
-            except asyncio.TimeoutError as e:
+            except asyncio.TimeoutError:
                 last_error = TimeoutError(f"{model.id} timed out after {timeout_sec:.0f}s")
                 self.registry.record_result(model.id, 0.0, success=False)
                 logger.warning(f"timeout: {model.id}")

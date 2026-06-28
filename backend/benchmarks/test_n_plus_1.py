@@ -1,11 +1,7 @@
 import asyncio
 import time
-import uuid
-import sys
-import os
 
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 # Setup simple models instead to test logic and test sqlite compatibility

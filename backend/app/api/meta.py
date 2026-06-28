@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -85,19 +84,35 @@ async def create_batch(
 
     # Save PDFs as Papers and create items
     created_items: list[str] = []
-    for f in params.files:
-        content = await f.read()
-        if not storage_manager.validate_pdf(content):
-            raise HTTPException(status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}")
 
-        # Dedup by hash within project
-        content_hash = storage_manager._calculate_hash(content)
-        existing = await db.execute(
-            select(Paper).where(Paper.project_id == params.project_id).where(Paper.content_hash == content_hash).limit(1)
+    # Pre-calculate hashes for all uploaded files
+    file_contents = []
+    content_hashes = []
+    for f in params.files:
+        f_content = await f.read()
+        if not storage_manager.validate_pdf(f_content):
+            raise HTTPException(status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}")
+        f_hash = storage_manager._calculate_hash(f_content)
+        file_contents.append((f, f_content, f_hash))
+        content_hashes.append(f_hash)
+
+    # Fetch all existing papers in one query
+    existing_papers_dict = {}
+    if content_hashes:
+        existing_q = await db.execute(
+            select(Paper)
+            .where(Paper.project_id == params.project_id)
+            .where(Paper.content_hash.in_(content_hashes))
         )
-        paper = existing.scalars().first()
+        existing_papers_dict = {p.content_hash: p for p in existing_q.scalars().all()}
+
+    new_papers = []
+    items_to_add = []
+
+    for f, f_content, f_hash in file_contents:
+        paper = existing_papers_dict.get(f_hash)
         if not paper:
-            saved = await storage_manager.save_paper_bytes(data=content, project_id=params.project_id, suggested_filename=f.filename)
+            saved = await storage_manager.save_paper_bytes(data=f_content, project_id=params.project_id, suggested_filename=f.filename)
             paper = Paper(
                 project_id=params.project_id,
                 search_result_id=None,
@@ -113,14 +128,23 @@ async def create_batch(
                 downloaded_at=datetime.now(timezone.utc),
             )
             db.add(paper)
-            await db.commit()
-            await db.refresh(paper)
+            new_papers.append(paper)
+            existing_papers_dict[f_hash] = paper
 
+    if new_papers:
+        await db.flush()
+
+    for f, f_content, f_hash in file_contents:
+        paper = existing_papers_dict[f_hash]
         item = MetaExtractionItem(batch_id=batch.id, paper_id=paper.id, status="queued")
         db.add(item)
+        items_to_add.append(item)
+
+    if items_to_add:
         await db.commit()
-        await db.refresh(item)
-        created_items.append(str(item.id))
+        for item in items_to_add:
+            await db.refresh(item)
+            created_items.append(str(item.id))
 
     # Enqueue batch job
     job_record = Job(
