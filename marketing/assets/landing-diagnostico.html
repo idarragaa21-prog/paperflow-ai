@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico Científico gratis — Evidentia</title>
+<meta name="description" content="Descarga la guía '7 errores que hunden una tesis' y agenda tu Diagnóstico Científico gratis de 30 min con el Dr. Diego Idarrága.">
+<!--
+  DEPLOY GRATIS EN NETLIFY:
+  1) Entra a app.netlify.com → "Add new site" → "Deploy manually".
+  2) Arrastra la carpeta que contiene este archivo (renómbralo a index.html).
+  3) El formulario funciona solo: Netlify Forms captura los emails GRATIS
+     (atributo data-netlify="true"). Verás los envíos en el panel de Netlify.
+  REEMPLAZA los marcadores [ ... ] por tus enlaces reales antes de subir.
+-->
+<style>
+  :root{--navy:#0f2c4d;--navy2:#163a63;--accent:#1f9e7a;--ink:#1c2733;--muted:#5b6b7b;--line:#e3e9ef}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.6}
+  .hero{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:72px 24px 90px;text-align:center}
+  .brand{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#9ec7ff;font-weight:700}
+  .hero h1{font-size:40px;line-height:1.15;margin:16px auto 14px;max-width:760px;font-weight:800}
+  .hero h1 span{color:#7fe3c4}
+  .hero p{font-size:19px;color:#d4e2f2;max-width:600px;margin:0 auto}
+  .wrap{max-width:560px;margin:-56px auto 0;padding:0 20px 60px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;
+        box-shadow:0 16px 50px rgba(15,44,77,.14);padding:36px 32px}
+  .card h2{font-size:23px;color:var(--navy);margin-bottom:6px}
+  .card .sub{color:var(--muted);font-size:15px;margin-bottom:22px}
+  label{display:block;font-size:14px;font-weight:600;color:var(--navy);margin:14px 0 6px}
+  input,select{width:100%;padding:13px 14px;border:1px solid #cdd7e2;border-radius:9px;font-size:15px;font-family:inherit}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,158,122,.15)}
+  button{width:100%;margin-top:22px;padding:15px;background:var(--accent);color:#fff;border:none;
+         border-radius:9px;font-size:17px;font-weight:700;cursor:pointer;transition:.15s}
+  button:hover{background:#178163}
+  .fine{font-size:12px;color:var(--muted);text-align:center;margin-top:14px}
+  .benefits{max-width:560px;margin:8px auto 0;padding:0 20px 70px}
+  .benefits h3{color:var(--navy);font-size:18px;margin-bottom:14px;text-align:center}
+  .b{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;font-size:15px}
+  .b .ic{color:var(--accent);font-weight:800;font-size:18px;flex:none}
+  .author{max-width:560px;margin:0 auto;padding:28px 20px 60px;text-align:center;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
+  .author b{color:var(--ink)}
+  footer{background:#0f2c4d;color:#9ec7ff;text-align:center;padding:22px;font-size:13px}
+  @media(max-width:600px){.hero h1{font-size:30px}.hero{padding:54px 20px 80px}}
+</style>
+</head>
+<body>
+  <section class="hero">
+    <div class="brand">Evidentia · Asesoría científica</div>
+    <h1>Termina y <span>publica tu tesis</span> sin morir en el intento</h1>
+    <p>Descarga gratis la guía de los 7 errores que más hunden una tesis — y agenda tu
+       Diagnóstico Científico de 30 min.</p>
+  </section>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>Recibe la guía gratis 📄</h2>
+      <p class="sub">Te llega al correo al instante, junto con plantillas de metodología.</p>
+
+      <!-- Netlify Forms: captura gratis, sin backend. -->
+      <form name="leads" method="POST" data-netlify="true" netlify-honeypot="bot-field"
+            action="/gracias.html">
+        <input type="hidden" name="form-name" value="leads">
+        <p style="display:none"><label>No llenar: <input name="bot-field"></label></p>
+
+        <label for="nombre">Tu nombre</label>
+        <input id="nombre" name="nombre" type="text" required placeholder="Nombre y apellido">
+
+        <label for="email">Tu correo</label>
+        <input id="email" name="email" type="email" required placeholder="tucorreo@ejemplo.com">
+
+        <label for="etapa">¿En qué etapa está tu tesis?</label>
+        <select id="etapa" name="etapa" required>
+          <option value="">Selecciona…</option>
+          <option>Apenas tengo la idea</option>
+          <option>Definiendo pregunta y método</option>
+          <option>Recolectando / analizando datos</option>
+          <option>Escribiendo</option>
+          <option>Lista para publicar / respondiendo revisores</option>
+        </select>
+
+        <button type="submit">Enviarme la guía gratis →</button>
+        <p class="fine">Sin spam. Te puedes dar de baja cuando quieras.</p>
+      </form>
+    </div>
+  </div>
+
+  <div class="benefits">
+    <h3>Lo que vas a aprender a evitar</h3>
+    <div class="b"><span class="ic">✓</span><span>El error de muestreo que el jurado huele en 30 segundos.</span></div>
+    <div class="b"><span class="ic">✓</span><span>Por qué tu interpretación del p-valor puede arruinar tu discusión.</span></div>
+    <div class="b"><span class="ic">✓</span><span>Cómo alinear objetivo, método y prueba estadística.</span></div>
+    <div class="b"><span class="ic">✓</span><span>Cómo elegir la revista correcta desde el día uno (STROBE/PRISMA).</span></div>
+  </div>
+
+  <div class="author">
+    <b>Dr. Diego Idarrága</b> — Médico y MSc. en Epidemiología. Acompaño a tesistas e
+    investigadores de LatAm en metodología, estadística (R/SPSS/Stata), redacción científica
+    y publicación.<br><br>
+    <em>"No te hago la tesis. Te enseño a defenderla."</em>
+  </div>
+
+  <footer>© Evidentia · @evidentia_co · Asesoría científica para Latinoamérica</footer>
+</body>
+</html>
