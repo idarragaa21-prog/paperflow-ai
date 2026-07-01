@@ -74,7 +74,7 @@ const PaperTableRow = memo(function PaperTableRow({
     <Fragment>
       <tr style={{ borderBottom: '1px solid var(--rc-border)' }}>
         <td style={{ padding: '8px 6px' }}>
-          <input type="checkbox" checked={isSelected} onChange={() => onToggleOne(p.id)} />
+          <input type="checkbox" checked={isSelected} onChange={() => onToggleOne(p.id)} aria-label={`Select ${p.title}`} />
         </td>
         <td style={{ padding: '8px 6px' }}>
           <div title={p.title} style={{ fontWeight: 700, lineHeight: 1.3 }}>{truncate(p.title, 45)}</div>
@@ -99,7 +99,7 @@ const PaperTableRow = memo(function PaperTableRow({
             <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => onToggleTrace(p)}>
               {isExpanded ? 'Hide trace' : 'Trace'}
             </button>
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => onFavoriteMutate(p)} title={p.favorite ? 'Quitar favorito' : 'Favorito'}>
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => onFavoriteMutate(p)} title={p.favorite ? 'Remove favorite' : 'Favorite'} aria-label={`${p.favorite ? 'Remove' : 'Add'} ${p.title} ${p.favorite ? 'from' : 'to'} favorites`}>
               {p.favorite ? '★' : '☆'}
             </button>
             <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => onDeleteWithConfirm(p)}>Del</button>
