@@ -83,20 +83,31 @@ async def create_batch(
     await db.commit()
     await db.refresh(batch)
 
-    # Save PDFs as Papers and create items
-    created_items: list[str] = []
+    # Pre-calculate hashes and check validity to prevent N+1 query and memory issues
+    file_hashes = []
     for f in params.files:
         content = await f.read()
         if not storage_manager.validate_pdf(content):
             raise HTTPException(status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}")
+        file_hashes.append(storage_manager._calculate_hash(content))
+        await f.seek(0)
 
-        # Dedup by hash within project
-        content_hash = storage_manager._calculate_hash(content)
-        existing = await db.execute(
-            select(Paper).where(Paper.project_id == params.project_id).where(Paper.content_hash == content_hash).limit(1)
+    # Fetch existing papers in a single query
+    existing_papers = {}
+    if file_hashes:
+        existing_q = await db.execute(
+            select(Paper).where(Paper.project_id == params.project_id).where(Paper.content_hash.in_(file_hashes))
         )
-        paper = existing.scalars().first()
+        existing_papers = {p.content_hash: p for p in existing_q.scalars().all()}
+
+    # Save PDFs as Papers and create items
+    created_items: list[str] = []
+    for i, f in enumerate(params.files):
+        content_hash = file_hashes[i]
+        paper = existing_papers.get(content_hash)
+
         if not paper:
+            content = await f.read()
             saved = await storage_manager.save_paper_bytes(data=content, project_id=params.project_id, suggested_filename=f.filename)
             paper = Paper(
                 project_id=params.project_id,
@@ -115,6 +126,7 @@ async def create_batch(
             db.add(paper)
             await db.commit()
             await db.refresh(paper)
+            existing_papers[content_hash] = paper  # Update dict for intra-batch duplicates
 
         item = MetaExtractionItem(batch_id=batch.id, paper_id=paper.id, status="queued")
         db.add(item)
