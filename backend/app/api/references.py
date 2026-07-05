@@ -48,27 +48,41 @@ async def import_references(
     parser = parse_bibtex_entries if payload.format == "bibtex" else parse_ris_entries
     parsed = parser(payload.content)
 
+    # Pre-fetch existing identifiers to avoid N+1 query problem
+    existing_refs_q = await db.execute(
+        select(ReferenceItem.doi, ReferenceItem.pmid, ReferenceItem.title)
+        .where(ReferenceItem.project_id == payload.project_id)
+    )
+    existing_refs = existing_refs_q.all()
+
+    existing_dois = {ref.doi for ref in existing_refs if ref.doi}
+    existing_pmids = {ref.pmid for ref in existing_refs if ref.pmid}
+    existing_titles = {ref.title for ref in existing_refs if ref.title}
+
     imported: list[ReferenceItem] = []
     skipped = 0
     for entry in parsed:
-        dedup_q = await db.execute(
-            select(ReferenceItem).where(
-                and_(
-                    ReferenceItem.project_id == payload.project_id,
-                    or_(
-                        and_(ReferenceItem.doi.is_not(None), ReferenceItem.doi == entry.get("doi")),
-                        and_(ReferenceItem.pmid.is_not(None), ReferenceItem.pmid == entry.get("pmid")),
-                        ReferenceItem.title == entry["title"],
-                    ),
-                )
-            )
-        )
-        if dedup_q.scalars().first():
+        doi = entry.get("doi")
+        pmid = entry.get("pmid")
+        title = entry.get("title")
+
+        if (doi and doi in existing_dois) or \
+           (pmid and pmid in existing_pmids) or \
+           (title and title in existing_titles):
             skipped += 1
             continue
+
         item = ReferenceItem(project_id=payload.project_id, **entry)
         db.add(item)
         imported.append(item)
+
+        # Update sets to correctly handle intra-batch duplicates
+        if doi:
+            existing_dois.add(doi)
+        if pmid:
+            existing_pmids.add(pmid)
+        if title:
+            existing_titles.add(title)
     await db.commit()
     for item in imported:
         await db.refresh(item)
