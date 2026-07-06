@@ -73,6 +73,8 @@ export function SearchResultCard({
         <input
           type="checkbox"
           data-testid={`search-select-${idx}`}
+          aria-label={`Select ${r.title}`}
+          title={!canDownload ? 'Not available for download' : ''}
           disabled={!canDownload}
           checked={isSelected}
           onChange={() => search.setSelected((p) => ({ ...p, [key]: !p[key] }))}
@@ -101,6 +103,8 @@ export function SearchResultCard({
           {r.abstract.length > 200 && (
             <button
               data-testid={`search-details-${idx}`}
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? `Hide abstract for ${r.title}` : `Show abstract for ${r.title}`}
               onClick={() => search.toggleAbstract(key)}
               style={{ background: 'none', border: 'none', color: 'var(--rc-accent,#6366f1)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '2px 0', marginTop: 2 }}
             >
@@ -113,6 +117,8 @@ export function SearchResultCard({
         <button
           className="rc-btn"
           data-testid={`search-save-${idx}`}
+          aria-label={`Download OA PDF for ${r.title}`}
+          title={!canDownload ? 'No Open Access PDF available' : ''}
           disabled={!canDownload || search.downloadingKey === key}
           onClick={() => search.downloadOA(r)}
         >

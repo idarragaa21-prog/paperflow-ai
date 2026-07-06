@@ -74,7 +74,7 @@ const PaperTableRow = memo(function PaperTableRow({
     <Fragment>
       <tr style={{ borderBottom: '1px solid var(--rc-border)' }}>
         <td style={{ padding: '8px 6px' }}>
-          <input type="checkbox" checked={isSelected} onChange={() => onToggleOne(p.id)} />
+          <input type="checkbox" aria-label={`Select ${p.title}`} checked={isSelected} onChange={() => onToggleOne(p.id)} />
         </td>
         <td style={{ padding: '8px 6px' }}>
           <div title={p.title} style={{ fontWeight: 700, lineHeight: 1.3 }}>{truncate(p.title, 45)}</div>
@@ -94,15 +94,15 @@ const PaperTableRow = memo(function PaperTableRow({
         </td>
         <td style={{ padding: '8px 6px' }}>
           <div className="rc-row" style={{ gap: 4, flexWrap: 'wrap' }}>
-            {!isReady && <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => onProcessMutate(p.id)}>Process</button>}
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => onDownloadFile(p)}>Download</button>
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => onToggleTrace(p)}>
+            {!isReady && <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} aria-label={`Process ${p.title}`} onClick={() => onProcessMutate(p.id)}>Process</button>}
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} aria-label={`Download ${p.title}`} onClick={() => onDownloadFile(p)}>Download</button>
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11 }} aria-label={isExpanded ? `Hide trace for ${p.title}` : `Show trace for ${p.title}`} onClick={() => onToggleTrace(p)}>
               {isExpanded ? 'Hide trace' : 'Trace'}
             </button>
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} onClick={() => onFavoriteMutate(p)} title={p.favorite ? 'Quitar favorito' : 'Favorito'}>
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: p.favorite ? '#eab308' : undefined }} aria-label={p.favorite ? `Remove ${p.title} from favorites` : `Add ${p.title} to favorites`} onClick={() => onFavoriteMutate(p)} title={p.favorite ? 'Quitar favorito' : 'Favorito'}>
               {p.favorite ? '★' : '☆'}
             </button>
-            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} onClick={() => onDeleteWithConfirm(p)}>Del</button>
+            <button className="rc-btn" style={{ padding: '4px 8px', fontSize: 11, color: 'var(--rc-danger)' }} aria-label={`Delete ${p.title}`} onClick={() => onDeleteWithConfirm(p)}>Del</button>
           </div>
         </td>
       </tr>
