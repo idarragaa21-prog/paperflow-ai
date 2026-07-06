@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -83,19 +82,31 @@ async def create_batch(
     await db.commit()
     await db.refresh(batch)
 
-    # Save PDFs as Papers and create items
-    created_items: list[str] = []
+    # Pre-calculate file hashes to prevent N+1 queries
+    file_hashes = []
     for f in params.files:
         content = await f.read()
         if not storage_manager.validate_pdf(content):
             raise HTTPException(status_code=400, detail=f"Archivo no es un PDF válido: {f.filename}")
+        file_hashes.append(storage_manager._calculate_hash(content))
+        await f.seek(0)
+
+    # Fetch existing papers in a single query
+    existing_papers_q = await db.execute(
+        select(Paper).where(
+            Paper.project_id == params.project_id,
+            Paper.content_hash.in_(file_hashes) if file_hashes else False
+        )
+    )
+    existing_papers_dict = {p.content_hash: p for p in existing_papers_q.scalars().all()}
+
+    # Save PDFs as Papers and create items
+    created_items: list[str] = []
+    for f, content_hash in zip(params.files, file_hashes):
+        content = await f.read()
 
         # Dedup by hash within project
-        content_hash = storage_manager._calculate_hash(content)
-        existing = await db.execute(
-            select(Paper).where(Paper.project_id == params.project_id).where(Paper.content_hash == content_hash).limit(1)
-        )
-        paper = existing.scalars().first()
+        paper = existing_papers_dict.get(content_hash)
         if not paper:
             saved = await storage_manager.save_paper_bytes(data=content, project_id=params.project_id, suggested_filename=f.filename)
             paper = Paper(
@@ -115,6 +126,7 @@ async def create_batch(
             db.add(paper)
             await db.commit()
             await db.refresh(paper)
+            existing_papers_dict[content_hash] = paper
 
         item = MetaExtractionItem(batch_id=batch.id, paper_id=paper.id, status="queued")
         db.add(item)
@@ -643,7 +655,7 @@ async def get_study(
     study = await db.get(ExtractedStudy, study_id)
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
-    project = await _require_project_role(db, study.project_id, user, required_role="viewer")
+    await _require_project_role(db, study.project_id, user, required_role="viewer")
 
     q1 = await db.execute(select(ExtractedEffectSize).where(ExtractedEffectSize.extracted_study_id == study.id))
     eff = q1.scalars().all()
