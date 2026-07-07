@@ -103,7 +103,46 @@ h1 em {{ font-style:italic; color:{TEAL}; }}
 .foot .r .num {{ font-family:{FONT_SERIF}; font-size:18px; letter-spacing:1px; }}
 .foot .r .of {{ color:{GOLD}; }}
 .motif {{ position:absolute; z-index:1; color:{INK}; }} .slide.dark .motif {{ color:{PAPER}; }}
-.motif.br {{ right:-30px; bottom:70px; width:320px; }} .motif.tr {{ right:60px; top:130px; width:260px; }}
+.motif.br {{ right:-30px; bottom:96px; width:300px; }} .motif.tr {{ right:60px; top:130px; width:260px; }}
+
+/* progress bar */
+.progress {{ display:flex; gap:6px; margin-bottom:18px; z-index:3; }}
+.seg {{ height:3px; flex:1; background:currentColor; opacity:0.15; border-radius:3px; }}
+.seg.on {{ opacity:1; background:{GOLD}; }}
+.slide.dark .seg.on {{ background:{GOLD}; }}
+
+/* capture frame: clinical-viewer refinement */
+.capframe {{ position:relative; }}
+.capframe.rad {{ box-shadow:0 24px 60px -28px rgba(12,30,37,0.55), inset 0 0 0 1px rgba(176,138,79,0.30); }}
+.capframe.rad::after {{ content:""; position:absolute; inset:16px; pointer-events:none;
+  background:linear-gradient(155deg, rgba(14,53,65,0.55), rgba(30,90,102,0.10) 45%, rgba(176,138,79,0.28));
+  mix-blend-mode:soft-light; }}
+.capframe.lite {{ box-shadow:0 22px 56px -30px rgba(12,30,37,0.42), inset 0 0 0 1px rgba(176,138,79,0.28); }}
+.tick {{ position:absolute; width:18px; height:18px; z-index:4; border-color:{GOLD}; opacity:0.9; }}
+.tick.tl {{ top:7px; left:7px; border-top:2px solid; border-left:2px solid; }}
+.tick.tr {{ top:7px; right:7px; border-top:2px solid; border-right:2px solid; }}
+.tick.bl {{ bottom:7px; left:7px; border-bottom:2px solid; border-left:2px solid; }}
+.tick.br {{ bottom:7px; right:7px; border-bottom:2px solid; border-right:2px solid; }}
+
+/* corner brackets for cover / closing */
+.bracket {{ position:absolute; width:64px; height:64px; z-index:3; border-color:{GOLD}; opacity:0.8; }}
+.bracket.tl {{ top:60px; left:64px; border-top:2px solid; border-left:2px solid; }}
+.bracket.br {{ bottom:64px; right:64px; border-bottom:2px solid; border-right:2px solid; }}
+
+/* cover-specific */
+.edition {{ font-family:{FONT_SANS}; font-size:13px; letter-spacing:4px; text-transform:uppercase;
+  color:{GOLD}; font-weight:700; }}
+.swipe {{ display:flex; align-items:center; gap:12px; margin-top:40px; font-family:{FONT_SANS};
+  font-size:14px; letter-spacing:3px; text-transform:uppercase; font-weight:700; color:{PAPER}; }}
+.swipe .arrow {{ font-size:20px; color:{GOLD}; }}
+.swipe .ln {{ width:52px; height:2px; background:{GOLD}; opacity:0.8; }}
+
+/* sign-off lockup (closing) */
+.signoff {{ margin-top:34px; display:flex; align-items:center; gap:16px; }}
+.signoff .so-mark {{ width:34px; height:34px; }}
+.signoff .so-txt {{ font-family:{FONT_SERIF}; font-weight:700; font-size:22px; letter-spacing:4px; color:{PAPER}; }}
+.signoff .so-txt .co {{ color:{GOLD}; }}
+.signoff .so-sub {{ font-family:{FONT_SANS}; font-size:13px; letter-spacing:2px; color:#8FA3A7; margin-left:2px; }}
 """
 
 EMBLEM = '''<svg class="emblem" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -115,7 +154,8 @@ def header():
       <div class="top-right">Pie&nbsp;&amp;&nbsp;Tobillo · Lectura Crítica</div></div><div class="rule"></div>'''
 
 def footer(n):
-    return f'''<div class="rule" style="margin-bottom:20px;"></div><div class="foot">
+    segs = "".join(f'<span class="seg{" on" if i==n else ""}"></span>' for i in range(1, TOTAL+1))
+    return f'''<div class="progress">{segs}</div><div class="foot">
       <div class="l">Medicina Basada en Evidencia&nbsp; ·&nbsp; <span class="handle">@evidentia_co</span></div>
       <div class="r"><span class="num">{n:02d}</span><span class="of">/ {TOTAL}</span></div></div>'''
 
@@ -129,20 +169,23 @@ def slide(n, inner, dark=False, layout="center", motif_html=""):
 <div class="body {layout}">{inner}</div>{footer(n)}</div></body></html>'''
 
 def capture(figkey, cf, note, rad=True):
-    matcls = "capframe rad" if rad else "capframe"
-    return f'''<div class="cap"><div class="{matcls}"><img src="{FIG[figkey]}" alt=""></div>
+    matcls = "capframe rad" if rad else "capframe lite"
+    ticks = '<span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span>'
+    return f'''<div class="cap"><div class="{matcls}"><img src="{FIG[figkey]}" alt="">{ticks}</div>
       <div class="capbar"><span class="cf">{cf}</span>
       <span class="src">Tomada de Olías-López et&nbsp;al.<br>Rev Esp Cir Ortop Traumatol · RECOT 2024</span></div></div>
       <p class="capnote">{note}</p>'''
 
 S = {}
 
-# 01 HOOK
+# 01 HOOK / COVER
 S[1] = slide(1, f'''
-  <div class="kicker">Análisis crítico</div>
+  <span class="bracket tl"></span><span class="bracket br"></span>
+  <div class="kicker" style="margin-bottom:20px;">Lectura crítica · Pie y tobillo</div>
   <h1 class="t-hero">Operamos el peroné.<br>Pero el peroné<br><em>casi nunca decide.</em></h1>
   <p class="lead">Lo que decide la cirugía es la <b>estabilidad del anillo</b> — y eso no siempre se ve en la primera radiografía.</p>
-''', dark=True, motif_html=motif("mortise","br",0.14,2.0))
+  <div class="swipe"><span class="ln"></span>Desliza el análisis<span class="arrow">→</span></div>
+''', dark=True, motif_html=motif("mortise","br",0.16,2.0))
 
 # 02 IDENTITY CARD (real title)
 S[2] = slide(2, f'''
@@ -228,12 +271,15 @@ S[10] = slide(10, f'''
 
 # 11 CONCLUSIÓN + pregunta
 S[11] = slide(11, f'''
+  <span class="bracket tl"></span><span class="bracket br"></span>
   <div class="kicker">Conclusión</div>
   <h1 class="t-lg">El mensaje real:<br>un mapa excelente,<br><em>no una prueba.</em></h1>
   <p class="lead">Consenso experto, actualizado y clínicamente útil. Un marco para decidir mejor — no evidencia de alto nivel.</p>
   <div class="qbox"><div class="qk">Para el debate</div>
     <p>¿Cuántas osteosíntesis de peroné indicamos por la radiografía… y cuántas por una inestabilidad realmente demostrada en carga?</p></div>
-''', dark=True, motif_html=motif("ring","br",0.10,2.2))
+  <div class="signoff">{EMBLEM.replace('class="emblem"','class="so-mark"')}
+    <div><div class="so-txt">EVIDEN<span class="co">TIA</span></div><div class="so-sub">Medicina basada en evidencia · @evidentia_co</div></div></div>
+''', dark=True, motif_html=motif("ring","br",0.09,2.2))
 
 for n, h in S.items():
     open(f"{OUT}/slide-{n:02d}.html","w",encoding="utf-8").write(h)
