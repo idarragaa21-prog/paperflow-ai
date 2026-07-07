@@ -47,3 +47,59 @@ def laurel_crest(color=GOLD, navy=NAVY):
         <path d="M100 50 l8 2 M102 60 l8 3 M102 70 l7 4 M100 79 l6 4"/>
       </g>
     </svg>'''
+
+def ankle_anatomy(navy=NAVY, gold=GOLD, ink="#2B3A57"):
+    """Stylized labeled AP ankle mortise: tibia, fibula, talus, syndesmosis, deltoid."""
+    boneF="#E9E6DD"; taloF="#DCE2EC"
+    return f'''<svg viewBox="0 0 620 560" fill="none" font-family="Montserrat, sans-serif">
+      <!-- TIBIA -->
+      <path d="M250 20 C244 90 246 180 252 250 L252 300 C252 320 246 336 232 348
+               L214 360 C205 366 205 380 214 388 L250 392 C280 396 320 396 350 392
+               L360 388 C372 382 372 366 360 358 L352 300 L352 250
+               C356 180 356 90 350 20 Z" fill="{boneF}" stroke="{navy}" stroke-width="3"/>
+      <path d="M252 296 C280 308 322 308 352 296" stroke="{navy}" stroke-width="2.4" fill="none"/>
+      <!-- FIBULA (lateral malleolus, lower) -->
+      <path d="M392 46 C400 130 400 220 396 280 C394 316 388 350 378 372
+               C372 386 376 402 388 410 L404 404 C416 396 420 372 420 348
+               C424 300 424 210 420 130 C418 96 414 66 408 46 Z"
+            fill="{boneF}" stroke="{navy}" stroke-width="3"/>
+      <!-- TALUS dome -->
+      <path d="M214 396 C240 384 330 384 360 396 C384 406 392 428 384 448
+               C350 470 260 470 224 448 C210 430 200 410 214 396 Z"
+            fill="{taloF}" stroke="{navy}" stroke-width="3"/>
+      <!-- syndesmosis hatch (gold) -->
+      <g stroke="{gold}" stroke-width="2.6" stroke-linecap="round">
+        <path d="M356 250 L392 244 M356 264 L392 258 M357 278 L393 272 M359 292 L392 286"/>
+      </g>
+      <!-- deltoid fan (gold) medial -->
+      <g stroke="{gold}" stroke-width="2.6" fill="none" stroke-linecap="round">
+        <path d="M226 356 C206 384 200 414 210 440"/>
+        <path d="M232 360 C222 390 222 418 236 442"/>
+        <path d="M242 362 C244 392 254 418 272 438"/>
+      </g>
+      <!-- labels + gold leaders -->
+      <g stroke="{gold}" stroke-width="1.6"><line x1="470" y1="150" x2="410" y2="150"/></g>
+      <circle cx="470" cy="150" r="3.5" fill="{gold}"/>
+      <text x="482" y="145" font-size="19" font-weight="800" fill="{navy}" letter-spacing="1">PERONÉ</text>
+      <text x="482" y="169" font-size="14" font-weight="600" fill="{ink}" letter-spacing="1">Columna lateral</text>
+
+      <g stroke="{gold}" stroke-width="1.6"><line x1="150" y1="120" x2="248" y2="120"/></g>
+      <circle cx="150" cy="120" r="3.5" fill="{gold}"/>
+      <text x="30" y="115" font-size="19" font-weight="800" fill="{navy}" letter-spacing="1">TIBIA</text>
+      <text x="30" y="139" font-size="14" font-weight="600" fill="{ink}" letter-spacing="1">Maléolo medial</text>
+
+      <g stroke="{gold}" stroke-width="1.6"><line x1="486" y1="270" x2="378" y2="268"/></g>
+      <circle cx="486" cy="270" r="3.5" fill="{gold}"/>
+      <text x="498" y="266" font-size="16" font-weight="800" fill="{gold}" letter-spacing="1">SINDESMOSIS</text>
+      <text x="498" y="288" font-size="13" font-weight="600" fill="{ink}">tibia–peroné</text>
+
+      <g stroke="{gold}" stroke-width="1.6"><line x1="126" y1="420" x2="214" y2="424"/></g>
+      <circle cx="126" cy="420" r="3.5" fill="{gold}"/>
+      <text x="16" y="416" font-size="16" font-weight="800" fill="{gold}" letter-spacing="1">DELTOIDEO</text>
+      <text x="16" y="438" font-size="13" font-weight="600" fill="{ink}">profundo · LTTPP</text>
+
+      <g stroke="{gold}" stroke-width="1.6"><line x1="470" y1="440" x2="360" y2="432"/></g>
+      <circle cx="470" cy="440" r="3.5" fill="{gold}"/>
+      <text x="482" y="436" font-size="19" font-weight="800" fill="{navy}" letter-spacing="1">ASTRÁGALO</text>
+      <text x="482" y="460" font-size="14" font-weight="600" fill="{ink}">en la mortaja</text>
+    </svg>'''

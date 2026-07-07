@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
 from figb64 import FIG
-from orn import dotgrid, bulb_magnifier, diamond_rule, laurel_crest, NAVY, NAVY2, GOLD, GOLD2
+from orn import dotgrid, bulb_magnifier, diamond_rule, laurel_crest, ankle_anatomy, NAVY, NAVY2, GOLD, GOLD2
 
-OUT="carousel3"; TOTAL=11
+OUT="carousel3"; TOTAL=12
 os.makedirs(OUT, exist_ok=True)
 FACES=open('montserrat_faces.txt').read()
 
@@ -173,9 +173,10 @@ def cap(figkey,cf,note,rad=True):
       <div class="capbar"><span class="cf">{cf}</span><span class="src">Tomada de Olías-López et&nbsp;al.<br>Rev Esp Cir Ortop Traumatol · RECOT 2024</span></div></div>
       <p class="capnote">{note}</p>'''
 
-S={}
+SL=[]
+def add(body,dark=False,kind="content"): SL.append((body,dark,kind))
 # 01 COVER
-S[1]=slide(1, f'''
+add(f'''
   <div class="kick" style="margin-top:20px;">Pie &amp; Tobillo · Lectura Crítica</div>
   <h1 class="h-hero">Operamos<br>el peroné.</h1>
   <h1 class="h-md" style="margin-top:18px;font-weight:700;color:{BODY};">Pero casi nunca <span class="rd" style="color:{RED};font-weight:800;">decide.</span></h1>
@@ -185,7 +186,7 @@ S[1]=slide(1, f'''
 ''', kind="cover")
 
 # 02 IDENTITY
-S[2]=slide(2, f'''
+add(f'''
   <div class="idcard">
     <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
     <div class="jr">El artículo bajo análisis · Open Access</div>
@@ -197,8 +198,17 @@ S[2]=slide(2, f'''
   </div>
 ''', kind="content")
 
-# 03 STATEMENT — diseño
-S[3]=slide(3, f'''
+# 03 ANATOMY (foundation)
+add(f'''
+  <div class="kick" style="text-align:center;width:100%;">Antes de la crítica · La anatomía</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">Para entender la fractura,<br>entiende el <span class="gd" style="color:{GOLD};">anillo.</span></h1>
+  <div style="display:flex;justify-content:center;width:100%;margin:6px 0 2px;">
+    <div style="width:496px;">{ankle_anatomy()}</div></div>
+  <p class="lead" style="text-align:center;max-width:880px;margin:0 auto;">El tobillo es un <b>anillo</b>: tibia, peroné y astrágalo en la mortaja. La estabilidad depende de la <b>sindesmosis</b> y del <b>deltoideo profundo</b> — no solo del peroné.</p>
+''', kind="content")
+
+# 04 STATEMENT — diseño
+add(f'''
   <div class="kick">Paso 1 · El diseño</div>
   <h1 class="h-lg">¿Qué estoy leyendo<br><span class="gd" style="color:{GOLD};">en realidad?</span></h1>
   {dvd(300)}
@@ -207,14 +217,14 @@ S[3]=slide(3, f'''
 ''', kind="statement")
 
 # 04 FIGURE 1
-S[4]=slide(4, f'''
+add(f'''
   <div class="kick" style="text-align:center;width:100%;">Figura 1 · El núcleo del artículo</div>
   <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:20px;">Todo cabe en <span class="gd" style="color:{GOLD};">un algoritmo.</span></h1>
   {cap("fig1","Figura 1 — Algoritmo de manejo","Un árbol de decisión claro. Pero recuerda: es <b>consenso de expertos</b>, no evidencia agregada de ensayos.", rad=False)}
 ''', kind="content")
 
 # 05 STATEMENT — mensaje
-S[5]=slide(5, f'''
+add(f'''
   <div class="kick">Paso 2 · El mensaje</div>
   <h1 class="h-lg">La <span class="gd" style="color:{GOLD};">estabilidad</span> manda,<br>no el trazo del peroné.</h1>
   {dvd(300)}
@@ -222,21 +232,21 @@ S[5]=slide(5, f'''
 ''', kind="statement")
 
 # 06 FIGURE 4
-S[6]=slide(6, f'''
+add(f'''
   <div class="kick" style="text-align:center;width:100%;">Figura 4 · El giro conceptual</div>
   <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:20px;">La carga <span class="gd" style="color:{GOLD};">reclasifica.</span></h1>
   {cap("fig4","Figura 4 — Rx en carga: SER II / IV-A / IV-B","En descarga parecen iguales. En carga, la SER IV-B abre el espacio medial: <b>inestable → cirugía</b>. La IV-A, no.")}
 ''', kind="content")
 
 # 07 FIGURE 3
-S[7]=slide(7, f'''
+add(f'''
   <div class="kick" style="text-align:center;width:100%;">Figura 3 · Lo que la radiografía esconde</div>
   <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:20px;">La imagen simple <span class="rd" style="color:{RED};">subestima.</span></h1>
   {cap("fig3","Figura 3 — SAD II: la TC revela impactación medial","Impactación articular oculta en el <b>61–73%</b> de las SAD II. Antes de decidir, pide una <b>TC</b>.")}
 ''', kind="content")
 
 # 08 FIGURE 5
-S[8]=slide(8, f'''
+add(f'''
   <div class="kick" style="text-align:center;width:100%;">Figura 5 · Opciones de fijación</div>
   <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:20px;">Gana el implante <span class="gd" style="color:{GOLD};">que menos agrede.</span></h1>
   {cap("fig5","Figura 5 — Fijación endomedular del peroné","La placa 1/3 de caña sigue siendo el patrón oro. En <b>partes blandas de riesgo</b>, lo endomedular reduce complicaciones.")}
@@ -244,7 +254,7 @@ S[8]=slide(8, f'''
 ''', kind="content")
 
 # 09 STAT — epidemiólogo
-S[9]=slide(9, f'''
+add(f'''
   <div class="kick">Paso 3 · El epidemiólogo</div>
   <h1 class="h-lg" style="margin-bottom:10px;">Buen mapa,<br><span class="gd" style="color:{GOLD};">certeza modesta.</span></h1>
   <p class="lead" style="text-align:center;max-width:820px;margin-bottom:30px;">Base: nivel III–IV, biomecánica y cadáver. Sin GRADE ni evaluación de sesgo. Algoritmo <b>unicéntrico</b>.</p>
@@ -253,7 +263,7 @@ S[9]=slide(9, f'''
 ''', kind="stat")
 
 # 10 CHECKLIST
-S[10]=slide(10, f'''
+add(f'''
   <div class="kick" style="text-align:center;width:100%;">Paso 4 · Como ortopedista</div>
   <h1 class="h-md" style="text-align:center;width:100%;">Qué aplico <span class="gd" style="color:{GOLD};">mañana.</span></h1>
   <div style="display:flex;justify-content:center;margin:18px 0 6px;">{diamond_rule(GOLD,300)}</div>
@@ -267,7 +277,7 @@ S[10]=slide(10, f'''
 ''', kind="content")
 
 # 11 CLOSING (dark)
-S[11]=slide(11, f'''
+add(f'''
   <div class="kick" style="color:{GOLD};">Conclusión</div>
   <h1 class="h-lg">Un mapa excelente,<br><span class="gd" style="color:{GOLD};">no una prueba.</span></h1>
   {dvd(300)}
@@ -277,6 +287,6 @@ S[11]=slide(11, f'''
     <p>¿Cuántas osteosíntesis de peroné indicamos por la radiografía… y cuántas por una inestabilidad realmente demostrada en carga?</p></div>
 ''', dark=True, kind="dark")
 
-for n,h in S.items():
-    open(f"{OUT}/slide-{n:02d}.html","w",encoding="utf-8").write(h)
-print("wrote", len(S))
+for i,(body,dark,kind) in enumerate(SL,1):
+    open(f"{OUT}/slide-{i:02d}.html","w",encoding="utf-8").write(slide(i,body,dark,kind))
+print("wrote", len(SL))
