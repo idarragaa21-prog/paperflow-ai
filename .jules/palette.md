@@ -1,3 +1,3 @@
-## 2024-04-05 - [Skeleton Loading States]
-**Learning:** Polling mechanisms without skeleton loading states can result in UI flashing or stuck generic text (e.g. "_Generating..._" in Markdown).
-**Action:** Implemented a continuous skeleton loading UI using `SkeletonLines` and localized strings when generation jobs are active, coupled with an automatic fallback to `refresh()` intervals instead of waiting for a manual refresh click.
+## 2024-05-15 - Missing contextual labels and disabled state explanations in iterative components
+**Learning:** Interactive elements (like checkboxes, toggles, or icon buttons) inside mapping functions or table rows frequently lack contextual `aria-label`s and `title` attributes on disabled states. This causes screen readers to announce generic, repeated labels without identifying the specific item, and users receive no feedback as to why an action is unavailable.
+**Action:** When adding interactive UI controls within a looping structure (like `map`), always construct an `aria-label` using the item's primary identifier (e.g., `aria-label={\`Select \${item.title}\`}`), and ensure disabled elements explain their state (e.g., using a `title` attribute).

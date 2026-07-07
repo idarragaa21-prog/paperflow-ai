@@ -77,6 +77,8 @@ export function SearchResultCard({
           checked={isSelected}
           onChange={() => search.setSelected((p) => ({ ...p, [key]: !p[key] }))}
           style={{ marginTop: 3 }}
+          aria-label={`Select ${r.title}`}
+          title={!canDownload ? "Not available: No Open Access link" : undefined}
         />
         <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -103,6 +105,7 @@ export function SearchResultCard({
               data-testid={`search-details-${idx}`}
               onClick={() => search.toggleAbstract(key)}
               style={{ background: 'none', border: 'none', color: 'var(--rc-accent,#6366f1)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '2px 0', marginTop: 2 }}
+              aria-expanded={isExpanded}
             >
               {isExpanded ? 'Show less ▲' : 'Show more ▼'}
             </button>
@@ -115,6 +118,7 @@ export function SearchResultCard({
           data-testid={`search-save-${idx}`}
           disabled={!canDownload || search.downloadingKey === key}
           onClick={() => search.downloadOA(r)}
+          title={!canDownload ? "Not available: No Open Access link" : undefined}
         >
           {search.downloadingKey === key ? 'Downloading…' : 'Download OA PDF'}
         </button>
