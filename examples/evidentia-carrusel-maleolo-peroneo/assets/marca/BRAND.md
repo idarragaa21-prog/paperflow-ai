@@ -1,28 +1,36 @@
-# Kit de marca EVIDENTIA (derivado del logo real @evidentia_co)
+# Kit de marca EVIDENTIA (@evidentia_co)
 
-Paleta y tipografía usadas en el carrusel, muestreadas del logotipo oficial
-(`logo.jpg`, foto de perfil de Instagram @evidentia_co — "Consultores en investigación").
+Derivado del **perfil real** de Instagram ("Consultores en investigación", @evidentia_co)
+y de sus carruseles publicados (ver `ref-carrusel-*.jpg`).
 
-## Colores
+## Dos expresiones de marca
+1. **Logo / badge** (`logo-evidentia.jpg`): monograma «E-columna» en círculo, **verde bosque + crema**.
+2. **Carruseles** (sistema principal de contenido): **azul marino + blanco cálido + oro + rojo**.
+   Este es el sistema que replica el carrusel final (`slide-01…11.png`).
+
+## Paleta del sistema de carruseles (principal)
 | Rol | HEX | Uso |
 |-----|-----|-----|
-| Verde bosque (marca) | `#162216` | Fondos oscuros (portada, cierre), badge, emblema |
-| Crema / papel | `#F3F2EE` | Fondo claro de las diapositivas |
-| Tinta verde | `#1B2A1D` | Texto principal sobre crema |
-| Verde hoja (acento) | `#425F38` | Énfasis en cursiva, negritas, kickers sobre crema |
-| Latón / oro (acento) | `#A9884F` | Kickers y detalles sobre verde, barra de progreso, esquinas |
-| Salvia apagada | `#66735F` | Texto secundario, metadatos |
-| Terracota (alerta) | `#9C4A38` | Solo el dato «40 %» |
+| Azul marino | `#17294D` | Titulares, formas/blobs, wordmark, badge |
+| Blanco cálido | `#F8F6F1` | Fondo |
+| Oro | `#BE9B49` | Kickers, subtítulos, divisores, puntos, ícono, subrayado |
+| Rojo | `#C0272D` | Acento de énfasis / negación (uso mínimo) |
+| Cuerpo | `#2B3A57` | Texto de párrafo |
+
+### Paleta del badge (verde) — para el logo
+Verde bosque `#162216` · Crema `#F3F2EE` (ver `logo-evidentia.jpg`).
 
 ## Tipografía
-- **Titulares (serif display):** Playfair Display — evoca el estilo clásico del logo.
-- **Cuerpo (serif):** EB Garamond.
-- **Etiquetas / kickers / UI (sans):** Libre Franklin.
+- **Titulares:** Montserrat (800/900) — sans geométrica pesada, marino.
+- **Subtítulo / cuerpo:** EB Garamond (serif); Playfair Display para el wordmark EVIDENTIA.
+- **Kickers / UI:** Montserrat (600/700), mayúsculas, tracking amplio.
 
-## Identidad
-- Emblema: monograma «E-columna» (columna clásica como asta de la E), dentro de un círculo.
-- Wordmark: EVIDENTIA en serif, monocolor (crema sobre verde / verde sobre crema).
-- Tono: elegante, académico, sobrio; mucho espacio en blanco; oro con moderación.
+## Elementos de sistema (de sus carruseles reales)
+- Lockup superior: `—  ·  E V I D E N T I A  ·  —` centrado.
+- Ornamentos de esquina: blob marino + arco dorado, rejillas de puntos dorados, círculos finos dorados, triángulo marino.
+- Divisor dorado con rombo central `— ◆ —`.
+- Ícono bombilla + lupa (idea/investigación).
+- Wordmark inferior: **EVIDENTIA** serif con **subrayado dorado**.
 
-> Nota: el degradado del código QR de Instagram (naranja→rosa→morado) es el
-> estándar de la app, **no** la paleta de marca. La marca real es verde + crema.
+> El degradado del código QR de Instagram (naranja→rosa→morado) es el estándar de la
+> app, **no** la paleta de marca.

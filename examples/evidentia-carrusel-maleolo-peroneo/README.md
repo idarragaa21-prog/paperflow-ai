@@ -10,12 +10,16 @@ DOI: [10.1016/j.recot.2024.06.008](https://doi.org/10.1016/j.recot.2024.06.008)
 a 2160×2700 px (2×) para máxima nitidez. Estética editorial (The Lancet / Nature /
 JBJS) con identidad EVIDENTIA.
 
-Hay dos variantes:
-- **`slide-01…10.png` (versión final):** incluye el título real del artículo (tarjeta
-  de identidad) y **capturas de 4 figuras del propio paper** (Figuras 1, 4, 3 y 5),
-  con atribución en cada diapositiva.
-- **`variante-A-editorial/`:** primera versión, solo tipografía + ilustración
-  vectorial (sin capturas de figuras).
+Variantes:
+- **`slide-01…11.png` (versión final):** replica la **plantilla real de los carruseles
+  de @evidentia_co** (azul marino + blanco + oro + rojo, ornamentos geométricos, lockups
+  EVIDENTIA, ícono bombilla-lupa), con el título real del artículo y **capturas de 4
+  figuras** (1, 4, 3 y 5). Generada con `src/build3.py` + `src/orn.py`.
+- **`variante-B-verde/`:** versión con el verde del badge del logo.
+- **`variante-A-editorial/`:** primera versión, solo tipografía + ilustración vectorial.
+
+La marca real (paleta, tipografía, referencias de sus carruseles) está en
+`assets/marca/BRAND.md`.
 
 ## Contenido de las diapositivas (versión final — 11 slides)
 1. Hook — «Operamos el peroné, pero el peroné casi nunca decide.»
