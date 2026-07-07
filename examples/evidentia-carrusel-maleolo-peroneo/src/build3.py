@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 from figb64 import FIG
-from anat_b64 import ANAT
+from anat_b64 import ANAT, LIG
 from orn import dotgrid, bulb_magnifier, diamond_rule, laurel_crest, ankle_anatomy, NAVY, NAVY2, GOLD, GOLD2
 
-OUT="carousel3"; TOTAL=12
+OUT="carousel3"; TOTAL=13
 os.makedirs(OUT, exist_ok=True)
 FACES=open('montserrat_faces.txt').read()
 
@@ -103,6 +103,18 @@ h1 .rd {{ color:{RED}; }} h1 .gd {{ color:{GOLD}; }}
 .row p {{ font-family:{FBODY}; font-size:30px; line-height:1.3; color:{BODY}; }}
 .row p b {{ color:{NAVY}; font-weight:700; }}
 
+/* two-column biomechanics dossier */
+.cols2 {{ display:grid; grid-template-columns:1fr 1fr; gap:36px; width:100%; text-align:left; }}
+.col .ct {{ font-family:{FSANS}; font-weight:800; font-size:19px; letter-spacing:1px; color:{NAVY}; text-transform:uppercase; }}
+.col .cs {{ font-family:{FBODY}; font-style:italic; font-size:20px; color:{GOLD}; margin:2px 0 14px; }}
+.col .cr {{ border-top:2px solid {GOLD}; padding-top:16px; }}
+.col p {{ font-family:{FBODY}; font-size:25px; line-height:1.34; color:{BODY}; margin-bottom:11px; }}
+.col p b {{ color:{NAVY}; font-weight:700; }}
+.tieline {{ font-family:{FBODY}; font-size:28px; line-height:1.42; color:{NAVY}; text-align:center; margin:30px auto 0; max-width:900px; }}
+.tieline b {{ color:{GOLD}; font-weight:700; }}
+.anatrow {{ display:grid; grid-template-columns:300px 1fr; gap:34px; align-items:center; width:100%; text-align:left; }}
+.anatrow .lead {{ margin:0; }}
+
 /* question box */
 .qbox {{ border:1px solid rgba(248,246,241,0.3); padding:30px 34px; width:100%; position:relative; }}
 .qbox .qk {{ font-family:{FSANS}; font-weight:700; font-size:13px; letter-spacing:3px; text-transform:uppercase; color:{GOLD}; margin-bottom:14px; }}
@@ -199,16 +211,37 @@ add(f'''
   </div>
 ''', kind="content")
 
-# 03 ANATOMY (foundation)
+# 03 ANATOMY — the ring
 add(f'''
-  <div class="kick" style="text-align:center;width:100%;">Antes de la crítica · La anatomía</div>
-  <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:18px;">Para entender la fractura,<br>entiende el <span class="gd" style="color:{GOLD};">anillo.</span></h1>
-  <div style="display:flex;justify-content:center;width:100%;">
-    <div class="capf lite" style="width:372px;">
+  <div class="kick" style="text-align:center;width:100%;">Anatomía · La mortaja del tobillo</div>
+  <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:24px;">El tobillo es un <span class="gd" style="color:{GOLD};">anillo.</span></h1>
+  <div class="anatrow">
+    <div class="capf lite" style="width:300px;">
       <img src="{ANAT}">
       <span class="tick t1"></span><span class="tick t2"></span><span class="tick t3"></span><span class="tick t4"></span>
-    </div></div>
-  <p class="capnote" style="text-align:center;max-width:860px;margin:20px auto 0;">La <b>mortaja</b>: tibia, peroné y astrágalo. La estabilidad la sostienen la <b>sindesmosis</b> y el <b>deltoideo profundo</b> — no solo el peroné.</p>
+    </div>
+    <div>
+      <p style="font-family:{FBODY};font-size:27px;line-height:1.4;color:{BODY};">La <b style="color:{NAVY};font-weight:700;">mortaja</b>: tibia, peroné y astrágalo encajados como un anillo.</p>
+      <p style="font-family:{FBODY};font-size:27px;line-height:1.4;color:{BODY};margin-top:15px;">Tres columnas lo sostienen — <b style="color:{NAVY};font-weight:700;">lateral</b> (peroné), <b style="color:{NAVY};font-weight:700;">medial</b> (deltoideo) y <b style="color:{NAVY};font-weight:700;">posterior</b>.</p>
+      <p style="font-family:{FBODY};font-size:27px;line-height:1.4;color:{BODY};margin-top:15px;">Roto en <b style="color:{NAVY};font-weight:700;">1 punto</b> → estable. En <b style="color:{NAVY};font-weight:700;">≥2</b> → inestable.</p>
+    </div>
+  </div>
+''', kind="content")
+
+# 04 BIOMECHANICS — the two stabilizers
+add(f'''
+  <div class="kick" style="text-align:center;width:100%;">Biomecánica · Por qué se vuelve inestable</div>
+  <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:24px;">Dos <span class="gd" style="color:{GOLD};">guardianes</span> de la estabilidad.</h1>
+  <div class="anatrow" style="grid-template-columns:236px 1fr;">
+    <div class="capf lite" style="width:236px;"><img src="{LIG}"><span class="tick t1"></span><span class="tick t2"></span><span class="tick t3"></span><span class="tick t4"></span></div>
+    <div>
+      <div style="font-family:{FSANS};font-weight:800;font-size:19px;letter-spacing:1px;color:{NAVY};text-transform:uppercase;">Deltoideo profundo <span style="color:{GOLD};">· LTTPP</span></div>
+      <p style="font-family:{FBODY};font-size:25px;line-height:1.34;color:{BODY};margin-top:6px;">Se <b style="color:{NAVY};font-weight:700;">tensa en carga</b> (pie plantígrado); frena la rotación externa y la traslación del astrágalo.</p>
+      <div style="font-family:{FSANS};font-weight:800;font-size:19px;letter-spacing:1px;color:{NAVY};text-transform:uppercase;margin-top:22px;">Sindesmosis <span style="color:{GOLD};">· 3 puntos</span></div>
+      <p style="font-family:{FBODY};font-size:25px;line-height:1.34;color:{BODY};margin-top:6px;">Anclaje de 3 ligamentos: <b style="color:{NAVY};font-weight:700;">LTPAI → interóseo → LTPPI</b>. Rotura completa = <b style="color:{NAVY};font-weight:700;">diástasis</b>.</p>
+    </div>
+  </div>
+  <p class="tieline" style="margin-top:28px;">Por eso la radiografía <b>en carga</b> desenmascara lo que la de descarga esconde.</p>
 ''', kind="content")
 
 # 04 STATEMENT — diseño
