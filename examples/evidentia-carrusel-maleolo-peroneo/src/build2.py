@@ -7,8 +7,9 @@ OUT = "carousel2"
 TOTAL = 11
 os.makedirs(OUT, exist_ok=True)
 
-PAPER="#F4F1EA"; INK="#1B2830"; PETROL="#0E3541"; GOLD="#B08A4F"
-TEAL="#1E5A66"; CLAY="#9C4A38"; MUTE="#5E6E74"; CHARCOAL="#0C1E25"
+# Brand palette sampled from the real @evidentia_co logo (forest green + cream + brass)
+PAPER="#F3F2EE"; INK="#1B2A1D"; PETROL="#162216"; GOLD="#A9884F"
+TEAL="#425F38"; CLAY="#9C4A38"; MUTE="#66735F"; CHARCOAL="#0E170E"
 FONT_SERIF="'Playfair Display', serif"; FONT_BODY="'EB Garamond', serif"; FONT_SANS="'Libre Franklin', sans-serif"
 
 CSS = f"""
@@ -25,9 +26,9 @@ html,body {{ width:1080px; height:1350px; }}
 .brand {{ display:flex; align-items:center; gap:15px; }}
 .emblem {{ width:36px; height:36px; }}
 .wordmark {{ font-family:{FONT_SERIF}; font-weight:700; font-size:26px; letter-spacing:5px; }}
-.wordmark .co {{ color:{GOLD}; }}
+.wordmark .co {{ color:inherit; }}
 .top-right {{ font-family:{FONT_SANS}; font-size:12px; letter-spacing:3px; font-weight:600; text-transform:uppercase; color:{MUTE}; }}
-.slide.dark .top-right {{ color:#8FA3A7; }}
+.slide.dark .top-right {{ color:#9DAB90; }}
 .rule {{ height:1px; background:currentColor; opacity:0.16; margin:22px 0 0; z-index:3; }}
 .body {{ flex:1; display:flex; flex-direction:column; z-index:3; position:relative; }}
 .body.center {{ justify-content:center; }}
@@ -43,7 +44,7 @@ h1 em {{ font-style:italic; color:{TEAL}; }}
 .lead {{ font-family:{FONT_BODY}; font-size:33px; line-height:1.46; color:{INK}; margin-top:28px; max-width:840px; }}
 .slide.dark .lead {{ color:#E7E1D4; }}
 .lead b {{ font-weight:600; color:{TEAL}; }} .slide.dark .lead b {{ color:{GOLD}; }}
-.muted {{ color:{MUTE}; }} .slide.dark .muted {{ color:#B9C6C9; }}
+.muted {{ color:{MUTE}; }} .slide.dark .muted {{ color:#C3CBB6; }}
 .flag {{ margin-top:30px; border-left:3px solid {GOLD}; padding:6px 0 6px 20px; font-family:{FONT_SANS};
   font-size:18px; line-height:1.5; font-weight:500; color:{INK}; max-width:780px; }}
 .slide.dark .flag {{ color:#E7E1D4; }}
@@ -66,7 +67,7 @@ h1 em {{ font-style:italic; color:{TEAL}; }}
 .idcard .jrnl {{ font-family:{FONT_SANS}; font-size:13px; letter-spacing:2.5px; text-transform:uppercase; color:{TEAL}; font-weight:700; }}
 .idcard .jrnl .oa {{ color:{GOLD}; }}
 .idcard h2 {{ font-family:{FONT_SERIF}; font-weight:800; font-size:47px; line-height:1.1; letter-spacing:-0.5px; color:{INK}; margin:20px 0 22px; }}
-.idcard .auth {{ font-family:{FONT_BODY}; font-size:26px; line-height:1.4; color:#3A4A52; }}
+.idcard .auth {{ font-family:{FONT_BODY}; font-size:26px; line-height:1.4; color:#3C4A36; }}
 .idcard .meta {{ font-family:{FONT_SANS}; font-size:15px; line-height:1.7; color:{MUTE}; letter-spacing:0.3px; margin-top:16px; }}
 .idcard .divider {{ height:1px; background:rgba(27,40,48,0.12); margin:26px 0; }}
 .idcard .badge {{ display:inline-flex; align-items:center; gap:10px; background:{PETROL}; color:{PAPER};
@@ -95,7 +96,7 @@ h1 em {{ font-style:italic; color:{TEAL}; }}
 
 .foot {{ display:flex; justify-content:space-between; align-items:flex-end; z-index:3;
   font-family:{FONT_SANS}; font-size:12.5px; letter-spacing:2px; text-transform:uppercase; }}
-.foot .l {{ color:{MUTE}; font-weight:500; }} .slide.dark .foot .l {{ color:#8FA3A7; }}
+.foot .l {{ color:{MUTE}; font-weight:500; }} .slide.dark .foot .l {{ color:#9DAB90; }}
 .foot .handle {{ text-transform:none; letter-spacing:0.5px; font-weight:600; color:{TEAL}; }}
 .slide.dark .foot .handle {{ color:{GOLD}; }}
 .foot .r {{ display:flex; align-items:center; gap:12px; color:{INK}; font-weight:700; }}
@@ -115,7 +116,7 @@ h1 em {{ font-style:italic; color:{TEAL}; }}
 .capframe {{ position:relative; }}
 .capframe.rad {{ box-shadow:0 24px 60px -28px rgba(12,30,37,0.55), inset 0 0 0 1px rgba(176,138,79,0.30); }}
 .capframe.rad::after {{ content:""; position:absolute; inset:16px; pointer-events:none;
-  background:linear-gradient(155deg, rgba(14,53,65,0.55), rgba(30,90,102,0.10) 45%, rgba(176,138,79,0.28));
+  background:linear-gradient(155deg, rgba(22,34,22,0.60), rgba(66,95,56,0.10) 45%, rgba(169,136,79,0.30));
   mix-blend-mode:soft-light; }}
 .capframe.lite {{ box-shadow:0 22px 56px -30px rgba(12,30,37,0.42), inset 0 0 0 1px rgba(176,138,79,0.28); }}
 .tick {{ position:absolute; width:18px; height:18px; z-index:4; border-color:{GOLD}; opacity:0.9; }}
@@ -141,13 +142,16 @@ h1 em {{ font-style:italic; color:{TEAL}; }}
 .signoff {{ margin-top:34px; display:flex; align-items:center; gap:16px; }}
 .signoff .so-mark {{ width:34px; height:34px; }}
 .signoff .so-txt {{ font-family:{FONT_SERIF}; font-weight:700; font-size:22px; letter-spacing:4px; color:{PAPER}; }}
-.signoff .so-txt .co {{ color:{GOLD}; }}
-.signoff .so-sub {{ font-family:{FONT_SANS}; font-size:13px; letter-spacing:2px; color:#8FA3A7; margin-left:2px; }}
+.signoff .so-txt .co {{ color:inherit; }}
+.signoff .so-sub {{ font-family:{FONT_SANS}; font-size:13px; letter-spacing:2px; color:#9DAB90; margin-left:2px; }}
 """
 
-EMBLEM = '''<svg class="emblem" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6">
-  <rect x="3" y="3" width="34" height="34" rx="2" opacity="0.9"/>
-  <path d="M13 12 h14 M13 20 h10 M13 28 h14" stroke-width="2.2"/></svg>'''
+# Column-E monogram echoing the real EVIDENTIA badge
+EMBLEM = '''<svg class="emblem" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-linecap="square">
+  <circle cx="22" cy="22" r="19" stroke-width="1.4" opacity="0.9"/>
+  <path d="M14.5 13 H30 M14.5 22 H26 M14.5 31 H30" stroke-width="2.4"/>
+  <path d="M16 13.5 V30.5 M18.6 13.5 V30.5" stroke-width="1.15" opacity="0.85"/>
+  <path d="M13 13 h6 M13 31 h6" stroke-width="2.4"/></svg>'''
 
 def header():
     return f'''<div class="top"><div class="brand">{EMBLEM}<span class="wordmark">EVIDEN<span class="co">TIA</span></span></div>
