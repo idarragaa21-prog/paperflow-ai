@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 from figb64 import FIG
+from anat_b64 import ANAT
 from orn import dotgrid, bulb_magnifier, diamond_rule, laurel_crest, ankle_anatomy, NAVY, NAVY2, GOLD, GOLD2
 
 OUT="carousel3"; TOTAL=12
@@ -201,10 +202,13 @@ add(f'''
 # 03 ANATOMY (foundation)
 add(f'''
   <div class="kick" style="text-align:center;width:100%;">Antes de la crítica · La anatomía</div>
-  <h1 class="h-md" style="text-align:center;width:100%;">Para entender la fractura,<br>entiende el <span class="gd" style="color:{GOLD};">anillo.</span></h1>
-  <div style="display:flex;justify-content:center;width:100%;margin:6px 0 2px;">
-    <div style="width:496px;">{ankle_anatomy()}</div></div>
-  <p class="lead" style="text-align:center;max-width:880px;margin:0 auto;">El tobillo es un <b>anillo</b>: tibia, peroné y astrágalo en la mortaja. La estabilidad depende de la <b>sindesmosis</b> y del <b>deltoideo profundo</b> — no solo del peroné.</p>
+  <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:18px;">Para entender la fractura,<br>entiende el <span class="gd" style="color:{GOLD};">anillo.</span></h1>
+  <div style="display:flex;justify-content:center;width:100%;">
+    <div class="capf lite" style="width:372px;">
+      <img src="{ANAT}">
+      <span class="tick t1"></span><span class="tick t2"></span><span class="tick t3"></span><span class="tick t4"></span>
+    </div></div>
+  <p class="capnote" style="text-align:center;max-width:860px;margin:20px auto 0;">La <b>mortaja</b>: tibia, peroné y astrágalo. La estabilidad la sostienen la <b>sindesmosis</b> y el <b>deltoideo profundo</b> — no solo el peroné.</p>
 ''', kind="content")
 
 # 04 STATEMENT — diseño
