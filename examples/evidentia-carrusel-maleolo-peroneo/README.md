@@ -10,17 +10,27 @@ DOI: [10.1016/j.recot.2024.06.008](https://doi.org/10.1016/j.recot.2024.06.008)
 a 2160×2700 px (2×) para máxima nitidez. Estética editorial (The Lancet / Nature /
 JBJS) con identidad EVIDENTIA.
 
-## Contenido de las diapositivas
+Hay dos variantes:
+- **`slide-01…10.png` (versión final):** incluye el título real del artículo (tarjeta
+  de identidad) y **capturas de 4 figuras del propio paper** (Figuras 1, 4, 3 y 5),
+  con atribución en cada diapositiva.
+- **`variante-A-editorial/`:** primera versión, solo tipografía + ilustración
+  vectorial (sin capturas de figuras).
+
+## Contenido de las diapositivas (versión final)
 1. Hook — «Operamos el peroné, pero el peroné casi nunca decide.»
-2. Qué tipo de artículo — revisión narrativa vs. nivel de evidencia declarado.
-3. Mensaje clínico central — la estabilidad del anillo dicta el tratamiento.
-4. Concepto clave — la columna medial (deltoideo profundo / LTTPP).
-5. Cambio de paradigma — radiografía en carga vs. gravity test; SER IV-A vs. IV-B.
-6. Confirma / Cuestiona — placa 1/3 de caña como patrón oro; sobreindicación.
-7. Lectura del epidemiólogo — certeza modesta, sin GRADE, validez externa limitada.
-8. Dato incómodo — 40% de malreducción sindesmal en TC postoperatoria.
-9. Aplicación clínica — qué cambia mañana.
+2. El artículo — tarjeta con el **título real**, autores, RECOT 2024, DOI, CC BY-NC-ND, «Nivel II».
+3. El diseño (epidemiólogo) — revisión narrativa; Nivel II declarado vs. Nivel V real.
+4. **Figura 1 (captura)** — el algoritmo de manejo: consenso, no evidencia agregada.
+5. Mensaje central — la estabilidad del anillo y la columna medial (deltoideo profundo).
+6. **Figura 4 (captura)** — Rx en carga: SER II / IV-A / IV-B; la carga reclasifica.
+7. **Figura 3 (captura)** — la TC revela impactación medial oculta (61–73%).
+8. **Figura 5 (captura)** — opciones de fijación; menos agresión de partes blandas.
+9. El epidemiólogo — certeza modesta, sin GRADE; 40% de malreducción sindesmal.
 10. Conclusión + pregunta para el debate.
+
+Figuras usadas con atribución (Open Access CC BY-NC-ND); ver
+`assets/figuras-articulo/ATTRIBUTION.md`.
 
 ## Notas del análisis crítico (resumen)
 - **Diseño:** revisión narrativa de «conceptos actuales» — sin PRISMA, sin
