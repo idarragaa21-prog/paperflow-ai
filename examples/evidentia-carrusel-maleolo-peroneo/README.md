@@ -17,7 +17,7 @@ Hay dos variantes:
 - **`variante-A-editorial/`:** primera versión, solo tipografía + ilustración
   vectorial (sin capturas de figuras).
 
-## Contenido de las diapositivas (versión final)
+## Contenido de las diapositivas (versión final — 11 slides)
 1. Hook — «Operamos el peroné, pero el peroné casi nunca decide.»
 2. El artículo — tarjeta con el **título real**, autores, RECOT 2024, DOI, CC BY-NC-ND, «Nivel II».
 3. El diseño (epidemiólogo) — revisión narrativa; Nivel II declarado vs. Nivel V real.
@@ -27,7 +27,8 @@ Hay dos variantes:
 7. **Figura 3 (captura)** — la TC revela impactación medial oculta (61–73%).
 8. **Figura 5 (captura)** — opciones de fijación; menos agresión de partes blandas.
 9. El epidemiólogo — certeza modesta, sin GRADE; 40% de malreducción sindesmal.
-10. Conclusión + pregunta para el debate.
+10. **Aplicación clínica (como ortopedista)** — checklist accionable «Qué aplico mañana».
+11. Conclusión + pregunta para el debate.
 
 Figuras usadas con atribución (Open Access CC BY-NC-ND); ver
 `assets/figuras-articulo/ATTRIBUTION.md`.

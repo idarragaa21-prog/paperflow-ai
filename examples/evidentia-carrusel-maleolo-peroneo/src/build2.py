@@ -4,6 +4,7 @@ from svg import MOTIFS
 from figb64 import FIG
 
 OUT = "carousel2"
+TOTAL = 11
 os.makedirs(OUT, exist_ok=True)
 
 PAPER="#F4F1EA"; INK="#1B2830"; PETROL="#0E3541"; GOLD="#B08A4F"
@@ -79,6 +80,15 @@ h1 em {{ font-style:italic; color:{TEAL}; }}
 .stat-row {{ display:flex; align-items:center; gap:34px; margin-top:8px; }}
 .stat-label {{ font-family:{FONT_BODY}; font-size:29px; line-height:1.36; max-width:470px; }}
 
+/* clinical checklist rows */
+.rows {{ margin-top:20px; }}
+.row {{ display:flex; gap:22px; align-items:flex-start; padding:19px 0; border-bottom:1px solid rgba(27,40,48,0.12); }}
+.row:last-child {{ border-bottom:none; }}
+.row .n {{ font-family:{FONT_SANS}; font-weight:700; font-size:15px; color:{GOLD}; min-width:30px; padding-top:8px; letter-spacing:1px; }}
+.row p {{ font-family:{FONT_BODY}; font-size:30px; line-height:1.3; }}
+.row p b {{ font-weight:600; color:{TEAL}; }}
+.checknote {{ font-family:{FONT_SANS}; font-size:17px; line-height:1.5; color:{MUTE}; margin-top:24px; letter-spacing:0.3px; max-width:820px; }}
+
 .qbox {{ margin-top:34px; border:1px solid rgba(244,241,234,0.28); border-radius:2px; padding:30px 32px; }}
 .qbox .qk {{ font-family:{FONT_SANS}; font-size:13px; letter-spacing:3px; font-weight:700; text-transform:uppercase; color:{GOLD}; margin-bottom:14px; }}
 .qbox p {{ font-family:{FONT_BODY}; font-style:italic; font-size:32px; line-height:1.42; color:{PAPER}; }}
@@ -107,7 +117,7 @@ def header():
 def footer(n):
     return f'''<div class="rule" style="margin-bottom:20px;"></div><div class="foot">
       <div class="l">Medicina Basada en Evidencia&nbsp; ·&nbsp; <span class="handle">@evidentia_co</span></div>
-      <div class="r"><span class="num">{n:02d}</span><span class="of">/ 10</span></div></div>'''
+      <div class="r"><span class="num">{n:02d}</span><span class="of">/ {TOTAL}</span></div></div>'''
 
 def motif(name, cls="br", op=0.09, sw=2.2):
     return f'<div class="motif {cls}" style="opacity:{op}">{MOTIFS[name](1.0, sw)}</div>'
@@ -191,6 +201,7 @@ S[8] = slide(8, f'''
   <div class="kicker">Figura 5 · Opciones de fijación</div>
   <h1 class="t-md" style="margin-bottom:4px;">A veces gana el implante <em>que menos agrede.</em></h1>
   {capture("fig5", "Figura 5 — Fijación endomedular del peroné", "La placa 1/3 de caña sigue siendo el patrón oro. Pero en <b>partes blandas de riesgo</b>, lo endomedular reduce complicaciones.", rad=True)}
+  <p class="checknote">En fractura conminuta u osteoporosis severa: doble placa, placa bloqueada o «tibia pro-fíbula». El implante se elige por el paciente, no por costumbre.</p>
 ''', layout="top")
 
 # 09 EPIDEMIÓLOGO + stat
@@ -202,8 +213,21 @@ S[9] = slide(9, f'''
     <div class="stat-label">de <b>malreducción sindesmal</b> en TC postoperatoria. El reto no es el implante — es la reducción.</div></div>
 ''', layout="center")
 
-# 10 CONCLUSIÓN + pregunta
+# 10 APLICACIÓN CLÍNICA — como ortopedista (síntesis accionable)
 S[10] = slide(10, f'''
+  <div class="kicker">Paso 4 · Como ortopedista</div>
+  <h1 class="t-lg" style="margin-bottom:2px;">Qué aplico <em>mañana.</em></h1>
+  <div class="rows">
+    <div class="row"><span class="n">01</span><p>Decido por <b>estabilidad</b>, no por el trazo del peroné: descarto lesión medial, posterior y sindesmal.</p></div>
+    <div class="row"><span class="n">02</span><p><b>Rx en carga</b> en toda SER aparentemente aislada. Jubilo el «gravity test».</p></div>
+    <div class="row"><span class="n">03</span><p>SER II → carga. SER IV-A → <b>yeso en carga a 90°</b>. SER IV-B y bi/trimaleolar → cirugía.</p></div>
+    <div class="row"><span class="n">04</span><p><b>TC</b> ante SAD II, maléolo posterior o duda sindesmal.</p></div>
+    <div class="row"><span class="n">05</span><p>La <b>reducción anatómica</b> manda sobre el implante. Placa 1/3 de caña, estándar.</p></div>
+  </div>
+''', layout="top")
+
+# 11 CONCLUSIÓN + pregunta
+S[11] = slide(11, f'''
   <div class="kicker">Conclusión</div>
   <h1 class="t-lg">El mensaje real:<br>un mapa excelente,<br><em>no una prueba.</em></h1>
   <p class="lead">Consenso experto, actualizado y clínicamente útil. Un marco para decidir mejor — no evidencia de alto nivel.</p>
