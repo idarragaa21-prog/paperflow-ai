@@ -72,6 +72,8 @@ export function SearchResultCard({
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <input
           type="checkbox"
+          aria-label={`Select ${r.title}`}
+          title={!canDownload ? "Download not available" : undefined}
           data-testid={`search-select-${idx}`}
           disabled={!canDownload}
           checked={isSelected}
@@ -101,6 +103,8 @@ export function SearchResultCard({
           {r.abstract.length > 200 && (
             <button
               data-testid={`search-details-${idx}`}
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? `Show less abstract for ${r.title}` : `Show full abstract for ${r.title}`}
               onClick={() => search.toggleAbstract(key)}
               style={{ background: 'none', border: 'none', color: 'var(--rc-accent,#6366f1)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '2px 0', marginTop: 2 }}
             >
