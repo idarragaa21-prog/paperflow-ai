@@ -84,7 +84,7 @@ export function EmptyState({ variant = 'generic', title, description, action }: 
       gap: 16,
       textAlign: 'center',
     }}>
-      <div style={{ marginBottom: 4, opacity: 0.9 }}>
+      <div style={{ marginBottom: 4, opacity: 0.9 }} aria-hidden="true">
         {illustrations[variant]}
       </div>
       <div style={{
