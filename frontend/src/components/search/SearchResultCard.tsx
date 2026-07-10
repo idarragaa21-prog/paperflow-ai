@@ -77,6 +77,7 @@ export function SearchResultCard({
           checked={isSelected}
           onChange={() => search.setSelected((p) => ({ ...p, [key]: !p[key] }))}
           style={{ marginTop: 3 }}
+          title={!canDownload ? 'Cannot select: No open access PDF available' : ''}
         />
         <div style={{ fontWeight: 850, flex: 1, lineHeight: 1.25 }}>{r.title}</div>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -115,6 +116,7 @@ export function SearchResultCard({
           data-testid={`search-save-${idx}`}
           disabled={!canDownload || search.downloadingKey === key}
           onClick={() => search.downloadOA(r)}
+          title={!canDownload ? 'No open access PDF available' : ''}
         >
           {search.downloadingKey === key ? 'Downloading…' : 'Download OA PDF'}
         </button>

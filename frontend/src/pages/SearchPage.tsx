@@ -376,14 +376,15 @@ export default function SearchPage() {
 
               <div className="rc-card" style={{ padding: 10 }}>
                 <div className="rc-row">
-                  <button className="rc-btn rc-btn--sm" onClick={search.selectAllOA} disabled={!search.data.results.length}>Select all OA</button>
-                  <button className="rc-btn rc-btn--sm" onClick={search.clearSelection} disabled={search.selectedCount === 0}>Clear ({search.selectedCount})</button>
+                  <button className="rc-btn rc-btn--sm" onClick={search.selectAllOA} disabled={!search.data.results.length} title={!search.data.results.length ? 'No open access papers to select' : ''}>Select all OA</button>
+                  <button className="rc-btn rc-btn--sm" onClick={search.clearSelection} disabled={search.selectedCount === 0} title={search.selectedCount === 0 ? 'No papers selected' : ''}>Clear ({search.selectedCount})</button>
                   {projectId ? (
                     <button
                       className="rc-btn rc-btn--primary rc-btn--sm"
                       data-testid="batch-download-button"
                       disabled={search.selectedCount === 0}
                       onClick={() => batch.startBatchDownload(projectId, search.selectedPapers, search.setError)}
+                      title={search.selectedCount === 0 ? 'Select papers first to add them to library' : ''}
                     >
                       Add {search.selectedCount > 0 ? `(${search.selectedCount})` : ''} to Library
                     </button>
@@ -436,6 +437,7 @@ export default function SearchPage() {
                   className="rc-btn rc-btn--primary rc-btn--sm"
                   disabled={search.selectedCount === 0}
                   onClick={() => batch.startBatchDownload(projectId, search.selectedPapers, search.setError)}
+                  title={search.selectedCount === 0 ? 'Select papers first to add them to library' : ''}
                 >
                   Add to Library
                 </button>
