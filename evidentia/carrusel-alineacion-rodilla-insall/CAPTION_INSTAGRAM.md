@@ -1,39 +1,44 @@
 # Caption — Alineación funcional vs. mecánica en PTR (Premio Insall 2025)
 
-> Optimizado 2026: palabra clave en los primeros 125 caracteres · 5 hashtags ·
-> CTA de guardado + envío con destinatario nombrado (en caption, nunca en el slide).
+> Optimizado 2026: palabra clave en los primeros 125 caracteres · gancho de error ·
+> numerales · CTA de guardado + envío con destinatario nombrado · ~7 hashtags.
+> El carrusel usa dataviz ORIGINAL de EVIDENTIA (sin figuras con copyright del artículo).
 
 ---
 
-**Premio Insall 2025: la alineación «funcional» de rodilla ganó los titulares. Su desenlace PRIMARIO dijo empate.**
-Alineación **funcional vs. mecánica** en prótesis de rodilla — lectura crítica. 👇
+**Ganó el Premio Insall 2025 y los titulares dicen que la alineación «funcional» de rodilla es mejor. Su desenlace PRIMARIO dice otra cosa: empate.**
 
-El ECA (asistido por robot, 244 rodillas) comparó ambas técnicas. ¿El resultado que el propio estudio eligió para juzgarse? El **Forgotten Joint Score** a 2 años:
+Alineación **funcional (FA) vs. mecánica (MA)** en prótesis de rodilla, leída como la leería un epidemiólogo. Desliza y quédate con lo que casi nadie mira 👇
 
-🔹 Mecánica **64,4** vs. Funcional **70,1** → **P = 0,10: sin diferencia significativa.**
+📉 **Primario (Forgotten Joint Score, 2 años): 64,4 vs 70,1 → P = 0,10.** No significativo. En el desenlace que el propio estudio eligió para juzgarse, las dos técnicas empataron.
 
-Entonces, ¿de dónde sale el «FA es mejor»? De desenlaces **secundarios** (KOOS, «lo recomendaría») y de un **subgrupo** (CPAK tipo I). Reales, pero generan hipótesis — no las confirman.
+🔎 **El intervalo de confianza dice más que la p.** La diferencia fue +5,7 puntos, pero su IC 95% **cruza el 0** *y* queda por debajo de la mínima diferencia que un paciente percibe (**MCID ≈ 14**). Ni en su mejor caso se notaría.
 
-Mira el **intervalo de confianza**, no solo la p: la diferencia del FJS fue +5,7 puntos, pero su **IC95% cruza el 0** y queda por debajo de la **MCID (~14)** — ni en su mejor caso el paciente lo notaría.
+🧩 **¿De dónde sale el "FA es mejor"?** De desenlaces **secundarios** (KOOS, «lo recomendaría» 94% vs 82%) y de **un subgrupo** (CPAK tipo I, que era solo el **27,8%** de las rodillas). Reales… pero generan hipótesis, no las prueban — y sin ajuste por comparaciones múltiples.
 
-Lo que SÍ es sólido: FA necesitó **muchas menos liberaciones** de partes blandas (16% vs 65%; diferencia 49%, IC95% ≈ 38–60% — lejos del 0). Efecto grande y coherente con su mecánica.
+✅ **Lo único robusto:** FA necesitó **muchas menos liberaciones** de partes blandas (**16% vs 65%**, P<0,001). Efecto grande, creíble, coherente con su mecánica.
+
+⚖️ **Veredicto (certeza moderada, tipo GRADE):** FA no es «mejor» en lo que importaba; equilibra la rodilla cortando menos tejido. Faltan **desenlaces duros** y **supervivencia a 10+ años** antes de cambiar tu estándar.
 
 📌 **Guárdalo** para tu próxima sesión bibliográfica: es un caso de manual de «primario negativo, titular positivo».
 
-📚 Según PubMed — Young SW, Tay ML, Kawaguchi K, et al. *Functional Versus Mechanical Alignment in TKA (John N. Insall Award).* **J Arthroplasty** 2025;40:S20-S30 · DOI 10.1016/j.arth.2025.02.065 · PMID 40023458.
+📚 Young SW, Tay ML, Kawaguchi K, et al. *Functional Versus Mechanical Alignment in TKA — The John N. Insall Award.* **J Arthroplasty** 2025;40:S20–S30. DOI 10.1016/j.arth.2025.02.065 · PMID 40023458.
 
-Envíaselo al colega de rodilla que ya está cambiando su técnica por este paper.
+Envíaselo al colega de rodilla que ya cambió su técnica por este paper 👇
 
-**Si el desenlace primario no separa, ¿adoptarías la alineación funcional por «cortar menos»… o esperarías 10 años de supervivencia?**
+**¿Adoptarías la alineación funcional por «cortar menos»… o esperarías 10 años de supervivencia?**
 
-#Ortopedia #Traumatología #ArtroplastiaDeRodilla #MedicinaBasadaEnEvidencia #LecturaCrítica
+#Ortopedia #Traumatología #ArtroplastiaDeRodilla #MedicinaBasadaEnEvidencia #LecturaCrítica #Bioestadística #CirugíaDeRodilla
 
 ---
 
-## Notas de estrategia
-- **Gancho de tensión/curiosidad**: «ganó los titulares… pero el primario dijo empate».
-- **Keyword SEO** («alineación funcional vs. mecánica») dentro de los primeros 125 caracteres.
-- **5 hashtags** relevantes (no 30).
-- **Guardado** (caso de manual) + **envío con destinatario nombrado**.
-- Cierre con **pregunta de debate**, nunca «dale like» en el slide (regla de marca).
-- Atribución PubMed + DOI incluida (requisito de la fuente).
+## Variantes de gancho (1ª línea) para A/B testear
+- **A (empate):** «Ganó el Premio Insall 2025… y su desenlace primario dio EMPATE (P=0,10).»
+- **B (número):** «FJS 64,4 vs 70,1 · P=0,10. El "gold standard" de tu rodilla no se movió.»
+- **C (error):** «Todos citan que la alineación funcional es mejor. Leíste el primario… ¿o solo el titular?»
+
+## Notas
+- Keyword SEO («alineación funcional vs. mecánica») dentro de los primeros ~125 caracteres.
+- 7 hashtags relevantes (no 30). Puedes rotar #RodillaOrtopedia #MIR #ResidentesDeOrtopedia según el post.
+- «Guárdalo / envíaselo» va en el caption, nunca en la lámina (regla de marca).
+- Cierre con pregunta de debate, no con «dale like».
