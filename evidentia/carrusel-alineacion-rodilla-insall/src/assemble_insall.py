@@ -3,7 +3,7 @@ SKILL='/home/user/paperflow-ai/.claude/skills/evidentia-carousel'
 src = open(f'{SKILL}/build_deck.py').read()
 prefix = src.split('SL=[]')[0]
 prefix = prefix.replace('OUT=_os.path.join(HERE, "out"); TOTAL=13',
-                        'OUT=_os.path.join(HERE, "insall_out"); TOTAL=12')
+                        'OUT=_os.path.join(HERE, "insall_out"); TOTAL=13')
 prefix = re.sub(r'# ---- CONTENT IMAGES.*?LIG  = data_uri\("example_assets/anat_ligaments.png"\)\n',
                 'FIG = {}\n', prefix, flags=re.S)
 
@@ -131,6 +131,52 @@ def forest(rows, xmin, xmax, mcid=None, w=940, rowh=150, pad_l=310, pad_r=60, pa
     s.append('</svg>')
     return "".join(s)
 
+# ---------- SVG: FJS-over-time line chart (EVIDENTIA redraw of article data) ----------
+def fjs_lines(fa, ma, stars, title, W=414, H=322):
+    pad_l, pad_r, pad_t, pad_b = 56, 34, 42, 56
+    x0, x1 = pad_l, W - pad_r
+    y0, y1 = H - pad_b, pad_t
+    xs = [x0 + i*(x1-x0)/3 for i in range(4)]
+    def Y(v): return y0 - v/100*(y0-y1)
+    labels = ['6 sem', '6 m', '1 año', '2 años']
+    s = [f'<svg viewBox="0 0 {W} {H}" width="{W}" style="max-width:100%;height:auto;">']
+    s.append(f'<text x="{W/2:.0f}" y="24" font-family="{FSANS}" font-size="19" font-weight="800" fill="{NAVY}" text-anchor="middle">{title}</text>')
+    for v in range(0, 101, 20):
+        yy = Y(v)
+        s.append(f'<line x1="{x0}" y1="{yy:.1f}" x2="{x1}" y2="{yy:.1f}" stroke="{NAVY}" stroke-width="1" opacity="0.10"/>')
+        s.append(f'<text x="{x0-10}" y="{yy+5:.1f}" font-family="{FSANS}" font-size="14" fill="{MUTE}" text-anchor="end">{v}</text>')
+    s.append(f'<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y0}" stroke="{NAVY}" stroke-width="1.8"/>')
+    for i, l in enumerate(labels):
+        s.append(f'<text x="{xs[i]:.0f}" y="{y0+26}" font-family="{FSANS}" font-size="14.5" fill="{BODY}" text-anchor="middle">{l}</text>')
+    pts_ma = " ".join(f"{xs[i]:.1f},{Y(ma[i]):.1f}" for i in range(4))
+    s.append(f'<polyline points="{pts_ma}" fill="none" stroke="{MUTE}" stroke-width="3" stroke-dasharray="6 5"/>')
+    for i in range(4):
+        s.append(f'<rect x="{xs[i]-5:.1f}" y="{Y(ma[i])-5:.1f}" width="10" height="10" fill="{MUTE}"/>')
+    pts_fa = " ".join(f"{xs[i]:.1f},{Y(fa[i]):.1f}" for i in range(4))
+    s.append(f'<polyline points="{pts_fa}" fill="none" stroke="{NAVY}" stroke-width="3.4"/>')
+    for i in range(4):
+        s.append(f'<circle cx="{xs[i]:.1f}" cy="{Y(fa[i]):.1f}" r="6" fill="{NAVY}"/>')
+    for i in range(4):
+        if stars[i]:
+            s.append(f'<text x="{xs[i]:.0f}" y="{Y(max(fa[i],ma[i]))-16:.0f}" font-family="{FSANS}" font-size="24" font-weight="800" fill="{RED}" text-anchor="middle">*</text>')
+    s.append('</svg>')
+    return "".join(s)
+
+legend_fjs = (f'<div style="display:flex;justify-content:center;gap:32px;margin-top:6px;align-items:center;flex-wrap:wrap;">'
+  f'<span style="display:inline-flex;align-items:center;gap:9px;font-family:{FSANS};font-weight:700;font-size:16px;color:{NAVY};"><span style="width:28px;border-top:3px solid {NAVY};"></span>FA · funcional</span>'
+  f'<span style="display:inline-flex;align-items:center;gap:9px;font-family:{FSANS};font-weight:700;font-size:16px;color:{MUTE};"><span style="width:28px;border-top:3px dashed {MUTE};"></span>MA · mecánica</span>'
+  f'<span style="font-family:{FSANS};font-weight:800;font-size:16px;color:{RED};">&#42; p&lt;0,05</span></div>')
+
+# ---------- CPAK phenotype grid cell (EVIDENTIA redraw of distribution data) ----------
+def cpak_cell(t, p, hi=False):
+    op = min(0.30, p/110.0)
+    bg = 'rgba(190,155,73,0.22)' if hi else f'rgba(23,41,77,{op:.3f})'
+    br = f'2px solid {GOLD}' if hi else '1px solid rgba(23,41,77,0.14)'
+    pcol = '#8A6D2A' if hi else NAVY
+    return (f'<div style="background:{bg};border:{br};padding:15px 6px;text-align:center;">'
+            f'<div style="font-family:{FSERIF};font-size:21px;color:{MUTE};line-height:1;">{t}</div>'
+            f'<div style="font-family:{FSANS};font-weight:800;font-size:33px;color:{pcol};letter-spacing:-1px;margin-top:3px;">{p}%</div></div>')
+
 # ============================================================
 # 01 · COVER
 add(f"""
@@ -217,14 +263,31 @@ add(f"""
   {whyline('Diferencia absoluta <b>49%</b> (IC95% ≈ 38–60%): <b>lejos del 0</b>, grande y coherente con la mecánica de FA. Esta sí es creíble: FA equilibra la rodilla cortando menos tejido.', lead='Aquí sí:')}
 """, kind="content")
 
-# 09 · THE SUBGROUP TRAP (CPAK Type I)
+# 09 · THE SUBGROUP — EVIDENTIA redraw of the article's FJS-over-time figure
 add(f"""
-  <div class="kick">La trampa del subgrupo</div>
-  <h1 class="h-lg">El subgrupo que<br><span class="gd" style="color:{GOLD};">brilla.</span></h1>
-  {dvd(300)}
-  <p class="lead" style="text-align:center;max-width:880px;">En rodillas <b>CPAK tipo I</b>, FA sí superó a MA (FJS 71,3 vs 56,8; P=0,02). Tentador… pero es un <b>análisis de subgrupo</b> tras un primario negativo.</p>
-  <div class="flag" style="margin-left:auto;margin-right:auto;">Los subgrupos <b>generan hipótesis</b>, no las confirman: a más cortes de datos, más falsos positivos. Es una pista, no una prueba.</div>
-""", kind="statement")
+  <div class="kick" style="text-align:center;width:100%;">La trampa del subgrupo · la curva lo dice</div>
+  <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:2px;">Global empata; el <span class="gd" style="color:{GOLD};">subgrupo</span> separa.</h1>
+  <div style="display:flex;justify-content:center;gap:24px;width:100%;margin-top:8px;">
+    <div>{fjs_lines([26,53,58,70],[23,47,56,65],[False,False,False,False],'Global · todos (n=244)')}</div>
+    <div>{fjs_lines([29,56,56,71],[19,38,38,57],[False,True,True,True],'Subgrupo CPAK I (n=68)')}</div>
+  </div>
+  {legend_fjs}
+  <p class="tieline" style="margin-top:10px;">En <b>todos</b>, las curvas casi se tocan (ns). Solo en <b>CPAK I</b> se separan (*) — pero su IC es <b>ancho</b> (≈ +1 a +28): pista, no prueba.</p>
+  <p class="checknote" style="text-align:center;width:100%;">Gráfico original EVIDENTIA con los datos de Young SW et&nbsp;al., <i>J Arthroplasty</i> 2025 (PMID 40023458).</p>
+""", kind="content")
+
+# 10 · CPAK phenotype map — EVIDENTIA redraw of the distribution data
+_cpak = [('I',27.8,True),('II',32.8,False),('III',13.5,False),('IV',7.5,False),('V',12.7,False),('VI',4.9,False),('VII',0.4,False),('VIII',0.0,False),('IX',0.0,False)]
+cpak_html = "".join(cpak_cell(t,p,hi) for t,p,hi in _cpak)
+add(f"""
+  <div class="kick" style="text-align:center;width:100%;">¿Quién era el subgrupo? · fenotipos CPAK</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">El mapa de <span class="gd" style="color:{GOLD};">rodillas.</span></h1>
+  <div style="display:flex;justify-content:center;margin:6px 0 14px;width:100%;">{dvd(300)}</div>
+  <div style="display:grid;grid-template-columns:repeat(3,158px);gap:10px;justify-content:center;">{cpak_html}</div>
+  <div style="font-family:{FSANS};font-weight:600;font-size:15px;color:{MUTE};text-align:center;margin-top:12px;letter-spacing:0.5px;">↑ oblicuidad de la línea articular &nbsp;·&nbsp; HKA: varo ← → valgo</div>
+  <p class="tieline">El subgrupo que ganó —CPAK <b style="color:{GOLD};">I</b>— era el <b>27,8%</b> (n=68). El beneficio se concentró en <b>un</b> fenotipo, no en todos.</p>
+  <p class="checknote" style="text-align:center;width:100%;">Distribución de Young SW et&nbsp;al., <i>J Arthroplasty</i> 2025 (PMID 40023458); gráfico original EVIDENTIA.</p>
+""", kind="content")
 
 # 10 · THE EPIDEMIOLOGIST'S VERDICT
 add(f"""

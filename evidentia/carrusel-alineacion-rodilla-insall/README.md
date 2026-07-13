@@ -17,16 +17,22 @@ Datos clave (ECA asistido por robot, MA n=121 vs FA n=123, 2 años):
 - Secundarios a favor de FA: KOOS síntomas (P=0,01), KOOS-CdV (P=0,03), «lo recomendaría» 94% vs 82%.
 - Subgrupo CPAK tipo I: FJS 71,3 vs 56,8 (P=0,02) — hipótesis, no confirmación.
 
-## Arco (12 láminas)
+## Arco (13 láminas)
 
 1 Portada (hook «gold standard ¿en duda?») · 2 Ficha del artículo · 3 Concepto MA vs FA (esquema del eje) ·
 4 El diseño (desenlace primario = FJS) · 5 **El giro: primario NS (P=0,10)** ·
 6 **El intervalo de confianza del primario** (barra IC95% que cruza el 0 y queda bajo la MCID) ·
 7 **Forest plot** (primario + secundarios con su IC95%; solo el primario cruza el 0) ·
-8 El hallazgo sólido (menos liberaciones, IC95% ≈ 38–60%) · 9 La trampa del subgrupo (CPAK I) ·
-10 **La lupa del epidemiólogo + cirujano: 5 preguntas duras** (cegamiento/sesgo en PROMs · poder y error β ·
+8 El hallazgo sólido (menos liberaciones, IC95% ≈ 38–60%) ·
+9 **Curva FJS en el tiempo** (redibujo original: global sin separación vs subgrupo CPAK I con `*`) ·
+10 **Mapa de fenotipos CPAK** (redibujo original de la distribución; CPAK I = 27,8%, n=68) ·
+11 **La lupa del epidemiólogo + cirujano: 5 preguntas duras** (cegamiento/sesgo en PROMs · poder y error β ·
 subgrupo pre-especificado vs post-hoc · desenlace subrogado · financiación/conflictos) + certeza tipo GRADE ·
-11 Cuatro conclusiones (chuleta) · 12 Cierre + pregunta de debate.
+12 Cuatro conclusiones (chuleta) · 13 Cierre + pregunta de debate.
+
+**Nota sobre figuras:** las curvas y el mapa CPAK (láminas 9–10) son **redibujos originales de
+EVIDENTIA a partir de los datos** del artículo (medias, n, %). No se reproducen las figuras con
+copyright de Elsevier; se visualizan los datos, que no están protegidos.
 
 ### Sobre los intervalos de confianza
 El artículo (revista de suscripción, no en PMC) reporta medias ± DE y valores p, pero no publica
