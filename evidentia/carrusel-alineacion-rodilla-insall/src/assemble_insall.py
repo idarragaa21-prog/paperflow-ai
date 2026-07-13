@@ -93,6 +93,44 @@ def leg_axis(mode, w=250):
       <circle cx="100" cy="230" r="4" fill="{NAVY}"/>
     </svg>"""
 
+# ---------- SVG: forest plot / confidence-interval chart ----------
+def _fx(v, xmin, xmax, x0, x1):
+    return x0 + (v - xmin) / (xmax - xmin) * (x1 - x0)
+
+def forest(rows, xmin, xmax, mcid=None, w=940, rowh=150, pad_l=310, pad_r=60, pad_t=92, pad_b=86, tick=5):
+    x0, x1 = pad_l, w - pad_r
+    H = pad_t + rowh * len(rows) + pad_b
+    axis_y = H - pad_b
+    def X(v): return _fx(v, xmin, xmax, x0, x1)
+    s = [f'<svg viewBox="0 0 {w} {H}" width="{w}" style="display:block;margin:0 auto;max-width:100%;height:auto;">']
+    s.append(f'<line x1="{x0}" y1="{axis_y}" x2="{x1}" y2="{axis_y}" stroke="{NAVY}" stroke-width="2"/>')
+    t = xmin
+    while t <= xmax + 0.001:
+        tx = X(t); lab = '0' if abs(t) < 0.01 else f'{int(t):+d}'
+        s.append(f'<line x1="{tx:.1f}" y1="{axis_y}" x2="{tx:.1f}" y2="{axis_y+7}" stroke="{NAVY}" stroke-width="1.4"/>')
+        s.append(f'<text x="{tx:.1f}" y="{axis_y+31}" font-family="{FSANS}" font-size="17" fill="{MUTE}" text-anchor="middle">{lab}</text>')
+        t += tick
+    nx = X(0)
+    if mcid is not None:
+        mx = X(mcid)
+        s.append(f'<rect x="{nx:.1f}" y="{pad_t-2:.1f}" width="{mx-nx:.1f}" height="{axis_y-pad_t+2:.1f}" fill="{GOLD}" opacity="0.08"/>')
+        s.append(f'<line x1="{mx:.1f}" y1="{pad_t-4:.1f}" x2="{mx:.1f}" y2="{axis_y}" stroke="{GOLD}" stroke-width="2.2" stroke-dasharray="3 5"/>')
+        s.append(f'<text x="{mx:.1f}" y="{pad_t-14:.1f}" font-family="{FSANS}" font-size="15" font-weight="700" fill="#8A6D2A" text-anchor="middle">MCID · se percibe</text>')
+    s.append(f'<line x1="{nx:.1f}" y1="{pad_t-4:.1f}" x2="{nx:.1f}" y2="{axis_y}" stroke="{RED}" stroke-width="2.2" stroke-dasharray="5 5"/>')
+    s.append(f'<text x="{nx:.1f}" y="{pad_t-14:.1f}" font-family="{FSANS}" font-size="15" font-weight="700" fill="{RED}" text-anchor="middle">0 · sin diferencia</text>')
+    for i, r in enumerate(rows):
+        label, lo, pt, hi, crosses = r
+        cy = pad_t + rowh * i + rowh/2
+        col = RED if crosses else NAVY
+        s.append(f'<text x="{x0-24}" y="{cy-3:.1f}" font-family="{FSANS}" font-size="21" font-weight="800" fill="{NAVY}" text-anchor="end">{label}</text>')
+        s.append(f'<text x="{x0-24}" y="{cy+23:.1f}" font-family="{FSANS}" font-size="15" fill="{MUTE}" text-anchor="end">IC95% {lo:+.1f} a {hi:+.1f}</text>')
+        s.append(f'<line x1="{X(lo):.1f}" y1="{cy:.1f}" x2="{X(hi):.1f}" y2="{cy:.1f}" stroke="{col}" stroke-width="4"/>')
+        for xv in (lo, hi):
+            s.append(f'<line x1="{X(xv):.1f}" y1="{cy-11:.1f}" x2="{X(xv):.1f}" y2="{cy+11:.1f}" stroke="{col}" stroke-width="3.4"/>')
+        s.append(f'<circle cx="{X(pt):.1f}" cy="{cy:.1f}" r="10" fill="{col}"/>')
+    s.append('</svg>')
+    return "".join(s)
+
 # ============================================================
 # 01 · COVER
 add(f"""
@@ -152,17 +190,22 @@ add(f"""
   {whyline('En el desenlace que el propio estudio eligió para juzgarse, las dos alineaciones fueron <b>estadísticamente iguales</b>. El titular «FA es mejor» NO sale de aquí.', lead='Ojo:')}
 """, kind="content")
 
-# 06 · WHERE DID "FA WINS" COME FROM?
+# 06 · THE PRIMARY CONFIDENCE INTERVAL (la p no basta)
 add(f"""
-  <div class="kick" style="text-align:center;width:100%;">Entonces, ¿de dónde sale el titular?</div>
-  <h1 class="h-md" style="text-align:center;width:100%;">De lo <span class="gd" style="color:{GOLD};">secundario.</span></h1>
-  <div style="display:flex;justify-content:center;margin:6px 0 12px;width:100%;">{dvd(300)}</div>
-  <div style="width:100%;text-align:left;max-width:920px;margin:0 auto;">
-    {trow('KOOS síntomas', '86,6 vs 82,5 &nbsp;<b>(P=0,01)</b>')}
-    {trow('KOOS calidad de vida', '76,1 vs 70,7 &nbsp;<b>(P=0,03)</b>')}
-    {trow('«Lo recomendaría»', '94% vs 82% &nbsp;<b>(P&lt;0,01)</b>', hi=True)}
-  </div>
-  <p class="tieline">Reales y a favor de FA — pero son <b>secundarios</b>. Con muchas comparaciones, algunas salen «p&lt;0,05» por azar.</p>
+  <div class="kick" style="text-align:center;width:100%;">La «p» no basta · mira el intervalo</div>
+  <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:4px;">¿Cuánto mejor, <span class="gd" style="color:{GOLD};">de verdad?</span></h1>
+  <div style="max-width:900px;margin:8px auto 0;">{forest([("FJS · func. vs mec.", -1.3, 5.7, 12.7, True)], -4, 18, mcid=14)}</div>
+  {whyline('La diferencia fue <b>+5,7</b> puntos, pero su intervalo <b>cruza el 0</b> (podría no existir) y <b>todo</b> queda por debajo de la MCID (~14): ni en su mejor caso el paciente lo notaría.', lead='Léelo así:')}
+  <p class="checknote" style="text-align:center;width:100%;max-width:840px;">IC 95% reconstruido de las medias y DE publicadas (aprox.).</p>
+""", kind="content")
+
+# 07 · FOREST PLOT — all outcomes with their CIs
+add(f"""
+  <div class="kick" style="text-align:center;width:100%;">Todos los desenlaces, con su intervalo</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">El <span class="gd" style="color:{GOLD};">bosque</span> de intervalos.</h1>
+  <div style="max-width:930px;margin:10px auto 0;">{forest([("FJS · primario", -1.3, 5.7, 12.7, True), ("KOOS síntomas", 0.7, 4.1, 7.5, False), ("KOOS calidad vida", 0.0, 5.4, 10.8, False)], -4, 14)}</div>
+  <p class="tieline">Solo el <b>primario</b> (FJS) cruza el 0. Los secundarios lo excluyen <b>por poco</b> — y sin ajustar por comparaciones múltiples.</p>
+  <p class="checknote" style="text-align:center;width:100%;">IC 95% reconstruidos (aprox.) · escalas 0–100 · a favor de FA →</p>
 """, kind="content")
 
 # 07 · THE ONE ROBUST WIN — soft-tissue releases
@@ -171,17 +214,8 @@ add(f"""
   <h1 class="h-md" style="text-align:center;width:100%;margin-bottom:2px;">Menos cortes en<br>partes <span class="gd" style="color:{GOLD};">blandas.</span></h1>
   {twocard('Mecánica','65%','liberaciones','Funcional','16%','liberaciones', l_accent=RED, r_accent=GOLD)}
   <div style="font-family:{FSANS};font-weight:800;font-size:26px;color:{NAVY};text-align:center;margin-top:16px;">P &lt; 0,001</div>
-  {whyline('Efecto <b>grande</b>, <b>coherente</b> con la mecánica de FA y en la misma dirección que su hipótesis. Esta diferencia sí es creíble: FA logra el balance cortando menos tejido.', lead='Aquí sí:')}
+  {whyline('Diferencia absoluta <b>49%</b> (IC95% ≈ 38–60%): <b>lejos del 0</b>, grande y coherente con la mecánica de FA. Esta sí es creíble: FA equilibra la rodilla cortando menos tejido.', lead='Aquí sí:')}
 """, kind="content")
-
-# 08 · SIGNIFICANCE != RELEVANCE (MCID on FJS)
-add(f"""
-  <div class="kick">Aunque hubiera «ganado»…</div>
-  <h1 class="h-lg">¿6 puntos se <span class="gd" style="color:{GOLD};">notan?</span></h1>
-  {dvd(300)}
-  <p class="lead" style="text-align:center;max-width:880px;">La diferencia de FJS fue de ~6 puntos. La <b>mínima diferencia que un paciente percibe</b> (MCID) del FJS ronda los <b>14 puntos</b>. Aunque hubiera dado significativa, quizá no la sentiría.</p>
-  <div class="flag" style="margin-left:auto;margin-right:auto;">Significativo ≠ importante. Pregunta siempre por la <b>MCID</b>, no solo por la «p».</div>
-""", kind="statement")
 
 # 09 · THE SUBGROUP TRAP (CPAK Type I)
 add(f"""
@@ -202,16 +236,16 @@ add(f"""
       <div class="ct" style="color:{NAVY};">Fortalezas</div>
       <div class="cs">por qué creerle</div>
       <p>ECA aleatorizado, precisión robótica.</p>
-      <p>Menos liberaciones: efecto grande y consistente.</p>
+      <p>Primario preespecificado; menos liberaciones (efecto grande).</p>
     </div></div>
     <div class="col"><div class="cr">
       <div class="ct" style="color:{RED};">Límites</div>
       <div class="cs">por qué dudar</div>
-      <p>Primario <b>negativo</b>; el «triunfo» es secundario/subgrupo.</p>
-      <p>2 años: corto para durabilidad; unicéntrico.</p>
+      <p>Primario <b>negativo</b>; IC del FJS cruza 0 y bajo la MCID.</p>
+      <p>Secundarios/subgrupo <b>sin ajuste</b> por multiplicidad; 2 años, unicéntrico.</p>
     </div></div>
   </div>
-  <p class="tieline">Certeza <b>moderada</b>: FA no es «mejor», pero equilibra la rodilla cortando menos tejido.</p>
+  <p class="tieline">Certeza <b>moderada</b> (tipo GRADE): FA no es «mejor», pero equilibra la rodilla cortando menos tejido.</p>
 """, kind="content")
 
 # 11 · APPLY — what you take to the OR
@@ -220,7 +254,7 @@ add(f"""
   <h1 class="h-md" style="text-align:center;width:100%;">Cuatro <span class="gd" style="color:{GOLD};">conclusiones.</span></h1>
   {guarda()}
   <div style="width:100%;text-align:left;max-width:940px;margin:14px auto 0;">
-    {trow('1', 'FA <b>no superó</b> a MA en el desenlace que importaba (FJS a 2 años).')}
+    {trow('1', 'Mira el <b>IC 95%</b>, no solo la «p»: el del FJS cruza el 0 y queda bajo la MCID.')}
     {trow('2', 'Sí logra el balance con <b>menos liberaciones</b> de partes blandas.', hi=True)}
     {trow('3', 'El beneficio en CPAK tipo I es una <b>hipótesis</b>, no una indicación.')}
     {trow('4', 'Faltan datos de <b>durabilidad</b> (>10 años) antes de cambiar tu estándar.')}

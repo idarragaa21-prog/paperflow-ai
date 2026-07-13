@@ -20,10 +20,19 @@ Datos clave (ECA asistido por robot, MA n=121 vs FA n=123, 2 años):
 ## Arco (12 láminas)
 
 1 Portada (hook «gold standard ¿en duda?») · 2 Ficha del artículo · 3 Concepto MA vs FA (esquema del eje) ·
-4 El diseño (desenlace primario = FJS) · 5 **El giro: primario NS (P=0,10)** · 6 De dónde sale el titular (secundarios) ·
-7 El hallazgo sólido (menos liberaciones) · 8 Significativo ≠ importante (MCID del FJS ~14) ·
-9 La trampa del subgrupo (CPAK I) · 10 La lectura del epidemiólogo · 11 Cuatro conclusiones (chuleta) ·
+4 El diseño (desenlace primario = FJS) · 5 **El giro: primario NS (P=0,10)** ·
+6 **El intervalo de confianza del primario** (barra IC95% que cruza el 0 y queda bajo la MCID) ·
+7 **Forest plot** (primario + secundarios con su IC95%; solo el primario cruza el 0) ·
+8 El hallazgo sólido (menos liberaciones, IC95% ≈ 38–60%) · 9 La trampa del subgrupo (CPAK I) ·
+10 La lectura del epidemiólogo (incluye multiplicidad + certeza tipo GRADE) · 11 Cuatro conclusiones (chuleta) ·
 12 Cierre + pregunta de debate.
+
+### Sobre los intervalos de confianza
+El artículo (revista de suscripción, no en PMC) reporta medias ± DE y valores p, pero no publica
+los IC de las diferencias entre grupos. Los IC95% de las láminas 6–8 se **reconstruyeron** a partir
+de las medias, DE y n publicados (error estándar de la diferencia → ±1,96·EE) y se etiquetan como
+«reconstruidos (aprox.)». Valores clave: FJS +5,7 (IC95% −1,3 a +12,7 — cruza 0); KOOS síntomas
++4,1 (+0,7 a +7,5); KOOS-CdV +5,4 (~0,0 a +10,8); liberaciones RD 49% (≈ 38–60%).
 
 ## Imaginería
 

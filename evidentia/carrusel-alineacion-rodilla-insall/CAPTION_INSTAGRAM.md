@@ -14,7 +14,9 @@ El ECA (asistido por robot, 244 rodillas) comparó ambas técnicas. ¿El resulta
 
 Entonces, ¿de dónde sale el «FA es mejor»? De desenlaces **secundarios** (KOOS, «lo recomendaría») y de un **subgrupo** (CPAK tipo I). Reales, pero generan hipótesis — no las confirman.
 
-Lo que SÍ es sólido: FA necesitó **muchas menos liberaciones** de partes blandas (16% vs 65%, P<0,001). Efecto grande y coherente con su mecánica.
+Mira el **intervalo de confianza**, no solo la p: la diferencia del FJS fue +5,7 puntos, pero su **IC95% cruza el 0** y queda por debajo de la **MCID (~14)** — ni en su mejor caso el paciente lo notaría.
+
+Lo que SÍ es sólido: FA necesitó **muchas menos liberaciones** de partes blandas (16% vs 65%; diferencia 49%, IC95% ≈ 38–60% — lejos del 0). Efecto grande y coherente con su mecánica.
 
 📌 **Guárdalo** para tu próxima sesión bibliográfica: es un caso de manual de «primario negativo, titular positivo».
 
