@@ -228,24 +228,17 @@ add(f"""
 
 # 10 · THE EPIDEMIOLOGIST'S VERDICT
 add(f"""
-  <div class="kick" style="text-align:center;width:100%;">La lectura del epidemiólogo</div>
-  <h1 class="h-md" style="text-align:center;width:100%;">Sólido, pero <span class="gd" style="color:{GOLD};">leído con lupa.</span></h1>
-  <div style="display:flex;justify-content:center;margin:6px 0 20px;width:100%;">{dvd(300)}</div>
-  <div class="cols2">
-    <div class="col"><div class="cr">
-      <div class="ct" style="color:{NAVY};">Fortalezas</div>
-      <div class="cs">por qué creerle</div>
-      <p>ECA aleatorizado, precisión robótica.</p>
-      <p>Primario preespecificado; menos liberaciones (efecto grande).</p>
-    </div></div>
-    <div class="col"><div class="cr">
-      <div class="ct" style="color:{RED};">Límites</div>
-      <div class="cs">por qué dudar</div>
-      <p>Primario <b>negativo</b>; IC del FJS cruza 0 y bajo la MCID.</p>
-      <p>Secundarios/subgrupo <b>sin ajuste</b> por multiplicidad; 2 años, unicéntrico.</p>
-    </div></div>
+  <div class="kick" style="text-align:center;width:100%;">Cómo lo leo yo · epidemiólogo + cirujano</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">La lupa: 5 preguntas <span class="gd" style="color:{GOLD};">duras.</span></h1>
+  <div style="display:flex;justify-content:center;margin:6px 0 14px;width:100%;">{dvd(300)}</div>
+  <div style="width:100%;text-align:left;max-width:948px;margin:0 auto;">
+    {trow('¿Cegamiento?', 'los «triunfos» son PROMs <b>subjetivos</b>: cabe sesgo de expectativa.', hi=True)}
+    {trow('¿Poder?', '«no significativo» ≠ «igual»: el IC no descarta un beneficio pequeño (error β).')}
+    {trow('¿Subgrupo?', 'CPAK tipo I: si es <b>post-hoc</b>, genera hipótesis — no las prueba.')}
+    {trow('¿Desenlace duro?', 'FJS/KOOS a 2 años son <b>subrogados</b>; falta revisión y supervivencia.')}
+    {trow('¿Financiación?', 'cirugía robótica: revisa <b>patrocinio y conflictos</b> de interés.')}
   </div>
-  <p class="tieline">Certeza <b>moderada</b> (tipo GRADE): FA no es «mejor», pero equilibra la rodilla cortando menos tejido.</p>
+  <p class="tieline">Buen ECA — pero el titular exige más prueba que la que da. Certeza <b>moderada</b> (GRADE).</p>
 """, kind="content")
 
 # 11 · APPLY — what you take to the OR

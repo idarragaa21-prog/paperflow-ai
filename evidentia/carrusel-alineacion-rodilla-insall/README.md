@@ -24,8 +24,9 @@ Datos clave (ECA asistido por robot, MA n=121 vs FA n=123, 2 años):
 6 **El intervalo de confianza del primario** (barra IC95% que cruza el 0 y queda bajo la MCID) ·
 7 **Forest plot** (primario + secundarios con su IC95%; solo el primario cruza el 0) ·
 8 El hallazgo sólido (menos liberaciones, IC95% ≈ 38–60%) · 9 La trampa del subgrupo (CPAK I) ·
-10 La lectura del epidemiólogo (incluye multiplicidad + certeza tipo GRADE) · 11 Cuatro conclusiones (chuleta) ·
-12 Cierre + pregunta de debate.
+10 **La lupa del epidemiólogo + cirujano: 5 preguntas duras** (cegamiento/sesgo en PROMs · poder y error β ·
+subgrupo pre-especificado vs post-hoc · desenlace subrogado · financiación/conflictos) + certeza tipo GRADE ·
+11 Cuatro conclusiones (chuleta) · 12 Cierre + pregunta de debate.
 
 ### Sobre los intervalos de confianza
 El artículo (revista de suscripción, no en PMC) reporta medias ± DE y valores p, pero no publica
