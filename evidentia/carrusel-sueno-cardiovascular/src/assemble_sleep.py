@@ -3,7 +3,7 @@ SKILL='/home/user/paperflow-ai/.claude/skills/evidentia-carousel'
 src = open(f'{SKILL}/build_deck.py').read()
 prefix = src.split('SL=[]')[0]
 prefix = prefix.replace('OUT=_os.path.join(HERE, "out"); TOTAL=13',
-                        'OUT=_os.path.join(HERE, "sleep_out"); TOTAL=11')
+                        'OUT=_os.path.join(HERE, "sleep_out"); TOTAL=12')
 prefix = re.sub(r'# ---- CONTENT IMAGES.*?LIG  = data_uri\("example_assets/anat_ligaments.png"\)\n',
                 'FIG = {}\n', prefix, flags=re.S)
 
@@ -14,47 +14,31 @@ SL=[]
 def add(body,dark=False,kind="content"): SL.append((body,dark,kind))
 
 def whyline(txt, lead="¿Por qué?"):
-    return (f'<div style="font-family:{FBODY};font-size:24px;color:{BODY};line-height:1.35;max-width:850px;'
+    return (f'<div style="font-family:{FBODY};font-size:24px;color:{BODY};line-height:1.35;max-width:860px;'
             f'margin:14px auto 0;text-align:center;"><b style="color:{NAVY};">{lead}</b> {txt}</div>')
 
 def trow(a, b, hi=False):
     ac = GOLD if hi else NAVY
-    return (f'<div style="display:grid;grid-template-columns:0.62fr 1.38fr;gap:22px;padding:15px 0;'
+    return (f'<div style="display:grid;grid-template-columns:0.55fr 1.45fr;gap:22px;padding:14px 0;'
             f'border-bottom:1px solid rgba(23,41,77,0.12);align-items:baseline;">'
-            f'<div style="font-family:{FSANS};font-weight:800;font-size:19px;color:{ac};letter-spacing:0.3px;">{a}</div>'
-            f'<div style="font-family:{FBODY};font-size:23px;color:{BODY};line-height:1.32;">{b}</div></div>')
+            f'<div style="font-family:{FSANS};font-weight:800;font-size:18px;color:{ac};letter-spacing:0.2px;">{a}</div>'
+            f'<div style="font-family:{FBODY};font-size:22px;color:{BODY};line-height:1.32;">{b}</div></div>')
 
-def twocard(l_title,l_big,l_sub,r_title,r_big,r_sub,l_accent=None,r_accent=None):
-    l_accent=l_accent or RED; r_accent=r_accent or NAVY
-    def card(t,b,s,a):
-        return (f'<div style="flex:1;border-top:3px solid {a};padding:18px 8px 4px;text-align:center;">'
-                f'<div style="font-family:{FSANS};font-weight:700;font-size:15px;letter-spacing:2px;text-transform:uppercase;color:{a};">{t}</div>'
-                f'<div style="font-family:{FSANS};font-weight:800;font-size:62px;letter-spacing:-2px;color:{NAVY};margin:8px 0 2px;">{b}</div>'
-                f'<div style="font-family:{FBODY};font-size:22px;color:{BODY};line-height:1.3;">{s}</div></div>')
-    return (f'<div style="display:flex;gap:34px;width:100%;max-width:900px;margin:6px auto 0;">'
-            f'{card(l_title,l_big,l_sub,l_accent)}{card(r_title,r_big,r_sub,r_accent)}</div>')
-
-# clock face pointing to 10:00
 def clock(R=150):
-    cx=cy=160; r=120
-    ticks=""
+    cx=cy=160; r=120; ticks=""
     for h in range(12):
         a=math.radians(h*30)
         x1=cx+math.sin(a)*(r-6); y1=cy-math.cos(a)*(r-6)
         x2=cx+math.sin(a)*(r-18); y2=cy-math.cos(a)*(r-18)
         ticks+=f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{NAVY}" stroke-width="3"/>'
-    ah=math.radians(300)  # 10 o'clock
-    hx=cx+math.sin(ah)*68; hy=cy-math.cos(ah)*68
-    mx=cx; my=cy-92
+    ah=math.radians(300); hx=cx+math.sin(ah)*68; hy=cy-math.cos(ah)*68; mx=cx; my=cy-92
     return (f'<svg viewBox="0 0 320 320" width="{R}" height="{R}">'
             f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{NAVY}" stroke-width="5"/>'
-            f'<circle cx="{cx}" cy="{cy}" r="{r+14}" fill="none" stroke="{GOLD}" stroke-width="2" opacity="0.6"/>'
-            f'{ticks}'
+            f'<circle cx="{cx}" cy="{cy}" r="{r+14}" fill="none" stroke="{GOLD}" stroke-width="2" opacity="0.6"/>{ticks}'
             f'<line x1="{cx}" y1="{cy}" x2="{hx:.1f}" y2="{hy:.1f}" stroke="{GOLD}" stroke-width="7" stroke-linecap="round"/>'
             f'<line x1="{cx}" y1="{cy}" x2="{mx}" y2="{my}" stroke="{NAVY}" stroke-width="5" stroke-linecap="round"/>'
             f'<circle cx="{cx}" cy="{cy}" r="8" fill="{NAVY}"/></svg>')
 
-# U-shaped HR-by-bedtime curve (EVIDENTIA redraw of the article data)
 def ucurve(W=920, H=440):
     pad_l,pad_r,pad_t,pad_b = 74,46,54,64
     x0,x1=pad_l,W-pad_r; y0,y1=H-pad_b,pad_t
@@ -64,7 +48,6 @@ def ucurve(W=920, H=440):
     hr=[1.24,1.00,1.12,1.25]; lo=[1.10,None,1.01,1.02]; hi=[1.39,None,1.25,1.52]
     labs=['antes 10pm','10–11pm','11–12pm','≥12am']
     s=[f'<svg viewBox="0 0 {W} {H}" width="{W}" style="display:block;margin:0 auto;max-width:100%;height:auto;">']
-    # faint "more risk" band above HR=1
     s.append(f'<rect x="{x0}" y="{y1}" width="{x1-x0}" height="{Y(1.0)-y1:.1f}" fill="{RED}" opacity="0.05"/>')
     for v in [1.0,1.2,1.4,1.6]:
         yy=Y(v)
@@ -95,11 +78,11 @@ def ucurve(W=920, H=440):
 # ============================================================
 # 01 COVER
 add(f"""
-  <div class="kick" style="margin-top:6px;">Lectura crítica · Sueño &amp; corazón</div>
+  <div class="kick" style="margin-top:6px;">Lectura crítica · qué dice el estudio</div>
   <h1 class="h-md" style="margin-bottom:6px;line-height:1.08;">«Duérmete a las 10 pm<br>por tu <span class="rd" style="color:{RED};">corazón</span>».</h1>
-  <div style="margin:14px 0 6px;">{clock(190)}</div>
-  <p class="sub" style="max-width:820px;">Un titular viral de un estudio del <b style="color:{NAVY};font-weight:700;">UK Biobank</b>. ¿Ciencia… o una correlación disfrazada de consejo?</p>
-  <div style="margin-top:18px;font-family:{FSANS};font-weight:700;font-size:15px;letter-spacing:3px;text-transform:uppercase;color:{GOLD};display:flex;align-items:center;gap:12px;justify-content:center;"><span style="width:46px;height:2px;background:{GOLD};"></span>Léelo como epidemiólogo<span style="font-size:20px;">→</span></div>
+  <div style="margin:14px 0 6px;">{clock(184)}</div>
+  <p class="sub" style="max-width:840px;">El titular salió de este estudio del <b style="color:{NAVY};font-weight:700;">UK Biobank</b>. Veamos qué dice —y qué <b>no</b>— el propio artículo.</p>
+  <div style="margin-top:18px;font-family:{FSANS};font-weight:700;font-size:15px;letter-spacing:3px;text-transform:uppercase;color:{GOLD};display:flex;align-items:center;gap:12px;justify-content:center;"><span style="width:46px;height:2px;background:{GOLD};"></span>Método y resultados<span style="font-size:20px;">→</span></div>
 """, kind="cover")
 
 # 02 ARTICLE CARD
@@ -111,98 +94,114 @@ add(f"""
     <div class="au">Nikbakhtian S, Reed AB, Obika BD, Morelli D, Cunningham AC, Aral M, Plans D.</div>
     <div class="mt">Eur Heart J Digital Health · 2021;2(4):658–666 &nbsp;·&nbsp; DOI 10.1093/ehjdh/ztab088 &nbsp;·&nbsp; PMID 36713092</div>
     <div class="rule"></div>
-    <div><span class="badge"><span class="d"></span>Cohorte OBSERVACIONAL</span><span class="tg">UK Biobank · n = 103.712 · acelerómetro 7 días.</span></div>
+    <div><span class="badge"><span class="d"></span>Cohorte prospectiva</span><span class="tg">UK Biobank · 88.026 analizados (de 103.712 con acelerómetro).</span></div>
   </div>
 """, kind="content")
 
-# 03 THE FINDING — U curve
+# 03 METHOD — exposure
 add(f"""
-  <div class="kick" style="text-align:center;width:100%;">El hallazgo · la curva en U</div>
-  <h1 class="h-md" style="text-align:center;width:100%;">Las 10–11 pm: el <span class="gd" style="color:{GOLD};">«punto dulce».</span></h1>
-  <div style="max-width:920px;margin:8px auto 0;">{ucurve()}</div>
-  <p class="tieline">Dormirse <b>antes de las 10</b> o <b>después de medianoche</b> se asoció a más enfermedad cardiovascular. El valle: 10–11 pm.</p>
-  <p class="checknote" style="text-align:center;width:100%;">HR ajustados vs 10–11 pm · 103.712 personas, 3.172 casos, 5,7 años · gráfico original EVIDENTIA (datos: Nikbakhtian 2021).</p>
-""", kind="content")
-
-# 04 THE DESIGN — association not causation
-add(f"""
-  <div class="kick">El diseño lo cambia todo</div>
-  <h1 class="h-lg">Es una cohorte:<br>mide <span class="gd" style="color:{GOLD};">asociación</span>, no causa.</h1>
+  <div class="kick">El método · cómo midieron el sueño</div>
+  <h1 class="h-lg">Un acelerómetro,<br><span class="gd" style="color:{GOLD};">7 días.</span></h1>
   {dvd(300)}
-  <p class="lead" style="text-align:center;max-width:880px;">Nadie asignó una hora de dormir: solo <b>observaron</b> quién se acuesta cuándo y quién enferma. Una asociación puede ser real y, aun así, no significar que <b>cambiar</b> tu hora cambie tu riesgo.</p>
-  <div class="flag" style="margin-left:auto;margin-right:auto;"><b>Asociación ≠ causalidad.</b> La primera pregunta ante cualquier titular de salud.</div>
+  <p class="lead" style="text-align:center;max-width:880px;">Acelerómetro de muñeca (Axivity AX3) durante <b>7 días</b>. La «hora de dormir» se definió como el punto medio del mayor periodo sin movimiento, calculado con el algoritmo GGIR / HDCZA.</p>
+  <div class="flag" style="margin-left:auto;margin-right:auto;">Medición <b>objetiva</b> (no cuestionario): una fortaleza real del estudio. El propio artículo advierte que 7 días no equivalen al hábito de años.</div>
 """, kind="statement")
 
-# 05 CONFOUNDING
+# 04 METHOD — outcome & model
 add(f"""
-  <div class="kick">Sospechoso #1 · confusión</div>
-  <h1 class="h-lg">¿Y si no es la hora…<br>sino <span class="gd" style="color:{GOLD};">quién</span> duerme a esa hora?</h1>
-  {dvd(300)}
-  <p class="lead" style="text-align:center;max-width:880px;">Quien se acuesta muy tarde (o muy temprano) suele diferir en muchas cosas: <b>turnos, depresión, alcohol, sedentarismo, enfermedad previa, nivel socioeconómico</b>. Eso —no la hora— podría explicar el riesgo.</p>
-  <div class="flag" style="margin-left:auto;margin-right:auto;">Ajustaron varios factores, pero <b>siempre</b> queda confusión residual: nunca se mide todo.</div>
-""", kind="statement")
-
-# 06 REVERSE CAUSALITY
-add(f"""
-  <div class="kick">Sospechoso #2 · causalidad inversa</div>
-  <h1 class="h-lg">¿La hora daña el corazón…<br>o el corazón <span class="gd" style="color:{GOLD};">cambia</span> la hora?</h1>
-  {dvd(300)}
-  <p class="lead" style="text-align:center;max-width:880px;">Una enfermedad aún <b>no diagnosticada</b> puede alterar el sueño. Y aquí el sueño se midió <b>una sola semana</b>, al inicio — no durante los 5,7 años de seguimiento.</p>
-  <div class="flag" style="margin-left:auto;margin-right:auto;">En un observacional, la flecha causal puede ir <b>al revés</b>.</div>
-""", kind="statement")
-
-# 07 NUMBERS IN PERSPECTIVE
-add(f"""
-  <div class="kick" style="text-align:center;width:100%;">Pon el número en perspectiva</div>
-  <h1 class="h-md" style="text-align:center;width:100%;">Modesto, y con el IC <span class="gd" style="color:{GOLD};">rozando el 1.</span></h1>
-  <div style="display:flex;justify-content:center;margin:8px 0 6px;width:100%;">{dvd(300)}</div>
-  <div style="width:100%;text-align:left;max-width:900px;margin:0 auto;">
-    {trow('Antes de 10 pm', 'HR 1,24 &nbsp;(IC 1,10–1,39) &nbsp;· p&lt;0,005', hi=True)}
-    {trow('11 – 12 pm', 'HR 1,12 &nbsp;(IC 1,01–1,25) &nbsp;· p=0,04')}
-    {trow('≥ 12 am', 'HR 1,25 &nbsp;(IC 1,02–1,52) &nbsp;· p=0,03')}
-  </div>
-  {whyline('Dos de los tres IC casi <b>tocan el 1</b>. Y en absoluto: solo ~3 de cada 100 desarrollaron ECV en 5,7 años. Señal modesta.', lead='Léelo así:')}
-""", kind="content")
-
-# 08 CONFLICT OF INTEREST
-add(f"""
-  <div class="kick">Sospechoso #3 · ¿quién lo firma?</div>
-  <h1 class="h-lg">Casi todos los autores<br>venden <span class="gd" style="color:{GOLD};">wearables.</span></h1>
-  {dvd(300)}
-  <p class="lead" style="text-align:center;max-width:880px;">La mayoría son de <b>Huma Therapeutics</b>, una empresa de salud digital. ¿Su conclusión? Que los relojes «pueden servir como <b>indicador de riesgo cardiovascular</b>».</p>
-  <div class="flag" style="margin-left:auto;margin-right:auto;">No invalida el dato — pero el <b>encuadre comercial</b> pide leerlo con más cautela. Revisa siempre conflictos y financiación.</div>
-""", kind="statement")
-
-# 09 SEX SUBGROUP
-add(f"""
-  <div class="kick">El matiz del subgrupo</div>
-  <h1 class="h-lg">Más fuerte en <span class="gd" style="color:{GOLD};">mujeres.</span></h1>
-  {dvd(300)}
-  <p class="lead" style="text-align:center;max-width:880px;">La asociación fue clara en mujeres; en hombres solo «antes de las 10» alcanzó significación. Interesante — pero es un <b>análisis de subgrupo</b>: hipótesis a confirmar, no conclusión.</p>
-""", kind="statement")
-
-# 10 APPLY / VERDICT
-add(f"""
-  <div class="kick" style="text-align:center;width:100%;">Qué me llevo</div>
-  <h1 class="h-md" style="text-align:center;width:100%;">Interesante, no una <span class="gd" style="color:{GOLD};">receta.</span></h1>
+  <div class="kick" style="text-align:center;width:100%;">El método · desenlace y modelo</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">Qué contaron y cómo lo <span class="gd" style="color:{GOLD};">ajustaron.</span></h1>
   <div style="display:flex;justify-content:center;margin:8px 0 6px;width:100%;">{dvd(300)}</div>
   <div style="width:100%;text-align:left;max-width:940px;margin:0 auto;">
-    {trow('1', 'Es una <b>asociación observacional</b>: no prueba que mover tu hora mueva tu riesgo.')}
-    {trow('2', 'Dormir <b>regular y suficiente</b> sí tiene evidencia; la hora exacta, mucho menos.')}
-    {trow('3', 'Confusión + causalidad inversa + conflicto de interés: tres frenos al titular «causa».')}
-    {trow('4', 'Útil como <b>hipótesis</b> y demo de wearables — no como consejo médico.', hi=True)}
+    {trow('Desenlace', 'ECV incidente: infarto, insuficiencia cardiaca, cardiopatía isquémica, ictus y AIT. <b>No</b> incluye muertes cardiovasculares.')}
+    {trow('Análisis', 'Riesgos proporcionales de Cox. Referencia = dormir 10–11 pm.')}
+    {trow('Modelo 2', 'ajusta por duración e irregularidad del sueño + IMC, diabetes, HTA, tabaco, colesterol, cronotipo, privación social y presión arterial.', hi=True)}
+  </div>
+  <p class="tieline">3.172 casos de ECV en un seguimiento medio de 5,7 años.</p>
+""", kind="content")
+
+# 05 THE FINDING — U curve
+add(f"""
+  <div class="kick" style="text-align:center;width:100%;">El resultado · la curva en U</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">Menor incidencia entre las <span class="gd" style="color:{GOLD};">10 y 11 pm.</span></h1>
+  <div style="max-width:920px;margin:6px auto 0;">{ucurve()}</div>
+  <p class="tieline">El estudio reporta una relación en <b>U</b>: dormirse antes de las 10 o después de medianoche se asoció a más ECV.</p>
+  <p class="checknote" style="text-align:center;width:100%;">HR del Modelo 2 (totalmente ajustado) vs 10–11 pm · redibujo EVIDENTIA de los datos (Nikbakhtian 2021).</p>
+""", kind="content")
+
+# 06 CONFOUNDING (neutral, anchored)
+add(f"""
+  <div class="kick">¿Qué ajustaron… y qué no?</div>
+  <h1 class="h-lg">El ajuste llega hasta<br>donde llegan los <span class="gd" style="color:{GOLD};">datos.</span></h1>
+  {dvd(300)}
+  <p class="lead" style="text-align:center;max-width:880px;">La asociación <b>persistió</b> tras ajustar por duración e irregularidad del sueño y los factores de riesgo clásicos. Pero un modelo solo controla lo que se mide — y los autores señalan que <b>no pudieron incluir antecedentes familiares</b>.</p>
+  <div class="flag" style="margin-left:auto;margin-right:auto;">En un estudio observacional, siempre puede quedar <b>confusión residual</b> por lo no medido.</div>
+""", kind="statement")
+
+# 07 REVERSE CAUSALITY (credit their sensitivity analysis)
+add(f"""
+  <div class="kick">Causalidad inversa · lo que hicieron</div>
+  <h1 class="h-lg">¿Y si la enfermedad<br>cambia el <span class="gd" style="color:{GOLD};">sueño?</span></h1>
+  {dvd(300)}
+  <p class="lead" style="text-align:center;max-width:880px;">Para descartar que una ECV aún no diagnosticada alterara el sueño, los autores <b>repitieron el análisis excluyendo los primeros 12–18 meses</b> de seguimiento. La asociación se mantuvo.</p>
+  <div class="flag" style="margin-left:auto;margin-right:auto;">Un control razonable — aunque medir el sueño <b>una sola semana</b> sigue siendo una limitación del diseño.</div>
+""", kind="statement")
+
+# 08 NUMBERS IN PERSPECTIVE
+add(f"""
+  <div class="kick" style="text-align:center;width:100%;">Los números, en perspectiva</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">Modesto, y con el IC <span class="gd" style="color:{GOLD};">cerca del 1.</span></h1>
+  <div style="display:flex;justify-content:center;margin:8px 0 6px;width:100%;">{dvd(300)}</div>
+  <div style="width:100%;text-align:left;max-width:900px;margin:0 auto;">
+    {trow('Antes de 10 pm', 'HR 1,24 &nbsp;(IC 1,10–1,39) · p&lt;0,005', hi=True)}
+    {trow('11 – 12 pm', 'HR 1,12 &nbsp;(IC 1,01–1,25) · p=0,04')}
+    {trow('≥ 12 am', 'HR 1,25 &nbsp;(IC 1,02–1,52) · p=0,03')}
+  </div>
+  {whyline('Dos de los tres IC casi tocan el 1. En incidencia: 2,78 (10–11 pm) frente a 4,29 (≥12 am) por 100 personas-año; 3,58% en 5,7 años.', lead='En contexto:')}
+""", kind="content")
+
+# 09 SEX SUBGROUP (pre-planned sensitivity)
+add(f"""
+  <div class="kick" style="text-align:center;width:100%;">Análisis por sexo · sensibilidad</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">La asociación fue mayor en <span class="gd" style="color:{GOLD};">mujeres.</span></h1>
+  <div style="display:flex;justify-content:center;margin:8px 0 6px;width:100%;">{dvd(300)}</div>
+  <div style="width:100%;text-align:left;max-width:920px;margin:0 auto;">
+    {trow('Mujeres', 'ECV: ≥12 am HR 1,63 (1,20–2,21); &lt;10 pm HR 1,34 (1,11–1,61).', hi=True)}
+    {trow('Hombres', 'solo &lt;10 pm alcanzó significación: HR 1,17 (1,01–1,35).')}
+  </div>
+  <p class="tieline">Análisis estratificado por sexo (Modelo 2). Un patrón interesante — a confirmar en otras poblaciones.</p>
+""", kind="content")
+
+# 10 THE ARTICLE'S OWN LIMITATIONS
+add(f"""
+  <div class="kick" style="text-align:center;width:100%;">Lo que reconoce el propio estudio</div>
+  <h1 class="h-md" style="text-align:center;width:100%;">Sus límites, en sus <span class="gd" style="color:{GOLD};">palabras.</span></h1>
+  <div style="display:flex;justify-content:center;margin:8px 0 6px;width:100%;">{dvd(300)}</div>
+  <div style="width:100%;text-align:left;max-width:940px;margin:0 auto;">
+    {trow('Población', 'UK Biobank es «más sana y acomodada» (mayormente británica blanca): puede no generalizar.')}
+    {trow('Grupo &lt;10 pm', 'pequeño → los autores dicen que «debilita» la conclusión de la curva en U.', hi=True)}
+    {trow('Medición', '7 días no representan el hábito; sin antecedentes familiares; actigrafía imperfecta (c=0,83).')}
   </div>
 """, kind="content")
 
-# 11 CLOSE
+# 11 FUNDING / COI + authors' own conclusion
+add(f"""
+  <div class="kick">Financiación y conflicto · declarado</div>
+  <h1 class="h-lg">Quién lo financia<br>(y qué <span class="gd" style="color:{GOLD};">concluyen).</span></h1>
+  {dvd(300)}
+  <p class="lead" style="text-align:center;max-width:880px;">Financiado por <b>Huma Therapeutics</b>; los 7 autores son empleados de Huma. El artículo declara que el financiador <b>no participó</b> en el análisis ni en la redacción.</p>
+  <div class="flag" style="margin-left:auto;margin-right:auto;">Los propios autores concluyen que los hallazgos <b>«no muestran causalidad»</b> y «sugieren la posibilidad» de una relación; los wearables «podrían servir» como indicador de riesgo.</div>
+""", kind="statement")
+
+# 12 CLOSE
 add(f"""
   <div class="kick" style="color:{GOLD};">Conclusión</div>
-  <h1 class="h-lg">¿Causa… o<br><span class="gd" style="color:{GOLD};">costumbre?</span></h1>
+  <h1 class="h-lg">Asociación sólida.<br>Causa, <span class="gd" style="color:{GOLD};">no probada.</span></h1>
   {dvd(300)}
-  <p class="sub" style="max-width:840px;">Un dato llamativo del UK Biobank — pero el titular corrió más rápido que la evidencia.</p>
-  <div class="qbox" style="margin-top:32px;max-width:900px;">
+  <p class="sub" style="max-width:850px;">Resistió el ajuste y los análisis de sensibilidad — pero es observacional. Genera hipótesis; los propios autores piden más investigación.</p>
+  <div class="qbox" style="margin-top:30px;max-width:900px;">
     <div class="qk">Para el debate</div>
-    <p>¿Cuántos «consejos de salud» virales son, en realidad, estudios <b style="color:{GOLD};">observacionales</b> disfrazados de causa?</p></div>
+    <p>¿Cómo distingues una asociación que <b style="color:{GOLD};">resiste el ajuste</b>… de una recomendación <b style="color:{GOLD};">causal?</b></p></div>
 """, dark=True, kind="dark")
 
 for i,(body,dark,kind) in enumerate(SL,1):
@@ -210,4 +209,4 @@ for i,(body,dark,kind) in enumerate(SL,1):
 print("wrote", len(SL))
 '''
 open('/tmp/claude-0/-home-user-paperflow-ai/4f54a4a0-d991-5143-a8e1-7d66d4325c51/scratchpad/build_sleep.py','w').write(prefix + content)
-print("assembled build_sleep.py")
+print("assembled neutral article-anchored build_sleep.py")
